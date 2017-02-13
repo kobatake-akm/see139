@@ -33,7 +33,7 @@
 
 // Set DRI or Polling
 #ifndef AK0991X_USE_DRI
-#define AK0991X_USE_DRI               0
+#define AK0991X_USE_DRI               1
 #endif
 
 // Set IRQ_TYPE
@@ -114,7 +114,7 @@ typedef enum
 #define AK0991X_FIFO_BYTE_SIZE    AK09915_FIFO_SIZE * AK0991X_NUM_DATA_HXL_TO_ST2 + 1
 
 /** FIFO setting */
-#define AK0991X_ENABLE_FIFO     0
+#define AK0991X_ENABLE_FIFO     1
 
 /** NSF setting */
 #define AK0991X_NSF             0

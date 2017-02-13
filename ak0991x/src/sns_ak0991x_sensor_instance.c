@@ -494,12 +494,18 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
        desired_report_rate = desired_sample_rate;
      }
 
+     diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"sample_rate=%f report_rate=%f wmk=%d",desired_sample_rate,desired_report_rate,desired_wmk);
+     rv = ak0991x_mag_match_odr(desired_sample_rate,
+                                 &mag_chosen_sample_rate,
+                                 &mag_chosen_sample_rate_reg_value,
+                                 state->mag_info.device_select);
+ 
      if((AK0991X_ENABLE_FIFO == 1) && (state->mag_info.use_dri))
      {
        if(desired_report_rate != 0)
        {
          desired_wmk = (int16_t)(mag_chosen_sample_rate / desired_report_rate);
-         diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+         diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"desired_wmk=%d",desired_wmk);
        }
 
        switch(state->mag_info.device_select)
@@ -515,7 +521,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
          case AK09915C:
          case AK09915D:
            if (AK09915_FIFO_SIZE <= desired_wmk) {
-             desired_wmk = AK09915_FIFO_SIZE;
+             desired_wmk = AK09915_FIFO_SIZE - 1;
            }
            break;
          default:
@@ -525,17 +531,12 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
      state->mag_info.cur_wmk = desired_wmk;
      }
 
-     diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"sample_rate=%f report_rate=%f wmk=%d",desired_sample_rate,desired_report_rate,desired_wmk);
-     rv = ak0991x_mag_match_odr(desired_sample_rate,
-                                 &mag_chosen_sample_rate,
-                                 &mag_chosen_sample_rate_reg_value,
-                                 state->mag_info.device_select);
-     if(rv != SNS_RC_SUCCESS)
+    if(rv != SNS_RC_SUCCESS)
      {
        // TODO Unsupported rate. Report error using sns_std_error_event.
        // return rv;
      }
-     diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"%s rate=%f rate_reg=%d",__FUNCTION__,mag_chosen_sample_rate, mag_chosen_sample_rate_reg_value);
+     diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"%s rate=%f rate_reg=%d desired_wmk=%d",__FUNCTION__,mag_chosen_sample_rate, mag_chosen_sample_rate_reg_value,desired_wmk);
  
      state->mag_req.sample_rate = mag_chosen_sample_rate;
      state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
