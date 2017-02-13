@@ -47,7 +47,7 @@
 #define NUM_TEST_ITERATIONS 20
 #else
 /* for on-target test */
-#define NUM_EVENTS_TO_PROCESS 10000
+#define NUM_EVENTS_TO_PROCESS 100
 #define NUM_TEST_ITERATIONS 1
 #endif
 
@@ -353,12 +353,12 @@ sns_test_stop_sensor_stream(sns_sensor* const this)
     diag->api->sensor_printf(diag, this, SNS_HIGH, __FILENAME__, __LINE__,
                              "removing stream for %s",
                              state->suid_search[0].data_type_str);
-    sns_service_manager* service_mgr = this->cb->get_service_manager(this);
-    sns_stream_service* stream_mgr =
-        (sns_stream_service*)service_mgr->get_service(service_mgr,
-                                                      SNS_STREAM_SERVICE);
-    stream_mgr->api->remove_stream(stream_mgr, state->sensor_stream);
-    state->sensor_stream = NULL;
+//    sns_service_manager* service_mgr = this->cb->get_service_manager(this);
+//    sns_stream_service* stream_mgr =
+//        (sns_stream_service*)service_mgr->get_service(service_mgr,
+//                                                      SNS_STREAM_SERVICE);
+//    stream_mgr->api->remove_stream(stream_mgr, state->sensor_stream);
+//    state->sensor_stream = NULL;
   }
 }
 
