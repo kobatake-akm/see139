@@ -1,0 +1,322 @@
+#pragma once
+/**
+ * @file sns_lsm6ds3_sensor.h
+ *
+ * LSM6DS3 Sensor implementation.
+ *
+ * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * All Rights Reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ **/
+
+#include "sns_sensor.h"
+#include "sns_attribute_service.h"
+#include "sns_data_stream.h"
+#include "sns_sensor_uid.h"
+#include "sns_pwr_rail_service.h"
+#include "sns_lsm6ds3_hal.h"
+
+#include "sns_lsm6ds3_sensor_instance.h"
+#include "sns_math_util.h"
+#include "sns_diag_service.h"
+
+#define ACCEL_SUID \
+  {  \
+    .sensor_uid =  \
+      {  \
+        0xee, 0x14, 0x9a, 0x2a, 0xac, 0x2e, 0x46, 0x2a,  \
+        0x96, 0x6a, 0x5f, 0x14, 0xea, 0xec, 0x95, 0x47  \
+      }  \
+  }
+
+#define GYRO_SUID \
+  {  \
+    .sensor_uid =  \
+      {  \
+        0x50, 0x07, 0xb9, 0xb2, 0x51, 0xa5, 0x45, 0x59,  \
+        0xaf, 0x78, 0xca, 0x6a, 0xc3, 0x80, 0x1e, 0xa8  \
+      }  \
+  }
+
+#define MOTION_ACCEL_SUID \
+  {  \
+    .sensor_uid =  \
+      {  \
+        0xa7, 0xef, 0x92, 0x74, 0xf4, 0x0d, 0x45, 0xe9,  \
+        0xa8, 0x11, 0xe6, 0xea, 0x7e, 0x5d, 0xa6, 0xb5  \
+      }  \
+  }
+
+#define SENSOR_TEMPERATURE_SUID \
+  {  \
+    .sensor_uid =  \
+      {  \
+        0xea, 0xc4, 0xcc, 0x53, 0x0f, 0x71, 0x40, 0xed,  \
+        0x92, 0xc3, 0x99, 0x3f, 0x1a, 0xf4, 0x07, 0xaa   \
+      }  \
+  }
+
+#if LSM6DS3_USE_DEFAULTS
+/** TODO Using 8996 Platform config as defaults. This is for
+ *  test purpose only. All platform specific information will
+ *  be available to the Sensor driver via Registry. */
+#define SPI_BUS_INSTANCE               0x01
+#define RAIL_1                         "/pmic/client/sensor_vddio"
+#define RAIL_2                         "/pmic/client/sensor_vdd"
+#define I2C_BUS_FREQ                   400
+#define I2C_SLAVE_ADDRESS              0x6B
+#define IRQ_NUM                        117
+#define NUM_OF_RAILS                   2
+#define SPI_BUS_MIN_FREQ_KHZ           0      // 0MHz
+#define SPI_BUS_MAX_FREQ_KHZ           33*100 // 3MHz
+#define SPI_SLAVE_CONTROL              0x0
+#endif  // LSM6DS3_USE_DEFAULTS
+
+/** Forward Declaration of Accel Sensor API */
+sns_sensor_api lsm6ds3_accel_sensor_api;
+
+/** Forward Declaration of Gyro Sensor API */
+sns_sensor_api lsm6ds3_gyro_sensor_api;
+
+/** Forward Declaration of Motion Accel Sensor API */
+sns_sensor_api lsm6ds3_motion_accel_sensor_api;
+
+/** Forward Declaration of Sensor Temperature Sensor API */
+sns_sensor_api lsm6ds3_sensor_temp_sensor_api;
+
+/**
+ * LSM6DS3 ODR (Hz) definitions
+ */
+#define LSM6DS3_ODR_0                 0.0
+#define LSM6DS3_ODR_13                13.0
+#define LSM6DS3_ODR_26                26.0
+#define LSM6DS3_ODR_52                52.0
+#define LSM6DS3_ODR_104               104.0
+#define LSM6DS3_ODR_208               208.0
+#define LSM6DS3_ODR_416               416.0
+#define LSM6DS3_ODR_833               833.0
+#define LSM6DS3_ODR_1660              1660.0
+#define LSM6DS3_ODR_3330              3330.0
+#define LSM6DS3_ODR_6660              6660.0
+
+/**
+ * Accelerometer ranges
+ */
+#define LSM6DS3_ACCEL_RANGE_2G_MIN    (-2*G)
+#define LSM6DS3_ACCEL_RANGE_2G_MAX    (2*G)
+#define LSM6DS3_ACCEL_RANGE_4G_MIN    (-4*G)
+#define LSM6DS3_ACCEL_RANGE_4G_MAX    (4*G)
+#define LSM6DS3_ACCEL_RANGE_8G_MIN    (-8*G)
+#define LSM6DS3_ACCEL_RANGE_8G_MAX    (8*G)
+#define LSM6DS3_ACCEL_RANGE_16G_MIN   (-16*G)
+#define LSM6DS3_ACCEL_RANGE_16G_MAX   (16*G)
+
+/**
+ * Accelerometer resolutions
+ */
+#define LSM6DS3_ACCEL_RESOLUTION_2G    (0.061)
+#define LSM6DS3_ACCEL_RESOLUTION_4G    (0.122)
+#define LSM6DS3_ACCEL_RESOLUTION_8G    (0.244)
+#define LSM6DS3_ACCEL_RESOLUTION_16G   (0.488)
+
+/**
+ * Gyroscope ranges
+ */
+#define LSM6DS3_GYRO_RANGE_245_MIN    (-245 * PI /180)
+#define LSM6DS3_GYRO_RANGE_245_MAX    (245 * PI /180)
+#define LSM6DS3_GYRO_RANGE_500_MIN    (-500 * PI /180)
+#define LSM6DS3_GYRO_RANGE_500_MAX    (500 * PI /180)
+#define LSM6DS3_GYRO_RANGE_1000_MIN   (-1000 * PI /180)
+#define LSM6DS3_GYRO_RANGE_1000_MAX   (1000 * PI /180)
+#define LSM6DS3_GYRO_RANGE_2000_MIN   (-2000 * PI /180)
+#define LSM6DS3_GYRO_RANGE_2000_MAX   (2000 * PI /180)
+
+/**
+ * LSM6DS3 sensitivity for gyro in (mrad/sec)/LSB
+ */
+#define LSM6DS3_GYRO_SSTVT_245DPS   (8.75*PI/180)
+#define LSM6DS3_GYRO_SSTVT_500DPS   (17.50*PI/180)
+#define LSM6DS3_GYRO_SSTVT_1000DPS  (35.00*PI/180)
+#define LSM6DS3_GYRO_SSTVT_2000DPS  (70.00*PI/180)
+
+/**
+ * LSM6DS3 Sensor Temperature ODR (Hz) definitions
+ */
+#define LSM6DS3_SENSOR_TEMP_ODR_1        1.0
+#define LSM6DS3_SENSOR_TEMP_ODR_5        5.0
+
+/**
+ * Sensor Temprature resolution in deg Celsius/LSB
+ * 1/16 deg Celsius per LSB
+ */
+#define LSM6DS3_SENSOR_TEMPERATURE_RESOLUTION  (0.0625)
+
+/**
+ * Sensor Temperature range in deg Celsius
+ */
+#define LSM6DS3_SENSOR_TEMPERATURE_RANGE_MIN  (-40.0)
+#define LSM6DS3_SENSOR_TEMPERATURE_RANGE_MAX  (85.0)
+
+/** Supported opertating modes */
+#define LSM6DS3_LPM          "LPM"
+#define LSM6DS3_HIGH_PERF    "HIGH_PERF"
+#define LSM6DS3_NORMAL       "NORMAL"
+
+#define LSM6DS3_NUM_OF_ATTRIBUTES  (21)
+
+/** Power rail timeout States for the LSM6DS3 Sensors.*/
+typedef enum
+{
+  LSM6DS3_POWER_RAIL_PENDING_NONE,
+  LSM6DS3_POWER_RAIL_PENDING_INIT,
+  LSM6DS3_POWER_RAIL_PENDING_SET_CLIENT_REQ,
+} lsm6ds3_power_rail_pending_state;
+
+/** Interrupt Sensor State. */
+
+typedef struct lsm6ds3_state
+{
+  sns_sensor_attribute    attributes[LSM6DS3_NUM_OF_ATTRIBUTES];
+  sns_data_stream         *reg_data_stream;
+  sns_data_stream         *fw_stream;
+  sns_data_stream         *timer_stream;
+  sns_sensor_uid          reg_suid;
+  sns_sensor_uid          irq_suid;
+  sns_sensor_uid          timer_suid;
+  sns_sensor_uid          acp_suid; // Asynchronous COM Port
+  lsm6ds3_sensor_type     sensor;
+  sns_sensor_uid          my_suid;
+  lsm6ds3_com_port_info   com_port_info;
+  lsm6ds3_irq_info        irq_info;
+
+  sns_pwr_rail_service    *pwr_rail_service;
+  sns_rail_config         rail_config;
+
+  bool                    hw_is_present;
+  bool                    sensor_client_present;
+
+  lsm6ds3_power_rail_pending_state    power_rail_pend_state;
+
+  // debug
+  uint16_t                who_am_i;
+  sns_diag_service        *diag_service;
+  size_t                  encoded_event_len;
+
+} lsm6ds3_state;
+
+/** Functions shared by all LSM6DS3 Sensors */
+/**
+ * This function parses the client_request list per Sensor and
+ * determines final config for the Sensor Instance.
+ *
+ * @param[i] this          Sensor reference
+ * @param[i] instance      Sensor Instance to config
+ * @param[i] sensor_type   Sensor type
+ *
+ * @return none
+ */
+void lsm6ds3_reval_instance_config(sns_sensor *this,
+                                   sns_sensor_instance *instance,
+                                   lsm6ds3_sensor_type sensor_type);
+
+/**
+ * Sends a request to the SUID Sensor to get SUID of a dependent
+ * Sensor.
+ *
+ * @param[i] this          Sensor reference
+ * @param[i] data_type     data_type of dependent Sensor
+ * @param[i] data_type_len Length of the data_type string
+ */
+void lsm6ds3_send_suid_req(sns_sensor *this, char *const data_type,
+                           uint32_t data_type_len);
+
+/**
+ * Processes events from SUID Sensor.
+ *
+ * @param[i] this   Sensor reference
+ *
+ * @return none
+ */
+void lsm6ds3_process_suid_events(sns_sensor *const this);
+
+/**
+ * Returns Sensor attributes.
+ *
+ * @param this
+ * @param attributes_len
+ *
+ * @return sns_sensor_attribute*
+ */
+sns_sensor_attribute *lsm6ds3_get_attributes(sns_sensor const *const this,
+                                             uint32_t *attributes_len);
+
+/**
+ * Publishes Sensor attributes.
+ *
+ * @param[i] this    Sensor Reference
+ *
+ * @return none
+ */
+void lsm6ds3_publish_attributes(sns_sensor *const this);
+
+/**
+ * notify_event() Sensor API common between all LSM6DS3 Sensors.
+ *
+ * @param this    Sensor reference
+ *
+ * @return sns_rc
+ */
+sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this);
+
+/**
+ * set_client_request() Sensor API common between all LSM6DS3
+ * Sensors.
+ *
+ * @param this            Sensor reference
+ * @param exist_request   existing request
+ * @param new_request     new request
+ * @param remove          true to remove request
+ *
+ * @return sns_sensor_instance*
+ */
+sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
+                                                struct sns_request *exist_request,
+                                                struct sns_request *new_request,
+                                                bool remove);
+
+/**
+ * Initializes Gyro Sensor attributes.
+ *
+ * @param this   Sensor reference
+ *
+ * @return none
+ */
+void lsm6ds3_gyro_init_attributes(sns_sensor *const this);
+
+/**
+ * Initializes Motion Accel Sensor attributes.
+ *
+ * @param this   Sensor reference
+ *
+ * @return none
+ */
+void lsm6ds3_motion_accel_init_attributes(sns_sensor *const this);
+
+/**
+ * Initializes Accel Sensor attributes.
+ *
+ * @param this   Sensor reference
+ *
+ * @return none
+ */
+void lsm6ds3_accel_init_attributes(sns_sensor *const this);
+
+/**
+ * Initializes Sensor Temperature Sensor attributes.
+ *
+ * @param this   Sensor reference
+ *
+ * @return none
+ */
+void lsm6ds3_sensor_temp_init_attributes(sns_sensor *const this);
+
