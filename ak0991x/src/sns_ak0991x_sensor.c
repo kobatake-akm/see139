@@ -612,6 +612,7 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
       diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
       //sns_sensor_util_remove_request(instance, exist_request, this->sensor_api->get_sensor_uid(this));
+      instance->cb->remove_client_request(instance, exist_request);
       /* Assumption: The FW will call deinit() on the instance before destroying it.
                    Putting all HW resources (sensor HW, COM port, power rail)in
                    low power state happens in Instance deinit().*/
@@ -621,12 +622,13 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
      ak0991x_instance_state *inst_state =
       (ak0991x_instance_state*)instance->state->state;
 
-     inst_state->instance_is_ready_to_configure = false;
-     sns_sensor *sensor;
+    sns_sensor *sensor;
      for(sensor = this->cb->get_library_sensor(this, true);
          NULL != sensor;
          sensor = this->cb->get_library_sensor(this, false))
      {
+       diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
+
        ak0991x_state *sensor_state = (ak0991x_state*)sensor->state->state;
        if(sensor_state->rail_config.rail_vote != SNS_RAIL_OFF)
        {
@@ -637,6 +639,7 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
                                                                          NULL);
        }
      }
+     inst_state->instance_is_ready_to_configure = false;
     }
   }
   else//AKM_TODO, fix the comment later.
