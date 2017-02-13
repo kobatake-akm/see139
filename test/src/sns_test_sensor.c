@@ -242,7 +242,7 @@ init_attributes(sns_sensor* const this)
 
   static const char name[] = "test";
   static const char type[] = "test";
-  static const char vendor[] = "qualcomm";
+  static const char vendor[] = "template";
   static const bool available = true;
   static const uint32_t version = 1;
 
@@ -432,10 +432,14 @@ sns_test_handle_suid_event(sns_sensor* const this)
   sns_test_state* state = (sns_test_state*)this->state->state;
   sns_diag_service* diag = state->diag_service;
 
+  diag->api->sensor_printf(diag, this, SNS_MED, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   if(NULL != state->suid_stream &&
      0 < sns_process_suid_events(state->suid_stream, state->suid_search,
                                  state->search_count))
   {
+    diag->api->sensor_printf(diag, this, SNS_MED, __FILENAME__, __LINE__,__FUNCTION__);
+ 
     bool ready = true;
     uint8_t i;
     for(i = 0; i<state->search_count; i++)
@@ -444,6 +448,9 @@ sns_test_handle_suid_event(sns_sensor* const this)
                          &((sns_sensor_uid){{0}}),
                          sizeof(sns_sensor_uid)))
       {
+         diag->api->sensor_printf(diag, this, SNS_MED, __FILENAME__, __LINE__,
+                                 "%s failed",
+                                 state->suid_search[i].data_type_str);
         ready = false;
       }
       else
@@ -470,6 +477,15 @@ sns_test_notify_event(sns_sensor* const this)
 {
   sns_test_state* s = (sns_test_state*)this->state->state;
 
+  sns_service_manager *smgr= this->cb->get_service_manager(this);
+  s->diag_service = (sns_diag_service *)
+    smgr->get_service(smgr, SNS_DIAG_SERVICE);
+
+  sns_diag_service* diag = s->diag_service;
+
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+
+
   if (s->suid_stream)
   {
     /* process events from SUID sensor */
@@ -492,6 +508,14 @@ sns_test_get_attributes(sns_sensor const* const this,
 {
   sns_test_state* state = (sns_test_state*)this->state->state;
 
+  sns_service_manager *smgr= this->cb->get_service_manager(this);
+  state->diag_service = (sns_diag_service *)
+    smgr->get_service(smgr, SNS_DIAG_SERVICE);
+
+  sns_diag_service* diag = state->diag_service;
+
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+
   *attributes_len = ARR_SIZE(state->attributes);
   return state->attributes;
 }
@@ -513,6 +537,9 @@ sns_test_init(sns_sensor* const this)
 
   diag->api->sensor_printf(diag, this, SNS_MED, __FILENAME__, __LINE__,
                            "sns_test_init");
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
+                           "sns_test_init");
+
 
   state->test_sensor_create_request =
       (test_sensor_impl.create_request_func) ?

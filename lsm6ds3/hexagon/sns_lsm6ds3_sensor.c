@@ -307,6 +307,14 @@ sns_sensor_attribute *lsm6ds3_get_attributes(sns_sensor const *const this,
 {
   lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
 
+  struct sns_service_manager *smgr= this->cb->get_service_manager(this);
+  state->diag_service = (sns_diag_service *)
+    smgr->get_service(smgr, SNS_DIAG_SERVICE);
+
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+
+
   *attributes_len = ARR_SIZE(state->attributes);
   return state->attributes;
 }
@@ -813,6 +821,13 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
   sns_time delta;
   bool reval_config = false;
 
+  sns_service_manager *smgr = this->cb->get_service_manager(this);
+  state->diag_service = (sns_diag_service *)
+    smgr->get_service(smgr, SNS_DIAG_SERVICE);
+
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   if(remove)
   {
     if(NULL != instance)

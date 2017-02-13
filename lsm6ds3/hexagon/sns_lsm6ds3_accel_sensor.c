@@ -226,7 +226,17 @@ void lsm6ds3_accel_init_attributes(sns_sensor *const this)
 /* See sns_sensor::get_sensor_uid */
 static sns_sensor_uid const* lsm6ds3_accel_get_sensor_uid(sns_sensor const *const this)
 {
-  UNUSED_VAR(this);
+  //UNUSED_VAR(this);
+  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
+
+  struct sns_service_manager *smgr= this->cb->get_service_manager(this);
+  state->diag_service = (sns_diag_service *)
+    smgr->get_service(smgr, SNS_DIAG_SERVICE);
+
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+
+
   static const sns_sensor_uid sensor_uid = ACCEL_SUID;
 
   return &sensor_uid;
@@ -240,6 +250,9 @@ static sns_rc lsm6ds3_accel_init(sns_sensor *const this)
   struct sns_service_manager *smgr= this->cb->get_service_manager(this);
   state->diag_service = (sns_diag_service *)
     smgr->get_service(smgr, SNS_DIAG_SERVICE);
+
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
 
   state->sensor = LSM6DS3_ACCEL;
   state->sensor_client_present = false;
