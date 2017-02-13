@@ -229,6 +229,9 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event *event;
   sns_diag_service* diag = state->diag_service;
 
+  diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
+
+
   // Turn COM port ON
   state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
                                                                            true);
@@ -476,6 +479,14 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
   sns_rc rv = SNS_RC_SUCCESS;
   uint8_t num_samples_to_discard;
 
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+
+  state->diag_service = (sns_diag_service*)
+    service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
+
+
   // Turn COM port ON
   state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
                                                                            true);
@@ -493,6 +504,9 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
      ||
      client_request->message_id == SNS_MOTION_ACCEL_MSGID_SNS_MOTION_ACCEL_CONFIG)
   {
+    diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
+
+
      // 1. Extract sample, report rates from client_request.
      // 2. Configure sensor HW.
      // 3. sendRequest() for Timer to start/stop in case of polling using timer_data_stream.
@@ -522,6 +536,9 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
        // bad request. Return error or default report_rate to sample_rate
        desired_report_rate = desired_sample_rate;
      }
+
+     diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"report_rate=%f sample_rate=%f",desired_report_rate, desired_sample_rate);
+
 
      rv = lsm6ds3_accel_match_odr(desired_sample_rate,
                                   &accel_chosen_sample_rate,
@@ -576,6 +593,9 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
 
      if(!state->irq_info.is_registered)
      {
+        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
+
+
         sns_request irq_req;
         sns_interrupt_req irq_req_payload;
         size_t irq_req_len;
@@ -648,7 +668,10 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
           lsm6ds3_update_md_intr(this, false, true);
           lsm6ds3_set_md_config(state, false);
         }
-       lsm6ds3_set_fifo_config(state,
+        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
+
+
+        lsm6ds3_set_fifo_config(state,
                                desired_wmk,
                                accel_chosen_sample_rate_reg_value,
                                gyro_chosen_sample_rate_reg_value,
@@ -662,7 +685,10 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
        // Enable interrupt only for accel, gyro and motion accel clients
        if(state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO | LSM6DS3_MOTION_ACCEL))
        {
-         lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
+          diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
+
+
+          lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
        }
 
        // Start 1Hz Timer for Sensor Temperature
@@ -687,6 +713,9 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
   }
   else if(state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
+    diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
+
+
      // 1. Extract test type from client_request.
      // 2. Configure sensor HW for test type.
      // 3. send_request() for Timer Sensor in case test needs polling/waits.
@@ -696,6 +725,7 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
   // Turn COM port OFF
   state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
                                                                            false);
+  diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
 
   return SNS_RC_SUCCESS;
 }
@@ -710,6 +740,12 @@ static sns_rc lsm6ds3_inst_deinit(sns_sensor_instance *const this,
   sns_stream_service *stream_mgr =
       (sns_stream_service*)service_mgr->get_service(service_mgr,
                                                     SNS_STREAM_SERVICE);
+
+  state->diag_service = (sns_diag_service*)
+    service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid, SNS_ERROR, __FILENAME__, __LINE__, __FUNCTION__);
+
 
   stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
   stream_mgr->api->remove_stream(stream_mgr, state->async_com_port_data_stream);

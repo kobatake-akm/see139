@@ -91,6 +91,8 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
   sns_sensor_event *event;
   sns_diag_service* diag = state->diag_service;
 
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   if(state->fw_stream)
   {
     if((0 == sns_memcmp(&state->irq_suid, &((sns_sensor_uid){{0}}), sizeof(state->irq_suid)))
@@ -401,6 +403,15 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
   sns_sensor_uid suid;
   sns_request const *request;
 
+  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
+
+  sns_service_manager *smgr = this->cb->get_service_manager(this);
+  state->diag_service = (sns_diag_service *)
+    smgr->get_service(smgr, SNS_DIAG_SERVICE);
+
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   if(sensor_type == LSM6DS3_ACCEL)
   {
     sns_memscpy(&suid, sizeof(suid), &((sns_sensor_uid)ACCEL_SUID), sizeof(sns_sensor_uid));
@@ -408,6 +419,7 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
                 sizeof(inst_state->accel_info.suid),
                 &suid,
                 sizeof(suid));
+    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
   }
   else
   {
@@ -430,13 +442,17 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
   {
     sns_std_request decoded_request;
     sns_std_sensor_config decoded_payload;
-
+    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
     if(lsm6ds3_get_decoded_imu_request(this, request, &decoded_request, &decoded_payload))
     {
+      diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
       if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
       {
+        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
         if(lsm6ds3_get_decoded_imu_request(this, request, &decoded_request, &decoded_payload))
         {
+           diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
            if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
            {
              float report_rate;
@@ -455,6 +471,7 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
              *chosen_report_rate = SNS_MAX(*chosen_report_rate,
                                             report_rate);
              *sensor_client_present = true;
+             diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,"report_rate=%f",report_rate);
            }
            else  // TODO handle self-test request
            {
@@ -675,6 +692,15 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
   lsm6ds3_instance_state *inst_state =
      (lsm6ds3_instance_state*)instance->state->state;
 
+  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
+
+  sns_service_manager *smgr = this->cb->get_service_manager(this);
+  state->diag_service = (sns_diag_service *)
+    smgr->get_service(smgr, SNS_DIAG_SERVICE);
+
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   lsm6ds3_get_imu_config(this,
                          instance,
                          LSM6DS3_ACCEL,
@@ -713,15 +739,18 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
   // TODO: all these checks can be optimized.
   if(a_sensor_client_present)
   {
+    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
     inst_state->fifo_info.fifo_enabled |= LSM6DS3_ACCEL;
     inst_state->fifo_info.publish_sensors |= LSM6DS3_ACCEL;
   }
   else if(g_sensor_client_present || ma_sensor_client_present)
   {
+    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
     inst_state->fifo_info.publish_sensors &= ~LSM6DS3_ACCEL;
   }
   else
   {
+    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
     inst_state->fifo_info.fifo_enabled &= ~LSM6DS3_ACCEL;
     inst_state->fifo_info.publish_sensors &= ~LSM6DS3_ACCEL;
   }
@@ -801,9 +830,11 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
                                chosen_sample_rate,
                                chosen_md_enable);
   }
-
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   if(!inst_state->fifo_info.fifo_enabled)
   {
+     diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
      lsm6ds3_turn_rails_off(this);
      inst_state->instance_is_ready_to_configure = false;
   }
@@ -830,8 +861,10 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
  
   if(remove)
   {
+    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
     if(NULL != instance)
     {
+      diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
       instance->cb->remove_client_request(instance, exist_request);
       /* Assumption: The FW will call deinit() on the instance before destroying it.
                      Putting all HW resources (sensor HW, COM port, power rail)in
