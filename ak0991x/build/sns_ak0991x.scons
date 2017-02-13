@@ -1,0 +1,26 @@
+#===============================================================================
+#
+# AK0991X sensor implementation
+#
+# GENERAL DESCRIPTION
+#    build script
+#
+# Copyright (c) 2016-2017 by Qualcomm Technologies, Inc.
+# All Rights Reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+#
+#-------------------------------------------------------------------------------
+#
+#  $Id: //components/rel/ssc.slpi/3.0/sensors/ak0991x/build/sns_ak0991x.scons#5 $
+#  $DateTime: 2017/01/04 11:56:24 $
+#  $Change: 12140719 $
+#
+#===============================================================================
+Import('env')
+import inspect
+
+if 'SSC_TARGET_HEXAGON' in env['CPPDEFINES']:
+  env.AddSSCSU(inspect.getfile(inspect.currentframe()), 
+               register_func_name = "sns_register_ak0991x", 
+               binary_lib = False)
+
