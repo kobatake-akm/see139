@@ -262,17 +262,31 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
  
 #endif  //AK0991X_ENABLE_DEPENDENCY
 #if AK0991X_USE_DEFAULTS
-      state->com_port_info.com_config.bus_instance = SPI_BUS_INSTANCE;
-      state->com_port_info.com_config.bus_type = SNS_BUS_SPI;
-      state->com_port_info.com_config.max_bus_speed_KHz = SPI_BUS_MAX_FREQ_KHZ;
-      state->com_port_info.com_config.min_bus_speed_KHz = SPI_BUS_MIN_FREQ_KHZ;
-      state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
-      state->com_port_info.com_config.slave_control = SPI_SLAVE_CONTROL;
-      state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
-      state->irq_info.irq_num = IRQ_NUM;
-      state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
-      state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-      state->irq_info.is_chip_pin = true;
+      if(AK0991X_BUS_TYPE == AK0991X_SPI)
+      {
+        state->com_port_info.com_config.bus_instance = SPI_BUS_INSTANCE;
+        state->com_port_info.com_config.bus_type = SNS_BUS_SPI;
+        state->com_port_info.com_config.max_bus_speed_KHz = SPI_BUS_MAX_FREQ_KHZ;
+        state->com_port_info.com_config.min_bus_speed_KHz = SPI_BUS_MIN_FREQ_KHZ;
+        state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
+        state->com_port_info.com_config.slave_control = SPI_SLAVE_CONTROL;
+      }
+      else
+      {
+        state->com_port_info.com_config.bus_instance = I2C_BUS_INSTANCE;
+        state->com_port_info.com_config.bus_type = SNS_BUS_I2C;
+        state->com_port_info.com_config.max_bus_speed_KHz = I2C_BUS_FREQ;
+        state->com_port_info.com_config.min_bus_speed_KHz = I2C_BUS_FREQ;
+        state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
+        state->com_port_info.com_config.slave_control = I2C_SLAVE_ADDRESS;
+     }
+      //AKM_TODO, move after reading WIA
+        state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
+        state->irq_info.irq_num = IRQ_NUM;
+        state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
+        state->irq_info.irq_trigger_type = AK0991X_IRQ_TYPE;
+        state->irq_info.is_chip_pin = true;
+      
 #else   //AK0991X_USE_DEFAULTS
       //TODO update to use Registry Sensor data
 #endif  //AK0991X_USE_DEFAULTS

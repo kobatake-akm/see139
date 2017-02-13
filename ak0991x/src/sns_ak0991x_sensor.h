@@ -35,13 +35,14 @@
 /** TODO Using 8996 Platform config as defaults. This is for
  *  test purpose only. All platform specific information will
  *  be available to the Sensor driver via Registry. */
-#define SPI_BUS_INSTANCE               0x01
 #define RAIL_1                         "/pmic/client/sensor_vddio"
 #define RAIL_2                         "/pmic/client/sensor_vdd"
+#define I2C_BUS_INSTANCE               0x03
 #define I2C_BUS_FREQ                   400
 #define I2C_SLAVE_ADDRESS              0x0C
 #define IRQ_NUM                        119
 #define NUM_OF_RAILS                   2
+#define SPI_BUS_INSTANCE               0x01
 #define SPI_BUS_MIN_FREQ_KHZ           0      // 0MHz
 #define SPI_BUS_MAX_FREQ_KHZ           33*100 // 3MHz
 #define SPI_SLAVE_CONTROL              0x0

@@ -31,9 +31,26 @@
 #define AK0991X_USE_DEFAULTS          1
 #endif
 
-// Select DRI or Polling
+// Set DRI or Polling
 #ifndef AK0991X_USE_DRI
 #define AK0991X_USE_DRI               0
+#endif
+
+// Set IRQ_TYPE
+// select SNS_INTERRUPT_TRIGGER_TYPE_RISING_or SNS_INTERRUPT_TRIGGER_TYPE_FALLING 
+// if the device has interrupt-pin.
+#ifndef AK0991X_IRQ_TYPE
+#define AK0991X_IRQ_TYPE              SNS_INTERRUPT_TRIGGER_TYPE_RISING
+#endif
+
+typedef enum
+{
+  AK0991X_I2C = SNS_BUS_I2C,
+  AK0991X_SPI = SNS_BUS_SPI,
+} ak0991x_bus_type;
+// Set Serial interface
+#ifndef AK0991X_BUS_TYPE
+#define AK0991X_BUS_TYPE              AK0991X_SPI
 #endif
 
 /**

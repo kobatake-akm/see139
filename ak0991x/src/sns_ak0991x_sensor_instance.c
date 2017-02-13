@@ -698,20 +698,19 @@ static sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this,
  sns_diag_service* diag = state->diag_service;
   diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
 
-UNUSED_VAR(stream_mgr);
-//  if(state->timer_stream_is_created)
-//  {
-//    stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-//    state->timer_stream_is_created = false;
-//  }
-//
-//  stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
-//
-//  stream_mgr->api->remove_stream(stream_mgr, state->async_com_port_data_stream);
-//
-//  state->com_port_info.port_handle->com_port_api->sns_scp_close(state->com_port_info.port_handle);
-//  sns_scp_deregister_com_port(state->com_port_info.port_handle);
-//
+  if(state->timer_stream_is_created)
+  {
+    stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
+    state->timer_stream_is_created = false;
+  }
+
+  stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
+
+  stream_mgr->api->remove_stream(stream_mgr, state->async_com_port_data_stream);
+
+  state->com_port_info.port_handle->com_port_api->sns_scp_close(state->com_port_info.port_handle);
+  sns_scp_deregister_com_port(state->com_port_info.port_handle);
+
   return SNS_RC_SUCCESS;
 }
 
