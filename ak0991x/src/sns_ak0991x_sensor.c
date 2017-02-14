@@ -644,19 +644,20 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
      inst_state->instance_is_ready_to_configure = false;
     }
   }
-  else//AKM_TODO, fix the comment later.
+  else
   {
      // 1. If new request then:
      //     a. Power ON rails.
      //     b. Power ON COM port - Instance must handle COM port power.
      //     c. Create new instance.
-     //     d. set_client_config for this instance.
-     //     e. Add curr_request to list of sns_request - FW does this.
-     //     f. Power OFF COM port if not needed- Instance must handle COM port power.
-     //     f. Return the Instance.
+     //     d. Re-evaluate existing requests and choose appropriate instance config.
+     //     e. set_client_config for this instance.
+     //     f. Add new_request to list of requests handled by the Instance.
+     //     h. Power OFF COM port if not needed- Instance must handle COM port power.
+     //     g. Return the Instance.
      // 2. If there is an Instance already present:
-     //     a. Add curr_request to list of sns_request - FW does this.
-     //     b. Remove old_request from list of sns_request.
+     //     a. Add new_request to list of requests handled by the Instance.
+     //     b. Remove exist_request from list of requests handled by the Instance.
      //     c. Re-evaluate existing requests and choose appropriate instance config.
      //     d. set_client_config for the instance if not the same as current config.
      //     e. publish the updated config
@@ -694,7 +695,7 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
                                          AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ);
  
         }
-        else//AKM_TODO, this is needed?
+        else
         {
           // rail is already ON
           reval_config = true;
@@ -718,7 +719,7 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
         if(0)  // flush_req
         {
            // TODO Flush FIFO samples.
-
+           ak0991x_flush_fifo(instance);
            instance = NULL;
         }
         else
