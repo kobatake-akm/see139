@@ -393,31 +393,6 @@ sns_rc ak0991x_get_fifo_data(sns_sync_com_port_handle *port_handle,
   return rv;
 }
 
-//test
-sns_rc ak0991x_get_test(sns_sync_com_port_handle *port_handle,
-                            uint8_t *buffer)
-{
-  sns_rc rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
-
-  rv = ak0991x_com_read_wrapper(port_handle,
-                   //         AKM_AK0991X_REG_ST1,
-                            AKM_AK0991X_REG_CNTL2,
-                            buffer,
-                            1,
-                            &xfer_bytes);
-
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != 1)
-  {
-    rv = SNS_RC_FAILED;
-  }
-
-  return rv;
-}
-
-
 
 /**
  * see sns_ak0991x_hal.h
@@ -572,42 +547,6 @@ static void ak0991x_log_sensor_state_submit(
       sensor_state_type);
   }
 }
-
-/**
- * Add hardware interrupt information to Sensor State HW 
- * Interrupt Log.
- *  
- * @param[i] log_info   Pointer to logging information 
- *                      pertaining to the sensor
- * @param[i] hw_int     Type of hardware interrupt
- * @param[i] timestamp  Timestamp when the interrupt occurred
- */
-//static sns_rc ak0991x_log_sensor_state_hw_int_add(
-//  log_sensor_state_info *log_info,
-//  sns_diag_hw_int hw_int,
-//  sns_time timestamp)
-//{
-//  sns_rc rc = SNS_RC_SUCCESS;
-//  sns_diag_sensor_state_hw_int sensor_state_hw_int =
-//    sns_diag_sensor_state_hw_int_init_default;
-//
-//  if(NULL == log_info->log)
-//  {
-//    return SNS_RC_NOT_SUPPORTED;
-//  }
-//
-//  sensor_state_hw_int.hw_int = hw_int;
-//  sensor_state_hw_int.timestamp = timestamp;
-//
-//  if(!pb_encode(&log_info->log_stream,
-//                sns_diag_sensor_state_hw_int_fields,
-//                &sensor_state_hw_int))
-//  {
-//    rc = SNS_RC_FAILED;
-//  }
-//
-//  return rc;
-//}
 
 /**
  * Add raw uncalibrated sensor data to Sensor State Raw log 
@@ -805,50 +744,21 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
        (sns_event_service*)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
  
   sns_diag_service* diag = state->diag_service;
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"%s reg_addr=%d",__FUNCTION__,vector->reg_addr);
 
   if(AKM_AK0991X_REG_ST1 == vector->reg_addr)
   { 
     uint32_t i;
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
     log_sensor_state_raw_info log_mag_state_raw_info;
-    //pb_ostream_t stream_mag;
-    //void *logpkt_mag = NULL;
-    //bool logging_mag_enabled = false;
-    //log_data ldata_mag;
-    //sns_memzero(&ldata_mag, sizeof(ldata_mag));
     sns_time timestamp;
     uint16_t num_samples = state->mag_info.cur_wmk;
 
-    // allocate memory for sensor state log packet
-    //logpkt_mag = diag->api->alloc_log(diag, instance,
-    //                                  &state->mag_info.suid,
-    //                                  diag->api->get_max_log_size(diag));
     sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
     ak0991x_log_sensor_state_alloc(
       diag,
       instance,
       &state->mag_info.suid,
       &log_mag_state_raw_info.log_info);
-
-//    if(NULL != logpkt_mag)
-//    {
-//     diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-//
-//     stream_mag = pb_ostream_from_buffer((pb_byte_t*)logpkt_mag,
-//                                          diag->api->get_max_log_size(diag));
-//      logging_mag_enabled = true;
-//    }
-//    else
-//    {
-//      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-//
-//      // logging for this sensor is disabled or no memory available
-//      logging_mag_enabled = false;
-//    }
-
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
     sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
@@ -864,8 +774,6 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
       {
         timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * num_samples);
       }
-     
-      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"timestamp=%lld num_samples=%d state->int_timestamp=%lld interval=%lld ",timestamp, num_samples, state->interrupt_timestamp, sample_interval_ticks);
 
       ak0991x_handle_mag_sample( &vector->buffer[i],
                                  timestamp,
@@ -873,13 +781,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                  event_service,
                                  state,
                                  &log_mag_state_raw_info);
-                                 //&stream_mag,
-                                 //logging_mag_enabled,
-                                 //&ldata_mag);
       num_samples--;
-
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"ST1=%x mag_sample=%x %x %x %x %x %x TEMP=%x ST2=%x",vector->buffer[0], vector->buffer[i],vector->buffer[i+1],vector->buffer[i+2],vector->buffer[i+3],vector->buffer[i+4],vector->buffer[i+5],vector->buffer[i+6],vector->buffer[i+7]);
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"data=%f %f %f",state->m_stream_event[0], state->m_stream_event[1], state->m_stream_event[2]);
     }
 
     state->this_is_first_data = false;
@@ -890,126 +792,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                         &state->mag_info.suid,
                                         &log_mag_state_raw_info);
  
-    //if(logging_mag_enabled)
-    //{
-    //  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    //  ldata_mag.sample_type = sns_std_diag_sensor_state_sample_batch_sample_type_only;
-    //  ak0991x_log_add_sample(&stream_mag,&ldata_mag);
-
-    //  diag->api->submit_log(diag,instance,
-    //                                &state->mag_info.suid,
-    //                                stream_mag.bytes_written,
-    //                                logpkt_mag);
-    //}
   }
-}
-
-
-void ak0991x_process_mag_data_buffer_for_fifo(sns_sensor_instance *const instance,
-                                              uint8_t *buffer)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-     sns_service_manager *service_manager =
-       instance->cb->get_service_manager(instance);
-    sns_event_service *event_service =
-       (sns_event_service*)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
-
-  state->diag_service = (sns_diag_service*)
-    service_manager->get_service(service_manager, SNS_DIAG_SERVICE);
-  sns_diag_service* diag = state->diag_service;
-
-    uint32_t i;
-
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    log_sensor_state_raw_info log_mag_state_raw_info;
-
-    //pb_ostream_t stream_mag;
-    //void *logpkt_mag = NULL;
-    //bool logging_mag_enabled = false;
-    //log_data ldata_mag;
-    //sns_memzero(&ldata_mag, sizeof(ldata_mag));
-    sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-    ak0991x_log_sensor_state_alloc(
-      diag,
-      instance,
-      &state->mag_info.suid,
-      &log_mag_state_raw_info.log_info);
-
-    sns_time timestamp;
-    uint16_t num_samples = 0;
-
-    // allocate memory for sensor state log packet
-    //logpkt_mag = diag->api->alloc_log(diag, instance,
-    //                                  &state->mag_info.suid,
-    //                                  diag->api->get_max_log_size(diag));
-    //if(NULL != logpkt_mag)
-    //{
-    // diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    // stream_mag = pb_ostream_from_buffer((pb_byte_t*)logpkt_mag,
-    //                                      diag->api->get_max_log_size(diag));
-    //  logging_mag_enabled = true;
-    //}
-    //else
-    //{
-    //  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    //  // logging for this sensor is disabled or no memory available
-    //  logging_mag_enabled = false;
-    //}
-
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-
-    sns_time interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) / (state->num_samples);
-
-    for(i = 0; i < state->num_samples; i++)
-    {
-      if(state->this_is_first_data)
-      {
-        timestamp = state->interrupt_timestamp - (sample_interval_ticks * (state->mag_info.cur_wmk - num_samples));
-      }
-      else
-      {
-        timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * (state->mag_info.cur_wmk - num_samples));
-      }
- 
-      ak0991x_handle_mag_sample( &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 1],
-                                 timestamp,
-                                 instance,
-                                 event_service,
-                                 state,
-                                 &log_mag_state_raw_info);
-                                 //&stream_mag,
-                                 //logging_mag_enabled,
-                                 //&ldata_mag);
-      num_samples++;
-
-      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"timestamp=%lld num_samples=%d state->int_timestamp=%lld interval=%lld ",timestamp, num_samples, state->interrupt_timestamp, sample_interval_ticks);
-    }
- 
-    state->this_is_first_data = false;
-    state->pre_timestamp = state->interrupt_timestamp;
- 
-    ak0991x_log_sensor_state_raw_submit(diag,
-                                        instance,
-                                        &state->mag_info.suid,
-                                        &log_mag_state_raw_info);
-    //if(logging_mag_enabled)
-    //{
-    //  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    //  ldata_mag.sample_type = sns_std_diag_sensor_state_sample_batch_sample_type_only;
-    //  ak0991x_log_add_sample(&stream_mag,&ldata_mag);
-
-    //  diag->api->submit_log(diag,instance,
-    //                                &state->mag_info.suid,
-    //                                stream_mag.bytes_written,
-    //                                logpkt_mag);
-    //}
 }
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
@@ -1034,35 +817,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
     diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-    //pb_ostream_t stream_mag;
-    //void *logpkt_mag = NULL;
-    //bool logging_mag_enabled = false;
-    //log_data ldata_mag;
-    //sns_memzero(&ldata_mag, sizeof(ldata_mag));
     sns_time timestamp;
     uint16_t num_samples = 0;
-
-    // allocate memory for sensor state log packet
-    //logpkt_mag = diag->api->alloc_log(diag, instance,
-    //                                  &state->mag_info.suid,
-    //                                  diag->api->get_max_log_size(diag));
-    //if(NULL != logpkt_mag)
-    //{
-    // diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    // stream_mag = pb_ostream_from_buffer((pb_byte_t*)logpkt_mag,
-    //                                      diag->api->get_max_log_size(diag));
-    //  logging_mag_enabled = true;
-    //}
-    //else
-    //{
-    //  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    //  // logging for this sensor is disabled or no memory available
-    //  logging_mag_enabled = false;
-    //}
-
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
     uint8_t buffer[200];
 
@@ -1070,8 +826,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     for(i = 0; i < state->mag_info.max_fifo_size; i++) {
       ak0991x_get_fifo_data(state->com_port_info.port_handle,
                                &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"mag_sample=%x %x %x %x %x %x TEMP=%x ST2=%x", buffer[i*8],buffer[i*8+1],buffer[i*8+2],buffer[i*8+3],buffer[i*8+4],buffer[i*8+5],buffer[i*8+6],buffer[i*AK0991X_NUM_DATA_HXL_TO_ST2+7]);
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"data=%f %f %f",state->m_stream_event[0], state->m_stream_event[1], state->m_stream_event[2]);
  
       if(buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] == AK0991X_INV_FIFO_DATA) {
         //fifo buffer is clear
@@ -1115,17 +869,12 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
         timestamp = state->pre_timestamp + (sample_interval_ticks * (i + 1));
       }
 
-      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"i=%d timestamp=%lld num_samples=%d state->int_timestamp=%lld",i, timestamp, num_samples, state->interrupt_timestamp);
-
       ak0991x_handle_mag_sample( &buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * i],
                                  timestamp,
                                  instance,
                                  event_service,
                                  state,
                                  &log_mag_state_raw_info);
-                                 //&stream_mag,
-                                 //logging_mag_enabled,
-                                 //&ldata_mag);
     }
 
     if (num_samples != 0)
@@ -1147,18 +896,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                                         &state->mag_info.suid,
                                         &log_mag_state_raw_info);
  
-    //if(logging_mag_enabled)
-    //{
-    //  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-    //  ldata_mag.sample_type = sns_std_diag_sensor_state_sample_batch_sample_type_only;
-    //  ak0991x_log_add_sample(&stream_mag,&ldata_mag);
-
-    //  diag->api->submit_log(diag,instance,
-    //                                &state->mag_info.suid,
-    //                                stream_mag.bytes_written,
-    //                                logpkt_mag);
-    //}
 }
 
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
@@ -1202,86 +939,6 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
     state->async_com_port_data_stream, &async_com_port_request);
 }
 
-sns_rc ak0991x_handle_interrupt_event_for_fifo(sns_sensor_instance *const instance)
-{
-
-  uint8_t buffer[AK0991X_FIFO_BYTE_SIZE];
-
-  ak0991x_instance_state *state =
-     (ak0991x_instance_state*)instance->state->state;
-
-  sns_diag_service* diag = state->diag_service;
-
-
-  sns_rc rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
-  uint8_t  i;
-
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-
-  // Read ST1->ST2 at the first time
-  rv = ak0991x_com_read_wrapper(state->com_port_info.port_handle,
-                            AKM_AK0991X_REG_ST1,
-                            &buffer[0],
-                            AK0991X_NUM_DATA_ST1_TO_ST2,
-                            &xfer_bytes);
-
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
-  {
-    return SNS_RC_FAILED;
-  }
-
-  state->num_samples = 1;
-
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-
-  // Continue reading until fifo buffer is clear
-  for (i = 0; i < state->mag_info.max_fifo_size - 1; i++)
-  {
-    // Read REG HXL->ST2
-    rv = ak0991x_com_read_wrapper(state->com_port_info.port_handle,
-                   AKM_AK0991X_REG_HXL,
-                   &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + AK0991X_NUM_DATA_ST1_TO_ST2],
-                   AK0991X_NUM_DATA_HXL_TO_ST2,
-                   &xfer_bytes);
-
-    if(rv != SNS_RC_SUCCESS
-       ||
-       xfer_bytes != AK0991X_NUM_DATA_HXL_TO_ST2)
-    {
-      return SNS_RC_FAILED;
-    }
-
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-
-    // Check Invalid data or not in ST2 INV bit
-    if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + AK0991X_NUM_DATA_ST1_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
-    {
-     diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-     break;
-    }
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-
-    state->num_samples++;
-  }
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-  ak0991x_process_mag_data_buffer_for_fifo(instance, &buffer[0]);
-
-
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-
-  return rv;
-}
-
 sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state =
@@ -1305,8 +962,6 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   uint32_t xfer_bytes;
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
 
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
   // Read ST1->ST2 at the first time
   rv = ak0991x_com_read_wrapper(state->com_port_info.port_handle,
                             AKM_AK0991X_REG_ST1,
@@ -1323,34 +978,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 
   diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-  //pb_ostream_t stream_mag;
-  //void *logpkt_mag = NULL;
-  //bool logging_mag_enabled = false;
-  //log_data ldata_mag;
-  //sns_memzero(&ldata_mag, sizeof(ldata_mag));
   sns_time timestamp;
-
-  // allocate memory for sensor state log packet
-  //logpkt_mag = diag->api->alloc_log(diag, instance,
-  //                                    &state->mag_info.suid,
-  //                                    diag->api->get_max_log_size(diag));
-  //if(NULL != logpkt_mag)
-  //{
-  //  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-  //  stream_mag = pb_ostream_from_buffer((pb_byte_t*)logpkt_mag,
-  //                                        diag->api->get_max_log_size(diag));
-  //  logging_mag_enabled = true;
-  //}
-  //else
-  //{
-  //  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-  //  // logging for this sensor is disabled or no memory available
-  //  logging_mag_enabled = false;
-  //}
-
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
   timestamp = sns_get_system_time();
 
@@ -1360,52 +988,8 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
                                  event_service,
                                  state,
                                  &log_mag_state_raw_info);
-                                 //&stream_mag,
-                                 //logging_mag_enabled,
-                                 //&ldata_mag);
-
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"timestamp=%lld ",timestamp);
- 
- 
-  //if(logging_mag_enabled)
-  //{
-  //  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-  //  ldata_mag.sample_type = sns_std_diag_sensor_state_sample_batch_sample_type_only;
-  //  ak0991x_log_add_sample(&stream_mag,&ldata_mag);
-
-  //  diag->api->submit_log(diag,instance,
-  //                                  &state->mag_info.suid,
-  //                                  stream_mag.bytes_written,
-  //                                  logpkt_mag);
-  //}
 
   return SNS_RC_SUCCESS;
-}
-
-/**
- * see sns_ak0991x_hal.h
- */
-void ak0991x_dump_reg(ak0991x_instance_state *state)
-{
-  uint32_t xfer_bytes;
-  uint8_t reg_map_ak0991x[] = {
-    AKM_AK0991X_REG_CNTL1,
-    AKM_AK0991X_REG_CNTL2,
-    AKM_AK0991X_REG_CNTL3
-  };
-
-  uint8_t i = 0;
-  uint16_t n = sizeof(reg_map_ak0991x)/sizeof(reg_map_ak0991x[0]);
-
-  for(i=0; i<n;i++)
-  {
-    ak0991x_com_read_wrapper(state->com_port_info.port_handle,
-                         reg_map_ak0991x[i],
-                         &state->reg_status[i],
-                         1,
-                         &xfer_bytes);
-  }
 }
 
 /** See sns_ak0991x_hal.h */

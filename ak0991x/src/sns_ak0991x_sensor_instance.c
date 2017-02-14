@@ -131,7 +131,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
          (ak0991x_instance_state*)this->state->state;
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
-  //sns_timer_sensor_event timer_event = sns_timer_sensor_event_init_zero;
   sns_sensor_event *event;
 
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
@@ -140,8 +139,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
   sns_diag_service* diag = state->diag_service;
   diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
- 
-//  sns_rc rv;
 
   // Turn COM port ON
   state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
@@ -179,11 +176,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           if((AK0991X_ENABLE_FIFO == 1) && (state->mag_info.cur_wmk < 2) && ((state->mag_info.device_select == AK09915C) || (state->mag_info.device_select == AK09915D)))
           {
             ak0991x_flush_fifo(this);
-            //rv = ak0991x_handle_interrupt_event_for_fifo(this);
-            //if(rv != SNS_RC_SUCCESS)
-            //{
-            //  return rv;
-            //}
           }
           else
           {
@@ -233,7 +225,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
   diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
 
-  //UNUSED_VAR(timer_event);
   // Handle timer event
   if(NULL != state->timer_data_stream)
   {
@@ -257,16 +248,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         else if(SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
           diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-          //pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
-          //if(pb_decode(&stream, sns_irq_event_fields, &irq_event))
-          diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-
-           uint64_t akmtime_req;
-           uint64_t akmtime_out;
-           akmtime_req = timer_event.requested_timeout_time;
-           akmtime_out = timer_event.timeout_time;
-         
-           diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__," akm_req=%lld akm_out=%lld sys_time=%lld", akmtime_req, akmtime_out,sns_get_system_time());
 
            ak0991x_handle_timer_event(this);
            diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
@@ -311,29 +292,16 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_MED, __FILENAME__, __LINE__,__FUNCTION__);
 
 
-//  if (AK0991X_USE_POLLING == 0) {
-    // Setup stream connections with dependent Sensors
     stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                  this,
                                                  sensor_state->irq_suid,
                                                  &state->interrupt_data_stream);
-//  }
 
     stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                  this,
                                                  sensor_state->acp_suid,
                                                  &state->async_com_port_data_stream);
-//  if (AK0991X_USE_POLLING == 1) {
-//    if(0 != sns_memcmp(&sensor_state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(sensor_state->timer_suid))) {
-//      diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-// 
-//    }
-//  sns_rc rc;
-//  rc =  stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-//                                                 this,
-//                                                 sensor_state->timer_suid,
-//                                                 &state->timer_data_stream);
-//  }
+
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
   state->mag_info.curr_odr = AK0991X_MAG_ODR_OFF;
@@ -565,8 +533,6 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
 
      diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-    // ak0991x_dump_reg(state);//TODO_AKM, No need?
-     diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
 
     if(state->mag_info.use_dri)
     {
@@ -585,8 +551,6 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         irq_req_payload.interrupt_drive_strength = state->irq_info.irq_drive_strength;
         irq_req_payload.interrupt_pull_type = state->irq_info.irq_pull;
         irq_req_payload.is_chip_pin = state->irq_info.is_chip_pin;
-        
-        //diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"irq_num=%d trig_type=%d,drive_strength=%d,pull=%d,is_chip_pin=%d",irq_req_payload.irq_num,irq_req_payload.irq_trigger_type,irq_req_payload.irq_drive_strength,irq_req_payload.irq_pull,irq_req_payload.is_chip_pin);
  
         irq_req_len = pb_encode_request(buffer,
                                         sizeof(buffer),
@@ -656,7 +620,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           }
         }
       }
-      else //TODO_AKM
+      else
       {
         if(state->timer_stream_is_created)
         {
@@ -676,15 +640,10 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
   diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
 
-  diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
 
   // Turn COM port OFF
   state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
                                                                            false);
-//  uint8_t buffer[9];
-//   ak0991x_get_test(state->com_port_info.port_handle, &buffer[0]);
-////  diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"st1=%x data=%x %x %x %x %x %x st2=%x",buffer[0],buffer[1],buffer[2],buffer[3],buffer[4],buffer[5],buffer[6], buffer[8]);
-//  diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"cntl2=%x",buffer[0]);
 
   return SNS_RC_SUCCESS;
 }

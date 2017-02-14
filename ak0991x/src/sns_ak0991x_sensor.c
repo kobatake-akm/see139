@@ -131,7 +131,6 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         {
           /**-------------------Read and Confirm WHO-AM-I------------------------*/
           diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-          //buffer[0] = 0x0;
           rv = ak0991x_get_who_am_i(state->com_port_info.port_handle, &buffer[0]);
           if(rv != SNS_RC_SUCCESS)
           {
@@ -434,19 +433,14 @@ static void ak0991x_get_mag_config(sns_sensor *this,
 
 
   UNUSED_VAR(sensor_type);
-  //sns_list_iter iter;
   ak0991x_instance_state *inst_state =
      (ak0991x_instance_state*)instance->state->state;
 
-  //sns_sensor_uid suid = MAG_SUID;
   sns_sensor_uid suid;
   sns_request const *request;
 
   sns_memscpy(&suid, sizeof(suid), &((sns_sensor_uid)MAG_SUID),sizeof(sns_sensor_uid));
 
-  //instance->cb->get_client_requests(instance,
-  //                                    &suid,
-  //                                    &iter);
   sns_memscpy(&inst_state->mag_info.suid,
                 sizeof(inst_state->mag_info.suid),
                 &suid,
@@ -458,31 +452,16 @@ static void ak0991x_get_mag_config(sns_sensor *this,
   *chosen_sample_rate = 0;
   *sensor_client_present = false;
 
-  //if(0 == sns_list_iter_len(&iter))
-  //{
-  // diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-  // return;
-  //}
-  //else
-  //{
     /** Parse through existing requests and get fastest sample
      *  rate and report rate requests. */
    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-   //for(;
-   //     NULL != sns_list_iter_curr(&iter);
-   //     sns_list_iter_advance(&iter))
-   // {
    for(request = instance->cb->get_client_request(instance, &suid, true);
        NULL != request;
        request = instance->cb->get_client_request(instance, &suid, false))
    {
       diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-      //sns_request *request = (sns_request*)
-      //      sns_list_item_get_data(sns_list_iter_curr(&iter));
-      //sns_pb_request decoded_request;
       sns_std_request decoded_request;
       sns_std_sensor_config decoded_payload;
       if(ak0991x_get_decoded_mag_request(this, request, &decoded_request, &decoded_payload))
@@ -607,7 +586,6 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   sns_time on_timestamp;
   sns_time delta;
-  //sns_list_iter requests;
   bool reval_config = false;
 
   sns_service_manager *smgr = this->cb->get_service_manager(this);
@@ -625,7 +603,6 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
     {
       diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-      //sns_sensor_util_remove_request(instance, exist_request, this->sensor_api->get_sensor_uid(this));
       instance->cb->remove_client_request(instance, exist_request);
       /* Assumption: The FW will call deinit() on the instance before destroying it.
                    Putting all HW resources (sensor HW, COM port, power rail)in
@@ -744,10 +721,6 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
              diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
              instance->cb->remove_client_request(instance, exist_request);
-             //sns_sensor_util_remove_request(instance,
-             //                                exist_request,
-             //                                this->sensor_api->get_sensor_uid(this));
-             // reval_config = true;
            }
            /** A new client sent new_request*/
            else if(NULL != new_request)
@@ -768,13 +741,7 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
          instance->cb->add_client_request(instance, new_request);
        }
 
-       //instance->cb->get_client_requests(instance,
-       //                                   this->sensor_api->get_sensor_uid(this),
-       //                                   &requests);
          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-       // sns_list_iter_insert(&requests, &new_request->list_entry, false);
-       // diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
        if(reval_config && inst_state->instance_is_ready_to_configure)
        {
@@ -847,21 +814,15 @@ void ak0991x_process_suid_events(sns_sensor *const this)
 
   sns_diag_service* diag = state->diag_service;
 
-  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
- 
-
   for(;
       0 != state->fw_stream->api->get_input_cnt(state->fw_stream);
       state->fw_stream->api->get_next_input(state->fw_stream))
   {
-    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
     sns_sensor_event *event =
       state->fw_stream->api->peek_input(state->fw_stream);
-    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
  
     if(SNS_SUID_MSGID_SNS_PB_SUID_EVENT == event->message_id)
     {
-      diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
       sns_sensor_uid suid;
       int num_suids_found = 0;
       char const *datatype_name;
@@ -878,30 +839,25 @@ void ak0991x_process_suid_events(sns_sensor *const this)
       /* if no suids found, ignore the event */
       if (num_suids_found == 0)
       {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
         continue;
       }
 
       /* save suid based on incoming data type name */
       if (0 == strncmp(datatype_name, "interrupt", datatype_name_len))
       {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
         state->irq_suid = suid;
       }
       else if(0 == strncmp(datatype_name, "timer", datatype_name_len))
       {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
         state->timer_suid = suid;
       }
       else if (0 == strncmp(datatype_name, "async_com_port",
                             datatype_name_len))
       {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
         state->acp_suid = suid;
       }
       else if (0 == strncmp(datatype_name, "registry", datatype_name_len))
       {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
         state->reg_suid = suid;
       }
       else

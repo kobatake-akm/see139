@@ -172,10 +172,6 @@ void ak0991x_stop_mag_streaming(ak0991x_instance_state *state);
  */
 sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
                             uint8_t *buffer);
-//test
-sns_rc ak0991x_get_test(sns_sync_com_port_handle *port_handle,
-                            uint8_t *buffer);
-
 
 /**
  * Sets sensitivity adjustment for the sensor.
@@ -218,16 +214,6 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
                                uint16_t             cur_wmk);
 
 /**
- * Reads status registers in Instance State.
- * This function is for debug only.
- *
- * @param[i] state                 Instance state
- *
- * @return none
- */
-void ak0991x_dump_reg(ak0991x_instance_state *state);
-
-/**
  * Extracts mag samples from the buffer
  * and generates event.
  *
@@ -236,17 +222,6 @@ void ak0991x_dump_reg(ak0991x_instance_state *state);
  */
 void ak0991x_process_mag_data_buffer(sns_port_vector       *vector,
                                       void                  *user_arg)
-;
-
-/**
- * Extracts mag samples from the buffer
- * and generates event.
- *
- * @param instance                 Sensor Instance
- * @param[i] buffer                Pointer of fifo data buffer
- */
-void ak0991x_process_mag_data_buffer_for_fifo(sns_sensor_instance *const instance,
-                                              uint8_t *buffer)
 ;
 
 /**
@@ -265,18 +240,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance);
  * @param instance                 Sensor Instance
  */
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
-
-/**
- * Handle an interrupt by reading the Fifo status register and sending out
- * appropriate requests to the asynchronous com port sensor to read the fifo.
- *
- * @param instance                 Sensor Instance
- *
- * @return sns_rc
- * SNS_RC_FAILED - COM port failure
- * SNS_RC_SUCCESS
- */
-sns_rc ak0991x_handle_interrupt_event_for_fifo(sns_sensor_instance *const instance);
 
 /**
  * Handle an timer by reading the register and sending out
