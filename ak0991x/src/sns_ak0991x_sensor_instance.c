@@ -141,7 +141,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_diag_service* diag = state->diag_service;
   diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
  
-  sns_rc rv;
+//  sns_rc rv;
 
   // Turn COM port ON
   state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
@@ -173,19 +173,23 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
           diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+          // Add for timestamp in case of flush event caused by irq trigger
           state->interrupt_timestamp = irq_event.timestamp;
-          if((AK0991X_ENABLE_FIFO == 1) && ((state->mag_info.device_select == AK09915C) || (state->mag_info.device_select == AK09915D)))
+          state->irq_info.detect_irq_event = true;
+          if((AK0991X_ENABLE_FIFO == 1) && (state->mag_info.cur_wmk < 2) && ((state->mag_info.device_select == AK09915C) || (state->mag_info.device_select == AK09915D)))
           {
-            rv = ak0991x_handle_interrupt_event_for_fifo(this);
-            if(rv != SNS_RC_SUCCESS)
-            {
-              return rv;
-            }
+            ak0991x_flush_fifo(this);
+            //rv = ak0991x_handle_interrupt_event_for_fifo(this);
+            //if(rv != SNS_RC_SUCCESS)
+            //{
+            //  return rv;
+            //}
           }
           else
           {
             ak0991x_handle_interrupt_event(this);
           }
+          state->irq_info.detect_irq_event = false;
           diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
         }
       }
@@ -215,7 +219,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
         diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-        if(AK0991X_ENABLE_FIFO == 1) {
+        if((AK0991X_ENABLE_FIFO == 1) && (state->mag_info.cur_wmk < 2)) {
         //ak0991x_process_mag_data_buffer_for_fifo(this);
         } else {
           sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
@@ -410,6 +414,7 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               sizeof(sensor_state->irq_info));
 
   state->irq_info.is_registered = false;
+  state->irq_info.detect_irq_event = false;
 
   /** Configure the Async Com Port */
   uint8_t pb_encode_buffer[100];
@@ -504,7 +509,8 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
      {
        if(desired_report_rate != 0)
        {
-         desired_wmk = (int16_t)(mag_chosen_sample_rate / desired_report_rate);
+         /* Water mark level : 0x00 -> 1step, 0x01F ->32step*/
+         desired_wmk = (int16_t)(mag_chosen_sample_rate / desired_report_rate) - 1;
          diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"desired_wmk=%d",desired_wmk);
        }
 

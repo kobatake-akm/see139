@@ -506,7 +506,7 @@ static void ak0991x_get_mag_config(sns_sensor *this,
                  &&
                  decoded_request.batch_period > 0)
               {
-                report_rate = 1000000 / decoded_request.batch_period;
+                report_rate = 1000000.f / (float)decoded_request.batch_period;
               }
               else
               {

@@ -14,8 +14,34 @@
 #include "sns_types.h"
 #include "sns_test_sensor.h"
 
-static const float TEST_SAMPLE_RATE = 10.0f;
-static const float TEST_BATCH_PERIOD = 1000000.0f;
+//10Hz, wmk 0
+//static const float TEST_SAMPLE_RATE = 10.0f;
+//static const float TEST_BATCH_PERIOD = 100000.0f;//1000000.0f;
+
+//10Hz, wmk 19
+//static const float TEST_SAMPLE_RATE = 10.0f;
+//static const float TEST_BATCH_PERIOD =   2000000.0f;
+
+
+//100Hz, wmk 0
+static const float TEST_SAMPLE_RATE = 100.0f;
+static const float TEST_BATCH_PERIOD = 10000.0f;
+
+//100Hz, wmk 1
+//static const float TEST_SAMPLE_RATE = 100.0f;
+//static const float TEST_BATCH_PERIOD = 20000.0f;
+
+//100Hz, wmk 3
+//static const float TEST_SAMPLE_RATE = 100.0f;
+//static const float TEST_BATCH_PERIOD = 40000.0f;
+
+
+
+//100Hz, wmk 19
+//static const float TEST_SAMPLE_RATE = 100.0f;
+//static const float TEST_BATCH_PERIOD = 200000.0f;
+
+
 
 /** See sns_test_std_sensor.h */
 void sns_test_std_sensor_create_request(const sns_sensor *sensor,

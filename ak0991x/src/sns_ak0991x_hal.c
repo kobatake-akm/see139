@@ -1064,27 +1064,60 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
     diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-    sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
- 
-    uint8_t buffer[AK0991X_NUM_DATA_HXL_TO_ST2];
+    uint8_t buffer[200];
 
     //Continue reading until fifo buffer is clear
     for(i = 0; i < state->mag_info.max_fifo_size; i++) {
       ak0991x_get_fifo_data(state->com_port_info.port_handle,
-                               &buffer[0]);
-
-      if(buffer[7] == AK0991X_INV_FIFO_DATA) {
+                               &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
+  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"mag_sample=%x %x %x %x %x %x TEMP=%x ST2=%x", buffer[i*8],buffer[i*8+1],buffer[i*8+2],buffer[i*8+3],buffer[i*8+4],buffer[i*8+5],buffer[i*8+6],buffer[i*AK0991X_NUM_DATA_HXL_TO_ST2+7]);
+  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"data=%f %f %f",state->m_stream_event[0], state->m_stream_event[1], state->m_stream_event[2]);
+ 
+      if(buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] == AK0991X_INV_FIFO_DATA) {
         //fifo buffer is clear
         break;
       } else {
         num_samples++;
       }
-      
-      timestamp = state->pre_timestamp + (sample_interval_ticks *  (num_samples + state->num_samples - (state->mag_info.cur_wmk + 1)));
  
-      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"timestamp=%lld num_samples=%d state->int_timestamp=%lld",timestamp, num_samples, state->interrupt_timestamp);
+   }
+    
+     sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+     sns_time interrupt_interval_ticks;
+   
+    if(num_samples != 0)
+    { 
+      interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) / (num_samples);
+    }
+    else
+    {
+      interrupt_interval_ticks = 0;
+    }
 
-      ak0991x_handle_mag_sample( &buffer[0],
+
+
+    for(i = 0; i < num_samples; i++)
+    {
+      // flush event trigger is IRQ
+      if (state->irq_info.detect_irq_event)
+      {
+        if (state->this_is_first_data)
+        {
+          timestamp = state->interrupt_timestamp - (sample_interval_ticks * (state->mag_info.cur_wmk - i));
+        }
+        else
+        {
+          timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * (state->mag_info.cur_wmk - i));
+        }
+      }
+      else
+      {
+        timestamp = state->pre_timestamp + (sample_interval_ticks * (i + 1));
+      }
+
+      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"i=%d timestamp=%lld num_samples=%d state->int_timestamp=%lld",i, timestamp, num_samples, state->interrupt_timestamp);
+
+      ak0991x_handle_mag_sample( &buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * i],
                                  timestamp,
                                  instance,
                                  event_service,
@@ -1095,9 +1128,24 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                                  //&ldata_mag);
     }
 
-    if (num_samples != 0) {
-      state->pre_timestamp = timestamp;
+    if (num_samples != 0)
+    {
+      if (state->irq_info.detect_irq_event)
+      {
+        state->pre_timestamp = state->interrupt_timestamp;
+      }
+      else
+      {
+        state->pre_timestamp = timestamp;
+      }
     }
+
+    state->this_is_first_data = false;
+ 
+    ak0991x_log_sensor_state_raw_submit(diag,
+                                        instance,
+                                        &state->mag_info.suid,
+                                        &log_mag_state_raw_info);
  
     //if(logging_mag_enabled)
     //{
@@ -1124,7 +1172,15 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
      (ak0991x_instance_state*)instance->state->state;
   sns_port_vector async_read_msg;
 
-  num_of_bytes = AK0991X_NUM_DATA_ST1_TO_ST2;
+  if((AK0991X_ENABLE_FIFO == 1) && ((state->mag_info.device_select == AK09915C) || (state->mag_info.device_select == AK09915D)))
+  {
+    // Water mark level : 0x0 -> 1step, 0x1F ->32step
+    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
+  }
+  else
+  {
+    num_of_bytes = AK0991X_NUM_DATA_ST1_TO_ST2;
+  }
 
   // Compose the async com port message
   async_read_msg.bytes = num_of_bytes;
