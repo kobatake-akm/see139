@@ -323,15 +323,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                                                &state->rail_config);
 
         /**---------------------Turn Power Rails ON----------------------------*/
-        if(state->sensor == AK0991X_MAG)
-        {
-          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-          state->rail_config.rail_vote = SNS_RAIL_ON_NPM;
-        }
-        else
-        {
-          state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
-        }
+        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
+        state->rail_config.rail_vote = SNS_RAIL_ON_NPM;
         state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                                  this,
                                                                  &state->rail_config,
