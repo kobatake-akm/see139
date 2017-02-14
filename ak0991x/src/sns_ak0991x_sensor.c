@@ -240,16 +240,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           if(state->hw_is_present)
           {
              diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-             if(state->sensor == AK0991X_MAG)
-             {
-               diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-               ak0991x_mag_init_attributes(this, state->device_select);
-             }
-             else
-             {
-               diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                        "Unsupported Sensor");
-             }
+             ak0991x_mag_init_attributes(this, state->device_select);
              diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
  
              ak0991x_publish_attributes(this);
@@ -275,7 +266,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           if(NULL != instance)
           {
             diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-            ak0991x_reval_instance_config(this, instance, state->sensor);
+            ak0991x_reval_instance_config(this, instance);
           }
           state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
         }
@@ -445,7 +436,6 @@ static bool ak0991x_get_decoded_mag_request(sns_sensor const *this, sns_request 
 
 static void ak0991x_get_mag_config(sns_sensor *this,
                                    sns_sensor_instance *instance,
-                                   ak0991x_sensor_type sensor_type,
                                    float *chosen_sample_rate,
                                    float *chosen_report_rate,
                                    bool *sensor_client_present)
@@ -459,8 +449,6 @@ static void ak0991x_get_mag_config(sns_sensor *this,
   sns_diag_service* diag = state->diag_service;
   diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-
-  UNUSED_VAR(sensor_type);
   ak0991x_instance_state *inst_state =
      (ak0991x_instance_state*)instance->state->state;
 
@@ -553,8 +541,7 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
 }
 
 void ak0991x_reval_instance_config(sns_sensor *this,
-                              sns_sensor_instance *instance,
-                              ak0991x_sensor_type sensor_type)
+                              sns_sensor_instance *instance)
 {
   /**
    * 1. Get best Mag Config.
@@ -577,7 +564,6 @@ void ak0991x_reval_instance_config(sns_sensor *this,
 
   ak0991x_get_mag_config(this,
                          instance,
-                         AK0991X_MAG,
                          &chosen_sample_rate,
                          &chosen_report_rate,
                          &m_sensor_client_present);
@@ -591,15 +577,12 @@ void ak0991x_reval_instance_config(sns_sensor *this,
 
 
 
-  if(sensor_type == AK0991X_MAG)
-  {
-   diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-   ak0991x_set_mag_inst_config(this,
+  ak0991x_set_mag_inst_config(this,
                                 instance,
                                 chosen_report_rate,
                                 chosen_sample_rate);
-  }
   diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
 }
@@ -637,7 +620,7 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
                    low power state happens in Instance deinit().*/
      diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-     ak0991x_reval_instance_config(this, instance, state->sensor);
+     ak0991x_reval_instance_config(this, instance);
      ak0991x_instance_state *inst_state =
       (ak0991x_instance_state*)instance->state->state;
 
@@ -775,7 +758,7 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
        {
          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-         ak0991x_reval_instance_config(this, instance, state->sensor);
+         ak0991x_reval_instance_config(this, instance);
          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
        }

@@ -317,7 +317,6 @@ static sns_rc ak0991x_mag_init(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state*)this->state->state;
 
-  state->sensor = AK0991X_MAG;
   state->sensor_client_present = false;
   struct sns_service_manager *smgr= this->cb->get_service_manager(this);
   state->diag_service = (sns_diag_service *)

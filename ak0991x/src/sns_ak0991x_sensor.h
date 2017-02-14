@@ -129,7 +129,6 @@ typedef struct ak0991x_state
   sns_sensor_uid          irq_suid;
   sns_sensor_uid          timer_suid;
   sns_sensor_uid          acp_suid; // Asynchronous COM Port
-  ak0991x_sensor_type     sensor;
   sns_sensor_uid          my_suid;
   ak0991x_com_port_info   com_port_info;
   ak0991x_irq_info        irq_info;
@@ -160,13 +159,11 @@ typedef struct ak0991x_state
  *
  * @param[i] this          Sensor reference
  * @param[i] instance      Sensor Instance to config
- * @param[i] sensor_type   Sensor type
  *
  * @return none
  */
 void ak0991x_reval_instance_config(sns_sensor *this,
-                                   sns_sensor_instance *instance,
-                                   ak0991x_sensor_type sensor_type);
+                                   sns_sensor_instance *instance);
 
 /**
  * Sends a request to the SUID Sensor to get SUID of a dependent

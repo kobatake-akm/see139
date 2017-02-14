@@ -86,11 +86,6 @@ typedef struct range_attr {
   float max;
 } range_attr;
 
-typedef enum
-{
-  AK0991X_MAG         = 0x1,
-} ak0991x_sensor_type;
-
 typedef struct ak0991x_mag_info
 {
   ak0991x_mag_odr        desired_odr;
