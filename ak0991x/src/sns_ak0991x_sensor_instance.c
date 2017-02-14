@@ -102,8 +102,8 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
 
   for(idx = 0; idx < ARR_SIZE(reg_map_ak0991x); idx++)
   {
-    // AK09915C/D support ODR 1Hz
-    if((idx == 1) && ((device_select == AK09915C) || (device_select == AK09915D)))
+    // Only AK09915C/D support ODR 1Hz
+    if((idx == 1) && ((device_select != AK09915C) && (device_select != AK09915D)))
     {
       continue;
     }
