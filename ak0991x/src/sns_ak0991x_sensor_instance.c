@@ -444,7 +444,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   if(state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF)
   {
     diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-    ak0991x_reset_device(state->com_port_info.port_handle, state->mag_info.device_select);
+    ak0991x_device_sw_reset(state->com_port_info.port_handle);
   }
 
   if(client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)

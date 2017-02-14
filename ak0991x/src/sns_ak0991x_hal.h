@@ -121,18 +121,15 @@ typedef enum
 /******************* Function Declarations ***********************************/
 
 /**
- * Resets the Sensor HW. Also calls
- * ak0991x_device_set_default_state()//AKM_TODO fix the comment later
+ * Resets the Sensor SW.
  *
  * @param[i] port_handle   handle to synch COM port
- * @param[i] device_select AKM device type
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_reset_device(sns_sync_com_port_handle *port_handle,
-                            akm_device_type device_select);
+sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle);
 
 /**
  * Enable Mag streaming. enables Mag sensor with

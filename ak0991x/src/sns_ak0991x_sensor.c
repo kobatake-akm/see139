@@ -214,7 +214,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
  
           // Reset Sensor
-          rv = ak0991x_reset_device(state->com_port_info.port_handle, state->device_select);
+          rv = ak0991x_device_sw_reset(state->com_port_info.port_handle);
 
           if(rv == SNS_RC_SUCCESS)
           {

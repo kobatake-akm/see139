@@ -242,20 +242,6 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle)
 /**
  * see sns_ak0991x_hal.h
  */
-sns_rc ak0991x_reset_device(sns_sync_com_port_handle *port_handle,
-                            akm_device_type device_select)
-{
-  UNUSED_VAR(device_select);
-  sns_rc rv = SNS_RC_SUCCESS;
-
-  rv = ak0991x_device_sw_reset(port_handle);
-
-  return rv;
-}
-
-/**
- * see sns_ak0991x_hal.h
- */
 sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
                               ak0991x_mag_odr         curr_odr,
                               akm_device_type         device_select,
