@@ -36,13 +36,6 @@
 #define AK0991X_USE_DRI               1
 #endif
 
-// Set IRQ_TYPE
-// select SNS_INTERRUPT_TRIGGER_TYPE_RISING_or SNS_INTERRUPT_TRIGGER_TYPE_FALLING 
-// if the device has interrupt-pin.
-#ifndef AK0991X_IRQ_TYPE
-#define AK0991X_IRQ_TYPE              SNS_INTERRUPT_TRIGGER_TYPE_RISING
-#endif
-
 typedef enum
 {
   AK0991X_I2C = SNS_BUS_I2C,
