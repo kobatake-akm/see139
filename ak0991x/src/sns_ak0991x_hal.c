@@ -995,32 +995,157 @@ void ak0991x_send_config_event(sns_sensor_instance *const instance)
     sns_std_sensor_physical_config_init_default;
 
   // TODO: Use appropriate op_mode selected by driver.
-  char operating_mode[] = "NORMAL";
+  char *operating_mode;
+
+  switch(state->mag_info.device_select) {
+    case AK09911:
+      operating_mode = AK0991X_NORMAL;
+      phy_sensor_config.has_water_mark = false;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = true;
+      phy_sensor_config.active_current = AK09911_HI_PWR;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = AK09911_RESOLUTION;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = AK09911_MIN_RANGE;
+      phy_sensor_config.range[1] = AK09911_MAX_RANGE;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+    case AK09912:
+      operating_mode = AK0991X_NORMAL;
+      phy_sensor_config.has_water_mark = false;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = true;
+      phy_sensor_config.active_current = AK09912_HI_PWR;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = AK09912_RESOLUTION;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = AK09912_MIN_RANGE;
+      phy_sensor_config.range[1] = AK09912_MAX_RANGE;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+    case AK09913:
+      operating_mode = AK0991X_NORMAL;
+      phy_sensor_config.has_water_mark = false;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = true;
+      phy_sensor_config.active_current = AK09913_HI_PWR;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = AK09913_RESOLUTION;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = AK09913_MIN_RANGE;
+      phy_sensor_config.range[1] = AK09913_MAX_RANGE;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+    case AK09915C:
+      if(AK0991X_SDR == 1) {
+        operating_mode = AK0991X_LOW_NOISE;
+      } else {
+        operating_mode = AK0991X_LOW_POWER;
+      }
+      phy_sensor_config.has_water_mark = true;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = true;
+      phy_sensor_config.active_current = AK09915_HI_PWR;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = AK09915_RESOLUTION;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = AK09915_MIN_RANGE;
+      phy_sensor_config.range[1] = AK09915_MAX_RANGE;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+    case AK09915D:
+      if(AK0991X_SDR == 1) {
+        operating_mode = AK0991X_LOW_NOISE;
+      } else {
+        operating_mode = AK0991X_LOW_POWER;
+      }
+      phy_sensor_config.has_water_mark = true;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = true;
+      phy_sensor_config.active_current = AK09915_HI_PWR;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = AK09915_RESOLUTION;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = AK09915_MIN_RANGE;
+      phy_sensor_config.range[1] = AK09915_MAX_RANGE;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+    case AK09916C:
+      operating_mode = AK0991X_NORMAL;
+      phy_sensor_config.has_water_mark = false;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = true;
+      phy_sensor_config.active_current = AK09916_HI_PWR;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = AK09916_RESOLUTION;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = AK09916_MIN_RANGE;
+      phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+    case AK09916D:
+      operating_mode = AK0991X_NORMAL;
+      phy_sensor_config.has_water_mark = false;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = true;
+      phy_sensor_config.active_current = AK09916_HI_PWR;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = AK09916_RESOLUTION;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = AK09916_MIN_RANGE;
+      phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+    case AK09918:
+      operating_mode = AK0991X_NORMAL;
+      phy_sensor_config.has_water_mark = false;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = true;
+      phy_sensor_config.active_current = AK09916_HI_PWR;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = AK09916_RESOLUTION;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = AK09916_MIN_RANGE;
+      phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+    default:
+      operating_mode = AK0991X_NORMAL;
+      phy_sensor_config.has_water_mark = false;
+      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+      phy_sensor_config.has_active_current = false;
+      phy_sensor_config.active_current = 0;
+      phy_sensor_config.has_resolution = true;
+      phy_sensor_config.resolution = 0;
+      phy_sensor_config.range_count = 2;
+      phy_sensor_config.range[0] = 0;
+      phy_sensor_config.range[1] = 0;
+      phy_sensor_config.has_stream_is_synchronous = false;
+      phy_sensor_config.stream_is_synchronous = false;
+      break;
+  }
 
   pb_buffer_arg op_mode_args;
   pb_buffer_arg payload_args;
 
-  op_mode_args.buf = &operating_mode[0];
+  op_mode_args.buf = operating_mode;
   op_mode_args.buf_len = sizeof(operating_mode);
 
   config_event.has_payload = true;
   config_event.payload.data.funcs.encode = &pb_encode_string_cb;
   config_event.payload.data.arg = &payload_args;
 
-  //TODO_AKM
-  phy_sensor_config.has_water_mark = false;//true;
-  phy_sensor_config.water_mark = state->mag_info.cur_wmk;
   phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
   phy_sensor_config.operation_mode.arg = &op_mode_args;
-  phy_sensor_config.has_active_current = true;
-  phy_sensor_config.active_current = 240;
-  phy_sensor_config.has_resolution = true;
-  phy_sensor_config.resolution = AK09915_RESOLUTION;
-  phy_sensor_config.range_count = 2;
-  phy_sensor_config.range[0] = AK09915_MIN_RANGE;
-  phy_sensor_config.range[1] = AK09915_MAX_RANGE;
-  phy_sensor_config.has_stream_is_synchronous = false;
-  phy_sensor_config.stream_is_synchronous = false;
 
   payload_args.buf = &phy_sensor_config;
   payload_args.buf_len = sizeof(phy_sensor_config);
