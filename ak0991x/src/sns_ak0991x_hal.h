@@ -113,10 +113,108 @@ typedef enum
 #define AK0991X_NSF             0
 
 /** Sensor driver setting */
-#define AK0991X_SDR             0
+#define AK0991X_SDR             0 // 0: low power mode, 1: low noise mode
 
 /** Off to idle time */
 #define AK0991X_OFF_TO_IDLE_MS      100  //ms
+
+/** masurement time */
+#define AK09911_TIME_FOR_MEASURE_US                8500 //us
+#define AK09912_TIME_FOR_MEASURE_US                8500 //us
+#define AK09913_TIME_FOR_MEASURE_US                8200 //us
+#define AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US 4950 //us
+#define AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US 8500 //us
+#define AK09916_TIME_FOR_MEASURE_US                8200 //us
+#define AK09918_TIME_FOR_MEASURE_US                8200 //us
+
+/** Limit of factory shipment test */
+#define TLIMIT_NO_READ_ID         0x001
+#define TLIMIT_NO_INVALID_ID      0x002
+#define TLIMIT_NO_RESET           0x003
+#define TLIMIT_NO_READ_ASA        0x004
+#define TLIMIT_NO_SET_SELFTEST    0x005
+#define TLIMIT_NO_READ_ST1        0x006
+#define TLIMIT_NO_READ_DATA       0x007
+#define TLIMIT_NO_ASAX            0x101
+#define TLIMIT_LO_ASAX            1
+#define TLIMIT_HI_ASAX            254
+
+#define TLIMIT_NO_ASAY            0x102
+#define TLIMIT_LO_ASAY            1
+#define TLIMIT_HI_ASAY            254
+
+#define TLIMIT_NO_ASAZ            0x103
+#define TLIMIT_LO_ASAZ            1
+#define TLIMIT_HI_ASAZ            254
+
+#define TLIMIT_NO_SLF_RVHX        0x201
+#define TLIMIT_NO_SLF_RVHY        0x202
+#define TLIMIT_NO_SLF_RVHZ        0x203
+#define TLIMIT_NO_SLF_ST2         0x204
+#define TLIMIT_LO_SLF_ST2         0
+#define TLIMIT_HI_SLF_ST2         0
+#define TLIMIT_ST2_MASK           (0x08)
+
+/*******************************
+* AK09918 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09918  -200
+#define TLIMIT_HI_SLF_RVHX_AK09918  200
+#define TLIMIT_LO_SLF_RVHY_AK09918  -200
+#define TLIMIT_HI_SLF_RVHY_AK09918  200
+#define TLIMIT_LO_SLF_RVHZ_AK09918  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09918  -150
+
+/*******************************
+* AK09916 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09916  -200
+#define TLIMIT_HI_SLF_RVHX_AK09916  200
+#define TLIMIT_LO_SLF_RVHY_AK09916  -200
+#define TLIMIT_HI_SLF_RVHY_AK09916  200
+#define TLIMIT_LO_SLF_RVHZ_AK09916  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09916  -200
+
+/*******************************
+* AK09915 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09915  -200
+#define TLIMIT_HI_SLF_RVHX_AK09915  200
+#define TLIMIT_LO_SLF_RVHY_AK09915  -200
+#define TLIMIT_HI_SLF_RVHY_AK09915  200
+#define TLIMIT_LO_SLF_RVHZ_AK09915  -800
+#define TLIMIT_HI_SLF_RVHZ_AK09915  -200
+
+/*******************************
+ * AK09913 dependent value
+ */
+#define TLIMIT_LO_SLF_RVHX_AK09913  -200
+#define TLIMIT_HI_SLF_RVHX_AK09913  200
+#define TLIMIT_LO_SLF_RVHY_AK09913  -200
+#define TLIMIT_HI_SLF_RVHY_AK09913  200
+#define TLIMIT_LO_SLF_RVHZ_AK09913  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09913  -200
+
+/*******************************
+ * AK09912 dependent value
+ */
+#define TLIMIT_LO_SLF_RVHX_AK09912  -200
+#define TLIMIT_HI_SLF_RVHX_AK09912  200
+#define TLIMIT_LO_SLF_RVHY_AK09912  -200
+#define TLIMIT_HI_SLF_RVHY_AK09912  200
+#define TLIMIT_LO_SLF_RVHZ_AK09912  -1600
+#define TLIMIT_HI_SLF_RVHZ_AK09912  -400
+
+/*******************************
+ * AK09911 dependent value
+ */
+#define TLIMIT_LO_SLF_RVHX_AK09911  -30
+#define TLIMIT_HI_SLF_RVHX_AK09911  30
+#define TLIMIT_LO_SLF_RVHY_AK09911  -30
+#define TLIMIT_HI_SLF_RVHY_AK09911  30
+#define TLIMIT_LO_SLF_RVHZ_AK09911  -400
+#define TLIMIT_HI_SLF_RVHZ_AK09911  -50
+
 
 /******************* Function Declarations ***********************************/
 
@@ -162,6 +260,20 @@ void ak0991x_stop_mag_streaming(ak0991x_instance_state *state);
  */
 sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
                             uint8_t *buffer);
+
+/**
+ * Run a self-test.
+ *
+ * @param[i] state         Instance state
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
+                         akm_device_type device_select,
+                         float *sstvt_adj,
+                         uint32_t *err);
 
 /**
  * Sets sensitivity adjustment for the sensor.

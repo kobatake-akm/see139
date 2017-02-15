@@ -81,12 +81,12 @@ sns_sensor_api ak0991x_mag_sensor_api;
 /**
  * Magnetometer resolution
  */
-#define AK09918_RESOLUTION     (0.0015f)  /* uT/LSB */
-#define AK09916_RESOLUTION     (0.0015f)  /* uT/LSB */
-#define AK09915_RESOLUTION     (0.0015f)  /* uT/LSB */
-#define AK09913_RESOLUTION     (0.0015f)  /* uT/LSB */
-#define AK09912_RESOLUTION     (0.0015f)  /* uT/LSB */
-#define AK09911_RESOLUTION     (0.006f)   /* uT/LSB */
+#define AK09918_RESOLUTION     (0.15f)  /* uT/LSB */
+#define AK09916_RESOLUTION     (0.15f)  /* uT/LSB */
+#define AK09915_RESOLUTION     (0.15f)  /* uT/LSB */
+#define AK09913_RESOLUTION     (0.15f)  /* uT/LSB */
+#define AK09912_RESOLUTION     (0.15f)  /* uT/LSB */
+#define AK09911_RESOLUTION     (0.6f)   /* uT/LSB */
 
 /* Power consumption limits */
 #define AK09918_LO_PWR          1    /* unit of uA */

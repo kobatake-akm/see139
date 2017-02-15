@@ -66,6 +66,7 @@ typedef enum
   AK0991X_MAG_ODR200        = 0x0A,       /* 200 Hz output data rate */
   AK0991X_MAG_ODR1          = 0x0C,       /* 1 Hz output data rate */
   AK0991X_MAG_SELFTEST      = 0x10,       /* selftest */
+  AK0991X_MAG_FUSEROM       = 0x1F,       /* FUSE ROM access mode */
 } ak0991x_mag_odr;
 
 
@@ -91,6 +92,7 @@ typedef struct ak0991x_mag_info
   ak0991x_mag_odr        desired_odr;
   ak0991x_mag_odr        curr_odr;
   ak0991x_mag_sstvt      sstvt_adj[3];
+  ak0991x_mag_sstvt      resolution;
   akm_device_type        device_select;
   uint16_t               cur_wmk;
   uint16_t               max_fifo_size;

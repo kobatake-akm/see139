@@ -213,6 +213,23 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           }
           diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
  
+          // SELFTEST
+          uint32_t err = 0;
+          sns_rc rv;
+          rv = ak0991x_self_test(state->com_port_info.port_handle,
+                            state->device_select,
+                            state->sstvt_adj,
+                            &err);
+          if (rv != SNS_RC_SUCCESS)
+          {
+            diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"Test failed, err code = %ld",err);
+            return rv;
+          }
+          else
+          {
+            diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"Test passed");
+          }
+ 
           // Reset Sensor
           rv = ak0991x_device_sw_reset(state->com_port_info.port_handle);
 
@@ -221,8 +238,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
              state->hw_is_present = true;
           }
           diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
- 
-          /**------------------Power Down and Close COM Port--------------------*/
+
+         /**------------------Power Down and Close COM Port--------------------*/
           state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
                                                       state->com_port_info.port_handle,
                                                       false);
@@ -515,6 +532,20 @@ static void ak0991x_get_mag_config(sns_sensor *this,
            }
            else  // TODO handle self-test request
            {
+             uint32_t err = 0;
+             sns_rc rv;
+             rv = ak0991x_self_test(state->com_port_info.port_handle,
+                               state->device_select,
+                               state->sstvt_adj,
+                               &err);
+             if (rv != SNS_RC_SUCCESS)
+             {
+               diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"Test failed, err code = %ld",err);
+             }
+             else
+             {
+               diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"Test passed");
+             }
            }
         }
       }

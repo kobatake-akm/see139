@@ -356,8 +356,300 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
   return rv;
 }
 
-//read_fifo_data
-sns_rc ak0991x_get_fifo_data(sns_sync_com_port_handle *port_handle,
+/**
+ * Read asa value.
+ *
+ * @param[i] port_handle              handle to synch COM port
+ * @param[o] buffer                   fifo data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
+                               uint8_t *asa)
+{
+  sns_rc rv = SNS_RC_SUCCESS;
+  uint8_t buffer[1];
+  uint32_t xfer_bytes;
+
+  buffer[0] = AK0991X_MAG_FUSEROM;
+  // Set Fuse ROM access mode
+  rv = ak0991x_com_write_wrapper(port_handle,
+                             AKM_AK0991X_REG_CNTL2,
+                             buffer,
+                             1,
+                             &xfer_bytes,
+                             false);
+
+  if(rv != SNS_RC_SUCCESS
+     ||
+     xfer_bytes != 1)
+  {
+    return SNS_RC_FAILED;
+  }
+
+
+  // Read Fuse ROM
+  rv = ak0991x_com_read_wrapper(port_handle,
+                          AKM_AK0991X_FUSE_ASAX,
+                          &asa[0],
+                          AK0991X_NUM_SENSITIVITY,
+                          &xfer_bytes);
+
+  if(rv != SNS_RC_SUCCESS
+     ||
+     xfer_bytes != AK0991X_NUM_SENSITIVITY)
+  {
+    return SNS_RC_FAILED;
+  }
+
+  buffer[0] = AK0991X_MAG_ODR_OFF;
+  // Set power-down mode
+  rv = ak0991x_com_write_wrapper(port_handle,
+                             AKM_AK0991X_REG_CNTL2,
+                             buffer,
+                             1,
+                             &xfer_bytes,
+                             false);
+
+  if(rv != SNS_RC_SUCCESS
+     ||
+     xfer_bytes != 1)
+  {
+    return SNS_RC_FAILED;
+  }
+
+  return rv;
+} 
+
+/**
+ * check threshold.
+ *
+ * @param[i] port_handle              handle to synch COM port
+ * @param[o] buffer                   fifo data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+sns_rc ak0991x_test_threshold(uint16_t testno,
+                              int16_t testdata,
+                              int16_t lolimit,
+                              int16_t hilimit,
+                              uint32_t *err)
+{
+  if ((lolimit <= testdata) && (testdata <= hilimit))
+  {
+    return SNS_RC_SUCCESS;
+  }
+  else
+  {
+    *err = (uint32_t)((((uint32_t)testno) << 16) | ((uint16_t)testdata));
+    return SNS_RC_FAILED;
+  }
+}
+
+#define AKM_FST(no, data, lo, hi, err) \
+  if (ak0991x_test_threshold((no), (data), (lo), (hi), (err)) \
+      != SNS_RC_SUCCESS) { goto TEST_SEQUENCE_FAILED; }
+/**
+ * see sns_ak0991x_hal.h
+ */
+sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
+                         akm_device_type device_select,
+                         float *sstvt_adj,
+                         uint32_t *err)
+{
+  sns_rc rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+  sns_time usec_time_for_measure;
+  uint8_t asa[AK0991X_NUM_SENSITIVITY];
+  uint8_t buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
+  int16_t data[3];
+
+  // Initialize error code
+  *err = 0;
+
+  // Reset device
+  rv = ak0991x_device_sw_reset(port_handle);
+
+  if(rv != SNS_RC_SUCCESS)
+  {
+    *err = ((TLIMIT_NO_RESET) << 16);
+    goto TEST_SEQUENCE_FAILED;
+  }
+
+  /** Step 1
+   *   If the device has FUSE ROM, test the sensitivity value
+   **/
+  if ((device_select == AK09911) || (device_select == AK09912))
+  {
+    rv = ak0991x_read_asa(port_handle, asa);
+    if (rv != SNS_RC_SUCCESS)
+    {
+      *err = ((TLIMIT_NO_READ_ASA) << 16);
+      goto TEST_SEQUENCE_FAILED;
+    }
+    AKM_FST(TLIMIT_NO_ASAX, asa[0], TLIMIT_LO_ASAX, TLIMIT_HI_ASAX, err);
+    AKM_FST(TLIMIT_NO_ASAY, asa[1], TLIMIT_LO_ASAY, TLIMIT_HI_ASAY, err);
+    AKM_FST(TLIMIT_NO_ASAZ, asa[2], TLIMIT_LO_ASAY, TLIMIT_HI_ASAZ, err);
+  }
+
+  /** Step 2
+   *   Start self test
+   **/
+  buffer[0] = AK0991X_MAG_SELFTEST;
+  rv = ak0991x_com_write_wrapper(port_handle,
+                             AKM_AK0991X_REG_CNTL2,
+                             buffer,
+                             1,
+                             &xfer_bytes,
+                             false);
+
+  if(rv != SNS_RC_SUCCESS
+     ||
+     xfer_bytes != 1)
+  {
+    *err = ((TLIMIT_NO_SET_SELFTEST) << 16);
+    goto TEST_SEQUENCE_FAILED;
+  }
+
+
+  if(device_select == AK09918)
+  {
+    usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
+  }
+  else if ((device_select == AK09916C) || (device_select == AK09916D))
+  {
+    usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
+  }
+  else if ((device_select == AK09915C) || (device_select == AK09915D))
+  {
+    if(AK0991X_SDR == 1)
+    {
+      usec_time_for_measure = AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
+    }
+    else
+    {
+      usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
+    }
+  }
+  else if (device_select == AK09913)
+  {
+    usec_time_for_measure = AK09913_TIME_FOR_MEASURE_US;
+  }
+  else if (device_select == AK09912)
+  {
+    usec_time_for_measure = AK09912_TIME_FOR_MEASURE_US;
+  }
+  else if (device_select == AK09911)
+  {
+    usec_time_for_measure = AK09911_TIME_FOR_MEASURE_US;
+  }
+  else
+  {
+    *err = (TLIMIT_NO_INVALID_ID << 16);
+    goto TEST_SEQUENCE_FAILED;
+  }
+
+  // To ensure that measurement is finishe, wait for double as typical
+  sns_busy_wait(sns_convert_ns_to_ticks(usec_time_for_measure * 1000 * 2));
+
+  /** Step 3
+   *   Read and check data
+   **/
+  rv = ak0991x_com_read_wrapper(port_handle,
+                            AKM_AK0991X_REG_ST1,
+                            buffer,
+                            AK0991X_NUM_DATA_ST1_TO_ST2,
+                            &xfer_bytes);
+
+  if(rv != SNS_RC_SUCCESS
+     ||
+     xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+  {
+    *err = ((TLIMIT_NO_READ_DATA) << 16);
+    goto TEST_SEQUENCE_FAILED;
+  }
+
+  // raw data in 16 bits
+  data[0] = (int16_t)(((buffer[2] << 8) & 0xFF00) | buffer[1]);
+  data[1] = (int16_t)(((buffer[4] << 8) & 0xFF00) | buffer[3]);
+  data[2] = (int16_t)(((buffer[6] << 8) & 0xFF00) | buffer[5]);
+  // adjust sensitivity
+  data[0] = (int16_t)(data[0] * sstvt_adj[0]);
+  data[1] = (int16_t)(data[1] * sstvt_adj[1]);
+  data[2] = (int16_t)(data[2] * sstvt_adj[2]);
+
+  // check read value
+  if(device_select == AK09918)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09918, TLIMIT_HI_SLF_RVHX_AK09918, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09918, TLIMIT_HI_SLF_RVHY_AK09918, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09918, TLIMIT_HI_SLF_RVHZ_AK09918, err);
+  }
+  else if ((device_select == AK09916C) || (device_select == AK09916D))
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09916, TLIMIT_HI_SLF_RVHX_AK09916, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09916, TLIMIT_HI_SLF_RVHY_AK09916, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09916, TLIMIT_HI_SLF_RVHZ_AK09916, err);
+  }
+  else if ((device_select == AK09915C) || (device_select == AK09915D))
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09915, TLIMIT_HI_SLF_RVHX_AK09915, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09915, TLIMIT_HI_SLF_RVHY_AK09915, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09915, TLIMIT_HI_SLF_RVHZ_AK09915, err);
+  }
+  else if (device_select == AK09913)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09913, TLIMIT_HI_SLF_RVHX_AK09913, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09913, TLIMIT_HI_SLF_RVHY_AK09913, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09913, TLIMIT_HI_SLF_RVHZ_AK09913, err);
+  }
+  else if (device_select == AK09912)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09912, TLIMIT_HI_SLF_RVHX_AK09912, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09912, TLIMIT_HI_SLF_RVHY_AK09912, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09912, TLIMIT_HI_SLF_RVHZ_AK09912, err);
+  }
+  else if (device_select == AK09911)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09911, TLIMIT_HI_SLF_RVHX_AK09911, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09911, TLIMIT_HI_SLF_RVHY_AK09911, err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09911, TLIMIT_HI_SLF_RVHZ_AK09911, err);
+  }
+  else
+  {
+    *err = (TLIMIT_NO_INVALID_ID << 16);
+    goto TEST_SEQUENCE_FAILED;
+  }
+
+  AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
+          TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
+
+TEST_SEQUENCE_FAILED:
+  if (*err == 0)
+  {
+    return SNS_RC_SUCCESS;
+  }
+  else
+  {
+    return SNS_RC_FAILED;
+  }
+}
+
+/**
+ * Get fifo data.
+ *
+ * @param[i] port_handle              handle to synch COM port
+ * @param[o] buffer                   fifo data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_get_fifo_data(sns_sync_com_port_handle *port_handle,
                             uint8_t *buffer)
 {
   sns_rc rv = SNS_RC_SUCCESS;
@@ -388,8 +680,7 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_handle *port_handle,
                             float *sstvt_adj)
 {
   sns_rc rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
-  uint8_t  buffer[3];
+  uint8_t  buffer[AK0991X_NUM_SENSITIVITY];
   uint8_t  i;
 
   // If the device does not have FUSE ROM, we don't need to access it. 
@@ -402,38 +693,26 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_handle *port_handle,
   {
     for(i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
     {
-      sstvt_adj[i] = 0.15f;
+      sstvt_adj[i] = 1.0f;
     }
   }
   else if((device_select == AK09912) ||
           (device_select == AK09911))
   {
-    // Read Fuse ROM
-    rv = ak0991x_com_read_wrapper(port_handle,
-                            AKM_AK0991X_FUSE_ASAX,
-                            buffer,
-                            AK0991X_NUM_SENSITIVITY,
-                            &xfer_bytes);
-
-    if(rv != SNS_RC_SUCCESS
-       ||
-       xfer_bytes != AK0991X_NUM_SENSITIVITY)
-    {
-      return SNS_RC_FAILED;
-    }
+    rv = ak0991x_read_asa(port_handle, buffer);
 
     if(device_select == AK09912_WHOAMI_DEV_ID)
     {
       for(i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
       {
-        sstvt_adj[i] = ((buffer[i] / 128.0f) + 1.0f) * 0.15f;
+        sstvt_adj[i] = ((buffer[i] / 128.0f) + 1.0f);
       }
     }
     else if(device_select == AK09911_WHOAMI_DEV_ID)
     {
       for(i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
       {
-        sstvt_adj[i] = ((buffer[i] / 256.0f) + 0.5f) * 0.6f;
+        sstvt_adj[i] = ((buffer[i] / 256.0f) + 0.5f);
       }
     }
   }
@@ -683,11 +962,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   sns_std_sensor_sample_status status;
  
   data[0] =
-     (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0];
+     (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0] * state->mag_info.resolution;
   data[1] =
-     (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1];
+     (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1] * state->mag_info.resolution;
   data[2] =
-     (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2];
+     (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] * state->mag_info.resolution;
 
   // Check magnetic sensor overflow 
   if(mag_sample[7] == AK0991X_HOFL_BIT) {
