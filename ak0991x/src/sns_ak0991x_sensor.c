@@ -641,7 +641,6 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
                                                                          NULL);
        }
      }
-     inst_state->instance_is_ready_to_configure = false;
     }
   }
   else
@@ -705,14 +704,6 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
         instance = this->cb->create_instance(this,
                                              sizeof(ak0991x_instance_state));
         diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-        /* If rail is already ON then flag instance OK to configure */
-        if(reval_config)
-        {
-          ak0991x_instance_state *inst_state =
-            (ak0991x_instance_state*)instance->state->state;
-
-          inst_state->instance_is_ready_to_configure = true;
-        }
      }
      else
      {
@@ -746,16 +737,15 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
      if(NULL != instance)
      {
        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-       ak0991x_instance_state *inst_state =
-         (ak0991x_instance_state*)instance->state->state;
        if(NULL != new_request)
        {
+         diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
          instance->cb->add_client_request(instance, new_request);
        }
 
          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
-       if(reval_config && inst_state->instance_is_ready_to_configure)
+       if(reval_config)
        {
          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 

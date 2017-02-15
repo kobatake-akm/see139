@@ -153,7 +153,6 @@ typedef struct ak0991x_instance_state
   uint8_t   reg_status[AK0991X_DEBUG_REGISTERS];
 
   sns_diag_service *diag_service;
-  bool instance_is_ready_to_configure;
 
 } ak0991x_instance_state;
 

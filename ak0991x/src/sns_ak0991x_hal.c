@@ -768,6 +768,8 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                  state,
                                  &log_mag_state_raw_info);
       num_samples--;
+      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"process_fifo_timestamp=%lld num_samples=%d",timestamp, num_samples);
+
     }
 
     state->this_is_first_data = false;
@@ -861,6 +863,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                                  event_service,
                                  state,
                                  &log_mag_state_raw_info);
+      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"flush_timestamp=%lld num_samples=%d i=%d",timestamp, num_samples, i);
+
     }
 
     if (num_samples != 0)
