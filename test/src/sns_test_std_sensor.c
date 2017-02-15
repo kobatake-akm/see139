@@ -41,27 +41,30 @@
 //static const float TEST_SAMPLE_RATE = 100.0f;
 //static const float TEST_BATCH_PERIOD = 40000.0f;
 
-
-
 //100Hz, wmk 19
-static const float TEST_SAMPLE_RATE = 100.0f;
-static const float TEST_BATCH_PERIOD = 2000000.0f;
+//static const float TEST_SAMPLE_RATE = 100.0f;
+//static const float TEST_BATCH_PERIOD = 2000000.0f;
+
+
+//test_rate1
+static const float TEST_SAMPLE_RATE   = 100.0f;
+static const float TEST_BATCH_PERIOD   = 200000.0f;
 
 //test_rate2 
 static const float TEST_SAMPLE_RATE_2 = 10.0f;
-static const float TEST_BATCH_PERIOD_2 = 2000000.0f;
+static const float TEST_BATCH_PERIOD_2 = 200000.0f;
 //test_rate3
 static const float TEST_SAMPLE_RATE_3 = 20.0f;
-static const float TEST_BATCH_PERIOD_3 = 2000000.0f;
+static const float TEST_BATCH_PERIOD_3 = 200000.0f;
 //test_rate4
 static const float TEST_SAMPLE_RATE_4 = 0.0f;
-static const float TEST_BATCH_PERIOD_4 = 2000000.0f;
+static const float TEST_BATCH_PERIOD_4 = 200000.0f;
 //test_rate5
 static const float TEST_SAMPLE_RATE_5 = 50.0f;
-static const float TEST_BATCH_PERIOD_5 = 2000000.0f;
+static const float TEST_BATCH_PERIOD_5 = 200000.0f;
 //test_rate6
 static const float TEST_SAMPLE_RATE_6 = 10.0f;
-static const float TEST_BATCH_PERIOD_6 = 2000000.0f;
+static const float TEST_BATCH_PERIOD_6 = 200000.0f;
 
 
 

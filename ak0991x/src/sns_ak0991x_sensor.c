@@ -621,8 +621,6 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
      diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
      ak0991x_reval_instance_config(this, instance);
-     ak0991x_instance_state *inst_state =
-      (ak0991x_instance_state*)instance->state->state;
 
     sns_sensor *sensor;
      for(sensor = this->cb->get_library_sensor(this, true);

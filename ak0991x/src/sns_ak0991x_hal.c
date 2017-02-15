@@ -899,7 +899,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
      (ak0991x_instance_state*)instance->state->state;
   sns_port_vector async_read_msg;
 
-  if((AK0991X_ENABLE_FIFO == 1) && ((state->mag_info.device_select == AK09915C) || (state->mag_info.device_select == AK09915D)))
+  if(state->mag_info.use_fifo)
   {
     // Water mark level : 0x0 -> 1step, 0x1F ->32step
     num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;

@@ -29,8 +29,8 @@ static char* ak09911_ope_mode_table[] = {AK0991X_NORMAL SNS_ATTRIBUTE_STRING_DL}
 static char* ak09912_ope_mode_table[] = {AK0991X_NORMAL SNS_ATTRIBUTE_STRING_DL};
 static char* ak09913_ope_mode_table[] = {AK0991X_NORMAL SNS_ATTRIBUTE_STRING_DL};
 static char* ak09915_ope_mode_table[] = {AK0991X_LOW_POWER SNS_ATTRIBUTE_STRING_DL, AK0991X_LOW_NOISE SNS_ATTRIBUTE_STRING_DL};
-static char* ak09916_ope_mode_table[] = {AK0991X_NORMAL};
-static char* ak09918_ope_mode_table[] = {AK0991X_NORMAL};
+static char* ak09916_ope_mode_table[] = {AK0991X_NORMAL SNS_ATTRIBUTE_STRING_DL};
+static char* ak09918_ope_mode_table[] = {AK0991X_NORMAL SNS_ATTRIBUTE_STRING_DL};
 
 typedef struct ak0991x_dev_info {
   float *odr;

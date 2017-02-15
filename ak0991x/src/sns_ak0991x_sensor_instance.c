@@ -170,10 +170,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
           diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-          // Add for timestamp in case of flush event caused by irq trigger
           state->interrupt_timestamp = irq_event.timestamp;
+          // Add setting for timestamp in case of flush event caused by irq trigger
           state->irq_info.detect_irq_event = true;
-          if((AK0991X_ENABLE_FIFO == 1) && (state->mag_info.cur_wmk < 2) && ((state->mag_info.device_select == AK09915C) || (state->mag_info.device_select == AK09915D)))
+          if((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
           {
             ak0991x_flush_fifo(this);
           }
@@ -211,11 +211,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
         diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-        if((AK0991X_ENABLE_FIFO == 1) && (state->mag_info.cur_wmk < 2)) {
-        //ak0991x_process_mag_data_buffer_for_fifo(this);
-        } else {
-          sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
-        }
+        sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
         diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
       }
       event = state->async_com_port_data_stream->api->get_next_input(state->async_com_port_data_stream);
@@ -316,32 +312,39 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.cur_wmk = 0;
   switch(state->mag_info.device_select) {
     case AK09911:
+      state->mag_info.use_fifo = false;
       state->mag_info.max_fifo_size = AK09911_FIFO_SIZE;
       state->mag_info.use_dri = false;
       break;
     case AK09912:
+      state->mag_info.use_fifo = false;
       state->mag_info.max_fifo_size = AK09912_FIFO_SIZE;
       state->mag_info.use_dri = AK0991X_USE_DRI;
       break;
     case AK09913:
+      state->mag_info.use_fifo = false;
       state->mag_info.max_fifo_size = AK09913_FIFO_SIZE;
       state->mag_info.use_dri = false;
       break;
     case AK09915C:
     case AK09915D:
+      state->mag_info.use_fifo = AK0991X_ENABLE_FIFO;
       state->mag_info.max_fifo_size = AK09915_FIFO_SIZE;
       state->mag_info.use_dri = AK0991X_USE_DRI;
       break;
     case AK09916C:
     case AK09916D:
+      state->mag_info.use_fifo = false;
       state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
       state->mag_info.use_dri = false;
       break;
     case AK09918:
+      state->mag_info.use_fifo = false;
       state->mag_info.max_fifo_size = AK09918_FIFO_SIZE;
       state->mag_info.use_dri = false;
       break;
     default:
+      state->mag_info.use_fifo = false;
       state->mag_info.max_fifo_size = 0;
       state->mag_info.use_dri = false;
       break;
@@ -473,7 +476,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                  &mag_chosen_sample_rate_reg_value,
                                  state->mag_info.device_select);
  
-     if((AK0991X_ENABLE_FIFO == 1) && (state->mag_info.use_dri))
+     if((state->mag_info.use_fifo) && (state->mag_info.use_dri))
      {
        if(desired_report_rate != 0)
        {
@@ -484,14 +487,6 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
        switch(state->mag_info.device_select)
        {
-         case AK09911:
-         case AK09912:
-         case AK09913:
-         case AK09916C:
-         case AK09916D:
-         case AK09918:
-           desired_wmk = 0;
-           break;
          case AK09915C:
          case AK09915D:
            if (AK09915_FIFO_SIZE <= desired_wmk) {
@@ -502,8 +497,8 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
            desired_wmk = 0;
            break;
        }
-     state->mag_info.cur_wmk = desired_wmk;
      }
+     state->mag_info.cur_wmk = desired_wmk;
 
     if(rv != SNS_RC_SUCCESS)
      {
@@ -519,12 +514,12 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
      diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
 
     if(state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF) {
-      if((!state->this_is_first_data) && (AK0991X_ENABLE_FIFO == 1)) {
+      if((!state->this_is_first_data) && (state->mag_info.use_fifo)) {
         ak0991x_flush_fifo(this);
       }
       ak0991x_start_mag_streaming(state);
     } else {
-      if((!state->this_is_first_data) && (AK0991X_ENABLE_FIFO == 1)) {
+      if((!state->this_is_first_data) && (state->mag_info.use_fifo)) {
         ak0991x_flush_fifo(this);
         state->this_is_first_data = true;
       }
