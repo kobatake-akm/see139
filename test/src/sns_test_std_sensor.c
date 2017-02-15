@@ -14,6 +14,12 @@
 #include "sns_types.h"
 #include "sns_test_sensor.h"
 
+
+//1Hz, wmk 0
+//static const float TEST_SAMPLE_RATE = 1.0f;
+//static const float TEST_BATCH_PERIOD = 1000000.0f;//1000000.0f;
+
+
 //10Hz, wmk 0
 //static const float TEST_SAMPLE_RATE = 10.0f;
 //static const float TEST_BATCH_PERIOD = 100000.0f;//1000000.0f;
@@ -24,8 +30,8 @@
 
 
 //100Hz, wmk 0
-static const float TEST_SAMPLE_RATE = 100.0f;
-static const float TEST_BATCH_PERIOD = 10000.0f;
+//static const float TEST_SAMPLE_RATE = 100.0f;
+//static const float TEST_BATCH_PERIOD = 10000.0f;
 
 //100Hz, wmk 1
 //static const float TEST_SAMPLE_RATE = 100.0f;
@@ -38,8 +44,27 @@ static const float TEST_BATCH_PERIOD = 10000.0f;
 
 
 //100Hz, wmk 19
-//static const float TEST_SAMPLE_RATE = 100.0f;
-//static const float TEST_BATCH_PERIOD = 200000.0f;
+static const float TEST_SAMPLE_RATE = 100.0f;
+static const float TEST_BATCH_PERIOD = 2000000.0f;
+
+//test_rate2 
+static const float TEST_SAMPLE_RATE_2 = 10.0f;
+static const float TEST_BATCH_PERIOD_2 = 2000000.0f;
+//test_rate3
+static const float TEST_SAMPLE_RATE_3 = 20.0f;
+static const float TEST_BATCH_PERIOD_3 = 2000000.0f;
+//test_rate4
+static const float TEST_SAMPLE_RATE_4 = 0.0f;
+static const float TEST_BATCH_PERIOD_4 = 2000000.0f;
+//test_rate5
+static const float TEST_SAMPLE_RATE_5 = 50.0f;
+static const float TEST_BATCH_PERIOD_5 = 2000000.0f;
+//test_rate6
+static const float TEST_SAMPLE_RATE_6 = 10.0f;
+static const float TEST_BATCH_PERIOD_6 = 2000000.0f;
+
+
+
 
 
 
@@ -51,12 +76,45 @@ void sns_test_std_sensor_create_request(const sns_sensor *sensor,
                                    sns_std_request *std_req)
 {
   UNUSED_VAR(sensor);
+  static int cnt;
   sns_std_sensor_config* config = (sns_std_sensor_config*)payload;
-  config->sample_rate = TEST_SAMPLE_RATE;
+//  config->sample_rate = TEST_SAMPLE_RATE;
   *message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
   *payload_fields = sns_std_sensor_config_fields;
   std_req->has_batch_period = true;
-  std_req->batch_period = TEST_BATCH_PERIOD;
+//  std_req->batch_period = TEST_BATCH_PERIOD;
+
+  switch(cnt){
+    case 0:
+      config->sample_rate = TEST_SAMPLE_RATE;
+      std_req->batch_period = TEST_BATCH_PERIOD;
+      break;
+    case 1:
+      config->sample_rate = TEST_SAMPLE_RATE_2;
+      std_req->batch_period = TEST_BATCH_PERIOD_2;
+      break;
+    case 2:
+      config->sample_rate = TEST_SAMPLE_RATE_3;
+      std_req->batch_period = TEST_BATCH_PERIOD_3;
+      break;
+    case 3:
+      config->sample_rate = TEST_SAMPLE_RATE_4;
+      std_req->batch_period = TEST_BATCH_PERIOD_4;
+      break;
+    case 4:
+      config->sample_rate = TEST_SAMPLE_RATE_5;
+      std_req->batch_period = TEST_BATCH_PERIOD_5;
+      break;
+    case 5:
+      config->sample_rate = TEST_SAMPLE_RATE_6;
+      std_req->batch_period = TEST_BATCH_PERIOD_6;
+      break; 
+    default:
+      config->sample_rate = TEST_SAMPLE_RATE;
+      std_req->batch_period = TEST_BATCH_PERIOD;
+      break; 
+  }
+  cnt++;
 }
 
 /** See sns_test_std_sensor.h */

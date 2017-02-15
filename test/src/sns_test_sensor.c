@@ -47,11 +47,20 @@
 #define NUM_TEST_ITERATIONS 20
 #else
 /* for on-target test */
-#define NUM_EVENTS_TO_PROCESS 1000
-#define NUM_TEST_ITERATIONS 1
+
+//if the measurement mode will be power-down, NUM_EVENTS_TO_PROCESS_X should be 1
+#define NUM_EVENTS_TO_PROCESS 100
+#define NUM_EVENTS_TO_PROCESS_2 100
+#define NUM_EVENTS_TO_PROCESS_3 100
+#define NUM_EVENTS_TO_PROCESS_4 1
+#define NUM_EVENTS_TO_PROCESS_5 100
+#define NUM_EVENTS_TO_PROCESS_6 100
+
+//if the NUM_TEST_ITERATIONS is more than 2,
+//Please check NUM_EVENTS_TO_PROCESS_X
+//and TEST_SAMPLE_RATE in sns_test_std_sensor.c
+#define NUM_TEST_ITERATIONS 6
 #endif
-
-
 typedef struct sns_test_implementation
 {
   char* datatype;
@@ -319,6 +328,50 @@ sns_test_send_sensor_request(sns_sensor* const this,
   }
 }
 
+
+void
+sns_test_send_sensor_request_2nd_or_later(sns_sensor* const this,
+                             sns_sensor_uid suid,
+                             void* payload,
+                             pb_field_t const* payload_fields,
+                             uint32_t message_id,
+                             sns_std_request std_req)
+{
+  UNUSED_VAR(suid);
+  sns_test_state* state = (sns_test_state*)this->state->state;
+//  sns_service_manager* service_mgr = this->cb->get_service_manager(this);
+//  sns_stream_service* stream_mgr =
+//      (sns_stream_service*)service_mgr->get_service(service_mgr,
+//                                                    SNS_STREAM_SERVICE);
+  sns_diag_service* diag = state->diag_service;
+
+  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
+  size_t encoded_len;
+  uint8_t buffer[100];
+  sns_memset(buffer, 0, sizeof(buffer));
+
+//  stream_mgr->api->create_sensor_stream(stream_mgr,
+//                                        this,
+//                                        suid,
+//                                        &state->sensor_stream);
+//
+  encoded_len = pb_encode_request(buffer, sizeof(buffer),
+                                  payload, payload_fields, &std_req);
+
+  if(0 < encoded_len && NULL != state->sensor_stream)
+  {
+    sns_request request = (sns_request){ .message_id = message_id,
+      .request_len = encoded_len, .request = buffer };
+    state->sensor_stream->api->send_request(state->sensor_stream, &request);
+  } else
+  {
+    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
+                             "Failed to send sensor request, stream=%p",
+                             state->sensor_stream);
+  }
+}
+
 /**
  * @brief starts a stream for the tested sensor
  * @param this
@@ -334,9 +387,15 @@ sns_test_start_sensor_stream(sns_sensor* const this)
 
   state->test_sensor_create_request(this, payload, &payload_fields,
                                     &message_id, &std_req);
-
-  sns_test_send_sensor_request(this, state->suid_search[0].suid, payload, payload_fields,
+  static bool request_from_second_or_later_request;
+  if(!request_from_second_or_later_request) {
+    sns_test_send_sensor_request(this, state->suid_search[0].suid, payload, payload_fields,
                                message_id, std_req);
+    request_from_second_or_later_request = true;
+  } else {
+    sns_test_send_sensor_request_2nd_or_later(this, state->suid_search[0].suid, payload, payload_fields,
+                               message_id, std_req);
+  }
 }
 
 /**
@@ -368,6 +427,7 @@ sns_test_handle_sensor_event(sns_sensor* const this)
   sns_test_state* s = (sns_test_state*)this->state->state;
 
   sns_diag_service* diag = s->diag_service;
+  static int event_cnt;
 
   for (; s->sensor_stream->api->get_input_cnt(s->sensor_stream) != 0 &&
        s->remaining_events > 0;
@@ -390,18 +450,56 @@ sns_test_handle_sensor_event(sns_sensor* const this)
   if (s->remaining_events <= 0)
   {
     s->remaining_iterations--;
-    sns_test_stop_sensor_stream(this);
+    //sns_test_stop_sensor_stream(this);
     diag->api->sensor_printf(diag, this, SNS_HIGH, __FILENAME__, __LINE__,
                              "test iteration finished, remaining=%d",
                              s->remaining_iterations);
     if (s->remaining_iterations > 0)
     {
-      s->remaining_events = NUM_EVENTS_TO_PROCESS;
+      event_cnt++;
+      switch(event_cnt) {
+        case 1:
+          s->remaining_events = NUM_EVENTS_TO_PROCESS_2;
+          break;
+        case 2:
+          s->remaining_events = NUM_EVENTS_TO_PROCESS_3;
+          break;
+        case 3:
+          s->remaining_events = NUM_EVENTS_TO_PROCESS_4;
+          break;
+        case 4:
+          s->remaining_events = NUM_EVENTS_TO_PROCESS_5;
+          break;
+        case 5:
+          s->remaining_events = NUM_EVENTS_TO_PROCESS_6;
+          break;
+        default:
+          s->remaining_events = NUM_EVENTS_TO_PROCESS; 
+      }
       sns_test_start_sensor_stream(this);
     } else {
+      sns_test_stop_sensor_stream(this);
       diag->api->sensor_printf(diag, this, SNS_HIGH, __FILENAME__, __LINE__,
                                "test finished!");
-      if (s->num_events_received == NUM_EVENTS_TO_PROCESS * NUM_TEST_ITERATIONS)
+      int num_events_cal;
+      num_events_cal = NUM_EVENTS_TO_PROCESS;
+      if(NUM_TEST_ITERATIONS > 1) {
+        num_events_cal += NUM_EVENTS_TO_PROCESS_2;
+      }
+      if(NUM_TEST_ITERATIONS > 2) {
+        num_events_cal += NUM_EVENTS_TO_PROCESS_3;
+      }
+      if(NUM_TEST_ITERATIONS > 3) {
+        num_events_cal += NUM_EVENTS_TO_PROCESS_4;
+      }
+      if(NUM_TEST_ITERATIONS > 4) {
+        num_events_cal += NUM_EVENTS_TO_PROCESS_5;
+      }
+      if(NUM_TEST_ITERATIONS > 5) {
+        num_events_cal += NUM_EVENTS_TO_PROCESS_6;
+      }
+
+      if (s->num_events_received == num_events_cal)
       {
         diag->api->sensor_printf(diag, this, SNS_HIGH, __FILENAME__, __LINE__,
                                  "result = PASS");
