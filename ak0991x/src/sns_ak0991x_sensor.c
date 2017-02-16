@@ -140,27 +140,49 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
  
           state->who_am_i = buffer[1] << 8 | buffer[0];
           //Check AKM device ID
-          if((buffer[0] == AK0991X_WHOAMI_COMPANY_ID) && (buffer[1] == AK09911_WHOAMI_DEV_ID)) {
-            state->device_select = AK09911;
-          } else if ((buffer[0] == AK0991X_WHOAMI_COMPANY_ID) && (buffer[1] == AK09912_WHOAMI_DEV_ID)) {
-            state->device_select = AK09912;
-          } else if ((buffer[0] == AK0991X_WHOAMI_COMPANY_ID) && (buffer[1] == AK09913_WHOAMI_DEV_ID)) {
-            state->device_select = AK09913;
-          } else if ((buffer[0] == AK0991X_WHOAMI_COMPANY_ID) && (buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915C_SUB_ID)) {
-            state->device_select = AK09915C;
-          } else if ((buffer[0] == AK0991X_WHOAMI_COMPANY_ID) && (buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915D_SUB_ID)) {
-            state->device_select = AK09915D;
-          } else if ((buffer[0] == AK0991X_WHOAMI_COMPANY_ID) && (buffer[1] == AK09916C_WHOAMI_DEV_ID)) {
-            state->device_select = AK09916C;
-          } else if ((buffer[0] == AK0991X_WHOAMI_COMPANY_ID) && (buffer[1] == AK09916D_WHOAMI_DEV_ID)) {
-            state->device_select = AK09916D;
-          } else if ((buffer[0] == AK0991X_WHOAMI_COMPANY_ID) && (buffer[1] == AK09918_WHOAMI_DEV_ID)) {
-            state->device_select = AK09918;
-          } else {
+          if(buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
+          {
+            if(buffer[1] == AK09911_WHOAMI_DEV_ID)
+            {
+              state->device_select = AK09911;
+            }
+            else if (buffer[1] == AK09912_WHOAMI_DEV_ID)
+            {
+              state->device_select = AK09912;
+            }
+            else if (buffer[1] == AK09913_WHOAMI_DEV_ID)
+            {
+              state->device_select = AK09913;
+            }
+            else if ((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915C_SUB_ID))
+            {
+              state->device_select = AK09915C;
+            }
+            else if ((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915D_SUB_ID))
+            {
+              state->device_select = AK09915D;
+            }
+            else if (buffer[1] == AK09916C_WHOAMI_DEV_ID)
+            {
+              state->device_select = AK09916C;
+            }
+            else if (buffer[1] == AK09916D_WHOAMI_DEV_ID)
+            {
+              state->device_select = AK09916D;
+            }
+            else if (buffer[1] == AK09918_WHOAMI_DEV_ID)
+            {
+              state->device_select = AK09918;
+            }
+          }
+          else
+          {
             return SNS_RC_FAILED;
           }
+
           diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
+#if (!AK0991X_ENABLE_DEPENDENCY)
           // IRQ settings, it depends on the device.
           state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
           state->irq_info.irq_num = IRQ_NUM;
@@ -200,10 +222,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
               state->irq_info.is_chip_pin = false;
               break;
             default:
-              state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-              state->irq_info.is_chip_pin = false;
-              break;
+              return SNS_RC_FAILED;
           }
+#endif //AK0991X_ENABLE_DEPENDENCY
 
           // Set sensitivity adjustment data
           rv = ak0991x_set_sstvt_adj(state->com_port_info.port_handle, state->device_select, &state->sstvt_adj[0]);
@@ -328,6 +349,14 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
         state->com_port_info.com_config.slave_control = I2C_SLAVE_ADDRESS;
      }
+
+#if AK0991X_ENABLE_DEPENDENCY
+      // IRQ settings, it depends on the device.
+          state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
+          state->irq_info.irq_num = IRQ_NUM;
+          state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
+          state->irq_info.irq_trigger_type = AK0991X_INTERRUPT_TRIGGER_TYPEG;
+#endif //AK0991X_ENABLE_DEPENDENCY
       
 #else   //AK0991X_USE_DEFAULTS
       //TODO update to use Registry Sensor data
