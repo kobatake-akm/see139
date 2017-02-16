@@ -287,16 +287,7 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_diag_service* diag = state->diag_service;
   diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_MED, __FILENAME__, __LINE__,__FUNCTION__);
 
-
-    stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                 this,
-                                                 sensor_state->irq_suid,
-                                                 &state->interrupt_data_stream);
-
-    stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                 this,
-                                                 sensor_state->acp_suid,
-                                                 &state->async_com_port_data_stream);
+  sns_rc rv;
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -337,11 +328,16 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
       state->mag_info.use_dri = AK0991X_USE_DRI;
       break;
     case AK09916C:
-    case AK09916D:
       state->mag_info.resolution = AK09916_RESOLUTION;
       state->mag_info.use_fifo = false;
       state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
       state->mag_info.use_dri = false;
+      break;
+    case AK09916D:
+      state->mag_info.resolution = AK09916_RESOLUTION;
+      state->mag_info.use_fifo = false;
+      state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
+      state->mag_info.use_dri = true;
       break;
     case AK09918:
       state->mag_info.resolution = AK09918_RESOLUTION;
@@ -350,17 +346,35 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
       state->mag_info.use_dri = false;
       break;
     default:
-      state->mag_info.resolution = 0;
-      state->mag_info.use_fifo = false;
-      state->mag_info.max_fifo_size = 0;
-      state->mag_info.use_dri = false;
-      break;
+      return SNS_RC_FAILED;
   }
 
   state->pre_timestamp = 0;
   state->this_is_first_data = true;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, 3);
+
+
+  rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                 this,
+                                                 sensor_state->irq_suid,
+                                                 &state->interrupt_data_stream);
+
+  if(rv != SNS_RC_SUCCESS)
+  {
+    return rv;
+  }
+
+  rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                 this,
+                                                 sensor_state->acp_suid,
+                                                 &state->async_com_port_data_stream);
+
+  if(rv != SNS_RC_SUCCESS)
+  {
+    stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
+    return rv;
+  }
 
 
   /** Initialize Timer info to be used by the Instance */
