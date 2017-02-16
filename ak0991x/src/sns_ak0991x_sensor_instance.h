@@ -28,11 +28,8 @@
 /** Forward Declaration of Instance API */
 sns_sensor_instance_api ak0991x_sensor_instance_api;
 
-/** Number of registers to read for debug */
-#define AK0991X_DEBUG_REGISTERS          (32) // TBD_AKM
-
 /** Number of entries in reg_map table. */
-#define AK0991X_REG_MAP_TABLE_SIZE       (11) // TBD_AKM
+#define AK0991X_REG_MAP_TABLE_SIZE       (7)
 
 /** AK0991X max number of settings */
 #define AK0991X_MAX_NUM_REP_MODE 3
@@ -153,7 +150,6 @@ typedef struct ak0991x_instance_state
   size_t               encoded_mag_event_len;
   /**----------debug----------*/
   float     m_stream_event[3];
-  uint8_t   reg_status[AK0991X_DEBUG_REGISTERS];
 
   sns_diag_service *diag_service;
 

@@ -97,6 +97,9 @@ typedef enum
 /** Invalid fifo data bit */
 #define AK0991X_INV_FIFO_DATA   0x4
 
+/** Soft reset */
+#define AK0991X_SOFT_RESET      0x1
+
 /** fifo paramters */
 #define AK09911_FIFO_SIZE         0
 #define AK09912_FIFO_SIZE         0
@@ -104,7 +107,7 @@ typedef enum
 #define AK09915_FIFO_SIZE         32
 #define AK09916_FIFO_SIZE         0
 #define AK09918_FIFO_SIZE         0
-#define AK0991X_FIFO_BYTE_SIZE    AK09915_FIFO_SIZE * AK0991X_NUM_DATA_HXL_TO_ST2 + 1
+#define AK0991X_MAX_FIFO_SIZE     AK09915_FIFO_SIZE * AK0991X_NUM_DATA_HXL_TO_ST2 + 1
 
 /** FIFO setting */
 #define AK0991X_ENABLE_FIFO     1

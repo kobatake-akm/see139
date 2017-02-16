@@ -189,7 +189,7 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle)
   sns_time cur_time;
   uint32_t xfer_bytes;
 
-  buffer[0] = 0x01;
+  buffer[0] = AK0991X_SOFT_RESET;
   rv = ak0991x_com_write_wrapper(port_handle,
                              AKM_AK0991X_REG_CNTL3,
                              &buffer[0],
@@ -949,14 +949,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
                                sns_event_service *event_service,
                                ak0991x_instance_state *state,
                                log_sensor_state_raw_info *log_mag_state_raw_info)
-                               //pb_ostream_t *stream,
-                               //bool logging_enabled,
-                               //log_data *ldata)
 {
   UNUSED_VAR(event_service);
-  //UNUSED_VAR(stream);
-  //UNUSED_VAR(logging_enabled);
-  //UNUSED_VAR(ldata);
 
   float data[3];
   sns_std_sensor_sample_status status;
@@ -1170,7 +1164,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 {
 
-  uint8_t buffer[200];
+  uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
   uint32_t enc_len;
   uint16_t num_of_bytes;
 
