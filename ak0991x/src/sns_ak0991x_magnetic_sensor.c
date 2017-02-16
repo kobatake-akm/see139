@@ -40,6 +40,8 @@ typedef struct ak0991x_dev_info {
   uint32_t sleep_current;
   range_attr ranges;
   char** operating_modes;
+  bool supports_dri;
+  bool supports_sync_stream;
 } ak0991x_dev_info;
 
 static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
@@ -51,6 +53,8 @@ static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current   = AK09911_LO_PWR,
     .ranges          = {AK09911_MIN_RANGE, AK09911_MAX_RANGE},
     .operating_modes = ak09911_ope_mode_table,
+    .supports_dri    = false,
+    .supports_sync_stream = false,
   },
   [AK09912] = {
     .odr             = ak09912_odr_table,
@@ -60,6 +64,8 @@ static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current   = AK09912_LO_PWR,
     .ranges          = {AK09912_MIN_RANGE, AK09912_MAX_RANGE},
     .operating_modes = ak09912_ope_mode_table,
+    .supports_dri    = true,
+    .supports_sync_stream = false,
   },
   [AK09913] = {
     .odr             = ak09913_odr_table,
@@ -69,6 +75,8 @@ static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current   = AK09913_LO_PWR,
     .ranges          = {AK09913_MIN_RANGE, AK09913_MAX_RANGE},
     .operating_modes = ak09913_ope_mode_table,
+    .supports_dri    = false,
+    .supports_sync_stream = false,
   },
   [AK09915C] = {
     .odr             = ak09915_odr_table,
@@ -78,6 +86,8 @@ static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current   = AK09915_LO_PWR,
     .ranges          = {AK09915_MIN_RANGE, AK09915_MAX_RANGE},
     .operating_modes = ak09915_ope_mode_table,
+    .supports_dri    = true,
+    .supports_sync_stream = false,
   },
   [AK09915D] = {
     .odr             = ak09915_odr_table,
@@ -87,6 +97,8 @@ static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current   = AK09915_LO_PWR,
     .ranges          = {AK09915_MIN_RANGE, AK09915_MAX_RANGE},
     .operating_modes = ak09915_ope_mode_table,
+    .supports_dri    = true,
+    .supports_sync_stream = true,
   },
   [AK09916C] = {
     .odr             = ak09916_odr_table,
@@ -96,6 +108,8 @@ static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current   = AK09916_LO_PWR,
     .ranges          = {AK09916_MIN_RANGE, AK09916_MAX_RANGE},
     .operating_modes = ak09916_ope_mode_table,
+    .supports_dri    = false,
+    .supports_sync_stream = false,
   },
   [AK09916D] = {
     .odr             = ak09916_odr_table,
@@ -105,8 +119,9 @@ static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current   = AK09916_LO_PWR,
     .ranges          = {AK09916_MIN_RANGE, AK09916_MAX_RANGE},
     .operating_modes = ak09916_ope_mode_table,
+    .supports_dri    = true,
+    .supports_sync_stream = false,
   },
-
   [AK09918] = {
     .odr             = ak09918_odr_table,
     .resolutions     = AK09918_RESOLUTION,
@@ -115,6 +130,8 @@ static const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current   = AK09918_LO_PWR,
     .ranges          = {AK09918_MIN_RANGE, AK09918_MAX_RANGE},
     .operating_modes = ak09918_ope_mode_table,
+    .supports_dri    = false,
+    .supports_sync_stream = false,
   },
 };
 
@@ -145,8 +162,6 @@ void ak0991x_mag_init_attributes(sns_sensor *const this, akm_device_type device_
     SNS_STD_SENSOR_RIGID_BODY_TYPE_DISPLAY;
   static const float placement[12] = {0};
   static const uint32_t hardware_id = 0;
-  static const bool supports_dri = true;
-  static const bool supports_sync_stream = false;
 
   state->attributes[i++] = (sns_sensor_attribute)
                            {
@@ -284,14 +299,14 @@ void ak0991x_mag_init_attributes(sns_sensor *const this, akm_device_type device_
   state->attributes[i++] = (sns_sensor_attribute)
                            {
                              .name = sns_attr_supports_dri,
-                             .value = (uintptr_t)&supports_dri,
+                             .value = (uintptr_t)&ak0991x_dev_info_array[device_select].supports_dri,
                              .value_len = 1
                            };
 
   state->attributes[i++] = (sns_sensor_attribute)
                            {
                              .name = sns_attr_supports_sync_stream,
-                             .value = (uintptr_t)&supports_sync_stream,
+                             .value = (uintptr_t)&ak0991x_dev_info_array[device_select].supports_sync_stream,
                              .value_len = 1
                            };
 }
