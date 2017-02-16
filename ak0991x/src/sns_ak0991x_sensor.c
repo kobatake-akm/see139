@@ -751,7 +751,12 @@ sns_sensor_instance* ak0991x_set_client_request(sns_sensor *const this,
         if(0)  // flush_req
         {
            // TODO Flush FIFO samples.
-           ak0991x_flush_fifo(instance);
+           ak0991x_instance_state *inst_state =
+             (ak0991x_instance_state*)instance->state->state;
+           if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+           {
+             ak0991x_flush_fifo(instance);
+           }
            instance = NULL;
         }
         else
