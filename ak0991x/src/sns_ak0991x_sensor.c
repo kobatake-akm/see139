@@ -233,24 +233,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
             return rv;
           }
           diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
- 
-          // SELFTEST
-          uint32_t err = 0;
-          sns_rc rv;
-          rv = ak0991x_self_test(state->com_port_info.port_handle,
-                            state->device_select,
-                            state->sstvt_adj,
-                            &err);
-          if (rv != SNS_RC_SUCCESS)
-          {
-            diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"Test failed, err code = %ld",err);
-            return rv;
-          }
-          else
-          {
-            diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"Test passed");
-          }
- 
+
           // Reset Sensor
           rv = ak0991x_device_sw_reset(state->com_port_info.port_handle);
 
