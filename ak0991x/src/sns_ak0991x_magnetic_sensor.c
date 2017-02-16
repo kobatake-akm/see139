@@ -147,7 +147,7 @@ void ak0991x_mag_init_attributes(sns_sensor *const this, akm_device_type device_
   static const char name[] = "qc_ak0991x";
   static const char type[] = "mag";
   static const char vendor[] = "template";//"akm";
-  static const uint32_t version = 0x0100; // major[31:16].minor[15:0]
+  static const uint32_t version = 0x00000100; // major[31:16].minor[15:0]
 
   static const char proto_files[] = "sns_physical_sensor_test.proto" SNS_ATTRIBUTE_STRING_DL "sns_std_sensor.proto";
 

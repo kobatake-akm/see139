@@ -31,9 +31,9 @@
 #define AK0991X_USE_DEFAULTS          1
 #endif
 
-// Set DRI or Polling
+// Set DRI(true) or Polling(false)
 #ifndef AK0991X_USE_DRI
-#define AK0991X_USE_DRI               1
+#define AK0991X_USE_DRI               (true)
 #endif
 
 // Set Interrupt trigger type
