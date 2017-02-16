@@ -186,7 +186,6 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle)
 {
   uint8_t buffer[1];
   sns_rc rv = SNS_RC_SUCCESS;
-  sns_time cur_time;
   uint32_t xfer_bytes;
 
   buffer[0] = AK0991X_SOFT_RESET;
@@ -207,38 +206,8 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle)
     return rv;
   }
 
-  cur_time = sns_get_system_time();
-  do
-  {
-    if(sns_get_system_time() > (cur_time + sns_convert_ns_to_ticks(10*1000*1000)))
-    {
-      // Sensor HW has not recovered from SW reset.
-      return SNS_RC_FAILED;
-    }
-    else
-    {
-      //1ms wait
-      sns_busy_wait(sns_convert_ns_to_ticks(1*1000*1000));
-
-      rv = ak0991x_com_read_wrapper(port_handle,
-                                AKM_AK0991X_REG_CNTL3,
-                                &buffer[0],
-                                1,
-                                &xfer_bytes);
-
-      if(rv != SNS_RC_SUCCESS)
-      {
-        // TODO add debug log.
-        // HW not ready. Keep going.
-      }
-      if(xfer_bytes != 1)
-      {
-        // TODO add error log.
-        return SNS_RC_FAILED;
-      }
-    }
-
-  } while((buffer[0] & 0x01));
+  //1ms wait
+  sns_busy_wait(sns_convert_ns_to_ticks(1*1000*1000));
 
   return SNS_RC_SUCCESS;
 }

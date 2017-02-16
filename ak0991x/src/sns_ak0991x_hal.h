@@ -231,6 +231,9 @@ typedef enum
 
 /**
  * Resets the Sensor SW.
+ * This function is used in ak0991x drivers flow only.
+ * If call from other flow directly for HW reset,
+ * should also reset the SW settings like a mag_info.curr_odr.
  *
  * @param[i] port_handle   handle to synch COM port
  *
