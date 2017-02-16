@@ -693,41 +693,40 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_handle *port_handle,
   uint8_t  i;
 
   // If the device does not have FUSE ROM, we don't need to access it. 
-  if((device_select == AK09918) ||
-     (device_select == AK09916C) ||
-     (device_select == AK09916D) ||
-     (device_select == AK09915C) ||
-     (device_select == AK09915D) ||
-     (device_select == AK09913))
+  if((device_select != AK09911) && (device_select != AK09912))
   {
     for(i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
     {
       sstvt_adj[i] = 1.0f;
     }
-  }
-  else if((device_select == AK09912) ||
-          (device_select == AK09911))
-  {
-    rv = ak0991x_read_asa(port_handle, buffer);
 
-    if(device_select == AK09912_WHOAMI_DEV_ID)
+    return rv;
+  }
+
+  rv = ak0991x_read_asa(port_handle, buffer);
+
+  if(rv != SNS_RC_SUCCESS)
+  {
+    return rv;
+  }
+
+  if(device_select == AK09911_WHOAMI_DEV_ID)
+  {
+    for(i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
     {
-      for(i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
-      {
-        sstvt_adj[i] = ((buffer[i] / 128.0f) + 1.0f);
-      }
+      sstvt_adj[i] = ((buffer[i] / 128.0f) + 1.0f);
     }
-    else if(device_select == AK09911_WHOAMI_DEV_ID)
+  }
+  else if(device_select == AK09912_WHOAMI_DEV_ID)
+  {
+    for(i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
     {
-      for(i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
-      {
-        sstvt_adj[i] = ((buffer[i] / 256.0f) + 0.5f);
-      }
+      sstvt_adj[i] = ((buffer[i] / 256.0f) + 0.5f);
     }
   }
   else
   {
-    // No device
+    // no device
     rv = SNS_RC_FAILED;
   }
 
