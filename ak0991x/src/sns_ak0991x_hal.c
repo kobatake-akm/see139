@@ -196,9 +196,13 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle)
                              1,
                              &xfer_bytes,
                              false);
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != 1)
+
+  if(xfer_bytes != 1)
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  if(rv != SNS_RC_SUCCESS)
   {
     return rv;
   }
@@ -268,9 +272,14 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
                           &xfer_bytes,
                           false);
 
-    if(rv != SNS_RC_SUCCESS || xfer_bytes != 1)
+    if(xfer_bytes != 1)
     {
-       return SNS_RC_FAILED;
+       rv = SNS_RC_FAILED;
+    }
+
+    if(rv != SNS_RC_SUCCESS)
+    {
+      return rv;
     }
   }
 
@@ -346,9 +355,7 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
                             AK0991X_NUM_READ_DEV_ID,
                             &xfer_bytes);
 
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != AK0991X_NUM_READ_DEV_ID)
+  if(xfer_bytes != AK0991X_NUM_READ_DEV_ID)
   {
     rv = SNS_RC_FAILED;
   }
@@ -382,11 +389,14 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
                              &xfer_bytes,
                              false);
 
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != 1)
+  if(xfer_bytes != 1)
   {
-    return SNS_RC_FAILED;
+    rv = SNS_RC_FAILED;
+  }
+
+  if(rv != SNS_RC_SUCCESS)
+  {
+    return rv;
   }
 
 
@@ -397,11 +407,14 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
                           AK0991X_NUM_SENSITIVITY,
                           &xfer_bytes);
 
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != AK0991X_NUM_SENSITIVITY)
+  if(xfer_bytes != AK0991X_NUM_SENSITIVITY)
   {
-    return SNS_RC_FAILED;
+    rv = SNS_RC_FAILED;
+  }
+
+  if(rv != SNS_RC_SUCCESS)
+  {
+    return rv;
   }
 
   buffer[0] = AK0991X_MAG_ODR_OFF;
@@ -413,11 +426,9 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
                              &xfer_bytes,
                              false);
 
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != 1)
+  if(xfer_bytes != 1)
   {
-    return SNS_RC_FAILED;
+    rv = SNS_RC_FAILED;
   }
 
   return rv;
@@ -661,9 +672,7 @@ static sns_rc ak0991x_get_fifo_data(sns_sync_com_port_handle *port_handle,
                             AK0991X_NUM_DATA_HXL_TO_ST2,
                             &xfer_bytes);
 
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != AK0991X_NUM_DATA_HXL_TO_ST2)
+  if(xfer_bytes != AK0991X_NUM_DATA_HXL_TO_ST2)
   {
     rv = SNS_RC_FAILED;
   }
@@ -1232,13 +1241,15 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
                             AK0991X_NUM_DATA_ST1_TO_ST2,
                             &xfer_bytes);
 
-  if(rv != SNS_RC_SUCCESS
-     ||
-     xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+  if (xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
   {
-    return SNS_RC_FAILED;
+    rv = SNS_RC_FAILED;
   }
 
+  if(rv != SNS_RC_SUCCESS)
+  {
+    return rv;
+  }
   diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
   sns_time timestamp;
