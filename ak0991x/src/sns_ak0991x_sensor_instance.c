@@ -70,58 +70,57 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
                                       ak0991x_mag_odr *chosen_reg_value,
                                       akm_device_type device_select)
 {
-  uint8_t idx;
-  uint16_t max_odr_setting;
 
-  switch(device_select) {
-    case AK09911:
-    case AK09912:
-    case AK09913:
-    case AK09916C:
-    case AK09916D:
-    case AK09918:
-      max_odr_setting = AK0991X_ODR_100;
-      break;
-    case AK09915C:
-    case AK09915D:
-      max_odr_setting = AK0991X_ODR_200;
-      break;
-    default:
-      max_odr_setting = AK0991X_ODR_0;
-      break;
-  }
-
-  if((max_odr_setting < desired_sample_rate)
-     ||
-     NULL == chosen_sample_rate
+  if(NULL == chosen_sample_rate
      ||
      NULL == chosen_reg_value)
   {
     return SNS_RC_NOT_SUPPORTED;
   }
 
-  for(idx = 0; idx < ARR_SIZE(reg_map_ak0991x); idx++)
+  if(desired_sample_rate <= AK0991X_ODR_0)
   {
-    // Only AK09915C/D support ODR 1Hz
-    if((idx == 1) && ((device_select != AK09915C) && (device_select != AK09915D)))
+    *chosen_sample_rate = AK0991X_ODR_0;
+    *chosen_reg_value = AK0991X_MAG_ODR_OFF;
+  }
+  else if (desired_sample_rate <= AK0991X_ODR_10)
+  {
+    if((desired_sample_rate <= AK0991X_ODR_1) && ((device_select == AK09915C) || (device_select == AK09915D)))
     {
-      continue;
+      *chosen_sample_rate = AK0991X_ODR_1;
+      *chosen_reg_value = AK0991X_MAG_ODR1;
     }
-
-    if(desired_sample_rate <= reg_map_ak0991x[idx].odr)
+    else
     {
-      break;
+      *chosen_sample_rate = AK0991X_ODR_10;
+      *chosen_reg_value = AK0991X_MAG_ODR10;
     }
   }
-
-  if (idx >= ARR_SIZE(reg_map_ak0991x))
+  else if (desired_sample_rate <= AK0991X_ODR_20)
   {
-    return SNS_RC_NOT_SUPPORTED;
+    *chosen_sample_rate = AK0991X_ODR_20;
+    *chosen_reg_value = AK0991X_MAG_ODR20;
   }
-
-  *chosen_sample_rate = reg_map_ak0991x[idx].odr;
-  *chosen_reg_value = reg_map_ak0991x[idx].mag_odr_reg_value;
-
+  else if (desired_sample_rate <= AK0991X_ODR_50)
+  {
+    *chosen_sample_rate = AK0991X_ODR_50;
+    *chosen_reg_value = AK0991X_MAG_ODR50;
+  }
+  else if (desired_sample_rate <= AK0991X_ODR_100)
+  {
+    *chosen_sample_rate = AK0991X_ODR_100;
+    *chosen_reg_value = AK0991X_MAG_ODR100;
+  }
+  else if ((desired_sample_rate <= AK0991X_ODR_200) && ((device_select == AK09915C) || (device_select == AK09915D)))
+  {
+    *chosen_sample_rate = AK0991X_ODR_200;
+    *chosen_reg_value = AK0991X_MAG_ODR200;
+  }
+  else
+  {
+    return SNS_RC_FAILED;
+  }
+ 
   return SNS_RC_SUCCESS;
 }
 
