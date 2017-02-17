@@ -1052,7 +1052,9 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                  state,
                                  &log_mag_state_raw_info);
       cnt_for_ts--;
-      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"process_fifo_timestamp=%lld cnt_for_ts=%d",timestamp, cnt_for_ts);
+      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"buf=%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",vector->buffer[0],vector->buffer[1],vector->buffer[2],vector->buffer[3],vector->buffer[4],vector->buffer[5],vector->buffer[6],vector->buffer[7],vector->buffer[8]);
+
+     diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"process_fifo_timestamp=%lld cnt_for_ts=%d",timestamp, cnt_for_ts);
 
     }
 

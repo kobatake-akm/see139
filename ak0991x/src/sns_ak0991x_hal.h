@@ -47,6 +47,14 @@
 #define AK0991X_USE_DRI               (true)
 #endif
 
+// Set Interrupt pull type
+// AK09915D and AK09916D should set SNS_INTTERRUPT_PULL_TYPE_PULL_UP
+// Other devices should set SNS_INTTERRUPT_PULL_TYPE_KEEPER
+#ifndef AK0991X_INTERRUPT_PULL_TYPE
+#define AK0991X_INTERRUPT_PULL_TYPE  SNS_INTTERRUPT_PULL_TYPE_KEEPER
+#endif
+
+
 // Set Interrupt trigger type
 // AK09912 and AK09915C should set SNS_INTTERRUPT_TRIGGER_TYPE_RISING
 // AK09915D and AK09916D should set SNS_INTTERRUPT_TRIGGER_TYPE_FALLING
@@ -62,7 +70,7 @@ typedef enum
 } ak0991x_bus_type;
 // Set Serial interface
 #ifndef AK0991X_BUS_TYPE
-#define AK0991X_BUS_TYPE              AK0991X_SPI
+#define AK0991X_BUS_TYPE              AK0991X_I2C
 #endif
 
 /**

@@ -134,6 +134,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           rv = ak0991x_get_who_am_i(state->com_port_info.port_handle, &buffer[0]);
           if(rv != SNS_RC_SUCCESS)
           {
+            diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
             return rv;
           }
           diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"WIA1=%x,WIA2=%x",buffer[0],buffer[1]);
@@ -186,40 +187,49 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           // IRQ settings, it depends on the device.
           state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
           state->irq_info.irq_num = IRQ_NUM;
-          state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
-          switch(state->device_select)
+
+ 
+         switch(state->device_select)
           {
             case AK09911:
               state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
               state->irq_info.is_chip_pin = false;
+              state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
               break;
             case AK09912:
               state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
               state->irq_info.is_chip_pin = true;
+              state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
               break;
             case AK09913:
               state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
               state->irq_info.is_chip_pin = false;
+              state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
               break;
             case AK09915C:
               state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
               state->irq_info.is_chip_pin = true;
+              state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
               break;
             case AK09915D:
               state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
               state->irq_info.is_chip_pin = true;
+              state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
               break;
             case AK09916C:
               state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
               state->irq_info.is_chip_pin = false;
+              state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
               break;
             case AK09916D:
               state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
               state->irq_info.is_chip_pin = true;
+              state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
               break;
             case AK09918:
               state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
               state->irq_info.is_chip_pin = false;
+              state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
               break;
             default:
               return SNS_RC_FAILED;
@@ -331,14 +341,15 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         state->com_port_info.com_config.min_bus_speed_KHz = I2C_BUS_FREQ;
         state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
         state->com_port_info.com_config.slave_control = I2C_SLAVE_ADDRESS;
+        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"I2C");
      }
 
 #if AK0991X_ENABLE_DEPENDENCY
       // IRQ settings, it depends on the device.
           state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
           state->irq_info.irq_num = IRQ_NUM;
-          state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
-          state->irq_info.irq_trigger_type = AK0991X_INTERRUPT_TRIGGER_TYPEG;
+          state->irq_info.irq_pull = AK0991X_INTERRUPT_PULL_TYPE;
+          state->irq_info.irq_trigger_type = AK0991X_INTERRUPT_TRIGGER_TYPE;
 #endif //AK0991X_ENABLE_DEPENDENCY
       
 #else   //AK0991X_USE_DEFAULTS

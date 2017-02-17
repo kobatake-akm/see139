@@ -48,8 +48,17 @@
 #else
 /* for on-target test */
 
-//if the measurement mode will be power-down, NUM_EVENTS_TO_PROCESS_X should be 1
+//#define NUM_EVENTS_TO_PROCESS 5+1    //1Hz
+//#define NUM_EVENTS_TO_PROCESS 50+1   //10Hz
+//#define NUM_EVENTS_TO_PROCESS 100+1  //20Hz
+//#define NUM_EVENTS_TO_PROCESS 250+1  //50Hz
+//#define NUM_EVENTS_TO_PROCESS 500+1  //100Hz
+//#define NUM_EVENTS_TO_PROCESS 1000+1 //200Hz
+
 #define NUM_EVENTS_TO_PROCESS 100
+
+//if the measurement mode will be power-down, NUM_EVENTS_TO_PROCESS_X should be 1
+//#define NUM_EVENTS_TO_PROCESS 100
 #define NUM_EVENTS_TO_PROCESS_2 100
 #define NUM_EVENTS_TO_PROCESS_3 100
 #define NUM_EVENTS_TO_PROCESS_4 1
@@ -59,7 +68,8 @@
 //if the NUM_TEST_ITERATIONS is more than 2,
 //Please check NUM_EVENTS_TO_PROCESS_X
 //and TEST_SAMPLE_RATE in sns_test_std_sensor.c
-#define NUM_TEST_ITERATIONS 6
+#define NUM_TEST_ITERATIONS 1
+//#define NUM_TEST_ITERATIONS 6
 #endif
 typedef struct sns_test_implementation
 {

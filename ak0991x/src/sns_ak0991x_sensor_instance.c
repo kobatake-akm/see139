@@ -563,6 +563,8 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         irq_req_payload.interrupt_drive_strength = state->irq_info.irq_drive_strength;
         irq_req_payload.interrupt_pull_type = state->irq_info.irq_pull;
         irq_req_payload.is_chip_pin = state->irq_info.is_chip_pin;
+  
+        diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"trigger_type=%d, pull=%d, is_chip_pin=%d",state->irq_info.irq_trigger_type,state->irq_info.irq_pull,state->irq_info.is_chip_pin);
  
         irq_req_len = pb_encode_request(buffer,
                                         sizeof(buffer),
