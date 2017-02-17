@@ -17,6 +17,17 @@
 
 #include "sns_ak0991x_sensor_instance.h"
 
+/* Referenced data sheet version
+ * AK09911  data sheet version MS1626_E-01
+ * AK09912  data sheet version MS1547-E-02
+ * AK09913  data sheet version 015007259-E-00
+ * AK09915C data sheet version 015006484-E-02
+ * AK09915D data sheet version 016009278-E-00
+ * AK09916C data sheet version 015007392-E-02
+ * AK09916D data sheet version preliminary_E-00
+ * AK09918  data sheet version 016014242_E_00
+ */
+
 // Enable for test code
 #ifndef AK0991X_ENABLE_TEST_CODE
 #define AK0991X_ENABLE_TEST_CODE      1
