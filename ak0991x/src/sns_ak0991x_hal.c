@@ -1058,7 +1058,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     sns_time timestamp;
     uint16_t num_samples = 0;
 
-    uint8_t buffer[200];
+    uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
     //Continue reading until fifo buffer is clear
     for(i = 0; i < state->mag_info.max_fifo_size; i++) {
@@ -1235,7 +1235,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 }
 
 /** See sns_ak0991x_hal.h */
-void ak0991x_send_config_event(sns_sensor_instance *const instance)
+sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state =
      (ak0991x_instance_state*)instance->state->state;
@@ -1371,19 +1371,7 @@ void ak0991x_send_config_event(sns_sensor_instance *const instance)
       phy_sensor_config.stream_is_synchronous = false;
       break;
     default:
-      operating_mode = AK0991X_NORMAL;
-      phy_sensor_config.has_water_mark = false;
-      phy_sensor_config.water_mark = state->mag_info.cur_wmk;
-      phy_sensor_config.has_active_current = false;
-      phy_sensor_config.active_current = 0;
-      phy_sensor_config.has_resolution = true;
-      phy_sensor_config.resolution = 0;
-      phy_sensor_config.range_count = 2;
-      phy_sensor_config.range[0] = 0;
-      phy_sensor_config.range[1] = 0;
-      phy_sensor_config.has_stream_is_synchronous = false;
-      phy_sensor_config.stream_is_synchronous = false;
-      break;
+      return SNS_RC_FAILED;
   }
 
   pb_buffer_arg op_mode_args;
@@ -1408,5 +1396,7 @@ void ak0991x_send_config_event(sns_sensor_instance *const instance)
                   sns_get_system_time(),
                   SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG_EVENT,
                   &state->mag_info.suid);
+
+  return SNS_RC_SUCCESS;
 }
 

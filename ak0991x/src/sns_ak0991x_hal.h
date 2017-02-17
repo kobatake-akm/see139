@@ -281,7 +281,7 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
  * @param[i] state         Instance state
  *
  * @return sns_rc
- * SNS_RC_FAILED - COM port failure
+ * SNS_RC_FAILED
  * SNS_RC_SUCCESS
  */
 sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
@@ -297,7 +297,7 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
  * @param[o] sstvt_adj     Set sensitivity adjustment
  *
  * @return sns_rc
- * SNS_RC_FAILED - COM port failure
+ * SNS_RC_FAILED
  * SNS_RC_SUCCESS
  */
 sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_handle *port_handle,
@@ -371,8 +371,11 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance);
 /**
  * Sends config update event for the chosen sample_rate
  *
+ * @return sns_rc
+ * SNS_RC_FAILED
+ * SNS_RC_SUCCESS
  * @param[i] instance    reference to this Instance
  */
-void ak0991x_send_config_event(sns_sensor_instance *const instance);
+sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance);
 
 

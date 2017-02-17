@@ -62,7 +62,7 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] =
   {
     .odr = AK0991X_ODR_200,
     .mag_odr_reg_value = AK0991X_MAG_ODR200,
-  },
+  }
 };
 
 static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
@@ -501,7 +501,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
        if(desired_report_rate != 0)
        {
          /* Water mark level : 0x00 -> 1step, 0x01F ->32step*/
-         desired_wmk = (int16_t)(mag_chosen_sample_rate / desired_report_rate) - 1;
+         desired_wmk = ((uint16_t)mag_chosen_sample_rate / (uint16_t)desired_report_rate) - 1;
          diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"desired_wmk=%d",desired_wmk);
        }
 
