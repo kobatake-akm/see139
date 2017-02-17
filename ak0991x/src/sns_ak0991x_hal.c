@@ -940,8 +940,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
      (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] * state->mag_info.resolution;
 
   // Check magnetic sensor overflow 
-  if(mag_sample[7] == AK0991X_HOFL_BIT) {
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_LOW;
+  if((mag_sample[7] & AK0991X_HOFL_BIT) != 0) {
+    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   } else {
     status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
   }
@@ -1065,7 +1065,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
       ak0991x_get_fifo_data(state->com_port_info.port_handle,
                                &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
  
-      if(buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] == AK0991X_INV_FIFO_DATA) {
+      if((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0) {
         //fifo buffer is clear
         break;
       } else {
@@ -1127,15 +1127,15 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
       {
         state->pre_timestamp = timestamp;
       }
-    }
 
-    state->this_is_first_data = false;
+      state->this_is_first_data = false;
  
-    ak0991x_log_sensor_state_raw_submit(diag,
+      ak0991x_log_sensor_state_raw_submit(diag,
                                         instance,
                                         &state->mag_info.suid,
                                         &log_mag_state_raw_info);
  
+    }
 }
 
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
