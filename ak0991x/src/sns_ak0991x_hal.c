@@ -391,6 +391,14 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
 
   if(rv != SNS_RC_SUCCESS)
   {
+    // transit to power-down mode from Fuse ROM access mode if possible
+    buffer[0] = AK0991X_MAG_ODR_OFF;
+    ak0991x_com_write_wrapper(port_handle,
+                             AKM_AK0991X_REG_CNTL2,
+                             buffer,
+                             1,
+                             &xfer_bytes,
+                             false);
     return rv;
   }
 
@@ -499,7 +507,7 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
     }
     AKM_FST(TLIMIT_NO_ASAX, asa[0], TLIMIT_LO_ASAX, TLIMIT_HI_ASAX, err);
     AKM_FST(TLIMIT_NO_ASAY, asa[1], TLIMIT_LO_ASAY, TLIMIT_HI_ASAY, err);
-    AKM_FST(TLIMIT_NO_ASAZ, asa[2], TLIMIT_LO_ASAY, TLIMIT_HI_ASAZ, err);
+    AKM_FST(TLIMIT_NO_ASAZ, asa[2], TLIMIT_LO_ASAZ, TLIMIT_HI_ASAZ, err);
   }
 
   /** Step 2
@@ -559,7 +567,7 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  // To ensure that measurement is finishe, wait for double as typical
+  // To ensure that measurement is finished, wait for double as typical
   sns_busy_wait(sns_convert_ns_to_ticks(usec_time_for_measure * 1000 * 2));
 
   /** Step 3
