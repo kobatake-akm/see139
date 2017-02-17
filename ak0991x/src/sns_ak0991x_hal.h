@@ -249,18 +249,22 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle);
  *
  * @param[i] state         Instance state
  *
- * @return none
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
  */
-void ak0991x_start_mag_streaming(ak0991x_instance_state *state);
+sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state);
 
 /**
  * Disable Mag streaming.
  *
  * @param[i] state         Instance state
  *
- * @return none
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
  */
-void ak0991x_stop_mag_streaming(ak0991x_instance_state *state);
+sns_rc ak0991x_stop_mag_streaming(ak0991x_instance_state *state);
 
 /**
  * Gets Who-Am-I register for the sensor.

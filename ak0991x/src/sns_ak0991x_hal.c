@@ -216,7 +216,7 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle)
  * see sns_ak0991x_hal.h
  */
 sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
-                              ak0991x_mag_odr         curr_odr,
+                              ak0991x_mag_odr         desired_odr,
                               akm_device_type         device_select,
                               uint16_t                cur_wmk)
 {
@@ -258,10 +258,10 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
     buffer = 0x0
          | (AK0991X_ENABLE_FIFO<<7) // FIFO bit
          | (AK0991X_SDR<<6)         // SDR bit
-         | (uint8_t)curr_odr;       // MODE[4:0] bits
+         | (uint8_t)desired_odr;    // MODE[4:0] bits
   } else {
     buffer = 0x0
-         | (uint8_t)curr_odr;       // MODE[4:0] bits
+         | (uint8_t)desired_odr;    // MODE[4:0] bits
   }
 
   return ak0991x_com_write_wrapper(port_handle,
@@ -275,37 +275,63 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
 /**
  * see sns_ak0991x_hal.h
  */
-void ak0991x_start_mag_streaming(ak0991x_instance_state *state)
+sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state)
 {
+  sns_rc rv;
+
   // Enable Mag Streaming
+
+  //Transit to Power-down mode first and then transit to other modes.
+  rv = ak0991x_set_mag_config(state->com_port_info.port_handle,
+                              AK0991X_MAG_ODR_OFF,
+                              state->mag_info.device_select,
+                              state->mag_info.cur_wmk);
+  
+  if(rv != SNS_RC_SUCCESS)
+  {
+    return rv;
+  }
+
+  rv = ak0991x_set_mag_config(state->com_port_info.port_handle,
+                              state->mag_info.desired_odr,
+                              state->mag_info.device_select,
+                              state->mag_info.cur_wmk);
+
+  if(rv != SNS_RC_SUCCESS)
+  {
+    return rv;
+  }
 
   state->mag_info.curr_odr =
                   state->mag_info.desired_odr;
-  //Transit to Power-down mode first and then transit to other modes.
-  ak0991x_set_mag_config(state->com_port_info.port_handle,
-                         AK0991X_MAG_ODR_OFF,
-                         state->mag_info.device_select,
-                         state->mag_info.cur_wmk);
-  ak0991x_set_mag_config(state->com_port_info.port_handle,
-                         state->mag_info.curr_odr,
-                         state->mag_info.device_select,
-                         state->mag_info.cur_wmk);
 
+  return SNS_RC_SUCCESS;
 }
 
 /**
  * see sns_ak0991x_hal.h
  */
-void ak0991x_stop_mag_streaming(ak0991x_instance_state *state)
+sns_rc ak0991x_stop_mag_streaming(ak0991x_instance_state *state)
 {
+  sns_rc rv;
+
   // Disable Mag Streaming
+
+  rv = ak0991x_set_mag_config(state->com_port_info.port_handle,
+                             AK0991X_MAG_ODR_OFF,
+                             state->mag_info.device_select,
+                             state->mag_info.cur_wmk);
+
+  if(rv != SNS_RC_SUCCESS)
+  {
+    return rv;
+  }
 
   state->mag_info.curr_odr =
                   state->mag_info.desired_odr;
-  ak0991x_set_mag_config(state->com_port_info.port_handle,
-                         AK0991X_MAG_ODR_OFF,
-                         state->mag_info.device_select,
-                         state->mag_info.cur_wmk);
+
+  return SNS_RC_SUCCESS;
+ 
 }
 
 

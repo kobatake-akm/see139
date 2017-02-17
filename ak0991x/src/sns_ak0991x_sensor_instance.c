@@ -446,6 +446,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float mag_chosen_sample_rate = 0;
   ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
   uint16_t desired_wmk = 0;
+  uint16_t pre_wmk = state->mag_info.cur_wmk;
   sns_rc rv = SNS_RC_SUCCESS;
 
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
@@ -472,11 +473,16 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
   if(client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
-     // 1. Extract sample, report rates from client_request.
-     // 2. Configure sensor HW.
-     // 3. sendRequest() for Timer to start/stop in case of polling using timer_data_stream.
-     // 4. sendRequest() for Intrerupt register/de-register in case of DRI using interrupt_data_stream.
-     // 5. Save the current config information like type, sample_rate, report_rate, etc.
+     // In case of DRI,
+     //   1. Extract sample, report rates from client_request.
+     //   2. sendRequest() for Intrerupt register/de-register in case of DRI using interrupt_data_stream.
+     //   3. Configure sensor HW.
+     //   4. Save the current config information like type, sample_rate, report_rate, etc.
+     // In case of polling,
+     //   1. Extract sample, report rates from client_request.
+     //   2. Configure sensor HW.
+     //   3. Save the current config information like type, sample_rate, report_rate, etc.
+     //   4. sendRequest() for Timer to start/stop in case of polling using timer_data_stream.
      diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
      sns_ak0991x_mag_req *payload =
         (sns_ak0991x_mag_req*)client_request->request;
@@ -530,23 +536,14 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
      state->mag_req.sample_rate = mag_chosen_sample_rate;
      state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
-     ak0991x_send_config_event(this);
-     diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-
-    if(state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF) {
-      if((!state->this_is_first_data) && (state->mag_info.use_fifo)) {
-        ak0991x_flush_fifo(this);
-      }
-      ak0991x_start_mag_streaming(state);
-    } else {
-      if((!state->this_is_first_data) && (state->mag_info.use_fifo)) {
-        ak0991x_flush_fifo(this);
-        state->this_is_first_data = true;
-      }
-      ak0991x_stop_mag_streaming(state);
-    }
-
-
+     rv = ak0991x_send_config_event(this);
+     if(rv != SNS_RC_SUCCESS) {
+       state->mag_info.cur_wmk = pre_wmk;
+       // Turn COM port OFF
+       state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
+                                                                                false);
+       return rv;
+     }
      diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
 
     if(state->mag_info.use_dri)
@@ -593,7 +590,38 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
       }
     }
-    else
+
+    if(state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF) {
+      if((!state->this_is_first_data) && (state->mag_info.use_fifo)) {
+        ak0991x_flush_fifo(this);
+      }
+      rv = ak0991x_start_mag_streaming(state);
+      if(rv != SNS_RC_SUCCESS) {
+        state->mag_info.cur_wmk = pre_wmk;
+        // Turn COM port OFF
+        state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
+                                                                                 false);
+        return rv;
+      }
+    } else {
+      if((!state->this_is_first_data) && (state->mag_info.use_fifo)) {
+        ak0991x_flush_fifo(this);
+        state->this_is_first_data = true;
+      }
+      rv = ak0991x_stop_mag_streaming(state);
+      if(rv != SNS_RC_SUCCESS) {
+        state->mag_info.cur_wmk = pre_wmk;
+        // Turn COM port OFF
+        state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(state->com_port_info.port_handle,
+                                                                                 false);
+        return rv;
+      }
+    }
+
+
+     diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+
+    if(!state->mag_info.use_dri)
     {
       if(state->mag_req.sample_rate != AK0991X_ODR_0)
       {
