@@ -1013,7 +1013,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
 
     log_sensor_state_raw_info log_mag_state_raw_info;
     sns_time timestamp;
-    uint16_t num_samples = state->mag_info.cur_wmk;
+    uint16_t cnt_for_ts = state->mag_info.cur_wmk;
 
     sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
     ak0991x_log_sensor_state_alloc(
@@ -1030,11 +1030,11 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
     {
        if(state->this_is_first_data)
       {
-        timestamp = state->interrupt_timestamp - (sample_interval_ticks * num_samples);
+        timestamp = state->interrupt_timestamp - (sample_interval_ticks * cnt_for_ts);
       }
       else
       {
-        timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * num_samples);
+        timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
       }
 
       ak0991x_handle_mag_sample( &vector->buffer[i],
@@ -1043,8 +1043,8 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                  event_service,
                                  state,
                                  &log_mag_state_raw_info);
-      num_samples--;
-      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"process_fifo_timestamp=%lld num_samples=%d",timestamp, num_samples);
+      cnt_for_ts--;
+      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"process_fifo_timestamp=%lld cnt_for_ts=%d",timestamp, cnt_for_ts);
 
     }
 
@@ -1228,7 +1228,10 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   uint32_t xfer_bytes;
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
 
-  // Read ST1->ST2 at the first time
+  sns_time timestamp;
+  timestamp = sns_get_system_time();
+
+  // Read register ST1->ST2
   rv = ak0991x_com_read_wrapper(state->com_port_info.port_handle,
                             AKM_AK0991X_REG_ST1,
                             &buffer[0],
@@ -1245,10 +1248,6 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
     return rv;
   }
   diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
-  sns_time timestamp;
-
-  timestamp = sns_get_system_time();
 
   ak0991x_handle_mag_sample( &buffer[1],
                                  timestamp,
