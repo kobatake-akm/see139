@@ -1414,6 +1414,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   op_mode_args.buf_len = sizeof(operating_mode);
 
   config_event.has_payload = true;
+  config_event.sample_rate = state->mag_req.sample_rate;
   config_event.payload.data.funcs.encode = &pb_encode_string_cb;
   config_event.payload.data.arg = &payload_args;
 
