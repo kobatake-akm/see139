@@ -507,7 +507,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
        if(desired_report_rate != 0)
        {
          /* Water mark level : 0x00 -> 1step, 0x01F ->32step*/
-         desired_wmk = ((uint16_t)mag_chosen_sample_rate / (uint16_t)desired_report_rate) - 1;
+         desired_wmk = (uint16_t)(mag_chosen_sample_rate / desired_report_rate) - 1;
          diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__, __LINE__,"desired_wmk=%d",desired_wmk);
        }
 
