@@ -1183,6 +1183,11 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
   ak0991x_instance_state *state =
      (ak0991x_instance_state*)instance->state->state;
+
+  instance->cb->get_service_manager(instance);
+ 
+  sns_diag_service* diag = state->diag_service;
+
   sns_port_vector async_read_msg;
 
   if(state->mag_info.use_fifo)
@@ -1201,7 +1206,12 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
   async_read_msg.is_write = false;
   async_read_msg.buffer = NULL;
 
-  sns_ascp_create_encoded_vectors_buffer(&async_read_msg, 1, true, buffer, sizeof(buffer), &enc_len);
+  bool check_func;
+
+  check_func = sns_ascp_create_encoded_vectors_buffer(&async_read_msg, 1, true, buffer, sizeof(buffer), &enc_len);
+
+  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"check_func=%d",check_func);
+
 
   // Send message to Async Com Port
   sns_request async_com_port_request =
