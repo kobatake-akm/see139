@@ -336,7 +336,7 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
       state->mag_info.resolution = AK09916_RESOLUTION;
       state->mag_info.use_fifo = false;
       state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
-      state->mag_info.use_dri = true;
+      state->mag_info.use_dri = AK0991X_USE_DRI;
       break;
     case AK09918:
       state->mag_info.resolution = AK09918_RESOLUTION;
