@@ -163,9 +163,17 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
             {
               state->device_select = AK09918;
             }
+            else
+            {
+              diag->api->sensor_printf(diag, this, SNS_LOW, __FILENAME__, __LINE__,
+                                     "Unsupported Sensor");
+              return SNS_RC_FAILED;
+            }
           }
           else
           {
+            diag->api->sensor_printf(diag, this, SNS_LOW, __FILENAME__, __LINE__,
+                                     "Unsupported Sensor");
             return SNS_RC_FAILED;
           }
 
@@ -218,6 +226,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
               state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
               break;
             default:
+              diag->api->sensor_printf(diag, this, SNS_LOW, __FILENAME__, __LINE__,
+                                     "Unsupported Sensor");
               return SNS_RC_FAILED;
           }
 #endif //AK0991X_ENABLE_DEPENDENCY
