@@ -10,28 +10,28 @@
  **/
 
 #include "sns_mem_util.h"
-#include "sns_rc.h"
-#include "sns_request.h"
-#include "sns_sensor_event.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
 #include "sns_stream_service.h"
+#include "sns_rc.h"
+#include "sns_request.h"
 #include "sns_time.h"
+#include "sns_sensor_event.h"
 #include "sns_types.h"
 
 #include "sns_ak0991x_hal.h"
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
 
-#include "sns_async_com_port.pb.h"
 #include "sns_interrupt.pb.h"
+#include "sns_async_com_port.pb.h"
 #include "sns_timer.pb.h"
 
-#include "pb_decode.h"
 #include "pb_encode.h"
+#include "pb_decode.h"
+#include "sns_pb_util.h"
 #include "sns_async_com_port_pb_utils.h"
 #include "sns_diag_service.h"
-#include "sns_pb_util.h"
 
 const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   {

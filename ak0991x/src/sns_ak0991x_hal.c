@@ -8,15 +8,15 @@
  * Confidential and Proprietary - Asahi Kasei Microdevices
  **/
 
-#include "sns_com_port_types.h"
-#include "sns_event_service.h"
-#include "sns_math_util.h"
-#include "sns_mem_util.h"
 #include "sns_rc.h"
-#include "sns_sensor_event.h"
-#include "sns_service_manager.h"
-#include "sns_sync_com_port.h"
 #include "sns_time.h"
+#include "sns_sensor_event.h"
+#include "sns_event_service.h"
+#include "sns_mem_util.h"
+#include "sns_math_util.h"
+#include "sns_service_manager.h"
+#include "sns_com_port_types.h"
+#include "sns_sync_com_port.h"
 #include "sns_types.h"
 
 #include "sns_ak0991x_hal.h"
@@ -25,15 +25,15 @@
 
 #include "sns_async_com_port.pb.h"
 
-#include "pb_decode.h"
 #include "pb_encode.h"
-#include "sns_async_com_port_pb_utils.h"
+#include "pb_decode.h"
 #include "sns_pb_util.h"
+#include "sns_async_com_port_pb_utils.h"
 
 #include "sns_std_sensor.pb.h"
 
-#include "sns_diag.pb.h"
 #include "sns_diag_service.h"
+#include "sns_diag.pb.h"
 
 /** Need to use ODR table. */
 extern const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE];

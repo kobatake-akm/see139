@@ -10,12 +10,12 @@
  * Confidential and Proprietary - Asahi Kasei Microdevices
  **/
 
-#include "sns_ak0991x_sensor.h"
-#include "sns_mem_util.h"
-#include "sns_pb_util.h"
-#include "sns_service_manager.h"
-#include "sns_types.h"
 #include <string.h>
+#include "sns_mem_util.h"
+#include "sns_types.h"
+#include "sns_service_manager.h"
+#include "sns_ak0991x_sensor.h"
+#include "sns_pb_util.h"
 
 /* device specific information */
 static float ak09911_odr_table[] =

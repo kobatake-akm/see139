@@ -11,16 +11,16 @@
  * Confidential and Proprietary - Asahi Kasei Microdevices
  **/
 
-#include "sns_ak0991x_hal.h"
+#include "sns_sensor.h"
 #include "sns_attribute_service.h"
 #include "sns_data_stream.h"
-#include "sns_pwr_rail_service.h"
-#include "sns_sensor.h"
 #include "sns_sensor_uid.h"
+#include "sns_pwr_rail_service.h"
+#include "sns_ak0991x_hal.h"
 
 #include "sns_ak0991x_sensor_instance.h"
-#include "sns_diag_service.h"
 #include "sns_math_util.h"
+#include "sns_diag_service.h"
 
 #define MAG_SUID \
   {  \

@@ -7,10 +7,10 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  **/
-#include "sns_ak0991x_sensor.h"
-#include "sns_ak0991x_sensor_instance.h"
 #include "sns_rc.h"
 #include "sns_register.h"
+#include "sns_ak0991x_sensor.h"
+#include "sns_ak0991x_sensor_instance.h"
 
 /** Public Function Definitions. */
 

@@ -10,29 +10,28 @@
  * Confidential and Proprietary - Asahi Kasei Microdevices
  **/
 
-#include "sns_event_service.h"
-#include "sns_math_util.h"
-#include "sns_mem_util.h"
+#include <string.h>
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
-#include "sns_sensor_util.h"
-#include "sns_service.h"
 #include "sns_service_manager.h"
+#include "sns_event_service.h"
 #include "sns_stream_service.h"
+#include "sns_service.h"
+#include "sns_sensor_util.h"
+#include "sns_math_util.h"
 #include "sns_types.h"
-#include <string.h>
 
-#include "sns_ak0991x_hal.h"
 #include "sns_ak0991x_sensor.h"
+#include "sns_ak0991x_hal.h"
 
-#include "pb_decode.h"
 #include "pb_encode.h"
-#include "sns_diag_service.h"
+#include "pb_decode.h"
 #include "sns_pb_util.h"
 #include "sns_std.pb.h"
 #include "sns_std_sensor.pb.h"
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
+#include "sns_diag_service.h"
 
 /** See sns_ak0991x_sensor.h */
 void ak0991x_publish_attributes(sns_sensor *const this)
