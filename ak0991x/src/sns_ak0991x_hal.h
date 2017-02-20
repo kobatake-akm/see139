@@ -292,7 +292,7 @@ sns_rc ak0991x_stop_mag_streaming(ak0991x_instance_state *state
 /**
  * Gets Who-Am-I register for the sensor.
  *
- * @param[i] state         Instance state
+ * @param[i] port_handle   handle to synch COM port
  * @param[o] buffer        who am I value read from HW
  *
  * @return sns_rc
@@ -306,7 +306,10 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
 /**
  * Run a self-test.
  *
- * @param[i] state         Instance state
+ * @param[i] port_handle   handle to synch COM port
+ * @param[i] device_select device ID
+ * @param[i] sstvt_adj     Set sensitivity adjustment
+ * @param[o] err           error code
  *
  * @return sns_rc
  * SNS_RC_FAILED
@@ -321,7 +324,7 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
 /**
  * Sets sensitivity adjustment for the sensor.
  *
- * @param[i] state         Instance state
+ * @param[i] port_handle   handle to synch COM port
  * @param[i] device_select device ID
  * @param[o] sstvt_adj     Set sensitivity adjustment
  *
@@ -350,6 +353,7 @@ sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr
  * @param[i] port_handle     handle to synch COM port
  * @param[i] curr_odr        Mag ODR
  * @param[i] select_device   AKM device type
+ * @param[i] cur_wmk         current FIFO water mark
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure

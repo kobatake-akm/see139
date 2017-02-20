@@ -441,8 +441,11 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
 /**
  * check threshold.
  *
- * @param[i] port_handle              handle to synch COM port
- * @param[o] buffer                   fifo data
+ * @param[i] testno                   test number
+ * @param[i] testdata                 test data
+ * @param[i] lolimit                  low limit
+ * @param[i] hilimit                  high limit
+ * @param[o] err                      error code
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
