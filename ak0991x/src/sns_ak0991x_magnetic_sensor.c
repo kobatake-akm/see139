@@ -314,14 +314,7 @@ void ak0991x_mag_init_attributes(sns_sensor *const this, akm_device_type device_
 /* See sns_sensor::get_sensor_uid */
 static sns_sensor_uid const* ak0991x_mag_get_sensor_uid(sns_sensor const *const this)
 {
-  //UNUSED_VAR(this);
-  ak0991x_state *state = (ak0991x_state*)this->state->state;
-  sns_service_manager *smgr= this->cb->get_service_manager(this);
-  state->diag_service = (sns_diag_service *)
-    smgr->get_service(smgr, SNS_DIAG_SERVICE);
-  sns_diag_service* diag = state->diag_service;
-  diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__,__LINE__,__FUNCTION__);
-
+  UNUSED_VAR(this);
   static const sns_sensor_uid sensor_uid = MAG_SUID;
 
   return &sensor_uid;
@@ -332,13 +325,11 @@ static sns_rc ak0991x_mag_init(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state*)this->state->state;
 
-  state->sensor_client_present = false;
   struct sns_service_manager *smgr= this->cb->get_service_manager(this);
   state->diag_service = (sns_diag_service *)
     smgr->get_service(smgr, SNS_DIAG_SERVICE);
 
-  sns_diag_service* diag = state->diag_service;
-  diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__,__LINE__,__FUNCTION__);
+  state->sensor_client_present = false;
 
   sns_memscpy(&state->my_suid,
               sizeof(state->my_suid),
@@ -351,8 +342,6 @@ static sns_rc ak0991x_mag_init(sns_sensor *const this)
 #if AK0991X_ENABLE_DEPENDENCY
   ak0991x_send_suid_req(this, "registry", 9);
 #endif //
-  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
-
 
   return SNS_RC_SUCCESS;
 }

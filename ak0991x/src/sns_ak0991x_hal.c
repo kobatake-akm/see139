@@ -1052,10 +1052,6 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                  state,
                                  &log_mag_state_raw_info);
       cnt_for_ts--;
-      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"buf=%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",vector->buffer[0],vector->buffer[1],vector->buffer[2],vector->buffer[3],vector->buffer[4],vector->buffer[5],vector->buffer[6],vector->buffer[7],vector->buffer[8]);
-
-     diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"process_fifo_timestamp=%lld cnt_for_ts=%d",timestamp, cnt_for_ts);
-
     }
 
     state->this_is_first_data = false;
@@ -1088,8 +1084,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
       &log_mag_state_raw_info.log_info);
 
     uint32_t i;
-
-    diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
     sns_time timestamp;
     uint16_t num_samples = 0;
@@ -1149,8 +1143,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                                  event_service,
                                  state,
                                  &log_mag_state_raw_info);
-      diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"flush_timestamp=%lld num_samples=%d i=%d",timestamp, num_samples, i);
-
     }
 
     if (num_samples != 0)
@@ -1185,8 +1177,6 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
      (ak0991x_instance_state*)instance->state->state;
 
   instance->cb->get_service_manager(instance);
- 
-  sns_diag_service* diag = state->diag_service;
 
   sns_port_vector async_read_msg;
 
@@ -1206,12 +1196,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
   async_read_msg.is_write = false;
   async_read_msg.buffer = NULL;
 
-  bool check_func;
-
-  check_func = sns_ascp_create_encoded_vectors_buffer(&async_read_msg, 1, true, buffer, sizeof(buffer), &enc_len);
-
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"check_func=%d",check_func);
-
+  sns_ascp_create_encoded_vectors_buffer(&async_read_msg, 1, true, buffer, sizeof(buffer), &enc_len);
 
   // Send message to Async Com Port
   sns_request async_com_port_request =
@@ -1267,7 +1252,6 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   {
     return rv;
   }
-  diag->api->sensor_inst_printf(diag, instance, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,__FUNCTION__);
 
   ak0991x_handle_mag_sample( &buffer[1],
                                  timestamp,
