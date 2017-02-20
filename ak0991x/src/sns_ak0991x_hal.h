@@ -4,8 +4,8 @@
  *
  * Hardware Access Layer functions.
  *
- * Copyright (c) 2016 Qualcomm Technologies, Inc.
- * Copyright (c) 2016 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * Confidential and Proprietary - Asahi Kasei Microdevices
