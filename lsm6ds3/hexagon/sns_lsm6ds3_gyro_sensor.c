@@ -13,231 +13,281 @@
 #include "sns_types.h"
 #include "sns_service_manager.h"
 #include "sns_lsm6ds3_sensor.h"
+#include "pb_encode.h"
+#include "sns_attribute_util.h"
 #include "sns_pb_util.h"
 
 /**
- * Initialize attributes to their default state.  They may/will be updated
- * within notify_event.
+ * Publish all Sensor attributes
+ *
+ * @param[i] this    reference to this Sensor
+ *
+ * @return none
  */
-void lsm6ds3_gyro_init_attributes(sns_sensor *const this)
+static void
+lsm6ds3_publish_attributes(sns_sensor *const this)
 {
   lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
-  int8_t i = 0;
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
 
-  static const char name[] = "stm_lsm6ds3";
-  static const char type[] = "gyro";
-  static const char vendor[] = "template";
-  static const uint32_t version = 0x0100; // major[31:16].minor[15:0]
-  static const float odrs[] =
-    {
-      LSM6DS3_ODR_13,
-      LSM6DS3_ODR_26,
-      LSM6DS3_ODR_52,
-      LSM6DS3_ODR_104,
-      LSM6DS3_ODR_208,
-      LSM6DS3_ODR_416
-    };
-  static const float resolutions[] =
-    {
-      LSM6DS3_GYRO_SSTVT_245DPS,
-      LSM6DS3_GYRO_SSTVT_500DPS,
-      LSM6DS3_GYRO_SSTVT_1000DPS,
-      LSM6DS3_GYRO_SSTVT_2000DPS
-    };  //mdps/LSB
-  static const uint32_t max_fifo_depth = LSM6DS3_MAX_FIFO; // samples
-  static const uint32_t active_current [3] = {420, 900, 1250}; //uA
-  static const uint32_t sleep_current = 6; //uA
-  static const range_attr ranges[4] =
-    {
-      {LSM6DS3_GYRO_RANGE_245_MIN, LSM6DS3_GYRO_RANGE_245_MAX},
-      {LSM6DS3_GYRO_RANGE_500_MIN, LSM6DS3_GYRO_RANGE_500_MAX},
-      {LSM6DS3_GYRO_RANGE_1000_MIN, LSM6DS3_GYRO_RANGE_1000_MAX},
-      {LSM6DS3_GYRO_RANGE_2000_MIN, LSM6DS3_GYRO_RANGE_2000_MAX}
-    };
-  static const char operating_modes[] = LSM6DS3_LPM SNS_ATTRIBUTE_STRING_DL LSM6DS3_NORMAL SNS_ATTRIBUTE_STRING_DL LSM6DS3_HIGH_PERF;
-  static const char proto_files[] = "sns_physical_sensor_test.proto" SNS_ATTRIBUTE_STRING_DL "sns_std_sensor.proto";
-  static const bool available = true;
-  float data[3] = {0};
-  state->encoded_event_len =
-     pb_get_encoded_size_sensor_stream_event(data, 3);
-  static const sns_std_sensor_stream_type stream_type =
-    SNS_STD_SENSOR_STREAM_TYPE_STREAMING;
-  static const bool is_dynamic = false;
-  static const sns_std_sensor_rigid_body_type rigid_body =
-     SNS_STD_SENSOR_RIGID_BODY_TYPE_DISPLAY;
-  static const float placement[12] = {0};
-  static const uint32_t hardware_id = 0;
-  static const bool supports_dri = true;
-  static const bool supports_sync_stream = false;
+    sns_std_attr_value_data range1[] = {SNS_ATTR, SNS_ATTR};
+    range1[0].has_flt = true;
+    range1[0].flt = LSM6DS3_GYRO_RANGE_245_MIN;
+    range1[1].has_flt = true;
+    range1[1].flt = LSM6DS3_GYRO_RANGE_245_MAX;
+    values[0].has_subtype = true;
+    values[0].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
+    values[0].subtype.values.arg =
+      &((pb_buffer_arg){ .buf = range1, .buf_len = ARR_SIZE(range1) });
 
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_available,
-                             .value = (uintptr_t)&available,
-                             .value_len = sizeof(available)
-                           };
+    sns_std_attr_value_data range2[] = {SNS_ATTR, SNS_ATTR};
+    range2[0].has_flt = true;
+    range2[0].flt = LSM6DS3_GYRO_RANGE_500_MIN;
+    range2[1].has_flt = true;
+    range2[1].flt = LSM6DS3_GYRO_RANGE_500_MAX;
+    values[1].has_subtype = true;
+    values[1].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
+    values[1].subtype.values.arg =
+      &((pb_buffer_arg){ .buf = range2, .buf_len = ARR_SIZE(range2) });
 
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_name,
-                             .value = (uintptr_t)&name,
-                             .value_len = sizeof(name)
-                           };
+    sns_std_attr_value_data range3[] = {SNS_ATTR, SNS_ATTR};
+    range3[0].has_flt = true;
+    range3[0].flt = LSM6DS3_GYRO_RANGE_1000_MIN;
+    range3[1].has_flt = true;
+    range3[1].flt = LSM6DS3_GYRO_RANGE_1000_MAX;
+    values[2].has_subtype = true;
+    values[2].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
+    values[2].subtype.values.arg =
+      &((pb_buffer_arg){ .buf = range3, .buf_len = ARR_SIZE(range3) });
 
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_data_type,
-                             .value = (uintptr_t)&type,
-                             .value_len = sizeof(type)
-                           };
+    sns_std_attr_value_data range4[] = {SNS_ATTR, SNS_ATTR};
+    range4[0].has_flt = true;
+    range4[0].flt = LSM6DS3_GYRO_RANGE_2000_MIN;
+    range4[1].has_flt = true;
+    range4[1].flt = LSM6DS3_GYRO_RANGE_2000_MAX;
+    values[3].has_subtype = true;
+    values[3].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
+    values[3].subtype.values.arg =
+      &((pb_buffer_arg){ .buf = range4, .buf_len = ARR_SIZE(range4) });
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RANGES,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR};
+    values[0].has_sint = true;
+    values[0].sint = SNS_STD_SENSOR_STREAM_TYPE_STREAMING;
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_STREAM_TYPE,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
+      SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
+    values[0].has_flt = true;
+    values[0].flt = 0;
+    values[1].has_flt = true;
+    values[1].flt = 0;
+    values[2].has_flt = true;
+    values[2].flt = 0;
+    values[3].has_flt = true;
+    values[3].flt = 0;
+    values[4].has_flt = true;
+    values[4].flt = 0;
+    values[5].has_flt = true;
+    values[5].flt = 0;
+    values[6].has_flt = true;
+    values[6].flt = 0;
+    values[7].has_flt = true;
+    values[7].flt = 0;
+    values[8].has_flt = true;
+    values[8].flt = 0;
+    values[9].has_flt = true;
+    values[9].flt = 0;
+    values[10].has_flt = true;
+    values[10].flt = 0;
+    values[11].has_flt = true;
+    values[11].flt = 0;
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PLACEMENT,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR};
+    values[0].has_sint = true;
+    values[0].sint = 420;
+    values[1].has_sint = true;
+    values[1].sint = 900;
+    values[2].has_sint = true;
+    values[2].sint = 1250; //uA
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_ACTIVE_CURRENT,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
+        SNS_ATTR, SNS_ATTR};
+    values[0].has_flt = true;
+    values[0].flt = LSM6DS3_ODR_13;
+    values[1].has_flt = true;
+    values[1].flt = LSM6DS3_ODR_26;
+    values[2].has_flt = true;
+    values[2].flt = LSM6DS3_ODR_52;
+    values[3].has_flt = true;
+    values[3].flt = LSM6DS3_ODR_104;
+    values[4].has_flt = true;
+    values[4].flt = LSM6DS3_ODR_208;
+    values[5].has_flt = true;
+    values[5].flt = LSM6DS3_ODR_416;
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
+    values[0].has_flt = true;
+    values[0].flt = LSM6DS3_GYRO_SSTVT_245DPS;
+    values[1].has_flt = true;
+    values[1].flt = LSM6DS3_GYRO_SSTVT_500DPS;
+    values[2].has_flt = true;
+    values[2].flt = LSM6DS3_GYRO_SSTVT_1000DPS;
+    values[3].has_flt = true;
+    values[3].flt = LSM6DS3_GYRO_SSTVT_2000DPS; //mdps/LSB
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RESOLUTIONS,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR};
+    char const op_mode1[] = LSM6DS3_LPM;
+    char const op_mode2[] = LSM6DS3_NORMAL;
+    char const op_mode3[] = LSM6DS3_HIGH_PERF;
 
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_vendor,
-                             .value = (uintptr_t)&vendor,
-                             .value_len = sizeof(vendor)
-                           };
+    values[0].str.funcs.encode = pb_encode_string_cb;
+    values[0].str.arg = &((pb_buffer_arg)
+        { .buf = op_mode1, .buf_len = sizeof(op_mode1) });
+    values[1].str.funcs.encode = pb_encode_string_cb;
+    values[1].str.arg = &((pb_buffer_arg)
+        { .buf = op_mode2, .buf_len = sizeof(op_mode2) });
+    values[2].str.funcs.encode = pb_encode_string_cb;
+    values[2].str.arg = &((pb_buffer_arg)
+        { .buf = op_mode3, .buf_len = sizeof(op_mode3) });
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
+    char const proto1[] = "sns_physical_sensor_test.proto";
+    char const proto2[] = "sns_std_sensor.proto";
 
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_version,
-                             .value = (uintptr_t)&version,
-                             .value_len = sizeof(version)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_rates,
-                             .value = (uintptr_t)&odrs,
-                             .value_len = sizeof(odrs)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_resolution,
-                             .value = (uintptr_t)&resolutions,
-                             .value_len = sizeof(resolutions)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_fifo_size,
-                             .value = (uintptr_t)&max_fifo_depth,
-                             .value_len = sizeof(max_fifo_depth)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_active_current,
-                             .value = (uintptr_t)&active_current,
-                             .value_len = sizeof(active_current)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_sleep_current,
-                             .value = (uintptr_t)&sleep_current,
-                             .value_len = sizeof(sleep_current)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_ranges,
-                             .value = (uintptr_t)&ranges,
-                             .value_len = sizeof(ranges)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_op_modes,
-                             .value = (uintptr_t)operating_modes,
-                             .value_len = sizeof(operating_modes)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_api,
-                             .value = (uintptr_t)proto_files,
-                             .value_len = sizeof(proto_files)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_event_size,
-                             .value = (uintptr_t)&state->encoded_event_len,
-                             .value_len = sizeof(state->encoded_event_len)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_stream_type,
-                             .value = (uintptr_t)&stream_type,
-                             .value_len = sizeof(stream_type)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_is_dynamic,
-                             .value = (uintptr_t)&is_dynamic,
-                             .value_len = sizeof(is_dynamic)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_rigid_body,
-                             .value = (uintptr_t)&rigid_body,
-                             .value_len = sizeof(rigid_body)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_placement,
-                             .value = (uintptr_t)&placement,
-                             .value_len = sizeof(placement)
-                           };
-
-  state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_hardware_id,
-                             .value = (uintptr_t)&hardware_id,
-                             .value_len = sizeof(hardware_id)
-                           };
-
-    state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_supports_dri,
-                             .value = (uintptr_t)&supports_dri,
-                             .value_len = 1
-                           };
-
-    state->attributes[i++] = (sns_sensor_attribute)
-                           {
-                             .name = sns_attr_supports_sync_stream,
-                             .value = (uintptr_t)&supports_sync_stream,
-                             .value_len = 1
-                           };
-}
-
-/* See sns_sensor::get_sensor_uid */
-static sns_sensor_uid const* lsm6ds3_gyro_get_sensor_uid(sns_sensor const *const this)
-{
-  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
-
-  struct sns_service_manager *smgr= this->cb->get_service_manager(this);
-  state->diag_service = (sns_diag_service *)
-    smgr->get_service(smgr, SNS_DIAG_SERVICE);
-
-  sns_diag_service* diag = state->diag_service;
-  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-
-  //UNUSED_VAR(this);
-  static const sns_sensor_uid sensor_uid = GYRO_SUID;
-
-  return &sensor_uid;
+    values[0].str.funcs.encode = pb_encode_string_cb;
+    values[0].str.arg = &((pb_buffer_arg)
+        { .buf = proto1, .buf_len = sizeof(proto1) });
+    values[1].str.funcs.encode = pb_encode_string_cb;
+    values[1].str.arg = &((pb_buffer_arg)
+        { .buf = proto2, .buf_len = sizeof(proto2) });
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_API,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    char const name[] = "stm_lsm6ds3";
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.str.funcs.encode = pb_encode_string_cb;
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = name, .buf_len = sizeof(name) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
+  }
+  {
+    char const type[] = "gyro";
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.str.funcs.encode = pb_encode_string_cb;
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = type, .buf_len = sizeof(type) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
+  }
+  {
+    char const vendor[] = "template";
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.str.funcs.encode = pb_encode_string_cb;
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = vendor, .buf_len = sizeof(vendor) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_VENDOR, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = false;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_AVAILABLE, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = false;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_DYNAMIC, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = true;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = false;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = 0x0100;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = SNS_STD_SENSOR_RIGID_BODY_TYPE_DISPLAY;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = 0;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_HW_ID, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = LSM6DS3_MAX_FIFO; // samples
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_FIFO_SIZE, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = 6; //uA
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_SLEEP_CURRENT, &value, 1, false);
+  }
+  {
+    float data[3] = {0};
+    state->encoded_event_len =
+        pb_get_encoded_size_sensor_stream_event(data, 3);
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = state->encoded_event_len;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, true);
+  }
 }
 
 /* See sns_sensor::init */
-static sns_rc lsm6ds3_gyro_init(sns_sensor *const this)
+sns_rc lsm6ds3_gyro_init(sns_sensor *const this)
 {
   lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
 
@@ -246,15 +296,15 @@ static sns_rc lsm6ds3_gyro_init(sns_sensor *const this)
   struct sns_service_manager *smgr= this->cb->get_service_manager(this);
   state->diag_service = (sns_diag_service *)
     smgr->get_service(smgr, SNS_DIAG_SERVICE);
-
-  sns_diag_service* diag = state->diag_service;
-  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-
+  state->scp_service = (sns_sync_com_port_service*)
+		smgr->get_service(smgr, SNS_SYNC_COM_PORT_SERVICE);
 
   sns_memscpy(&state->my_suid,
               sizeof(state->my_suid),
-              lsm6ds3_gyro_get_sensor_uid(this),
+              &((sns_sensor_uid)GYRO_SUID),
               sizeof(sns_sensor_uid));
+
+  lsm6ds3_publish_attributes(this);
 
   lsm6ds3_send_suid_req(this, "interrupt", 10);
   lsm6ds3_send_suid_req(this, "async_com_port", 15);
@@ -267,24 +317,9 @@ static sns_rc lsm6ds3_gyro_init(sns_sensor *const this)
 }
 
 /** See sns_sensor.h */
-static  sns_rc lsm6ds3_gyro_deinit(sns_sensor *const this)
+sns_rc lsm6ds3_gyro_deinit(sns_sensor *const this)
 {
   UNUSED_VAR(this);
   return SNS_RC_SUCCESS;
 }
-
-/*===========================================================================
-  Public Data Definitions
-  ===========================================================================*/
-
-sns_sensor_api lsm6ds3_gyro_sensor_api =
-{
-  .struct_len         = sizeof(sns_sensor_api),
-  .init               = &lsm6ds3_gyro_init,
-  .deinit             = &lsm6ds3_gyro_deinit,
-  .get_sensor_uid     = &lsm6ds3_gyro_get_sensor_uid,
-  .get_attributes     = &lsm6ds3_get_attributes,
-  .set_client_request = &lsm6ds3_set_client_request,
-  .notify_event       = &lsm6ds3_sensor_notify_event,
-};
 

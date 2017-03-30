@@ -11,9 +11,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/rel/ssc.slpi/3.0/sensors/test/build/sns_test.scons#6 $
-#  $DateTime: 2017/02/06 10:47:39 $
-#  $Change: 12378096 $
+#  $Id: //components/rel/ssc.slpi/3.0/sensors/test/build/sns_test.scons#7 $
+#  $DateTime: 2017/03/23 18:20:46 $
+#  $Change: 12808416 $
 #
 #===============================================================================
 Import('env')
@@ -47,7 +47,6 @@ test_sensors = [
   'SNS_TEST_UV',
   'SNS_TEST_HALL',
   'SNS_TEST_AMBIENT_TEMPERATURE',
-  'SNS_TEST_MOTION_ACCEL',
 ]
 
 for s in test_sensors:

@@ -133,6 +133,7 @@
  * Resets the Sensor HW. Also calls
  * lsm6ds3_device_set_default_state()
  *
+ * @param[i] scp_service   handle to synch COM port service
  * @param[i] port_handle   handle to synch COM port
  * @param[i] sensor        bit mask for sensors to reset
  *
@@ -140,12 +141,14 @@
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc lsm6ds3_reset_device(sns_sync_com_port_handle *port_handle,
+sns_rc lsm6ds3_reset_device(sns_sync_com_port_service *scp_service,
+		                    sns_sync_com_port_handle *port_handle,
                             lsm6ds3_sensor_type sensor);
 
 /**
  * Loads default values in config registers.
  *
+ * @param[i] scp_service   handle to synch COM port service
  * @param[i] port_handle   handle to synch COM port
  * @param[i] sensor        bit mask for sensors to handle
  *
@@ -153,7 +156,8 @@ sns_rc lsm6ds3_reset_device(sns_sync_com_port_handle *port_handle,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc lsm6ds3_device_set_default_state(sns_sync_com_port_handle *port_handle,
+sns_rc lsm6ds3_device_set_default_state(sns_sync_com_port_service *scp_service,
+		                                sns_sync_com_port_handle *port_handle,
                                         lsm6ds3_sensor_type sensor);
 
 /**
@@ -205,15 +209,6 @@ void lsm6ds3_enable_fifo_intr(lsm6ds3_instance_state *state,
 void lsm6ds3_disable_fifo_intr(lsm6ds3_instance_state *state);
 
 /**
- * Flushes the FIFO.
- *
- * @param[i] state         Instance state
-
- * @return none
- */
-void lsm6ds3_flush_fifo(lsm6ds3_instance_state *state);
-
-/**
  * Gets Who-Am-I register for the sensor.
  *
  * @param[i] state         Instance state
@@ -223,12 +218,14 @@ void lsm6ds3_flush_fifo(lsm6ds3_instance_state *state);
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc lsm6ds3_get_who_am_i(sns_sync_com_port_handle *port_handle,
-                            uint8_t *buffer);
+sns_rc lsm6ds3_get_who_am_i(sns_sync_com_port_service *scp_service,
+		                    sns_sync_com_port_handle  *port_handle,
+                            uint8_t                   *buffer);
 
 /**
  * Sets Accel ODR, range, BW and sensitivity.
  *
+ * @param[i] scp_service     handle to synch COM port service
  * @param[i] port_handle     handle to synch COM port
  * @param[i] curr_odr        Accel ODR
  * @param[i] sstvt           Accel sensitivity
@@ -239,7 +236,8 @@ sns_rc lsm6ds3_get_who_am_i(sns_sync_com_port_handle *port_handle,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc lsm6ds3_set_accel_config(sns_sync_com_port_handle *port_handle,
+sns_rc lsm6ds3_set_accel_config(sns_sync_com_port_service *scp_service,
+		                        sns_sync_com_port_handle *port_handle,
                                 lsm6ds3_accel_odr      curr_odr,
                                 lsm6ds3_accel_sstvt    sstvt,
                                 lsm6ds3_accel_range    range,
@@ -248,6 +246,7 @@ sns_rc lsm6ds3_set_accel_config(sns_sync_com_port_handle *port_handle,
 /**
  * Sets Gyro ODR, range and sensitivity.
  *
+ * @param[i] scp_service     handle to synch COM port service
  * @param[i] port_handle     handle to synch COM port
  * @param[i] curr_odr        Gyro ODR
  * @param[i] sstvt           Gyro sensitivity
@@ -257,7 +256,8 @@ sns_rc lsm6ds3_set_accel_config(sns_sync_com_port_handle *port_handle,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc lsm6ds3_set_gyro_config(sns_sync_com_port_handle *port_handle,
+sns_rc lsm6ds3_set_gyro_config(sns_sync_com_port_service *scp_service,
+		                       sns_sync_com_port_handle *port_handle,
                                lsm6ds3_gyro_odr      curr_odr,
                                lsm6ds3_gyro_sstvt    sstvt,
                                lsm6ds3_gyro_range    range);
@@ -288,7 +288,7 @@ void lsm6ds3_set_fifo_config(lsm6ds3_instance_state *state,
  *
  * @return none
  */
-void lsm6ds3_dump_reg(lsm6ds3_instance_state *state, lsm6ds3_sensor_type sensor);
+void lsm6ds3_dump_reg(sns_sensor_instance *this, lsm6ds3_sensor_type sensor);
 
 /**
  * Sets Motion Detect config.
@@ -329,7 +329,7 @@ void lsm6ds3_handle_md_interrupt(sns_sensor_instance *const instance,
                                    sns_time irq_timestamp);
 
 /**
- * Sets Motion Accel config.
+ * Sets Gated Accel config.
  *
  * @param[i] desired_wmk           desired FIFO WM
  * @param[i] a_chosen_sample_rate  desired Accel ODR
@@ -338,20 +338,37 @@ void lsm6ds3_handle_md_interrupt(sns_sensor_instance *const instance,
  *
  * @return none
  */
-void lsm6ds3_set_ma_config(lsm6ds3_instance_state *state,
+void lsm6ds3_set_gated_accel_config(lsm6ds3_instance_state *state,
                            uint16_t desired_wmk,
                            lsm6ds3_accel_odr a_chosen_sample_rate,
                            lsm6ds3_sensor_type sensor);
 
 /**
+ * Provides sample interval based on current ODR.
+ *
+ * @param[i] curr_odr              Current FIFO ODR.
+ *
+ * @return sampling interval time in ticks
+ */
+sns_time lsm6ds3_get_sample_interval(lsm6ds3_accel_odr curr_odr);
+
+/**
  * Processes a fifo buffer and extracts accel and gyro samples from the buffer
  * and generates events for each sample.
  *
- * @param[i] vector       Com port vector
- * @param[i] user_arg     Pointer to instance passed as user_arg
+ * @param[i] instance     Sensor instance
+ * @param[i] gyro_enabled Whether gyro is enabled
+ * @param[i] first_ts     Timestamp of first sample in fifo
+ * @param[i] interval     Sampling interval in time ticks
+ * @param[i] fifo         Buffer containing samples read from HW FIFO 
+ * @param[i] num_bytes    Number of bytes in fifo buffer
  */
-void lsm6ds3_process_fifo_data_buffer(sns_port_vector       *vector,
-                                      void                  *user_arg)
+void lsm6ds3_process_fifo_data_buffer(sns_sensor_instance *instance,
+                                      bool                gyro_enabled,
+                                      sns_time            first_ts,
+                                      sns_time            interval,
+                                      const uint8_t       *fifo,
+                                      size_t              num_bytes)
 ;
 
 /**
@@ -374,5 +391,37 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance);
  *  
  * @param[i] instance   Sensor Instance 
  */
+void lsm6ds3_convert_and_send_temp_sample(
+  sns_sensor_instance *const instance, 
+  sns_time            timestamp,
+  const uint8_t       temp_data[2]);
+
+/**
+ * Sends sensor temperature event. 
+ *  
+ * @param[i] instance   Sensor Instance 
+ */
 void lsm6ds3_handle_sensor_temp_sample(sns_sensor_instance *const instance);
+
+/**
+ * Sends a FIFO complete event.
+ * 
+ * @param instance   Instance reference
+ */
+void lsm6ds3_send_fifo_flush_done(sns_sensor_instance *const instance);
+
+/**
+ * Starts/restarts polling timer
+ * 
+ * @param instance   Instance reference
+ */
+void lsm6ds3_start_sensor_temp_polling_timer(sns_sensor_instance *this);
+
+/**
+ * Configures sensor with new/recomputed settings
+ * 
+ * @param instance   Instance reference
+ */
+void lsm6ds3_reconfig_hw(sns_sensor_instance *this);
+
 

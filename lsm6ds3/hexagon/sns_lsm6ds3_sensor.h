@@ -10,7 +10,6 @@
  **/
 
 #include "sns_sensor.h"
-#include "sns_attribute_service.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
 #include "sns_pwr_rail_service.h"
@@ -38,7 +37,7 @@
       }  \
   }
 
-#define MOTION_ACCEL_SUID \
+#define MOTION_DETECT_SUID \
   {  \
     .sensor_uid =  \
       {  \
@@ -79,7 +78,7 @@ sns_sensor_api lsm6ds3_accel_sensor_api;
 sns_sensor_api lsm6ds3_gyro_sensor_api;
 
 /** Forward Declaration of Motion Accel Sensor API */
-sns_sensor_api lsm6ds3_motion_accel_sensor_api;
+sns_sensor_api lsm6ds3_motion_detect_sensor_api;
 
 /** Forward Declaration of Sensor Temperature Sensor API */
 sns_sensor_api lsm6ds3_sensor_temp_sensor_api;
@@ -162,8 +161,6 @@ sns_sensor_api lsm6ds3_sensor_temp_sensor_api;
 #define LSM6DS3_HIGH_PERF    "HIGH_PERF"
 #define LSM6DS3_NORMAL       "NORMAL"
 
-#define LSM6DS3_NUM_OF_ATTRIBUTES  (21)
-
 /** Power rail timeout States for the LSM6DS3 Sensors.*/
 typedef enum
 {
@@ -176,7 +173,6 @@ typedef enum
 
 typedef struct lsm6ds3_state
 {
-  sns_sensor_attribute    attributes[LSM6DS3_NUM_OF_ATTRIBUTES];
   sns_data_stream         *reg_data_stream;
   sns_data_stream         *fw_stream;
   sns_data_stream         *timer_stream;
@@ -187,7 +183,7 @@ typedef struct lsm6ds3_state
   lsm6ds3_sensor_type     sensor;
   sns_sensor_uid          my_suid;
   lsm6ds3_com_port_info   com_port_info;
-  lsm6ds3_irq_info        irq_info;
+  sns_interrupt_req       irq_config;
 
   sns_pwr_rail_service    *pwr_rail_service;
   sns_rail_config         rail_config;
@@ -200,6 +196,7 @@ typedef struct lsm6ds3_state
   // debug
   uint16_t                who_am_i;
   sns_diag_service        *diag_service;
+  sns_sync_com_port_service *scp_service;
   size_t                  encoded_event_len;
 
 } lsm6ds3_state;
@@ -240,26 +237,6 @@ void lsm6ds3_send_suid_req(sns_sensor *this, char *const data_type,
 void lsm6ds3_process_suid_events(sns_sensor *const this);
 
 /**
- * Returns Sensor attributes.
- *
- * @param this
- * @param attributes_len
- *
- * @return sns_sensor_attribute*
- */
-sns_sensor_attribute *lsm6ds3_get_attributes(sns_sensor const *const this,
-                                             uint32_t *attributes_len);
-
-/**
- * Publishes Sensor attributes.
- *
- * @param[i] this    Sensor Reference
- *
- * @return none
- */
-void lsm6ds3_publish_attributes(sns_sensor *const this);
-
-/**
  * notify_event() Sensor API common between all LSM6DS3 Sensors.
  *
  * @param this    Sensor reference
@@ -283,40 +260,11 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
                                                 struct sns_request *exist_request,
                                                 struct sns_request *new_request,
                                                 bool remove);
-
-/**
- * Initializes Gyro Sensor attributes.
- *
- * @param this   Sensor reference
- *
- * @return none
- */
-void lsm6ds3_gyro_init_attributes(sns_sensor *const this);
-
-/**
- * Initializes Motion Accel Sensor attributes.
- *
- * @param this   Sensor reference
- *
- * @return none
- */
-void lsm6ds3_motion_accel_init_attributes(sns_sensor *const this);
-
-/**
- * Initializes Accel Sensor attributes.
- *
- * @param this   Sensor reference
- *
- * @return none
- */
-void lsm6ds3_accel_init_attributes(sns_sensor *const this);
-
-/**
- * Initializes Sensor Temperature Sensor attributes.
- *
- * @param this   Sensor reference
- *
- * @return none
- */
-void lsm6ds3_sensor_temp_init_attributes(sns_sensor *const this);
-
+sns_rc lsm6ds3_accel_init(sns_sensor *const this);
+sns_rc lsm6ds3_gyro_init(sns_sensor *const this);
+sns_rc lsm6ds3_motion_detect_init(sns_sensor *const this);
+sns_rc lsm6ds3_sensor_temp_init(sns_sensor *const this);
+sns_rc lsm6ds3_accel_deinit(sns_sensor *const this);
+sns_rc lsm6ds3_gyro_deinit(sns_sensor *const this);
+sns_rc lsm6ds3_motion_detect_deinit(sns_sensor *const this);
+sns_rc lsm6ds3_sensor_temp_deinit(sns_sensor *const this);

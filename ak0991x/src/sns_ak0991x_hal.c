@@ -1,11 +1,14 @@
 /**
  * @file sns_ak0991x_hal.c
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
- * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * Confidential and Proprietary - Asahi Kasei Microdevices
+ *
+ * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * All Rights Reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ *
  **/
 
 #include "sns_rc.h"
@@ -16,7 +19,7 @@
 #include "sns_math_util.h"
 #include "sns_service_manager.h"
 #include "sns_com_port_types.h"
-#include "sns_sync_com_port.h"
+#include "sns_sync_com_port_service.h"
 #include "sns_types.h"
 
 #include "sns_ak0991x_hal.h"
@@ -38,21 +41,256 @@
 /** Need to use ODR table. */
 extern const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE];
 
-typedef struct log_sensor_state_info
+typedef struct log_sensor_state_raw_info
 {
-  pb_ostream_t log_stream;
-  void         *log;
-} log_sensor_state_info;
-
-typedef struct log_sensor_state_state_raw_info
-{
-  log_sensor_state_info log_info;
+  /* Size of a single encoded sample */
+  size_t encoded_sample_size;
+  /* Pointer to log*/
+  void *log;
+  /* Size of allocated space for log*/
+  uint32_t log_size;
+  /* Number of actual bytes written*/
+  uint32_t bytes_written;
+  /* Number of batch samples written*/
   uint32_t sample_cnt;
-  sns_time last_timestamp;
-  float    last_data[3];
-  sns_std_sensor_sample_status last_sample_status;
-  sns_diag_batch_sample_type   last_sample_type;
 } log_sensor_state_raw_info;
+
+/**
+ * Encode Sensor State Log.Interrupt
+ *  
+ * @param[i] log Pointer to log packet information
+ * @param[i] log_size Size of log packet information
+ * @param[i] encoded_log_size Maximum permitted encoded size of 
+ *                            the log
+ * @param[o] encoded_log Pointer to location where encoded 
+ *                       log should be generated
+ *  
+ * @return sns_rc,
+ * SNS_RC_SUCCESS if encoding was succesful 
+ * SNS_RC_FAILED otherwise 
+ */
+sns_rc ak0991x_encode_sensor_state_log_interrupt(
+  void *log, size_t log_size, size_t encoded_log_size, void *encoded_log)
+{
+  UNUSED_VAR(log_size);
+  sns_rc rc = SNS_RC_SUCCESS;
+
+  if(NULL == encoded_log || NULL == log)
+  {
+    return SNS_RC_FAILED;
+  }
+
+  sns_diag_sensor_state_interrupt *sensor_state_interrupt =
+    (sns_diag_sensor_state_interrupt *)log;
+  pb_ostream_t stream = pb_ostream_from_buffer(encoded_log, encoded_log_size);
+
+  if(!pb_encode(&stream, sns_diag_sensor_state_interrupt_fields,
+                sensor_state_interrupt))
+  {
+    rc = SNS_RC_FAILED;
+  }
+
+  return rc;
+}
+
+/**
+ * Encode log sensor state raw packet
+ *  
+ * @param[i] log Pointer to log packet information
+ * @param[i] log_size Size of log packet information
+ * @param[i] encoded_log_size Maximum permitted encoded size of 
+ *                            the log
+ * @param[o] encoded_log Pointer to location where encoded 
+ *                       log should be generated
+ * @param[o] bytes_written Pointer to actual bytes written 
+ *                       during encode 
+ *  
+ * @return sns_rc 
+ * SNS_RC_SUCCESS if encoding was succesful 
+ * SNS_RC_FAILED otherwise
+ */
+sns_rc ak0991x_encode_log_sensor_state_raw(
+  void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
+  size_t *bytes_written)
+{
+  sns_rc rc = SNS_RC_SUCCESS;
+  uint32_t i = 0;
+  size_t encoded_sample_size = 0;
+  size_t parsed_log_size = 0;
+  sns_diag_batch_sample sample = sns_diag_batch_sample_init_default;
+  sample.sample_count = 3;
+
+  if(NULL == encoded_log || NULL == log || NULL == bytes_written)
+  {
+    return SNS_RC_FAILED;
+  }
+
+  if(!pb_get_encoded_size(&encoded_sample_size, sns_diag_batch_sample_fields,
+                          &sample))
+  {
+    return SNS_RC_FAILED;
+  }
+
+  pb_ostream_t stream = pb_ostream_from_buffer(encoded_log, encoded_log_size);
+  sns_diag_batch_sample *batch_sample = (sns_diag_batch_sample *)log;
+
+  while(parsed_log_size < log_size &&
+        (stream.bytes_written + encoded_sample_size)<= encoded_log_size &&
+        i < (uint32_t)(-1))
+  {
+    if(!pb_encode_tag(&stream, PB_WT_STRING,
+                      sns_diag_sensor_state_raw_sample_tag))
+    {
+      rc = SNS_RC_FAILED;
+      break;
+    }
+    else if(!pb_encode_delimited(&stream, sns_diag_batch_sample_fields,
+                                 &batch_sample[i]))
+    {
+      rc = SNS_RC_FAILED;
+      break;
+    }
+
+    parsed_log_size += sizeof(sns_diag_batch_sample);
+    i++;
+  }
+
+  if (SNS_RC_SUCCESS == rc)
+  {
+    *bytes_written = stream.bytes_written;
+  }
+
+  return rc;
+}
+
+/**
+ * Allocate Sensor State Raw Log Packet 
+ *
+ * @param[i] diag       Pointer to diag service 
+ * @param[i] instance   Pointer to sensor instance
+ * @param[i] sensor_uid SUID of the sensor
+ * @param[i] log_raw_info   Pointer to raw sensor state logging
+ *       information pertaining to the sensor
+ */
+void ak0991x_log_sensor_state_raw_alloc(
+  sns_diag_service *diag,
+  sns_sensor_instance *const instance,
+  struct sns_sensor_uid const *sensor_uid,
+  log_sensor_state_raw_info *log_raw_info)
+{
+  // allocate memory for sensor state - raw sensor log packet
+
+  log_raw_info->log_size = diag->api->get_max_log_size(diag);
+
+  log_raw_info->log = diag->api->alloc_log(diag,
+                                           instance,
+                                           sensor_uid,
+                                           log_raw_info->log_size,
+                                           SNS_DIAG_SENSOR_STATE_LOG_RAW);
+}
+
+/**
+ * Add raw uncalibrated sensor data to Sensor State Raw log 
+ * packet 
+ *  
+ * @param[i] log_raw_info Pointer to logging information 
+ *                        pertaining to the sensor
+ * @param[i] raw_data     Uncalibrated sensor data to be logged
+ * @param[i] timestamp    Timestamp of the sensor data
+ * @param[i] status       Status of the sensor data 
+ *  
+ * * @return sns_rc,
+ * SNS_RC_SUCCESS if encoding was succesful 
+ * SNS_RC_FAILED otherwise  
+ */
+sns_rc ak0991x_log_sensor_state_raw_add(
+  log_sensor_state_raw_info *log_raw_info,
+  float *raw_data,
+  sns_time timestamp,
+  sns_std_sensor_sample_status status)
+{
+  sns_rc rc = SNS_RC_SUCCESS;
+
+  if(NULL == log_raw_info->log ||
+     ((log_raw_info->bytes_written + sizeof(sns_diag_batch_sample)) >
+     log_raw_info->log_size))
+  {
+    rc = SNS_RC_NOT_SUPPORTED;
+  }
+  else
+  {
+    sns_diag_batch_sample *sample =
+        (sns_diag_batch_sample *)log_raw_info->log;
+
+    if(0 == log_raw_info->sample_cnt)
+    {
+      sample[log_raw_info->sample_cnt].sample_type =
+        SNS_DIAG_BATCH_SAMPLE_TYPE_FIRST;
+    }
+    else
+    {
+      sample[log_raw_info->sample_cnt].sample_type =
+        SNS_DIAG_BATCH_SAMPLE_TYPE_INTERMEDIATE;
+    }
+
+    sample[log_raw_info->sample_cnt].timestamp = timestamp;
+    sample[log_raw_info->sample_cnt].sample_count = 3;
+
+    sns_memscpy(sample[log_raw_info->sample_cnt].sample,
+                sizeof(sample[log_raw_info->sample_cnt].sample),
+                raw_data,
+                sizeof(sample[log_raw_info->sample_cnt].sample));
+
+    sample[log_raw_info->sample_cnt].status = status;
+
+    log_raw_info->bytes_written += sizeof(sns_diag_batch_sample);
+
+    log_raw_info->sample_cnt++;
+  }
+
+  return rc;
+}
+
+/**
+ * Submit the Sensor State Raw Log Packet
+ *
+ * @param[i] diag       Pointer to diag service
+ * @param[i] instance   Pointer to sensor instance
+ * @param[i] sensor_uid SUID of the sensor
+ * @param[i] log_raw_info   Pointer to logging information 
+ *                      pertaining to the sensor
+ */
+void ak0991x_log_sensor_state_raw_submit(
+  sns_diag_service *diag,
+  sns_sensor_instance *const instance,
+  struct sns_sensor_uid const *sensor_uid,
+  log_sensor_state_raw_info *log_raw_info)
+{
+  sns_diag_batch_sample *sample =
+      (sns_diag_batch_sample *)log_raw_info->log;
+
+  // overwriting previously sample_type for last sample
+  if(1 == log_raw_info->sample_cnt)
+  {
+    sample[0].sample_type =
+      SNS_DIAG_BATCH_SAMPLE_TYPE_ONLY;
+  }
+  else if(1 < log_raw_info->sample_cnt)
+  {
+    sample[log_raw_info->sample_cnt - 1].sample_type =
+      SNS_DIAG_BATCH_SAMPLE_TYPE_LAST;
+  }
+
+  diag->api->submit_log(
+        diag,
+        instance,
+        sensor_uid,
+        log_raw_info->bytes_written,
+        log_raw_info->log,
+        SNS_DIAG_SENSOR_STATE_LOG_RAW,
+        log_raw_info->sample_cnt * log_raw_info->encoded_sample_size,
+        ak0991x_encode_log_sensor_state_raw);
+}
 
 /**
  * Read wrapper for Synch Com Port Service.
@@ -65,7 +303,8 @@ typedef struct log_sensor_state_state_raw_info
  *
  * @return sns_rc
  */
-static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_handle *port_handle,
+static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_service * scp_service ,
+                                       sns_sync_com_port_handle *port_handle,
                                        uint32_t reg_addr,
                                        uint8_t *buffer,
                                        uint32_t bytes,
@@ -77,11 +316,11 @@ static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_handle *port_handle,
   port_vec.is_write = false;
   port_vec.reg_addr = reg_addr;
 
-  return port_handle->com_port_api->sns_scp_register_rw(port_handle,
-                                                        &port_vec,
-                                                        1,
-                                                        false,
-                                                        xfer_bytes);
+  return scp_service->api->sns_scp_register_rw(port_handle,
+                                               &port_vec,
+                                               1,
+                                               false,
+                                               xfer_bytes);
 }
 
 /**
@@ -96,7 +335,8 @@ static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_handle *port_handle,
  *
  * @return sns_rc
  */
-static sns_rc ak0991x_com_write_wrapper(sns_sync_com_port_handle *port_handle,
+static sns_rc ak0991x_com_write_wrapper(sns_sync_com_port_service * scp_service,
+                                        sns_sync_com_port_handle *port_handle,
                                         uint32_t reg_addr,
                                         uint8_t *buffer,
                                         uint32_t bytes,
@@ -109,7 +349,7 @@ static sns_rc ak0991x_com_write_wrapper(sns_sync_com_port_handle *port_handle,
   port_vec.is_write = true;
   port_vec.reg_addr = reg_addr;
 
-  return port_handle->com_port_api->sns_scp_register_rw(port_handle,
+  return scp_service->api->sns_scp_register_rw(port_handle,
                                                         &port_vec,
                                                         1,
                                                         save_write_time,
@@ -133,7 +373,8 @@ static sns_rc ak0991x_com_write_wrapper(sns_sync_com_port_handle *port_handle,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_read_modify_write(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_read_modify_write(sns_sync_com_port_service * scp_service,
+                                 sns_sync_com_port_handle *port_handle,
                                  uint32_t reg_addr,
                                  uint8_t *reg_value,
                                  uint32_t size,
@@ -146,7 +387,8 @@ sns_rc ak0991x_read_modify_write(sns_sync_com_port_handle *port_handle,
 
   if ((size > 1) || (mask == 0xFF) || (mask == 0x00))
   {
-    ak0991x_com_write_wrapper(port_handle,
+    ak0991x_com_write_wrapper(scp_service,
+                              port_handle,
                               reg_addr,
                               &reg_value[0],
                               size,
@@ -156,7 +398,8 @@ sns_rc ak0991x_read_modify_write(sns_sync_com_port_handle *port_handle,
   else
   {
     // read current value from this register
-    ak0991x_com_read_wrapper(port_handle,
+    ak0991x_com_read_wrapper(scp_service,
+                             port_handle,
                              reg_addr,
                              &rw_buffer,
                              1,
@@ -166,7 +409,8 @@ sns_rc ak0991x_read_modify_write(sns_sync_com_port_handle *port_handle,
     rw_buffer = (rw_buffer & (~mask)) | (*reg_value & mask);
 
     // write new value to this register
-    ak0991x_com_write_wrapper(port_handle,
+    ak0991x_com_write_wrapper(scp_service,
+                              port_handle,
                               reg_addr,
                               &rw_buffer,
                               1,
@@ -180,14 +424,16 @@ sns_rc ak0991x_read_modify_write(sns_sync_com_port_handle *port_handle,
 /**
  * see sns_ak0991x_hal.h
  */
-sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle)
+sns_rc ak0991x_device_sw_reset(sns_sync_com_port_service * scp_service,
+                               sns_sync_com_port_handle *port_handle)
 {
   uint8_t  buffer[1];
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
   buffer[0] = AK0991X_SOFT_RESET;
-  rv = ak0991x_com_write_wrapper(port_handle,
+  rv = ak0991x_com_write_wrapper(scp_service,
+                                 port_handle,
                                  AKM_AK0991X_REG_CNTL3,
                                  &buffer[0],
                                  1,
@@ -213,7 +459,8 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle)
 /**
  * see sns_ak0991x_hal.h
  */
-sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
+                              sns_sync_com_port_handle *port_handle,
                               ak0991x_mag_odr desired_odr,
                               akm_device_type device_select,
                               uint16_t cur_wmk)
@@ -237,7 +484,8 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
         | cur_wmk;           // WM[4:0] bits
     }
 
-    rv = ak0991x_com_write_wrapper(port_handle,
+    rv = ak0991x_com_write_wrapper(scp_service,
+                                   port_handle,
                                    AKM_AK0991X_REG_CNTL1,
                                    &buffer,
                                    1,
@@ -269,7 +517,8 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
       | (uint8_t)desired_odr; // MODE[4:0] bits
   }
 
-  return ak0991x_com_write_wrapper(port_handle,
+  return ak0991x_com_write_wrapper(scp_service,
+                                   port_handle,
                                    AKM_AK0991X_REG_CNTL2,
                                    &buffer,
                                    1,
@@ -287,7 +536,8 @@ sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state)
   // Enable Mag Streaming
 
   //Transit to Power-down mode first and then transit to other modes.
-  rv = ak0991x_set_mag_config(state->com_port_info.port_handle,
+  rv = ak0991x_set_mag_config(state->scp_service,
+                              state->com_port_info.port_handle,
                               AK0991X_MAG_ODR_OFF,
                               state->mag_info.device_select,
                               state->mag_info.cur_wmk);
@@ -297,7 +547,8 @@ sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state)
     return rv;
   }
 
-  rv = ak0991x_set_mag_config(state->com_port_info.port_handle,
+  rv = ak0991x_set_mag_config(state->scp_service,
+                              state->com_port_info.port_handle,
                               state->mag_info.desired_odr,
                               state->mag_info.device_select,
                               state->mag_info.cur_wmk);
@@ -321,7 +572,8 @@ sns_rc ak0991x_stop_mag_streaming(ak0991x_instance_state *state)
 
   // Disable Mag Streaming
 
-  rv = ak0991x_set_mag_config(state->com_port_info.port_handle,
+  rv = ak0991x_set_mag_config(state->scp_service,
+                              state->com_port_info.port_handle,
                               AK0991X_MAG_ODR_OFF,
                               state->mag_info.device_select,
                               state->mag_info.cur_wmk);
@@ -339,13 +591,15 @@ sns_rc ak0991x_stop_mag_streaming(ak0991x_instance_state *state)
 /**
  * see sns_ak0991x_hal.h
  */
-sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service *scp_service,
+                            sns_sync_com_port_handle *port_handle,
                             uint8_t *buffer)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
-  rv = ak0991x_com_read_wrapper(port_handle,
+  rv = ak0991x_com_read_wrapper(scp_service,
+                                port_handle,
                                 AKM_AK0991X_REG_WIA1,
                                 buffer,
                                 AK0991X_NUM_READ_DEV_ID,
@@ -369,7 +623,8 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
+static sns_rc ak0991x_read_asa(sns_sync_com_port_service * scp_service,
+                               sns_sync_com_port_handle *port_handle,
                                uint8_t *asa)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
@@ -378,7 +633,8 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
 
   buffer[0] = AK0991X_MAG_FUSEROM;
   // Set Fuse ROM access mode
-  rv = ak0991x_com_write_wrapper(port_handle,
+  rv = ak0991x_com_write_wrapper(scp_service,
+                                 port_handle,
                                  AKM_AK0991X_REG_CNTL2,
                                  buffer,
                                  1,
@@ -394,7 +650,8 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
   {
     // transit to power-down mode from Fuse ROM access mode if possible
     buffer[0] = AK0991X_MAG_ODR_OFF;
-    ak0991x_com_write_wrapper(port_handle,
+    ak0991x_com_write_wrapper(scp_service,
+                              port_handle,
                               AKM_AK0991X_REG_CNTL2,
                               buffer,
                               1,
@@ -405,7 +662,8 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
 
 
   // Read Fuse ROM
-  rv = ak0991x_com_read_wrapper(port_handle,
+  rv = ak0991x_com_read_wrapper(scp_service,
+                                port_handle,
                                 AKM_AK0991X_FUSE_ASAX,
                                 &asa[0],
                                 AK0991X_NUM_SENSITIVITY,
@@ -423,7 +681,8 @@ static sns_rc ak0991x_read_asa(sns_sync_com_port_handle *port_handle,
 
   buffer[0] = AK0991X_MAG_ODR_OFF;
   // Set power-down mode
-  rv = ak0991x_com_write_wrapper(port_handle,
+  rv = ak0991x_com_write_wrapper(scp_service,
+                                 port_handle,
                                  AKM_AK0991X_REG_CNTL2,
                                  buffer,
                                  1,
@@ -474,7 +733,8 @@ sns_rc ak0991x_test_threshold(uint16_t testno,
 /**
  * see sns_ak0991x_hal.h
  */
-sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
+                         sns_sync_com_port_handle *port_handle,
                          akm_device_type device_select,
                          float *sstvt_adj,
                          uint32_t *err)
@@ -490,7 +750,7 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
   *err = 0;
 
   // Reset device
-  rv = ak0991x_device_sw_reset(port_handle);
+  rv = ak0991x_device_sw_reset(scp_service,port_handle);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -503,7 +763,7 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
    **/
   if ((device_select == AK09911) || (device_select == AK09912))
   {
-    rv = ak0991x_read_asa(port_handle, asa);
+    rv = ak0991x_read_asa(scp_service,port_handle, asa);
 
     if (rv != SNS_RC_SUCCESS)
     {
@@ -520,7 +780,8 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
    *   Start self test
    **/
   buffer[0] = AK0991X_MAG_SELFTEST;
-  rv = ak0991x_com_write_wrapper(port_handle,
+  rv = ak0991x_com_write_wrapper(scp_service,
+                                 port_handle,
                                  AKM_AK0991X_REG_CNTL2,
                                  buffer,
                                  1,
@@ -579,7 +840,8 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
   /** Step 3
    *   Read and check data
    **/
-  rv = ak0991x_com_read_wrapper(port_handle,
+  rv = ak0991x_com_read_wrapper(scp_service,
+                                port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
                                 AK0991X_NUM_DATA_ST1_TO_ST2,
@@ -688,13 +950,15 @@ TEST_SEQUENCE_FAILED:
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-static sns_rc ak0991x_get_fifo_data(sns_sync_com_port_handle *port_handle,
+static sns_rc ak0991x_get_fifo_data(ak0991x_instance_state *state,
+                                    sns_sync_com_port_handle *port_handle,
                                     uint8_t *buffer)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
-  rv = ak0991x_com_read_wrapper(port_handle,
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                port_handle,
                                 AKM_AK0991X_REG_HXL,
                                 buffer,
                                 AK0991X_NUM_DATA_HXL_TO_ST2,
@@ -711,7 +975,8 @@ static sns_rc ak0991x_get_fifo_data(sns_sync_com_port_handle *port_handle,
 /**
  * see sns_ak0991x_hal.h
  */
-sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
+                             sns_sync_com_port_handle *port_handle,
                              akm_device_type device_select,
                              float *sstvt_adj)
 {
@@ -730,7 +995,7 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_handle *port_handle,
     return rv;
   }
 
-  rv = ak0991x_read_asa(port_handle, buffer);
+  rv = ak0991x_read_asa(scp_service,port_handle, buffer);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -784,184 +1049,6 @@ sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr)
   }
 
   return sample_interval;
-}
-
-/**
- * Allocate Sensor State Log Packet
- * Used to allocate either Sensor State Raw or Sensor State
- * Hardware Interrupt Logs
- *
- * @param[i] diag       Pointer to diag service
- * @param[i] instance   Pointer to sensor instance
- * @param[i] sensor_uid SUID of the sensor
- * @param[i] log_info   Pointer to logging information
- *                      pertaining to the sensor
- */
-static void ak0991x_log_sensor_state_alloc(sns_diag_service *diag,
-                                           sns_sensor_instance *const instance,
-                                           struct sns_sensor_uid const *sensor_uid,
-                                           log_sensor_state_info *log_info)
-{
-  // allocate memory for sensor state - raw sensor log packet
-  log_info->log = diag->api->alloc_log(diag,
-                                       instance,
-                                       sensor_uid,
-                                       diag->api->get_max_log_size(diag));
-
-  if (NULL != log_info->log)
-  {
-    log_info->log_stream = pb_ostream_from_buffer((pb_byte_t *)log_info->log,
-                                                  diag->api->get_max_log_size(diag));
-  }
-}
-
-/**
- * Submit the Sensor State Log Packet
- * Used to submit either Sensor State Raw or Sensor State
- * Hardware Interrupt Logs
- *
- * @param[i] diag               Pointer to diag service
- * @param[i] instance           Pointer to sensor instance
- * @param[i] sensor_uid         SUID of the sensor
- * @param[i] log_info           Pointer to logging information
- *                              pertaining to the sensor
- * @param[i] sensor_state_type  Type of sensor state information
- *                              being logged
- */
-static void ak0991x_log_sensor_state_submit(sns_diag_service *diag,
-                                            sns_sensor_instance *const instance,
-                                            struct sns_sensor_uid const *sensor_uid,
-                                            log_sensor_state_info *log_info,
-                                            sns_diag_sensor_state_log sensor_state_type)
-{
-  if (NULL != log_info->log)
-  {
-    diag->api->submit_log(
-      diag,
-      instance,
-      sensor_uid,
-      log_info->log_stream.bytes_written,
-      log_info->log,
-      sensor_state_type);
-  }
-}
-
-/**
- * Add raw uncalibrated sensor data to Sensor State Raw log
- * packet
- *
- * @param[i] log_raw_info Pointer to logging information
- *                        pertaining to the sensor
- * @param[i] raw_data     Uncalibrated sensor data to be logged
- * @param[i] timestamp    Timestamp of the sensor data
- * @param[i] status       Status of the sensor data
- */
-static sns_rc ak0991x_log_sensor_state_raw_add(log_sensor_state_raw_info *log_raw_info,
-                                               float *raw_data,
-                                               sns_time timestamp,
-                                               sns_std_sensor_sample_status status)
-{
-  sns_rc rc = SNS_RC_SUCCESS;
-
-  if (NULL == log_raw_info->log_info.log)
-  {
-    return SNS_RC_NOT_SUPPORTED;
-  }
-
-  if (0 < log_raw_info->sample_cnt)
-  {
-    // FIRST sample
-    // We skip logging for the first  sample but store the raw sensor data in
-    // log_info. Logged samples will  trail the actual events sent by 1.
-    // At the completion of the for loop, there will be exactly one
-    // sample pending logging. This allows to determine the batch sample type
-    // of the data sent
-    sns_diag_batch_sample sample = sns_diag_batch_sample_init_default;
-    uint8_t               arr_index = 0;
-    pb_float_arr_arg      arg =
-    {.arr = log_raw_info->last_data, .arr_len = 3, .arr_index = &arr_index};
-
-    sample.sample_type = log_raw_info->last_sample_type;
-    sample.timestamp = log_raw_info->last_timestamp;
-
-    sample.sample.funcs.encode = &pb_encode_float_arr_cb;
-    sample.sample.arg = &arg;
-
-    sample.status = log_raw_info->last_sample_status;
-
-    if (!pb_encode_tag(&log_raw_info->log_info.log_stream,
-                       PB_WT_STRING,
-                       sns_diag_sensor_state_raw_sample_tag))
-    {
-      rc = SNS_RC_FAILED;
-    }
-    else if (!pb_encode_delimited(&log_raw_info->log_info.log_stream,
-                                  sns_diag_batch_sample_fields,
-                                  &sample))
-    {
-      rc = SNS_RC_FAILED;
-    }
-  }
-
-  // Backup last raw sensor data
-  log_raw_info->last_timestamp = timestamp;
-  log_raw_info->last_sample_status = status;
-  sns_memscpy(log_raw_info->last_data,
-              sizeof(log_raw_info->last_data),
-              raw_data,
-              sizeof(log_raw_info->last_data));
-  log_raw_info->sample_cnt++;
-
-  if (1 == log_raw_info->sample_cnt)
-  {
-    log_raw_info->last_sample_type = SNS_DIAG_BATCH_SAMPLE_TYPE_FIRST;
-  }
-  else if (1 < log_raw_info->sample_cnt)
-  {
-    log_raw_info->last_sample_type = SNS_DIAG_BATCH_SAMPLE_TYPE_INTERMEDIATE;
-  }
-
-  return rc;
-}
-
-/**
- * Submit the Sensor State Raw Log Packet
- *
- * @param[i] diag       Pointer to diag service
- * @param[i] instance   Pointer to sensor instance
- * @param[i] sensor_uid SUID of the sensor
- * @param[i] log_info   Pointer to logging information
- *                      pertaining to the sensor
- */
-static void ak0991x_log_sensor_state_raw_submit(sns_diag_service *diag,
-                                                sns_sensor_instance *const instance,
-                                                struct sns_sensor_uid const *sensor_uid,
-                                                log_sensor_state_raw_info *log_raw_info)
-{
-  if (NULL != log_raw_info->log_info.log)
-  {
-    if (1 == log_raw_info->sample_cnt)
-    {
-      log_raw_info->last_sample_type = SNS_DIAG_BATCH_SAMPLE_TYPE_ONLY;
-    }
-    else if (1 < log_raw_info->sample_cnt)
-    {
-      log_raw_info->last_sample_type = SNS_DIAG_BATCH_SAMPLE_TYPE_LAST;
-    }
-
-    ak0991x_log_sensor_state_raw_add(
-      log_raw_info,
-      log_raw_info->last_data,
-      log_raw_info->last_timestamp,
-      log_raw_info->last_sample_status);
-
-    ak0991x_log_sensor_state_submit(
-      diag,
-      instance,
-      sensor_uid,
-      &log_raw_info->log_info,
-      SNS_DIAG_SENSOR_STATE_LOG_RAW);
-  }
 }
 
 /**
@@ -1050,11 +1137,13 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
     uint16_t                  cnt_for_ts = state->mag_info.cur_wmk;
 
     sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-    ak0991x_log_sensor_state_alloc(
+    log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
+
+    ak0991x_log_sensor_state_raw_alloc(
       diag,
       instance,
       &state->mag_info.suid,
-      &log_mag_state_raw_info.log_info);
+      &log_mag_state_raw_info);
 
     sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
@@ -1103,11 +1192,13 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   log_sensor_state_raw_info log_mag_state_raw_info;
 
   sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-  ak0991x_log_sensor_state_alloc(
+  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
+
+  ak0991x_log_sensor_state_raw_alloc(
     diag,
     instance,
     &state->mag_info.suid,
-    &log_mag_state_raw_info.log_info);
+    &log_mag_state_raw_info);
 
   uint32_t i;
 
@@ -1119,7 +1210,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   //Continue reading until fifo buffer is clear
   for (i = 0; i < state->mag_info.max_fifo_size; i++)
   {
-    ak0991x_get_fifo_data(state->com_port_info.port_handle,
+    ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
                           &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
 
     if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
@@ -1205,6 +1296,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
+  // QC: what's this for?
   instance->cb->get_service_manager(instance);
 
   sns_port_vector async_read_msg;
@@ -1253,11 +1345,13 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   log_sensor_state_raw_info log_mag_state_raw_info;
 
   sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-  ak0991x_log_sensor_state_alloc(
+  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
+
+  ak0991x_log_sensor_state_raw_alloc(
     diag,
     instance,
     &state->mag_info.suid,
-    &log_mag_state_raw_info.log_info);
+    &log_mag_state_raw_info);
 
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
@@ -1267,7 +1361,8 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   timestamp = sns_get_system_time();
 
   // Read register ST1->ST2
-  rv = ak0991x_com_read_wrapper(state->com_port_info.port_handle,
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 &buffer[0],
                                 AK0991X_NUM_DATA_ST1_TO_ST2,
@@ -1299,11 +1394,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
-  sns_std_sensor_config_event config_event =
-    sns_std_sensor_config_event_init_default;
-
-  sns_std_sensor_physical_config phy_sensor_config =
-    sns_std_sensor_physical_config_init_default;
+  sns_std_sensor_physical_config_event phy_sensor_config =
+    sns_std_sensor_physical_config_event_init_default;
 
   // TODO: Use appropriate op_mode selected by driver.
   char *operating_mode;
@@ -1313,7 +1405,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   case AK09911:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
-    phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09911_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -1328,7 +1420,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   case AK09912:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
-    phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09912_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -1343,7 +1435,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   case AK09913:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
-    phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09913_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -1367,7 +1459,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     }
 
     phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09915_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -1391,7 +1483,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     }
 
     phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09915_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -1406,7 +1498,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   case AK09916C:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
-    phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09916_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -1421,7 +1513,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   case AK09916D:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
-    phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09916_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -1436,7 +1528,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   case AK09918:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
-    phy_sensor_config.water_mark = state->mag_info.cur_wmk;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09916_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -1453,27 +1545,17 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   }
 
   pb_buffer_arg op_mode_args;
-  pb_buffer_arg payload_args;
 
   op_mode_args.buf = operating_mode;
   op_mode_args.buf_len = sizeof(operating_mode);
 
-  config_event.has_payload = true;
-  config_event.sample_rate = state->mag_req.sample_rate;
-  config_event.payload.data.funcs.encode = &pb_encode_string_cb;
-  config_event.payload.data.arg = &payload_args;
-
-  phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
-  phy_sensor_config.operation_mode.arg = &op_mode_args;
-
-  payload_args.buf = &phy_sensor_config;
-  payload_args.buf_len = sizeof(phy_sensor_config);
+  phy_sensor_config.sample_rate = state->mag_req.sample_rate;
 
   pb_send_event(instance,
-                sns_std_sensor_config_event_fields,
-                &config_event,
+                sns_std_sensor_physical_config_event_fields,
+                &phy_sensor_config,
                 sns_get_system_time(),
-                SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG_EVENT,
+                SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
 
   return SNS_RC_SUCCESS;

@@ -11,6 +11,7 @@ resampler/
 signal/
 sim/
 timer/
+flush_test/
 
 
 # Object files

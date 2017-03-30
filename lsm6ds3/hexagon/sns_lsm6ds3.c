@@ -23,7 +23,7 @@ sns_rc sns_register_lsm6ds3(sns_register_cb const *register_api)
       &lsm6ds3_sensor_instance_api);
 
   /** Register Motion Accel Sensor. */
-  register_api->init_sensor(sizeof(lsm6ds3_state), &lsm6ds3_motion_accel_sensor_api,
+  register_api->init_sensor(sizeof(lsm6ds3_state), &lsm6ds3_motion_detect_sensor_api,
       &lsm6ds3_sensor_instance_api);
 
   /** Register Sensor Temperature Sensor. */

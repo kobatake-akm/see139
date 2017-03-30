@@ -4,24 +4,26 @@
  *
  * AK0991X Mag virtual Sensor Instance implementation.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
- * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * Confidential and Proprietary - Asahi Kasei Microdevices
+ *
+ * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * All Rights Reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ *
  **/
 
 #include "sns_com_port_types.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_instance.h"
 #include "sns_sensor_uid.h"
-#include "sns_sync_com_port.h"
+#include "sns_sync_com_port_service.h"
 #include "sns_time.h"
 #include <stdint.h>
 
 #include "sns_diag_service.h"
 #include "sns_interrupt.pb.h"
-#include "sns_motion_accel.pb.h"
 #include "sns_physical_sensor_test.pb.h"
 #include "sns_std_sensor.pb.h"
 
@@ -153,6 +155,9 @@ typedef struct ak0991x_instance_state
   float  m_stream_event[3];
 
   sns_diag_service *diag_service;
+  sns_sync_com_port_service *scp_service;
+
+  size_t           log_raw_encoded_size;
 } ak0991x_instance_state;
 
 typedef struct odr_reg_map

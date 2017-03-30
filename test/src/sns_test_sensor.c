@@ -7,9 +7,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor.c#18 $
- * $DateTime: 2017/02/06 10:47:39 $
- * $Change: 12378096 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor.c#25 $
+ * $DateTime: 2017/03/21 22:15:50 $
+ * $Change: 12782678 $
  *
  **/
 
@@ -36,6 +36,7 @@
 #include "pb_decode.h"
 #include "sns_suid.pb.h"
 #include "sns_diag_service.h"
+#include "sns_attribute_util.h"
 
 #define TEST_SUID 0x11,0xe8,0x65,0xd0,0xdd,0x70,0x4a,0x7e,\
                     0xaf,0x18,0x49,0x4e,0x3f,0x13,0x57,0x06
@@ -47,30 +48,11 @@
 #define NUM_TEST_ITERATIONS 20
 #else
 /* for on-target test */
-
-//#define NUM_EVENTS_TO_PROCESS 5+1    //1Hz
-//#define NUM_EVENTS_TO_PROCESS 50+1   //10Hz
-//#define NUM_EVENTS_TO_PROCESS 100+1  //20Hz
-//#define NUM_EVENTS_TO_PROCESS 250+1  //50Hz
-//#define NUM_EVENTS_TO_PROCESS 500+1  //100Hz
-//#define NUM_EVENTS_TO_PROCESS 1000+1 //200Hz
-
-#define NUM_EVENTS_TO_PROCESS 100
-
-//if the measurement mode will be power-down, NUM_EVENTS_TO_PROCESS_X should be 1
-//#define NUM_EVENTS_TO_PROCESS 100
-#define NUM_EVENTS_TO_PROCESS_2 100
-#define NUM_EVENTS_TO_PROCESS_3 100
-#define NUM_EVENTS_TO_PROCESS_4 1
-#define NUM_EVENTS_TO_PROCESS_5 100
-#define NUM_EVENTS_TO_PROCESS_6 100
-
-//if the NUM_TEST_ITERATIONS is more than 2,
-//Please check NUM_EVENTS_TO_PROCESS_X
-//and TEST_SAMPLE_RATE in sns_test_std_sensor.c
+#define NUM_EVENTS_TO_PROCESS 10000
 #define NUM_TEST_ITERATIONS 1
-//#define NUM_TEST_ITERATIONS 6
 #endif
+
+
 typedef struct sns_test_implementation
 {
   char* datatype;
@@ -197,8 +179,8 @@ static const sns_test_implementation test_sensor_impl = {
 #elif defined(SNS_TEST_UV)
 #include "sns_test_std_sensor.h"
 static const sns_test_implementation test_sensor_impl = {
-  "uv",
-  sizeof("uv"),
+  "ultra_violet",
+  sizeof("ultra_violet"),
   sns_test_std_sensor_create_request,
   sns_test_std_sensor_process_event
 };
@@ -210,21 +192,13 @@ static const sns_test_implementation test_sensor_impl = {
   sns_test_std_sensor_create_request,
   sns_test_std_sensor_process_event
 };
-#elif defined(SNS_TEST_AMBIENT_TEMPERATRE)
+#elif defined(SNS_TEST_AMBIENT_TEMPERATURE)
 #include "sns_test_std_sensor.h"
 static const sns_test_implementation test_sensor_impl = {
   "ambient_temperature",
   sizeof("ambient_temperature"),
   sns_test_std_sensor_create_request,
   sns_test_std_sensor_process_event
-};
-#elif defined(SNS_TEST_MOTION_ACCEL)
-#include "sns_test_motion_accel.h"
-static const sns_test_implementation test_sensor_impl = {
-  "md_motion_accel",
-  sizeof("md_motion_accel"),
-  sns_test_motion_accel_create_request,
-  sns_test_motion_accel_process_event
 };
 #else
 static const sns_test_implementation test_sensor_impl = {
@@ -238,64 +212,47 @@ static const sns_test_implementation test_sensor_impl = {
 static void
 publish_attributes(sns_sensor* const this)
 {
-  sns_test_state* state = (sns_test_state*)this->state->state;
-  sns_service_manager* manager = this->cb->get_service_manager(this);
-  sns_attribute_service* attribute_service =
-      (sns_attribute_service*)manager->get_service(manager,
-                                                   SNS_ATTRIBUTE_SERVICE);
-
-  attribute_service->api->publish_attributes(attribute_service, this,
-                                             state->attributes,
-                                             ARR_SIZE(state->attributes));
-}
-
-/**
- * Initialize attributes to their default state.  They may/will be updated
- * within notify_event.
- */
-static void
-init_attributes(sns_sensor* const this)
-{
-  sns_test_state* state = (sns_test_state*)this->state->state;
-  int8_t i = 0;
-
-  static const char name[] = "test";
-  static const char type[] = "test";
-  static const char vendor[] = "template";
-  static const bool available = true;
-  static const uint32_t version = 1;
-
-  state->attributes[i++] = (sns_sensor_attribute)
   {
-    .name = sns_attr_name,
-    .value = (uintptr_t)&name,
-    .value_len = strlen(name)
-  };
-  state->attributes[i++] = (sns_sensor_attribute)
+    char const name[] = "test";
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.str.funcs.encode = pb_encode_string_cb;
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = name, .buf_len = sizeof(name) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
+  }
   {
-    .name = sns_attr_data_type,
-    .value = (uintptr_t)&type,
-    .value_len = strlen(type)
-  };
-  state->attributes[i++] = (sns_sensor_attribute)
+    char const type[] = "test";
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.str.funcs.encode = pb_encode_string_cb;
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = type, .buf_len = sizeof(type) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
+  }
   {
-    .name = sns_attr_vendor,
-    .value = (uintptr_t)&vendor,
-    .value_len = strlen(vendor)
-  };
-  state->attributes[i++] = (sns_sensor_attribute)
+    char const vendor[] = "qualcomm";
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.str.funcs.encode = pb_encode_string_cb;
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = vendor, .buf_len = sizeof(vendor) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_VENDOR, &value, 1, false);
+  }
   {
-    .name = sns_attr_available,
-    .value = (uintptr_t)&available,
-    .value_len = 1
-  };
-  state->attributes[i++] = (sns_sensor_attribute)
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = true;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_AVAILABLE, &value, 1, false);
+  }
   {
-    .name = sns_attr_version,
-    .value = (uintptr_t)&version,
-    .value_len = 1
-  };
-
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = 1;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, true);
+  }
 }
 
 void
@@ -338,50 +295,6 @@ sns_test_send_sensor_request(sns_sensor* const this,
   }
 }
 
-
-void
-sns_test_send_sensor_request_2nd_or_later(sns_sensor* const this,
-                             sns_sensor_uid suid,
-                             void* payload,
-                             pb_field_t const* payload_fields,
-                             uint32_t message_id,
-                             sns_std_request std_req)
-{
-  UNUSED_VAR(suid);
-  sns_test_state* state = (sns_test_state*)this->state->state;
-//  sns_service_manager* service_mgr = this->cb->get_service_manager(this);
-//  sns_stream_service* stream_mgr =
-//      (sns_stream_service*)service_mgr->get_service(service_mgr,
-//                                                    SNS_STREAM_SERVICE);
-  sns_diag_service* diag = state->diag_service;
-
-  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
- 
-  size_t encoded_len;
-  uint8_t buffer[100];
-  sns_memset(buffer, 0, sizeof(buffer));
-
-//  stream_mgr->api->create_sensor_stream(stream_mgr,
-//                                        this,
-//                                        suid,
-//                                        &state->sensor_stream);
-//
-  encoded_len = pb_encode_request(buffer, sizeof(buffer),
-                                  payload, payload_fields, &std_req);
-
-  if(0 < encoded_len && NULL != state->sensor_stream)
-  {
-    sns_request request = (sns_request){ .message_id = message_id,
-      .request_len = encoded_len, .request = buffer };
-    state->sensor_stream->api->send_request(state->sensor_stream, &request);
-  } else
-  {
-    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                             "Failed to send sensor request, stream=%p",
-                             state->sensor_stream);
-  }
-}
-
 /**
  * @brief starts a stream for the tested sensor
  * @param this
@@ -397,15 +310,9 @@ sns_test_start_sensor_stream(sns_sensor* const this)
 
   state->test_sensor_create_request(this, payload, &payload_fields,
                                     &message_id, &std_req);
-  static bool request_from_second_or_later_request;
-  if(!request_from_second_or_later_request) {
-    sns_test_send_sensor_request(this, state->suid_search[0].suid, payload, payload_fields,
+
+  sns_test_send_sensor_request(this, state->suid_search[0].suid, payload, payload_fields,
                                message_id, std_req);
-    request_from_second_or_later_request = true;
-  } else {
-    sns_test_send_sensor_request_2nd_or_later(this, state->suid_search[0].suid, payload, payload_fields,
-                               message_id, std_req);
-  }
 }
 
 /**
@@ -437,7 +344,6 @@ sns_test_handle_sensor_event(sns_sensor* const this)
   sns_test_state* s = (sns_test_state*)this->state->state;
 
   sns_diag_service* diag = s->diag_service;
-  static int event_cnt;
 
   for (; s->sensor_stream->api->get_input_cnt(s->sensor_stream) != 0 &&
        s->remaining_events > 0;
@@ -460,56 +366,18 @@ sns_test_handle_sensor_event(sns_sensor* const this)
   if (s->remaining_events <= 0)
   {
     s->remaining_iterations--;
-    //sns_test_stop_sensor_stream(this);
+    sns_test_stop_sensor_stream(this);
     diag->api->sensor_printf(diag, this, SNS_HIGH, __FILENAME__, __LINE__,
                              "test iteration finished, remaining=%d",
                              s->remaining_iterations);
     if (s->remaining_iterations > 0)
     {
-      event_cnt++;
-      switch(event_cnt) {
-        case 1:
-          s->remaining_events = NUM_EVENTS_TO_PROCESS_2;
-          break;
-        case 2:
-          s->remaining_events = NUM_EVENTS_TO_PROCESS_3;
-          break;
-        case 3:
-          s->remaining_events = NUM_EVENTS_TO_PROCESS_4;
-          break;
-        case 4:
-          s->remaining_events = NUM_EVENTS_TO_PROCESS_5;
-          break;
-        case 5:
-          s->remaining_events = NUM_EVENTS_TO_PROCESS_6;
-          break;
-        default:
-          s->remaining_events = NUM_EVENTS_TO_PROCESS; 
-      }
+      s->remaining_events = NUM_EVENTS_TO_PROCESS;
       sns_test_start_sensor_stream(this);
     } else {
-      sns_test_stop_sensor_stream(this);
       diag->api->sensor_printf(diag, this, SNS_HIGH, __FILENAME__, __LINE__,
                                "test finished!");
-      int num_events_cal;
-      num_events_cal = NUM_EVENTS_TO_PROCESS;
-      if(NUM_TEST_ITERATIONS > 1) {
-        num_events_cal += NUM_EVENTS_TO_PROCESS_2;
-      }
-      if(NUM_TEST_ITERATIONS > 2) {
-        num_events_cal += NUM_EVENTS_TO_PROCESS_3;
-      }
-      if(NUM_TEST_ITERATIONS > 3) {
-        num_events_cal += NUM_EVENTS_TO_PROCESS_4;
-      }
-      if(NUM_TEST_ITERATIONS > 4) {
-        num_events_cal += NUM_EVENTS_TO_PROCESS_5;
-      }
-      if(NUM_TEST_ITERATIONS > 5) {
-        num_events_cal += NUM_EVENTS_TO_PROCESS_6;
-      }
-
-      if (s->num_events_received == num_events_cal)
+      if (s->num_events_received == NUM_EVENTS_TO_PROCESS * NUM_TEST_ITERATIONS)
       {
         diag->api->sensor_printf(diag, this, SNS_HIGH, __FILENAME__, __LINE__,
                                  "result = PASS");
@@ -540,14 +408,10 @@ sns_test_handle_suid_event(sns_sensor* const this)
   sns_test_state* state = (sns_test_state*)this->state->state;
   sns_diag_service* diag = state->diag_service;
 
-  diag->api->sensor_printf(diag, this, SNS_MED, __FILENAME__, __LINE__,__FUNCTION__);
- 
   if(NULL != state->suid_stream &&
      0 < sns_process_suid_events(state->suid_stream, state->suid_search,
                                  state->search_count))
   {
-    diag->api->sensor_printf(diag, this, SNS_MED, __FILENAME__, __LINE__,__FUNCTION__);
- 
     bool ready = true;
     uint8_t i;
     for(i = 0; i<state->search_count; i++)
@@ -556,9 +420,6 @@ sns_test_handle_suid_event(sns_sensor* const this)
                          &((sns_sensor_uid){{0}}),
                          sizeof(sns_sensor_uid)))
       {
-         diag->api->sensor_printf(diag, this, SNS_MED, __FILENAME__, __LINE__,
-                                 "%s failed",
-                                 state->suid_search[i].data_type_str);
         ready = false;
       }
       else
@@ -585,15 +446,6 @@ sns_test_notify_event(sns_sensor* const this)
 {
   sns_test_state* s = (sns_test_state*)this->state->state;
 
-  sns_service_manager *smgr= this->cb->get_service_manager(this);
-  s->diag_service = (sns_diag_service *)
-    smgr->get_service(smgr, SNS_DIAG_SERVICE);
-
-  sns_diag_service* diag = s->diag_service;
-
-  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-
-
   if (s->suid_stream)
   {
     /* process events from SUID sensor */
@@ -609,32 +461,12 @@ sns_test_notify_event(sns_sensor* const this)
   return SNS_RC_SUCCESS;
 }
 
-/* See sns_sensor::get_attributes */
-static sns_sensor_attribute*
-sns_test_get_attributes(sns_sensor const* const this,
-                        uint32_t* attributes_len)
-{
-  sns_test_state* state = (sns_test_state*)this->state->state;
-
-  sns_service_manager *smgr= this->cb->get_service_manager(this);
-  state->diag_service = (sns_diag_service *)
-    smgr->get_service(smgr, SNS_DIAG_SERVICE);
-
-  sns_diag_service* diag = state->diag_service;
-
-  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
-
-  *attributes_len = ARR_SIZE(state->attributes);
-  return state->attributes;
-}
-
 /* See sns_sensor::init */
 static sns_rc
 sns_test_init(sns_sensor* const this)
 {
   sns_rc rc = SNS_RC_FAILED;
   sns_test_state* state = (sns_test_state*)this->state->state;
-  init_attributes(this);
   publish_attributes(this);
 
   sns_service_manager *smgr= this->cb->get_service_manager(this);
@@ -645,9 +477,6 @@ sns_test_init(sns_sensor* const this)
 
   diag->api->sensor_printf(diag, this, SNS_MED, __FILENAME__, __LINE__,
                            "sns_test_init");
-  diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                           "sns_test_init");
-
 
   state->test_sensor_create_request =
       (test_sensor_impl.create_request_func) ?
@@ -727,7 +556,6 @@ sns_sensor_api sns_test_sensor_api =
   .init               = &sns_test_init,
   .deinit             = &sns_test_deinit,
   .get_sensor_uid     = &sns_test_get_sensor_uid,
-  .get_attributes     = &sns_test_get_attributes,
   .set_client_request = &sns_test_set_client_request,
   .notify_event       = &sns_test_notify_event,
 };

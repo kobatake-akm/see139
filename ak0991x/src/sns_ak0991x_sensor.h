@@ -4,15 +4,17 @@
  *
  * AK0991X Sensor implementation.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
- * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * Confidential and Proprietary - Asahi Kasei Microdevices
+ *
+ * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * All Rights Reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ *
  **/
 
 #include "sns_sensor.h"
-#include "sns_attribute_service.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
 #include "sns_pwr_rail_service.h"
@@ -121,7 +123,6 @@ typedef enum
 
 typedef struct ak0991x_state
 {
-  sns_sensor_attribute  attributes[AK0991X_NUM_OF_ATTRIBUTES];
   sns_data_stream       *reg_data_stream;
   sns_data_stream       *fw_stream;
   sns_data_stream       *timer_stream;
@@ -148,6 +149,7 @@ typedef struct ak0991x_state
   // debug
   uint16_t who_am_i;
   sns_diag_service *diag_service;
+  sns_sync_com_port_service *scp_service;
   size_t   encoded_event_len;
 } ak0991x_state;
 
@@ -186,25 +188,14 @@ void ak0991x_process_suid_events(sns_sensor *const this
 );
 
 /**
- * Returns Sensor attributes.
- *
- * @param this
- * @param attributes_len
- *
- * @return sns_sensor_attribute*
- */
-sns_sensor_attribute *ak0991x_get_attributes(sns_sensor const *const this,
-                                             uint32_t *attributes_len
-);
-
-/**
  * Publishes Sensor attributes.
  *
  * @param[i] this    Sensor Reference
  *
  * @return none
  */
-void ak0991x_publish_attributes(sns_sensor *const this
+void ak0991x_publish_attributes(sns_sensor *const this,
+                                akm_device_type device_select
 );
 
 /**

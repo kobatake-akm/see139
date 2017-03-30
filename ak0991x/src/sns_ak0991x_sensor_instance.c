@@ -3,10 +3,13 @@
  *
  * AK0991X Mag virtual Sensor Instance implementation.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
+ *
+ * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ *
  **/
 
 #include "sns_mem_util.h"
@@ -32,6 +35,8 @@
 #include "sns_pb_util.h"
 #include "sns_async_com_port_pb_utils.h"
 #include "sns_diag_service.h"
+#include "sns_sync_com_port_service.h"
+#include "sns_diag.pb.h"
 
 const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   {
@@ -134,7 +139,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_diag_service    *diag = state->diag_service;
 
   // Turn COM port ON
-  state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+  state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     true);
 
@@ -244,7 +249,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   }
 
   // Turn COM port OFF
-  state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+  state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     false);
 
@@ -263,9 +268,15 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
   sns_stream_service  *stream_mgr = (sns_stream_service *)
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+  uint64_t buffer[10];
+  pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)buffer, sizeof(buffer));
+  sns_diag_batch_sample sample = sns_diag_batch_sample_init_default;
+  sample.sample_count = 3;
 
   state->diag_service = (sns_diag_service *)
     service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
+  state->scp_service = (sns_sync_com_port_service *)
+    service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
 
   sns_rc rv;
 
@@ -379,13 +390,12 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &sensor_state->com_port_info.com_config,
               sizeof(sensor_state->com_port_info.com_config));
 
+  state->scp_service->api->sns_scp_register_com_port(&state->com_port_info.com_config,
+                                                     &state->com_port_info.port_handle );
 
-  sns_scp_register_com_port(&state->com_port_info.com_config,
-                            &state->com_port_info.port_handle);
+  state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
 
-  state->com_port_info.port_handle->com_port_api->sns_scp_open(state->com_port_info.port_handle);
-
-  state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+  state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     false);
 
@@ -403,7 +413,7 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   uint32_t                  enc_len;
   sns_async_com_port_config async_com_port_config;
   async_com_port_config.bus_instance = sensor_state->com_port_info.com_config.bus_instance;
-  async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_SPI;
+  async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_I2C;
   async_com_port_config.max_bus_speed_kHz =
     sensor_state->com_port_info.com_config.max_bus_speed_KHz;
   async_com_port_config.min_bus_speed_kHz =
@@ -423,6 +433,21 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->async_com_port_data_stream->api->send_request(
     state->async_com_port_data_stream, &async_com_port_request);
 
+  /** Determine size of sns_diag_sensor_state_raw as defined in
+   *  sns_diag.proto
+   *  sns_diag_sensor_state_raw is a repeated array of samples of
+   *  type sns_diag_batch sample. The following determines the
+   *  size of sns_diag_sensor_state_raw with a single batch
+   *  sample */
+  if(pb_encode_tag(&stream, PB_WT_STRING,
+                    sns_diag_sensor_state_raw_sample_tag))
+  {
+    if(pb_encode_delimited(&stream, sns_diag_batch_sample_fields,
+                               &sample))
+    {
+      state->log_raw_encoded_size = stream.bytes_written;
+    }
+  }
 
   return SNS_RC_SUCCESS;
 }
@@ -447,14 +472,15 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
 
   // Turn COM port ON
-  state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+  state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     true);
 
   // Reset the device if not streaming.
   if (state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF)
   {
-    ak0991x_device_sw_reset(state->com_port_info.port_handle);
+    ak0991x_device_sw_reset(state->scp_service,
+                            state->com_port_info.port_handle);
   }
 
   if (client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
@@ -528,7 +554,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       state->mag_info.cur_wmk = pre_wmk;
       // Turn COM port OFF
-      state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+      state->scp_service->api->sns_scp_update_bus_power(
         state->com_port_info.port_handle,
         false);
       return rv;
@@ -586,7 +612,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         state->mag_info.cur_wmk = pre_wmk;
         // Turn COM port OFF
-        state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+        state->scp_service->api->sns_scp_update_bus_power(
           state->com_port_info.port_handle,
           false);
         return rv;
@@ -606,7 +632,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         state->mag_info.cur_wmk = pre_wmk;
         // Turn COM port OFF
-        state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+        state->scp_service->api->sns_scp_update_bus_power(
           state->com_port_info.port_handle,
           false);
         return rv;
@@ -674,7 +700,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
 
   // Turn COM port OFF
-  state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+  state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     false);
 
@@ -702,8 +728,8 @@ static sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this,
 
   stream_mgr->api->remove_stream(stream_mgr, state->async_com_port_data_stream);
 
-  state->com_port_info.port_handle->com_port_api->sns_scp_close(state->com_port_info.port_handle);
-  sns_scp_deregister_com_port(state->com_port_info.port_handle);
+  state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
+  state->scp_service->api->sns_scp_deregister_com_port(state->com_port_info.port_handle);
 
   return SNS_RC_SUCCESS;
 }

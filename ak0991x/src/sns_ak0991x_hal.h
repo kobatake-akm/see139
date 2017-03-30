@@ -4,11 +4,14 @@
  *
  * Hardware Access Layer functions.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
- * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * Confidential and Proprietary - Asahi Kasei Microdevices
+ *
+ * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * All Rights Reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ *
  **/
 
 #include <stdint.h>
@@ -44,7 +47,7 @@
 
 // Set DRI(true) or Polling(false)
 #ifndef AK0991X_USE_DRI
-#define AK0991X_USE_DRI                  (false)
+#define AK0991X_USE_DRI                  (true)
 #endif
 
 // Set Interrupt pull type
@@ -70,7 +73,7 @@ typedef enum
 } ak0991x_bus_type;
 // Set Serial interface
 #ifndef AK0991X_BUS_TYPE
-#define AK0991X_BUS_TYPE                            AK0991X_SPI
+#define AK0991X_BUS_TYPE                            SNS_BUS_I2C
 #endif
 
 /**
@@ -138,7 +141,7 @@ typedef enum
                                                       AK0991X_NUM_DATA_HXL_TO_ST2 + 1
 
 /** FIFO setting */
-#define AK0991X_ENABLE_FIFO                         0
+#define AK0991X_ENABLE_FIFO                         1
 
 /** NSF setting */
 #define AK0991X_NSF                                 0
@@ -256,13 +259,14 @@ typedef enum
  * should also reset the SW settings like a mag_info.curr_odr.
  *
  * @param[i] port_handle   handle to synch COM port
+ * @param[i] scp_service   synch COM port service
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_device_sw_reset(sns_sync_com_port_handle *port_handle
-);
+sns_rc ak0991x_device_sw_reset(sns_sync_com_port_service * scp_service,
+		                       sns_sync_com_port_handle *port_handle);
 
 /**
  * Enable Mag streaming. enables Mag sensor with
@@ -293,19 +297,23 @@ sns_rc ak0991x_stop_mag_streaming(ak0991x_instance_state *state
  * Gets Who-Am-I register for the sensor.
  *
  * @param[i] port_handle   handle to synch COM port
+ * @param[i] scp_service   handle to synch COM port service
+ *
  * @param[o] buffer        who am I value read from HW
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service * scp_service,
+		                    sns_sync_com_port_handle *port_handle,
                             uint8_t *buffer
 );
 
 /**
  * Run a self-test.
  *
+ * @param[i] scp_service   handle to synch COM port service
  * @param[i] port_handle   handle to synch COM port
  * @param[i] device_select device ID
  * @param[i] sstvt_adj     Set sensitivity adjustment
@@ -315,7 +323,8 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_handle *port_handle,
  * SNS_RC_FAILED
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
+		                 sns_sync_com_port_handle *port_handle,
                          akm_device_type device_select,
                          float *sstvt_adj,
                          uint32_t *err
@@ -324,6 +333,7 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
 /**
  * Sets sensitivity adjustment for the sensor.
  *
+ * @param[i] scp_service   handle to synch COM port service
  * @param[i] port_handle   handle to synch COM port
  * @param[i] device_select device ID
  * @param[o] sstvt_adj     Set sensitivity adjustment
@@ -332,7 +342,8 @@ sns_rc ak0991x_self_test(sns_sync_com_port_handle *port_handle,
  * SNS_RC_FAILED
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
+		                     sns_sync_com_port_handle *port_handle,
                              uint8_t device_select,
                              float *sstvt_adj
 );
@@ -350,6 +361,7 @@ sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr
 /**
  * Sets Mag ODR, range and sensitivity.
  *
+ * @param[i] scp_service     handle to synch COM port service
  * @param[i] port_handle     handle to synch COM port
  * @param[i] curr_odr        Mag ODR
  * @param[i] select_device   AKM device type
@@ -359,7 +371,8 @@ sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_set_mag_config(sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
+		                      sns_sync_com_port_handle *port_handle,
                               ak0991x_mag_odr curr_odr,
                               akm_device_type device_select,
                               uint16_t cur_wmk

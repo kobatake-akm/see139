@@ -3,11 +3,14 @@
  *
  * Common implementation for AK0991X Sensors.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
- * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * Confidential and Proprietary - Asahi Kasei Microdevices
+ *
+ * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * All Rights Reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ *
  **/
 
 #include <string.h>
@@ -32,18 +35,8 @@
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
 #include "sns_diag_service.h"
+#include "sns_sync_com_port_service.h"
 
-/** See sns_ak0991x_sensor.h */
-void ak0991x_publish_attributes(sns_sensor *const this)
-{
-  ak0991x_state         *state = (ak0991x_state *)this->state->state;
-  sns_service_manager   *manager = this->cb->get_service_manager(this);
-  sns_attribute_service *attribute_service =
-    (sns_attribute_service *)manager->get_service(manager, SNS_ATTRIBUTE_SERVICE);
-
-  attribute_service->api->publish_attributes(attribute_service, this,
-                                             state->attributes, ARR_SIZE(state->attributes));
-}
 
 static void ak0991x_start_power_rail_timer(sns_sensor *const this,
                                            sns_time timeout_ticks,
@@ -86,6 +79,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
   sns_stream_service  *stream_svc = (sns_stream_service *)
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+  sns_sync_com_port_service * scp_service = (sns_sync_com_port_service *)
+    service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
+
   sns_time         on_timestamp;
   uint8_t          buffer[AK0991X_NUM_READ_DEV_ID];
   sns_rc           rv = SNS_RC_SUCCESS;
@@ -124,7 +120,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_INIT)
         {
           /**-------------------Read and Confirm WHO-AM-I------------------------*/
-          rv = ak0991x_get_who_am_i(state->com_port_info.port_handle, &buffer[0]);
+          rv = ak0991x_get_who_am_i(state->scp_service,
+                                    state->com_port_info.port_handle, &buffer[0]);
 
           if (rv != SNS_RC_SUCCESS)
           {
@@ -191,7 +188,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           {
           case AK09911:
             state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = false;
+            state->irq_info.is_chip_pin = true;
             state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
             break;
 
@@ -203,7 +200,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           case AK09913:
             state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = false;
+            state->irq_info.is_chip_pin = true;
             state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
             break;
 
@@ -221,7 +218,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           case AK09916C:
             state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = false;
+            state->irq_info.is_chip_pin = true;
             state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
             break;
 
@@ -233,7 +230,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           case AK09918:
             state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = false;
+            state->irq_info.is_chip_pin = true;
             state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
             break;
 
@@ -245,7 +242,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 #endif //AK0991X_ENABLE_DEPENDENCY
 
           // Set sensitivity adjustment data
-          rv = ak0991x_set_sstvt_adj(state->com_port_info.port_handle, state->device_select,
+          rv = ak0991x_set_sstvt_adj(state->scp_service,
+                                     state->com_port_info.port_handle, state->device_select,
                                      &state->sstvt_adj[0]);
 
           if (rv != SNS_RC_SUCCESS)
@@ -254,7 +252,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           }
 
           // Reset Sensor
-          rv = ak0991x_device_sw_reset(state->com_port_info.port_handle);
+          rv = ak0991x_device_sw_reset(state->scp_service,
+                                       state->com_port_info.port_handle);
 
           if (rv == SNS_RC_SUCCESS)
           {
@@ -262,13 +261,13 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           }
 
           /**------------------Power Down and Close COM Port--------------------*/
-          state->com_port_info.port_handle->com_port_api->sns_scp_update_bus_power(
+          state->scp_service->api->sns_scp_update_bus_power(
             state->com_port_info.port_handle,
             false);
 
-          state->com_port_info.port_handle->com_port_api->sns_scp_close(
+          state->scp_service->api->sns_scp_close(
             state->com_port_info.port_handle);
-          sns_scp_deregister_com_port(state->com_port_info.port_handle);
+          state->scp_service->api->sns_scp_deregister_com_port(state->com_port_info.port_handle);
 
           /**----------------------Turn Power Rail OFF--------------------------*/
           state->rail_config.rail_vote = SNS_RAIL_OFF;
@@ -279,9 +278,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           if (state->hw_is_present)
           {
-            ak0991x_mag_init_attributes(this, state->device_select);
-
-            ak0991x_publish_attributes(this);
+            ak0991x_publish_attributes(this, state->device_select);
           }
           else
           {
@@ -363,10 +360,10 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       /**-----------------Register and Open COM Port-------------------------*/
       if (NULL == state->com_port_info.port_handle)
       {
-        sns_scp_register_com_port(&state->com_port_info.com_config,
-                                  &state->com_port_info.port_handle);
+          scp_service->api->sns_scp_register_com_port(&state->com_port_info.com_config,
+                                                      &state->com_port_info.port_handle);
 
-        state->com_port_info.port_handle->com_port_api->sns_scp_open(
+          state->scp_service->api->sns_scp_open(
           state->com_port_info.port_handle);
       }
 
@@ -425,16 +422,6 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   return rv;
 }
 
-/* See sns_sensor::get_attributes */
-sns_sensor_attribute *ak0991x_get_attributes(sns_sensor const *const this,
-                                             uint32_t *attributes_len)
-{
-  ak0991x_state *state = (ak0991x_state *)this->state->state;
-
-  *attributes_len = ARR_SIZE(state->attributes);
-  return state->attributes;
-}
-
 /**
  * Returns decoded request message for type
  * sns_sensor_stream_config.
@@ -487,8 +474,10 @@ static void ak0991x_get_mag_config(sns_sensor *this,
   sns_sensor_uid suid;
   sns_request const *request;
 
+  // QC: this memscpy can be removed. See LSM6DS3 example.
   sns_memscpy(&suid, sizeof(suid), &((sns_sensor_uid)MAG_SUID), sizeof(sns_sensor_uid));
 
+  // QC: this memscpy can be removed. See LSM6DS3 example.
   sns_memscpy(&inst_state->mag_info.suid,
               sizeof(inst_state->mag_info.suid),
               &suid,
@@ -538,7 +527,8 @@ static void ak0991x_get_mag_config(sns_sensor *this,
           {
             uint32_t err = 0;
             sns_rc rv;
-            rv = ak0991x_self_test(state->com_port_info.port_handle,
+            rv = ak0991x_self_test(state->scp_service,
+                                   state->com_port_info.port_handle,
                                    state->device_select,
                                    state->sstvt_adj,
                                    &err);
@@ -591,6 +581,8 @@ void ak0991x_reval_instance_config(sns_sensor *this,
   float report_rate = 0;
   bool m_sensor_client_present;
   UNUSED_VAR(instance);
+
+  //QC: below computations can be optimized to remove sample_rate and report_rate
 
   ak0991x_get_mag_config(this,
                          instance,
@@ -783,7 +775,7 @@ void ak0991x_send_suid_req(sns_sensor *this,
   if (0 < encoded_len)
   {
     sns_request request = (sns_request){
-      .request_len = encoded_len, .request = buffer, .message_id = SNS_SUID_MSGID_SNS_PB_SUID_REQ
+      .request_len = encoded_len, .request = buffer, .message_id = SNS_SUID_MSGID_SNS_SUID_REQ
     };
     state->fw_stream->api->send_request(state->fw_stream, &request);
   }
@@ -803,7 +795,7 @@ void ak0991x_process_suid_events(sns_sensor *const this)
     sns_sensor_event *event =
       state->fw_stream->api->peek_input(state->fw_stream);
 
-    if (SNS_SUID_MSGID_SNS_PB_SUID_EVENT == event->message_id)
+    if (SNS_SUID_MSGID_SNS_SUID_EVENT == event->message_id)
     {
       sns_sensor_uid suid;
       int num_suids_found = 0;

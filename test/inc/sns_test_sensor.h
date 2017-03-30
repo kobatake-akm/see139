@@ -8,14 +8,13 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/inc/sns_test_sensor.h#9 $
- * $DateTime: 2017/02/06 10:47:39 $
- * $Change: 12378096 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/inc/sns_test_sensor.h#10 $
+ * $DateTime: 2017/03/17 17:13:42 $
+ * $Change: 12750453 $
  *
  **/
 
 #include "sns_sensor.h"
-#include "sns_attribute_service.h"
 #include "sns_data_stream.h"
 #include "sns_std_sensor.pb.h"
 #include "sns_diag_service.h"
@@ -29,8 +28,6 @@ sns_sensor_api sns_test_sensor_api;
 #define SNS_TEST_REQ_PAYLOAD_SIZE 128
 #define SNS_TEST_DATA_SIZE 256
 
-#define SNS_TEST_NUM_ATTRIBUTES 6
-
 typedef void (* sns_test_create_request_func)(const sns_sensor *sensor,
                                               void*, const pb_field_t**,
                                               uint32_t*, sns_std_request*);
@@ -40,7 +37,6 @@ typedef void (* sns_test_process_event_func)(const sns_sensor *sensor,
 
 typedef struct _sns_test_state
 {
-  sns_sensor_attribute  attributes[SNS_TEST_NUM_ATTRIBUTES];
   sns_data_stream* sensor_stream;
   sns_data_stream* suid_stream;
   sns_diag_service *diag_service;
