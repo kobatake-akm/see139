@@ -304,7 +304,7 @@ void ak0991x_publish_attributes(sns_sensor *const this,
         this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
   }
   {
-    char const vendor[] = "qualcomm";//"akm";
+    char const vendor[] = "template";//"akm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)
@@ -405,6 +405,9 @@ static sns_rc ak0991x_mag_init(sns_sensor *const this)
     smgr->get_service(smgr, SNS_DIAG_SERVICE);
   state->scp_service =
      (sns_sync_com_port_service *)smgr->get_service(smgr, SNS_SYNC_COM_PORT_SERVICE);
+
+  sns_diag_service* diag = state->diag_service;
+  diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__, __FUNCTION__);
 
   state->sensor_client_present = false;
 

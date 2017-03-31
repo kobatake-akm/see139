@@ -143,6 +143,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     state->com_port_info.port_handle,
     true);
 
+  diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
+                                      SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   // Handle interrupts
   if (NULL != state->interrupt_data_stream)
   {
@@ -175,6 +178,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           else
           {
             ak0991x_handle_interrupt_event(this);
+ 
+            diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
+                                      SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
           }
 
           state->irq_info.detect_irq_event = false;
@@ -202,6 +208,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       }
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
       {
+
+        diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
+                                      SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
       }
@@ -280,6 +290,10 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   sns_rc rv;
 
+  sns_diag_service    *diag = state->diag_service;
+  diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
+                                      SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
   state->mag_info.curr_odr = AK0991X_MAG_ODR_OFF;
@@ -413,7 +427,14 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   uint32_t                  enc_len;
   sns_async_com_port_config async_com_port_config;
   async_com_port_config.bus_instance = sensor_state->com_port_info.com_config.bus_instance;
-  async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_I2C;
+  if (sensor_state->com_port_info.com_config.bus_type == SNS_BUS_I2C)
+  {
+    async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_I2C;
+  }
+  else
+  {
+    async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_SPI;
+  }
   async_com_port_config.max_bus_speed_kHz =
     sensor_state->com_port_info.com_config.max_bus_speed_KHz;
   async_com_port_config.min_bus_speed_kHz =
@@ -471,6 +492,10 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   sns_stream_service  *stream_mgr = (sns_stream_service *)
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
 
+  sns_diag_service    *diag = state->diag_service;
+  diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
+                                      SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);
+ 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,

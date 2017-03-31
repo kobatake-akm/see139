@@ -89,6 +89,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
   sns_diag_service *diag = state->diag_service;
 
+  diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__,
+                                       __FUNCTION__);
+ 
   if (state->fw_stream)
   {
     if ((0 == sns_memcmp(&state->irq_suid, &((sns_sensor_uid){{0}}), sizeof(state->irq_suid)))
@@ -103,7 +106,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       ak0991x_process_suid_events(this);
     }
   }
-
+  diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__,
+                                       __FUNCTION__);
+ 
   /**----------------------Handle a Timer Sensor event.-------------------*/
   if (NULL != state->timer_stream)
   {
@@ -123,6 +128,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           rv = ak0991x_get_who_am_i(state->scp_service,
                                     state->com_port_info.port_handle, &buffer[0]);
 
+          diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__,
+                                       __FUNCTION__);
+ 
           if (rv != SNS_RC_SUCCESS)
           {
             return rv;
@@ -260,6 +268,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
             state->hw_is_present = true;
           }
 
+          diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__,
+                                       __FUNCTION__);
+ 
           /**------------------Power Down and Close COM Port--------------------*/
           state->scp_service->api->sns_scp_update_bus_power(
             state->com_port_info.port_handle,
@@ -357,6 +368,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       //TODO update to use Registry Sensor data
 #endif //AK0991X_USE_DEFAULTS
 
+      diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__,
+                                       __FUNCTION__);
+ 
       /**-----------------Register and Open COM Port-------------------------*/
       if (NULL == state->com_port_info.port_handle)
       {
@@ -366,7 +380,10 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           state->scp_service->api->sns_scp_open(
           state->com_port_info.port_handle);
       }
-
+      diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__,
+                                       __FUNCTION__);
+ 
+ 
       /**---------------------Register Power Rails --------------------------*/
       if (0 != sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid))
           && NULL == state->pwr_rail_service)
@@ -412,7 +429,10 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         diag->api->sensor_printf(diag, this, SNS_LOW, __FILENAME__, __LINE__,
                                  "power rail settings finished");
       }
-
+      diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__,
+                                       __FUNCTION__);
+ 
+ 
 #if AK0991X_ENABLE_DEPENDENCY
     event = state->reg_data_stream->api->get_next_input(state->reg_data_stream);
     }
@@ -611,6 +631,10 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_time delta;
   bool reval_config = false;
 
+  sns_diag_service *diag = state->diag_service;
+  diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__,
+                                       __FUNCTION__);
+ 
   if (remove)
   {
     if (NULL != instance)

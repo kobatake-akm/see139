@@ -22,7 +22,7 @@
 Import('env')
 import inspect
 
-if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']) and ('SENSORS_DD_DEV_FLAG' not in env):
+if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):
   env.AddSSCSU(inspect.getfile(inspect.currentframe()),
                register_func_name = "sns_register_ak0991x",
                binary_lib = False)
