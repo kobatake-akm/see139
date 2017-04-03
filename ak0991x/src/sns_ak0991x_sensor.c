@@ -196,8 +196,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           {
           case AK09911:
             state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = true;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
+            state->irq_info.is_chip_pin = false;
+            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
             break;
 
           case AK09912:
@@ -208,8 +208,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           case AK09913:
             state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = true;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
+            state->irq_info.is_chip_pin = false;
+            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
             break;
 
           case AK09915C:
@@ -226,8 +226,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           case AK09916C:
             state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = true;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
+            state->irq_info.is_chip_pin = false;
+            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
             break;
 
           case AK09916D:
@@ -238,8 +238,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           case AK09918:
             state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = true;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
+            state->irq_info.is_chip_pin = false;
+            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
             break;
 
           default:

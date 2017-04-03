@@ -1002,14 +1002,14 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
     return rv;
   }
 
-  if (device_select == AK09911_WHOAMI_DEV_ID)
+  if (device_select == AK09911)
   {
     for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
     {
       sstvt_adj[i] = ((buffer[i] / 128.0f) + 1.0f);
     }
   }
-  else if (device_select == AK09912_WHOAMI_DEV_ID)
+  else if (device_select == AK09912)
   {
     for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
     {
