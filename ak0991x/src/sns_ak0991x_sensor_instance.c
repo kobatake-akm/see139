@@ -290,6 +290,12 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   sns_rc rv;
 
+  /**----------------Copy Sensor UID in instance state---------------*/
+  sns_memscpy(&state->mag_info.suid,
+              sizeof(state->mag_info.suid),
+              &((sns_sensor_uid)MAG_SUID),
+              sizeof(state->mag_info.suid));
+
   sns_diag_service    *diag = state->diag_service;
   diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
                                       SNS_ERROR, __FILENAME__, __LINE__,__FUNCTION__);

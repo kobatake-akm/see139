@@ -141,7 +141,7 @@ typedef enum
                                                       AK0991X_NUM_DATA_HXL_TO_ST2 + 1
 
 /** FIFO setting */
-#define AK0991X_ENABLE_FIFO                         0
+#define AK0991X_ENABLE_FIFO                         1
 
 /** NSF setting */
 #define AK0991X_NSF                                 0

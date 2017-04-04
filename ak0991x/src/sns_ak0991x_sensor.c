@@ -488,20 +488,8 @@ static void ak0991x_get_mag_config(sns_sensor *this,
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   sns_diag_service *diag = state->diag_service;
 
-  ak0991x_instance_state *inst_state =
-    (ak0991x_instance_state *)instance->state->state;
-
-  sns_sensor_uid suid;
+  sns_sensor_uid suid = MAG_SUID;
   sns_request const *request;
-
-  // QC: this memscpy can be removed. See LSM6DS3 example.
-  sns_memscpy(&suid, sizeof(suid), &((sns_sensor_uid)MAG_SUID), sizeof(sns_sensor_uid));
-
-  // QC: this memscpy can be removed. See LSM6DS3 example.
-  sns_memscpy(&inst_state->mag_info.suid,
-              sizeof(inst_state->mag_info.suid),
-              &suid,
-              sizeof(suid));
 
   *chosen_report_rate = 0;
   *chosen_sample_rate = 0;
@@ -597,21 +585,14 @@ void ak0991x_reval_instance_config(sns_sensor *this,
    */
   float chosen_sample_rate = 0;
   float chosen_report_rate = 0;
-  float sample_rate = 0;
-  float report_rate = 0;
   bool m_sensor_client_present;
   UNUSED_VAR(instance);
-
-  //QC: below computations can be optimized to remove sample_rate and report_rate
 
   ak0991x_get_mag_config(this,
                          instance,
                          &chosen_sample_rate,
                          &chosen_report_rate,
                          &m_sensor_client_present);
-
-  chosen_sample_rate = SNS_MAX(chosen_sample_rate, sample_rate);
-  chosen_report_rate = SNS_MAX(chosen_report_rate, report_rate);
 
   ak0991x_set_mag_inst_config(this,
                               instance,
