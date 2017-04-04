@@ -220,7 +220,7 @@ void ak0991x_publish_attributes(sns_sensor *const this,
     sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
         SNS_ATTR};
 
-    if(state->device_select == AK09915D)
+    if((state->device_select == AK09915C) || (state->device_select == AK09915D))
     {
       values[0].has_flt = true;
       values[0].flt = ak09915_odr_table[0];

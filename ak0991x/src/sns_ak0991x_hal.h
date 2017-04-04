@@ -47,7 +47,7 @@
 
 // Set DRI(true) or Polling(false)
 #ifndef AK0991X_USE_DRI
-#define AK0991X_USE_DRI                  (false)
+#define AK0991X_USE_DRI                  (true)
 #endif
 
 // Set Interrupt pull type

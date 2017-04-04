@@ -1296,9 +1296,6 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
-  // QC: what's this for?
-  instance->cb->get_service_manager(instance);
-
   sns_port_vector async_read_msg;
 
   if (state->mag_info.use_fifo)
