@@ -406,9 +406,6 @@ static sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->scp_service =
      (sns_sync_com_port_service *)smgr->get_service(smgr, SNS_SYNC_COM_PORT_SERVICE);
 
-  sns_diag_service* diag = state->diag_service;
-  diag->api->sensor_printf(diag, this, SNS_FATAL, __FILENAME__, __LINE__, __FUNCTION__);
-
   state->sensor_client_present = false;
 
   sns_memscpy(&state->my_suid,
