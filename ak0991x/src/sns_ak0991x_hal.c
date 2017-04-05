@@ -11,6 +11,19 @@
  *
  **/
 
+/**
+ * EDIT HISTORY FOR FILE
+ *
+ * This section contains comments describing changes made to the module.
+ * Notice that changes are listed in reverse chronological order.
+ *
+ *
+ * when         who     what, where, why
+ * --------     ---     ------------------------------------------------
+ * 04/04/17     AKM     Fix sensitivity configuration.
+ *
+ **/
+
 #include "sns_rc.h"
 #include "sns_time.h"
 #include "sns_sensor_event.h"

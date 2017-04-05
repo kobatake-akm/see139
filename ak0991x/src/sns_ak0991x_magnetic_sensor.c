@@ -13,6 +13,20 @@
  *
  **/
 
+/**
+ * EDIT HISTORY FOR FILE
+ *
+ * This section contains comments describing changes made to the module.
+ * Notice that changes are listed in reverse chronological order.
+ *
+ *
+ * when         who     what, where, why
+ * --------     ---     ------------------------------------------------
+ * 04/04/17     AKM     Fix ODR attribute configuration.
+ *
+ **/
+
+
 #include <string.h>
 #include "sns_mem_util.h"
 #include "sns_types.h"
