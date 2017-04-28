@@ -8,9 +8,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/inc/sns_test_sensor.h#10 $
- * $DateTime: 2017/03/17 17:13:42 $
- * $Change: 12750453 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/inc/sns_test_sensor.h#11 $
+ * $DateTime: 2017/03/30 13:18:44 $
+ * $Change: 12869165 $
  *
  **/
 
@@ -43,8 +43,11 @@ typedef struct _sns_test_state
   int32_t remaining_events;
   int32_t remaining_iterations;
   uint32_t num_events_received;
-  sns_suid_search suid_search[2]; /* resampler uses 2, other use just 1 */
+  sns_suid_search suid_search[2];  /* resampler uses 2, others use just 1 */
+  sns_sensor_uid uid1_list[5];
+  sns_sensor_uid uid2_list[5];
   uint8_t         search_count;
+  bool test_in_progress;
   uint64_t sns_pb_req_payload[SNS_TEST_REQ_PAYLOAD_SIZE/8];
   uint64_t test_data[SNS_TEST_DATA_SIZE/8];
   sns_test_create_request_func test_sensor_create_request;

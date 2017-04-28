@@ -54,57 +54,7 @@
 /** Need to use ODR table. */
 extern const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE];
 
-typedef struct log_sensor_state_raw_info
-{
-  /* Size of a single encoded sample */
-  size_t encoded_sample_size;
-  /* Pointer to log*/
-  void *log;
-  /* Size of allocated space for log*/
-  uint32_t log_size;
-  /* Number of actual bytes written*/
-  uint32_t bytes_written;
-  /* Number of batch samples written*/
-  uint32_t sample_cnt;
-} log_sensor_state_raw_info;
-
-/**
- * Encode Sensor State Log.Interrupt
- *  
- * @param[i] log Pointer to log packet information
- * @param[i] log_size Size of log packet information
- * @param[i] encoded_log_size Maximum permitted encoded size of 
- *                            the log
- * @param[o] encoded_log Pointer to location where encoded 
- *                       log should be generated
- *  
- * @return sns_rc,
- * SNS_RC_SUCCESS if encoding was succesful 
- * SNS_RC_FAILED otherwise 
- */
-sns_rc ak0991x_encode_sensor_state_log_interrupt(
-  void *log, size_t log_size, size_t encoded_log_size, void *encoded_log)
-{
-  UNUSED_VAR(log_size);
-  sns_rc rc = SNS_RC_SUCCESS;
-
-  if(NULL == encoded_log || NULL == log)
-  {
-    return SNS_RC_FAILED;
-  }
-
-  sns_diag_sensor_state_interrupt *sensor_state_interrupt =
-    (sns_diag_sensor_state_interrupt *)log;
-  pb_ostream_t stream = pb_ostream_from_buffer(encoded_log, encoded_log_size);
-
-  if(!pb_encode(&stream, sns_diag_sensor_state_interrupt_fields,
-                sensor_state_interrupt))
-  {
-    rc = SNS_RC_FAILED;
-  }
-
-  return rc;
-}
+log_sensor_state_raw_info log_mag_state_raw_info;
 
 /**
  * Encode log sensor state raw packet
@@ -1106,6 +1056,15 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
   }
 
+  /** Hard coding axis mapping for QC Vertigo platform */
+  {
+    float temp;
+    temp = data[0];
+    data[0] = data[1];
+    data[1] = temp;
+    data[2] = -data[2];
+  }
+
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,
                               timestamp,
@@ -1139,24 +1098,13 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
   sns_event_service *event_service =
     (sns_event_service *)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
 
-  sns_diag_service *diag = state->diag_service;
-
   if (AKM_AK0991X_REG_ST1 == vector->reg_addr)
   {
     uint32_t i;
 
-    log_sensor_state_raw_info log_mag_state_raw_info;
     sns_time                  timestamp;
     uint16_t                  cnt_for_ts = state->mag_info.cur_wmk;
 
-    sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-    log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
-
-    ak0991x_log_sensor_state_raw_alloc(
-      diag,
-      instance,
-      &state->mag_info.suid,
-      &log_mag_state_raw_info);
 
     sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
@@ -1186,10 +1134,6 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
     state->this_is_first_data = false;
     state->pre_timestamp = state->interrupt_timestamp;
 
-    ak0991x_log_sensor_state_raw_submit(diag,
-                                        instance,
-                                        &state->mag_info.suid,
-                                        &log_mag_state_raw_info);
   }
 }
 
@@ -1394,6 +1338,11 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
                             event_service,
                             state,
                             &log_mag_state_raw_info);
+  ak0991x_log_sensor_state_raw_submit(diag,
+                                      instance,
+                                      &state->mag_info.suid,
+                                      &log_mag_state_raw_info);
+
 
   return SNS_RC_SUCCESS;
 }
@@ -1559,6 +1508,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   op_mode_args.buf = operating_mode;
   op_mode_args.buf_len = sizeof(operating_mode);
 
+  phy_sensor_config.has_sample_rate = true;
   phy_sensor_config.sample_rate = state->mag_req.sample_rate;
 
   pb_send_event(instance,

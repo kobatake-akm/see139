@@ -306,6 +306,7 @@ sns_rc lsm6ds3_gyro_init(sns_sensor *const this)
 
   lsm6ds3_publish_attributes(this);
 
+  lsm6ds3_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
   lsm6ds3_send_suid_req(this, "interrupt", 10);
   lsm6ds3_send_suid_req(this, "async_com_port", 15);
   lsm6ds3_send_suid_req(this, "timer", 6);

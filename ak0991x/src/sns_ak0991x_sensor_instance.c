@@ -53,6 +53,8 @@
 #include "sns_sync_com_port_service.h"
 #include "sns_diag.pb.h"
 
+extern log_sensor_state_raw_info log_mag_state_raw_info;
+
 const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   {
     .odr = AK0991X_ODR_0,
@@ -165,14 +167,19 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
-      if (event->message_id != SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT) // TODO add config update message ID support
+      if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
-        diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
+        state->irq_info.is_ready = true;
+        sns_rc rv = ak0991x_start_mag_streaming(state);
+        if (SNS_RC_SUCCESS != rv)
+        {
+          diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
                                       SNS_ERROR, __FILENAME__, __LINE__,
-                                      "Received invalid event id=%d",
-                                      event->message_id);
+                                      "Unable to start mag stream");
+          return SNS_RC_INVALID_STATE;
+        }
       }
-      else
+      else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
                                                      event->event_len);
@@ -195,6 +202,14 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->irq_info.detect_irq_event = false;
         }
       }
+      else
+      {
+        diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid,
+                                      SNS_ERROR, __FILENAME__, __LINE__,
+                                      "Received invalid event id=%d",
+                                      event->message_id);
+      }
+
 
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
     }
@@ -218,7 +233,22 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
+        sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
+        log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
+
+        ak0991x_log_sensor_state_raw_alloc(
+          diag,
+          this,
+          &state->mag_info.suid,
+          &log_mag_state_raw_info);
+
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
+
+        ak0991x_log_sensor_state_raw_submit(diag,
+                                            this,
+                                            &state->mag_info.suid,
+                                            &log_mag_state_raw_info);
+
       }
 
       event = state->async_com_port_data_stream->api->get_next_input(
@@ -428,6 +458,7 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   state->irq_info.is_registered = false;
   state->irq_info.detect_irq_event = false;
+  state->irq_info.is_ready = false;
 
   /** Configure the Async Com Port */
   uint8_t                   pb_encode_buffer[100];
@@ -633,17 +664,19 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_flush_fifo(this);
       }
-
-      rv = ak0991x_start_mag_streaming(state);
-
-      if (rv != SNS_RC_SUCCESS)
+      if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
+         (!state->mag_info.use_dri))
       {
-        state->mag_info.cur_wmk = pre_wmk;
-        // Turn COM port OFF
-        state->scp_service->api->sns_scp_update_bus_power(
-          state->com_port_info.port_handle,
-          false);
-        return rv;
+        rv = ak0991x_start_mag_streaming(state);
+        if (rv != SNS_RC_SUCCESS)
+        {
+          state->mag_info.cur_wmk = pre_wmk;
+          // Turn COM port OFF
+          state->scp_service->api->sns_scp_update_bus_power(
+            state->com_port_info.port_handle,
+            false);
+          return rv;
+        }
       }
     }
     else
@@ -735,10 +768,9 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   return SNS_RC_SUCCESS;
 }
 
-static sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this,
-                                  sns_sensor_state *sensor_state)
+// QC: Removed sensor_state parameter
+static sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 {
-  UNUSED_VAR(sensor_state);
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);

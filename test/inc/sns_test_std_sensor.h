@@ -62,7 +62,7 @@ void sns_test_std_sensor_create_request(const sns_sensor *sensor,
                                    sns_std_request *std_req);
 
 /**
- * Processes events from the ensor
+ * Processes events from the Sensor
  *
  * @param[i] event       input event
  * @param[i] event_len   input event length
@@ -78,4 +78,21 @@ void sns_test_std_sensor_process_event(const sns_sensor *sensor,
                                   void *test_data,
                                   uint32_t message_id,
                                   sns_time timestamp);
+
+/**
+ * Create a request for on-change Sensor
+ *
+ * @param[o] payload  request payload. size of the payload shall 
+ *  not exceed SNS_TEST_REQ_PAYLOAD_SIZE
+ * @param[o] payload_fields  pb fields for request message.
+ * @param[o] message_id  request message ID
+ * @param[o] std_req  sns_std_request for Sensor under test.
+ *
+ * return none
+ */
+void sns_test_on_change_sensor_create_request(const sns_sensor *sensor,
+                                   void* payload,
+                                   const pb_field_t** payload_fields,
+                                   uint32_t* message_id,
+                                   sns_std_request *std_req);
 

@@ -109,6 +109,7 @@ typedef struct ak0991x_irq_info
   sns_interrupt_pull_type      irq_pull;
   bool is_chip_pin;
   bool is_registered;
+  bool is_ready;
   bool detect_irq_event;
 } ak0991x_irq_info;
 

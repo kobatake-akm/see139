@@ -344,6 +344,14 @@ void lsm6ds3_set_gated_accel_config(lsm6ds3_instance_state *state,
                            lsm6ds3_sensor_type sensor);
 
 /**
+ * Gets current Accel ODR.
+ *
+ * @param[i] curr_odr              Current FIFO ODR.
+ *
+ */
+float lsm6ds3_get_accel_odr(lsm6ds3_accel_odr curr_odr);
+
+/**
  * Provides sample interval based on current ODR.
  *
  * @param[i] curr_odr              Current FIFO ODR.

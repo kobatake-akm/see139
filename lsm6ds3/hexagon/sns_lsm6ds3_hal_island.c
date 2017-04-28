@@ -32,6 +32,7 @@
 #include "sns_diag_service.h"
 #include "sns_diag.pb.h"
 #include "sns_timer.pb.h"
+#include "sns_std_event_gated_sensor.pb.h"
 
 /** Need to use ODR table. */
 extern const odr_reg_map reg_map[LSM6DS3_REG_MAP_TABLE_SIZE];
@@ -52,19 +53,19 @@ typedef struct log_sensor_state_raw_info
 
 /**
  * Encode Sensor State Log.Interrupt
- *  
+ *
  * @param[i] log Pointer to log packet information
  * @param[i] log_size Size of log packet information
- * @param[i] encoded_log_size Maximum permitted encoded size of 
+ * @param[i] encoded_log_size Maximum permitted encoded size of
  *                            the log
- * @param[o] encoded_log Pointer to location where encoded 
+ * @param[o] encoded_log Pointer to location where encoded
  *                       log should be generated
- * @param[o] bytes_written Pointer to actual bytes written 
+ * @param[o] bytes_written Pointer to actual bytes written
  *       during encode
- *  
+ *
  * @return sns_rc,
- * SNS_RC_SUCCESS if encoding was succesful 
- * SNS_RC_FAILED otherwise 
+ * SNS_RC_SUCCESS if encoding was succesful
+ * SNS_RC_FAILED otherwise
  */
 sns_rc lsm6ds3_encode_sensor_state_log_interrupt(
   void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
@@ -99,18 +100,18 @@ sns_rc lsm6ds3_encode_sensor_state_log_interrupt(
 
 /**
  * Encode log sensor state raw packet
- *  
+ *
  * @param[i] log Pointer to log packet information
  * @param[i] log_size Size of log packet information
- * @param[i] encoded_log_size Maximum permitted encoded size of 
+ * @param[i] encoded_log_size Maximum permitted encoded size of
  *                            the log
- * @param[o] encoded_log Pointer to location where encoded 
+ * @param[o] encoded_log Pointer to location where encoded
  *                       log should be generated
- * @param[o] bytes_written Pointer to actual bytes written 
+ * @param[o] bytes_written Pointer to actual bytes written
  *       during encode
- *  
- * @return sns_rc 
- * SNS_RC_SUCCESS if encoding was succesful 
+ *
+ * @return sns_rc
+ * SNS_RC_SUCCESS if encoding was succesful
  * SNS_RC_FAILED otherwise
  */
 sns_rc lsm6ds3_encode_log_sensor_state_raw(
@@ -168,9 +169,9 @@ sns_rc lsm6ds3_encode_log_sensor_state_raw(
 }
 
 /**
- * Allocate Sensor State Raw Log Packet 
+ * Allocate Sensor State Raw Log Packet
  *
- * @param[i] diag       Pointer to diag service 
+ * @param[i] diag       Pointer to diag service
  * @param[i] instance   Pointer to sensor instance
  * @param[i] sensor_uid SUID of the sensor
  * @param[i] log_raw_info   Pointer to raw sensor state logging
@@ -194,18 +195,18 @@ void lsm6ds3_log_sensor_state_raw_alloc(
 }
 
 /**
- * Add raw uncalibrated sensor data to Sensor State Raw log 
- * packet 
- *  
- * @param[i] log_raw_info Pointer to logging information 
+ * Add raw uncalibrated sensor data to Sensor State Raw log
+ * packet
+ *
+ * @param[i] log_raw_info Pointer to logging information
  *                        pertaining to the sensor
  * @param[i] raw_data     Uncalibrated sensor data to be logged
  * @param[i] timestamp    Timestamp of the sensor data
- * @param[i] status       Status of the sensor data 
- *  
+ * @param[i] status       Status of the sensor data
+ *
  * * @return sns_rc,
- * SNS_RC_SUCCESS if encoding was succesful 
- * SNS_RC_FAILED otherwise  
+ * SNS_RC_SUCCESS if encoding was succesful
+ * SNS_RC_FAILED otherwise
  */
 sns_rc lsm6ds3_log_sensor_state_raw_add(
   log_sensor_state_raw_info *log_raw_info,
@@ -261,7 +262,7 @@ sns_rc lsm6ds3_log_sensor_state_raw_add(
  * @param[i] diag       Pointer to diag service
  * @param[i] instance   Pointer to sensor instance
  * @param[i] sensor_uid SUID of the sensor
- * @param[i] log_raw_info   Pointer to logging information 
+ * @param[i] log_raw_info   Pointer to logging information
  *                      pertaining to the sensor
  */
 void lsm6ds3_log_sensor_state_raw_submit(
@@ -1127,6 +1128,31 @@ static void lsm6ds3_set_polling_config(sns_sensor_instance *const this)
 }
 
 /**
+ * Gets current Accel ODR.
+ *
+ * @param[i] curr_odr              Current FIFO ODR.
+ *
+ */
+float lsm6ds3_get_accel_odr(lsm6ds3_accel_odr curr_odr)
+{
+  float odr = 0.0;
+  int8_t idx;
+
+  for(idx = 0; idx < ARR_SIZE(reg_map); idx++)
+  {
+    if(curr_odr == reg_map[idx].accel_odr_reg_value
+       &&
+       curr_odr != LSM6DS3_ACCEL_ODR_OFF)
+    {
+      odr = reg_map[idx].odr;
+      break;
+    }
+  }
+
+  return odr;
+}
+
+/**
  * Provides sample interval based on current ODR.
  *
  * @param[i] curr_odr              Current FIFO ODR.
@@ -1135,18 +1161,12 @@ static void lsm6ds3_set_polling_config(sns_sensor_instance *const this)
  */
 sns_time lsm6ds3_get_sample_interval(lsm6ds3_accel_odr curr_odr)
 {
-  int8_t idx;
   sns_time  sample_interval = 0;
+  float odr = lsm6ds3_get_accel_odr(curr_odr);
 
-  for(idx = 0; idx < ARR_SIZE(reg_map); idx++)
+  if(odr > 0.0)
   {
-    if(curr_odr == reg_map[idx].accel_odr_reg_value
-       &&
-       curr_odr != LSM6DS3_ACCEL_ODR_OFF)
-    {
-      sample_interval = sns_convert_ns_to_ticks(1000000000 / reg_map[idx].odr);
-      break;
-    }
+    sample_interval = sns_convert_ns_to_ticks(1000000000 / odr);
   }
 
   return sample_interval;
@@ -1574,10 +1594,34 @@ void lsm6ds3_update_md_intr(sns_sensor_instance *const instance,
   }
 }
 
+/**
+ * Changes all gated accel requests to non-gated accel requests.
+ *
+ * @param instance   Reference to the instance
+ *
+ * @return None
+ */
+static void lsm6ds3_convert_accel_gated_req_to_non_gated(
+   sns_sensor_instance *const instance)
+{
+  sns_request *request;
+
+  /** Parse through existing requests and change gated accel
+   *  requests to non-gated accel requests. */
+  for(request = (sns_request *)instance->cb->get_client_request(instance, &((sns_sensor_uid)ACCEL_SUID), true);
+      NULL != request;
+      request = (sns_request *)instance->cb->get_client_request(instance, &((sns_sensor_uid)ACCEL_SUID), false))
+  {
+    if(request->message_id == SNS_STD_EVENT_GATED_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
+    {
+      request->message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
+    }
+  }
+}
+
 void lsm6ds3_handle_md_interrupt(sns_sensor_instance *const instance,
                                  sns_time irq_timestamp)
 {
-  UNUSED_VAR(irq_timestamp);
   lsm6ds3_instance_state *state =
      (lsm6ds3_instance_state*)instance->state->state;
   uint8_t rw_buffer = 0;
@@ -1598,9 +1642,11 @@ void lsm6ds3_handle_md_interrupt(sns_sensor_instance *const instance,
     pb_send_event(instance,
                   sns_motion_detect_event_fields,
                   &state->md_info.md_state,
-                  sns_get_system_time(),
+                  irq_timestamp,
                   SNS_MOTION_DETECT_MSGID_SNS_MOTION_DETECT_EVENT,
                   &state->md_info.suid);
+
+    lsm6ds3_convert_accel_gated_req_to_non_gated(instance);
 
     diag->api->sensor_inst_printf(diag, instance,
                                   &state->md_info.suid,
@@ -1650,6 +1696,7 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
   op_mode_args.buf = &operating_mode[0];
   op_mode_args.buf_len = sizeof(operating_mode);
 
+  phy_sensor_config.has_sample_rate = true;
   phy_sensor_config.sample_rate =
      (state->fifo_info.fifo_rate > 0) ?
      (float)(13 << ((state->fifo_info.fifo_rate >> 4) - 1)) : 0.0;
@@ -1669,7 +1716,7 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
   phy_sensor_config.stream_is_synchronous = false;
   phy_sensor_config.has_dri_enabled = true;
   phy_sensor_config.dri_enabled = true;
-  /* For sensors that route data through the SDC/DAE sensor, the DAE watermark 
+  /* For sensors that route data through the SDC/DAE sensor, the DAE watermark
      should be set to the number of samples stored in SDC before waking up Q6. */
   phy_sensor_config.has_DAE_watermark = true;
   phy_sensor_config.DAE_watermark = 0;
@@ -1698,7 +1745,7 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[1] = LSM6DS3_GYRO_RANGE_2000_MAX;
     phy_sensor_config.has_dri_enabled = true;
     phy_sensor_config.dri_enabled = true;
-  /* For sensors that route data through the SDC/DAE sensor, the DAE watermark 
+  /* For sensors that route data through the SDC/DAE sensor, the DAE watermark
      should be set to the number of samples stored in SDC before waking up Q6. */
     phy_sensor_config.has_DAE_watermark = true;
     phy_sensor_config.DAE_watermark = 0;
@@ -1740,7 +1787,7 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
 }
 
 void lsm6ds3_convert_and_send_temp_sample(
-  sns_sensor_instance *const instance, 
+  sns_sensor_instance *const instance,
   sns_time            timestamp,
   const uint8_t       temp_data[2])
 {
@@ -1781,8 +1828,8 @@ void lsm6ds3_handle_sensor_temp_sample(sns_sensor_instance *const instance)
                    2,
                    &xfer_bytes);
 
-  lsm6ds3_convert_and_send_temp_sample(instance, 
-                   sns_get_system_time(), 
+  lsm6ds3_convert_and_send_temp_sample(instance,
+                   sns_get_system_time(),
                    temp_data);
 }
 
@@ -1793,7 +1840,7 @@ void lsm6ds3_start_sensor_temp_polling_timer(sns_sensor_instance *this)
   uint8_t buffer[50];
   sns_request timer_req = {
     .message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG,
-    .request    = buffer 
+    .request    = buffer
   };
 
   sns_memset(buffer, 0, sizeof(buffer));
@@ -1818,6 +1865,7 @@ void lsm6ds3_start_sensor_temp_polling_timer(sns_sensor_instance *this)
 void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
 {
   lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
+
   bool enable_fifo_stream = true;
 
   if(state->md_info.enable_md_int)
@@ -1837,7 +1885,10 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
      }
 
      lsm6ds3_set_md_config(state, true);
-     lsm6ds3_update_md_intr(this, true, false);
+     if (state->irq_info.irq_ready)
+     {
+       lsm6ds3_update_md_intr(this, true, false);
+     }
   }
   else
   {
@@ -1858,16 +1909,25 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
     lsm6ds3_start_fifo_streaming(state);
 
     // Enable interrupt only for accel, gyro and motion accel clients
-    if(state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO))
+    if(state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO) &&
+       state->irq_info.irq_ready )
     {
       lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
     }
     // Enable timer in case of sensor temp clients
-    if(state->fifo_info.publish_sensors & LSM6DS3_SENSOR_TEMP)
+    if(state->fifo_info.publish_sensors & LSM6DS3_SENSOR_TEMP &&
+       !lsm6ds3_dae_if_available(this))
     {
       lsm6ds3_set_polling_config(this);
     }
   }
+  
+  if(state->fifo_info.publish_sensors != 0)
+  {
+    lsm6ds3_dae_if_start_streaming(this);
+  }
+  state->config_step = LSM6DS3_CONFIG_IDLE; /* done with reconfig */
+
   lsm6ds3_dump_reg(this, state->fifo_info.fifo_enabled);
 }
 

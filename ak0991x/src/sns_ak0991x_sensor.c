@@ -25,6 +25,7 @@
  * 04/04/17     AKM     Optimize code of MAG_SUID configuration.
  * 04/04/17     AKM     Optimize code of sample_rate and report_rate configuration.
  * 04/04/17     AKM     Fix IRQ configuration.
+ * 04/04/17     AKM     Fix ODR attribute configuration.
  *
  **/
 
@@ -51,6 +52,132 @@
 #include "sns_timer.pb.h"
 #include "sns_diag_service.h"
 #include "sns_sync_com_port_service.h"
+#include "sns_attribute_util.h"
+
+/* device specific information */
+float ak09911_odr_table[] =
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+float ak09912_odr_table[] =
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+float ak09913_odr_table[] =
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+float ak09915_odr_table[] =
+{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+float ak09916_odr_table[] =
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+float ak09918_odr_table[] =
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+
+static char *ak09911_ope_mode_table[] = {AK0991X_NORMAL};
+static char *ak09912_ope_mode_table[] = {AK0991X_NORMAL};
+static char *ak09913_ope_mode_table[] = {AK0991X_NORMAL};
+static char *ak09915_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
+static char *ak09916_ope_mode_table[] = {AK0991X_NORMAL};
+static char *ak09918_ope_mode_table[] = {AK0991X_NORMAL};
+
+typedef struct ak0991x_dev_info
+{
+  float      *odr;
+  float      resolutions;
+  uint32_t   max_fifo_depth;
+  uint32_t   active_current;
+  uint32_t   sleep_current;
+  range_attr ranges;
+  char       **operating_modes;
+  bool       supports_dri;
+  bool       supports_sync_stream;
+} ak0991x_dev_info;
+
+const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
+  [AK09911] = {
+    .odr                  = ak09911_odr_table,
+    .resolutions          = AK09911_RESOLUTION,
+    .max_fifo_depth       = AK09911_FIFO_SIZE,
+    .active_current       = AK09911_HI_PWR,
+    .sleep_current        = AK09911_LO_PWR,
+    .ranges               = {AK09911_MIN_RANGE, AK09911_MAX_RANGE},
+    .operating_modes      = ak09911_ope_mode_table,
+    .supports_dri         = false,
+    .supports_sync_stream = false,
+  },
+  [AK09912] = {
+    .odr                  = ak09912_odr_table,
+    .resolutions          = AK09912_RESOLUTION,
+    .max_fifo_depth       = AK09912_FIFO_SIZE,
+    .active_current       = AK09912_HI_PWR,
+    .sleep_current        = AK09912_LO_PWR,
+    .ranges               = {AK09912_MIN_RANGE, AK09912_MAX_RANGE},
+    .operating_modes      = ak09912_ope_mode_table,
+    .supports_dri         = true,
+    .supports_sync_stream = false,
+  },
+  [AK09913] = {
+    .odr                  = ak09913_odr_table,
+    .resolutions          = AK09913_RESOLUTION,
+    .max_fifo_depth       = AK09913_FIFO_SIZE,
+    .active_current       = AK09913_HI_PWR,
+    .sleep_current        = AK09913_LO_PWR,
+    .ranges               = {AK09913_MIN_RANGE, AK09913_MAX_RANGE},
+    .operating_modes      = ak09913_ope_mode_table,
+    .supports_dri         = false,
+    .supports_sync_stream = false,
+  },
+  [AK09915C] = {
+    .odr                  = ak09915_odr_table,
+    .resolutions          = AK09915_RESOLUTION,
+    .max_fifo_depth       = AK09915_FIFO_SIZE,
+    .active_current       = AK09915_HI_PWR,
+    .sleep_current        = AK09915_LO_PWR,
+    .ranges               = {AK09915_MIN_RANGE, AK09915_MAX_RANGE},
+    .operating_modes      = ak09915_ope_mode_table,
+    .supports_dri         = true,
+    .supports_sync_stream = false,
+  },
+  [AK09915D] = {
+    .odr                  = ak09915_odr_table,
+    .resolutions          = AK09915_RESOLUTION,
+    .max_fifo_depth       = AK09915_FIFO_SIZE,
+    .active_current       = AK09915_HI_PWR,
+    .sleep_current        = AK09915_LO_PWR,
+    .ranges               = {AK09915_MIN_RANGE, AK09915_MAX_RANGE},
+    .operating_modes      = ak09915_ope_mode_table,
+    .supports_dri         = true,
+    .supports_sync_stream = true,
+  },
+  [AK09916C] = {
+    .odr                  = ak09916_odr_table,
+    .resolutions          = AK09916_RESOLUTION,
+    .max_fifo_depth       = AK09916_FIFO_SIZE,
+    .active_current       = AK09916_HI_PWR,
+    .sleep_current        = AK09916_LO_PWR,
+    .ranges               = {AK09916_MIN_RANGE, AK09916_MAX_RANGE},
+    .operating_modes      = ak09916_ope_mode_table,
+    .supports_dri         = false,
+    .supports_sync_stream = false,
+  },
+  [AK09916D] = {
+    .odr                  = ak09916_odr_table,
+    .resolutions          = AK09916_RESOLUTION,
+    .max_fifo_depth       = AK09916_FIFO_SIZE,
+    .active_current       = AK09916_HI_PWR,
+    .sleep_current        = AK09916_LO_PWR,
+    .ranges               = {AK09916_MIN_RANGE, AK09916_MAX_RANGE},
+    .operating_modes      = ak09916_ope_mode_table,
+    .supports_dri         = true,
+    .supports_sync_stream = false,
+  },
+  [AK09918] = {
+    .odr                  = ak09918_odr_table,
+    .resolutions          = AK09918_RESOLUTION,
+    .max_fifo_depth       = AK09918_FIFO_SIZE,
+    .active_current       = AK09918_HI_PWR,
+    .sleep_current        = AK09918_LO_PWR,
+    .ranges               = {AK09918_MIN_RANGE, AK09918_MAX_RANGE},
+    .operating_modes      = ak09918_ope_mode_table,
+    .supports_dri         = false,
+    .supports_sync_stream = false,
+  },
+};
 
 
 static void ak0991x_start_power_rail_timer(sns_sensor *const this,
@@ -87,6 +214,132 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   }
 }
 
+static void
+ak0991x_sensor_publish_available(sns_sensor *const this)
+{
+  sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+  value.has_boolean = true;
+  value.boolean = true;
+  sns_publish_attribute(
+      this, SNS_STD_SENSOR_ATTRID_AVAILABLE, &value, 1, true);
+}
+/**
+ * Initialize attributes to their default state.  They may/will be updated
+ * within notify_event.
+ */
+void ak0991x_publish_hw_attributes(sns_sensor *const this,
+                                akm_device_type device_select)
+{
+ ak0991x_state *state = (ak0991x_state *)this->state->state;
+
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR};
+
+   sns_std_attr_value_data range1[] = {SNS_ATTR, SNS_ATTR};
+   range1[0].has_flt = true;
+   range1[0].flt = ak0991x_dev_info_array[device_select].ranges.min;
+   range1[1].has_flt = true;
+   range1[1].flt = ak0991x_dev_info_array[device_select].ranges.max;
+   values[0].has_subtype = true;
+   values[0].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
+   values[0].subtype.values.arg =
+     &((pb_buffer_arg){ .buf = range1, .buf_len = ARR_SIZE(range1) });
+
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RANGES,
+       values, ARR_SIZE(values), false);
+ }
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR};
+   values[0].has_sint = true;
+   values[0].sint = ak0991x_dev_info_array[device_select].active_current;
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_ACTIVE_CURRENT,
+       values, ARR_SIZE(values), false);
+ }
+ {
+   uint32_t value_len = 0;
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
+       SNS_ATTR};
+
+   if((state->device_select == AK09915C) || (state->device_select == AK09915D))
+   {
+     values[0].has_flt = true;
+     values[0].flt = ak09915_odr_table[0];
+     values[1].has_flt = true;
+     values[1].flt = ak09915_odr_table[1];
+     values[2].has_flt = true;
+     values[2].flt = ak09915_odr_table[2];
+     values[3].has_flt = true;
+     values[3].flt = ak09915_odr_table[3];
+     values[4].has_flt = true;
+     values[4].flt = ak09915_odr_table[4];
+     value_len = ARR_SIZE(ak09915_odr_table);
+   }
+   else // Other parts use same ODR as ak09911
+   {
+     values[0].has_flt = true;
+     values[0].flt = ak09911_odr_table[0];
+     values[1].has_flt = true;
+     values[1].flt = ak09911_odr_table[1];
+     values[2].has_flt = true;
+     values[2].flt = ak09911_odr_table[2];
+     values[3].has_flt = true;
+     values[3].flt = ak09911_odr_table[3];
+     value_len = ARR_SIZE(ak09911_odr_table);
+   }
+
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
+       values, value_len, false);
+ }
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR};
+   values[0].has_flt = true;
+   values[0].flt = ak0991x_dev_info_array[device_select].resolutions;
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RESOLUTIONS,
+       values, ARR_SIZE(values), false);
+ }
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
+   int i;
+   for(i = 0; i < 2 && i < ARR_SIZE(ak0991x_dev_info_array[device_select].operating_modes);
+       i++)
+   {
+     char const *op_mode = ak0991x_dev_info_array[device_select].operating_modes[i];
+     values[0].str.funcs.encode = pb_encode_string_cb;
+     values[0].str.arg = &((pb_buffer_arg)
+         { .buf = op_mode, .buf_len = sizeof(op_mode) });
+   }
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES,
+       values, i, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_boolean = true;
+   value.boolean = ak0991x_dev_info_array[device_select].supports_dri;
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_boolean = true;
+   value.boolean = ak0991x_dev_info_array[device_select].supports_sync_stream;
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_sint = true;
+   value.sint = ak0991x_dev_info_array[device_select].max_fifo_depth;
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_FIFO_SIZE, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_sint = true;
+   value.sint = ak0991x_dev_info_array[device_select].sleep_current;
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_SLEEP_CURRENT, &value, 1, false);
+ }
+}
 /** See sns_ak0991x_sensor.h*/
 sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 {
@@ -103,7 +356,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   sns_sensor_event *event;
 
   sns_diag_service *diag = state->diag_service;
- 
+
   if (state->fw_stream)
   {
     if ((0 == sns_memcmp(&state->irq_suid, &((sns_sensor_uid){{0}}), sizeof(state->irq_suid)))
@@ -118,7 +371,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       ak0991x_process_suid_events(this);
     }
   }
- 
+
   /**----------------------Handle a Timer Sensor event.-------------------*/
   if (NULL != state->timer_stream)
   {
@@ -137,7 +390,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           /**-------------------Read and Confirm WHO-AM-I------------------------*/
           rv = ak0991x_get_who_am_i(state->scp_service,
                                     state->com_port_info.port_handle, &buffer[0]);
- 
+
           if (rv != SNS_RC_SUCCESS)
           {
             diag->api->sensor_printf(diag, this, SNS_LOW, __FILENAME__, __LINE__,
@@ -295,7 +548,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           if (state->hw_is_present)
           {
-            ak0991x_publish_attributes(this, state->device_select);
+            ak0991x_sensor_publish_available(this);
+            ak0991x_publish_hw_attributes(this,state->device_select);
           }
           else
           {
@@ -383,7 +637,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           state->scp_service->api->sns_scp_open(
           state->com_port_info.port_handle);
       }
- 
+
       /**---------------------Register Power Rails --------------------------*/
       if (0 != sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid))
           && NULL == state->pwr_rail_service)
@@ -429,7 +683,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         diag->api->sensor_printf(diag, this, SNS_LOW, __FILENAME__, __LINE__,
                                  "power rail settings finished");
       }
- 
+
 #if AK0991X_ENABLE_DEPENDENCY
     event = state->reg_data_stream->api->get_next_input(state->reg_data_stream);
     }
@@ -501,54 +755,48 @@ static void ak0991x_get_mag_config(sns_sensor *this,
     sns_std_request decoded_request;
     sns_std_sensor_config decoded_payload;
 
-    if (ak0991x_get_decoded_mag_request(this, request, &decoded_request, &decoded_payload))
+    if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
-      if (request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
+      if(ak0991x_get_decoded_mag_request(this, request, &decoded_request, &decoded_payload))
       {
-        if (ak0991x_get_decoded_mag_request(this, request, &decoded_request, &decoded_payload))
+        float report_rate;
+        *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
+                                      decoded_payload.sample_rate);
+
+        if (decoded_request.has_batching
+            &&
+            decoded_request.batching.batch_period > 0)
         {
-          if (request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
-          {
-            float report_rate;
-            *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
-                                          decoded_payload.sample_rate);
+          report_rate = 1000000.f / (float)decoded_request.batching.batch_period;
+        }
+        else
+        {
+          report_rate = *chosen_sample_rate;
+        }
 
-            if (decoded_request.has_batch_period
-                &&
-                decoded_request.batch_period > 0)
-            {
-              report_rate = 1000000.f / (float)decoded_request.batch_period;
-            }
-            else
-            {
-              report_rate = *chosen_sample_rate;
-            }
+        *chosen_report_rate = SNS_MAX(*chosen_report_rate,
+                                      report_rate);
+        *sensor_client_present = true;
+      }
+      else // TODO handle self-test request
+      {
+        uint32_t err = 0;
+        sns_rc rv;
+        rv = ak0991x_self_test(state->scp_service,
+                               state->com_port_info.port_handle,
+                               state->device_select,
+                               state->sstvt_adj,
+                               &err);
 
-            *chosen_report_rate = SNS_MAX(*chosen_report_rate,
-                                          report_rate);
-            *sensor_client_present = true;
-          }
-          else // TODO handle self-test request
-          {
-            uint32_t err = 0;
-            sns_rc rv;
-            rv = ak0991x_self_test(state->scp_service,
-                                   state->com_port_info.port_handle,
-                                   state->device_select,
-                                   state->sstvt_adj,
-                                   &err);
-
-            if (rv != SNS_RC_SUCCESS)
-            {
-              diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                       "Test failed, err code = %ld", err);
-            }
-            else
-            {
-              diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                       "Test passed");
-            }
-          }
+        if (rv != SNS_RC_SUCCESS)
+        {
+          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
+                                   "Test failed, err code = %ld", err);
+        }
+        else
+        {
+          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
+                                   "Test passed");
         }
       }
     }
@@ -599,8 +847,8 @@ void ak0991x_reval_instance_config(sns_sensor *this,
 
 /** See sns_ak0991x_sensor.h */
 sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
-                                                struct sns_request *exist_request,
-                                                struct sns_request *new_request,
+                                                struct sns_request const *exist_request,
+                                                struct sns_request const *new_request,
                                                 bool remove)
 {
   sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
@@ -608,7 +856,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_time on_timestamp;
   sns_time delta;
   bool reval_config = false;
- 
+
   if (remove)
   {
     if (NULL != instance)
@@ -738,6 +986,13 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     }
   }
 
+  // QC: Sensors are required to call remove_instance when clientless
+  if(NULL != instance && NULL == instance->cb->get_client_request(
+        instance, &(sns_sensor_uid)MAG_SUID, true))
+  {
+    this->cb->remove_instance(instance);
+  }
+
   return instance;
 }
 
@@ -795,47 +1050,53 @@ void ak0991x_process_suid_events(sns_sensor *const this)
 
     if (SNS_SUID_MSGID_SNS_SUID_EVENT == event->message_id)
     {
-      sns_sensor_uid suid;
-      int num_suids_found = 0;
-      char const *datatype_name;
-      int datatype_name_len;
+      pb_istream_t stream = pb_istream_from_buffer((void*)event->event, event->event_len);
+      sns_suid_event suid_event = sns_suid_event_init_default;
+      pb_buffer_arg data_type_arg = { .buf = NULL, .buf_len = 0 };
+      sns_sensor_uid uid_list;
+      sns_suid_search suid_search;
+      suid_search.suid = &uid_list;
+      suid_search.num_of_suids = 0;
 
-      if (!pb_decode_suid_event(event, &suid, 1, &num_suids_found,
-                                &datatype_name, &datatype_name_len))
-      {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                 "pb_decode_suid_event() failed");
-        continue;
-      }
+      suid_event.data_type.funcs.decode = &pb_decode_string_cb;
+      suid_event.data_type.arg = &data_type_arg;
+      suid_event.suid.funcs.decode = &pb_decode_suid_event;
+      suid_event.suid.arg = &suid_search;
+
+      if(!pb_decode(&stream, sns_suid_event_fields, &suid_event)) {
+         diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
+                                 "SUID Decode failed");
+         continue;
+       }
 
       /* if no suids found, ignore the event */
-      if (num_suids_found == 0)
+      if(suid_search.num_of_suids == 0)
       {
         continue;
       }
 
       /* save suid based on incoming data type name */
-      if (0 == strncmp(datatype_name, "interrupt", datatype_name_len))
+      if(0 == strncmp(data_type_arg.buf, "interrupt", data_type_arg.buf_len))
       {
-        state->irq_suid = suid;
+        state->irq_suid = uid_list;
       }
-      else if (0 == strncmp(datatype_name, "timer", datatype_name_len))
+      else if(0 == strncmp(data_type_arg.buf, "timer", data_type_arg.buf_len))
       {
-        state->timer_suid = suid;
+        state->timer_suid = uid_list;
       }
-      else if (0 == strncmp(datatype_name, "async_com_port",
-                            datatype_name_len))
+      else if (0 == strncmp(data_type_arg.buf, "async_com_port",
+                            data_type_arg.buf_len))
       {
-        state->acp_suid = suid;
+        state->acp_suid = uid_list;
       }
-      else if (0 == strncmp(datatype_name, "registry", datatype_name_len))
+      else if (0 == strncmp(data_type_arg.buf, "registry", data_type_arg.buf_len))
       {
-        state->reg_suid = suid;
+        state->reg_suid = uid_list;
       }
       else
       {
         diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                 "invalid datatype_name %s", datatype_name);
+                                 "invalid datatype_name %s", data_type_arg.buf);
       }
     }
   }

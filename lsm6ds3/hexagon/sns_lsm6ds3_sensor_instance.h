@@ -24,6 +24,7 @@
 #include "sns_physical_sensor_test.pb.h"
 #include "sns_diag_service.h"
 #include "sns_sync_com_port_service.h"
+#include "sns_lsm6ds3_dae_if.h"
 
 /** Forward Declaration of Instance API */
 sns_sensor_instance_api lsm6ds3_sensor_instance_api;
@@ -138,6 +139,15 @@ typedef enum
   LSM6DS3_SENSOR_TEMP   = 0x8
 } lsm6ds3_sensor_type;
 
+typedef enum
+{
+  LSM6DS3_CONFIG_IDLE,            /** not configuring */
+  LSM6DS3_CONFIG_POWERING_DOWN,   /** cleaning up when no clients left */
+  LSM6DS3_CONFIG_STOPPING_STREAM, /** stream stop initiated, waiting for completion */
+  LSM6DS3_CONFIG_FLUSHING_HW,     /** FIFO flush initiated, waiting for completion */
+  LSM6DS3_CONFIG_UPDATING_HW      /** updating sensor HW, when done goes back to IDLE */
+} lsm6ds3_config_step;
+
 /** HW FIFO information */
 typedef struct lsm6ds3_fifo_info
 {
@@ -208,6 +218,7 @@ typedef struct lsm6ds3_sensor_temp_info
 typedef struct lsm6ds3_irq_info
 {
   sns_interrupt_req       irq_config;
+  bool                    irq_ready;
 } lsm6ds3_irq_info;
 
 typedef struct lsm6ds3_async_com_port_info
@@ -241,6 +252,11 @@ typedef struct lsm6ds3_instance_state
 
   /**--------Async Com Port--------*/
   sns_async_com_port_config  ascp_config;
+
+  /**--------DAE interface---------*/
+  lsm6ds3_dae_if_info       dae_if;
+
+  lsm6ds3_config_step       config_step;
 
   sns_time             interrupt_timestamp;
 
@@ -283,6 +299,5 @@ typedef struct sns_lsm6ds3_req
 sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
     sns_sensor_state const *sstate);
 
-sns_rc lsm6ds3_inst_deinit(sns_sensor_instance *const this,
-    sns_sensor_state *sensor_state);
+sns_rc lsm6ds3_inst_deinit(sns_sensor_instance *const this);
 

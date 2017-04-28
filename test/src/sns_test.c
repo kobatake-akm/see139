@@ -5,9 +5,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test.c#1 $
- * $DateTime: 2016/11/30 12:38:10 $
- * $Change: 11880841 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test.c#2 $
+ * $DateTime: 2017/04/11 10:56:43 $
+ * $Change: 12985104 $
  *
  **/
 #include "sns_rc.h"

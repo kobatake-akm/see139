@@ -239,24 +239,30 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event *event;
   sns_diag_service* diag = state->diag_service;
 
+  lsm6ds3_dae_if_process_events(this);
+
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle,
                                                                            true);
-
   // Handle interrupts
   if(NULL != state->interrupt_data_stream)
   {
     event = state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
     while(NULL != event)
     {
-      if(event->message_id != SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT) // TODO add config update message ID support
+      if (event->message_id == SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT)
       {
-        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid,
-                                      SNS_ERROR, __FILENAME__, __LINE__,
-                                      "Received invalid event id=%d",
-                                      event->message_id);
+        state->irq_info.irq_ready = true;
+        if(state->md_info.enable_md_int)
+        {
+          lsm6ds3_update_md_intr(this, true, false);
+        }
+        if(state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO))
+        {
+          lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
+        }
       }
-      else
+      else if (event->message_id == SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT)
       {
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t*)event->event,
                                                      event->event_len);
@@ -289,6 +295,8 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
                 lsm6ds3_start_fifo_streaming(state);
                 lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
                 lsm6ds3_send_config_event(this);
+
+                lsm6ds3_dae_if_start_streaming(this);
               }
               lsm6ds3_dump_reg(this, state->fifo_info.fifo_enabled);
             }
@@ -302,6 +310,13 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
           }
         }
       }
+      else
+      {
+        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid,
+                                      SNS_ERROR, __FILENAME__, __LINE__,
+                                      "Received invalid event id=%d",
+                                      event->message_id);
+      }
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
     }
   }
@@ -312,7 +327,7 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
     event = state->async_com_port_data_stream->api->peek_input(state->async_com_port_data_stream);
     while(NULL != event)
     {
-      if(SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)
+      if(event->message_id == SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR)
       {
         //TODO: Warning;
         diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid,
@@ -320,7 +335,7 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
                                       "Received ASCP error event id=%d",
                                       event->message_id);
       }
-      else if(SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
+      else if(event->message_id == SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
         sns_ascp_for_each_vector_do(&stream, process_com_port_vector, (void *)this);
@@ -370,7 +385,6 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
   // Turn COM port OFF
   state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle,
                                                                            false);
-
   return SNS_RC_SUCCESS;
 }
 
@@ -491,13 +505,25 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
                             gyro_chosen_sample_rate_reg_value,
                             state->fifo_info.fifo_enabled);
 
-    lsm6ds3_reconfig_hw(this);
-    lsm6ds3_send_config_event(this);
+    if(LSM6DS3_CONFIG_IDLE == state->config_step &&
+       lsm6ds3_dae_if_stop_streaming(this))
+    {
+      state->config_step = LSM6DS3_CONFIG_STOPPING_STREAM;
+    }
+
+    if(state->config_step == LSM6DS3_CONFIG_IDLE)
+    {
+      lsm6ds3_reconfig_hw(this);
+      lsm6ds3_send_config_event(this);
+    }
   }
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->fifo_flush_in_progress = true;
-    lsm6ds3_handle_interrupt_event(this);
+    if (!lsm6ds3_dae_if_flush_samples(this))
+    {
+      lsm6ds3_handle_interrupt_event(this);
+    }
   }
   else if(client_request->message_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {

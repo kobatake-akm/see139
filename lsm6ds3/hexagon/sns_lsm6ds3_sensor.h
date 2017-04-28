@@ -59,7 +59,11 @@
 /** TODO Using 8996 Platform config as defaults. This is for
  *  test purpose only. All platform specific information will
  *  be available to the Sensor driver via Registry. */
+#ifdef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
+#define SPI_BUS_INSTANCE               0x02
+#else
 #define SPI_BUS_INSTANCE               0x01
+#endif
 #define RAIL_1                         "/pmic/client/sensor_vddio"
 #define RAIL_2                         "/pmic/client/sensor_vdd"
 #define I2C_BUS_FREQ                   400
@@ -69,6 +73,11 @@
 #define SPI_BUS_MIN_FREQ_KHZ           0      // 0MHz
 #define SPI_BUS_MAX_FREQ_KHZ           33*100 // 3MHz
 #define SPI_SLAVE_CONTROL              0x0
+
+#define BUS_TYPE                       SNS_BUS_SPI
+#define BUS_INSTANCE                   SPI_BUS_INSTANCE
+#define BUS_FREQ                       SPI_BUS_MAX_FREQ_KHZ
+#define SLAVE_CONTROL                  SPI_SLAVE_CONTROL
 #endif  // LSM6DS3_USE_DEFAULTS
 
 /** Forward Declaration of Accel Sensor API */
@@ -180,6 +189,7 @@ typedef struct lsm6ds3_state
   sns_sensor_uid          irq_suid;
   sns_sensor_uid          timer_suid;
   sns_sensor_uid          acp_suid; // Asynchronous COM Port
+  sns_sensor_uid          dae_suid; // Data Acquisition Engine
   lsm6ds3_sensor_type     sensor;
   sns_sensor_uid          my_suid;
   lsm6ds3_com_port_info   com_port_info;
@@ -257,8 +267,8 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this);
  * @return sns_sensor_instance*
  */
 sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
-                                                struct sns_request *exist_request,
-                                                struct sns_request *new_request,
+                                                struct sns_request const *exist_request,
+                                                struct sns_request const *new_request,
                                                 bool remove);
 sns_rc lsm6ds3_accel_init(sns_sensor *const this);
 sns_rc lsm6ds3_gyro_init(sns_sensor *const this);

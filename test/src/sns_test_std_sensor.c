@@ -14,7 +14,7 @@
 #include "sns_types.h"
 #include "sns_test_sensor.h"
 
-static const float TEST_SAMPLE_RATE = 10.0f;
+static const float TEST_SAMPLE_RATE = 1.0f;
 static const float TEST_BATCH_PERIOD = 1000000.0f;
 
 /** See sns_test_std_sensor.h */
@@ -29,8 +29,8 @@ void sns_test_std_sensor_create_request(const sns_sensor *sensor,
   config->sample_rate = TEST_SAMPLE_RATE;
   *message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
   *payload_fields = sns_std_sensor_config_fields;
-  std_req->has_batch_period = true;
-  std_req->batch_period = TEST_BATCH_PERIOD;
+  std_req->has_batching = true;
+  std_req->batching.batch_period = TEST_BATCH_PERIOD;
 }
 
 /** See sns_test_std_sensor.h */
@@ -46,7 +46,7 @@ void sns_test_std_sensor_process_event(const sns_sensor *sensor,
 
   switch (message_id)
   {
-    case SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG_EVENT:
+    case SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG:
     /* TODO Add handling for sensors that will use std sensor config event */
     
     break;
@@ -70,7 +70,8 @@ void sns_test_std_sensor_process_event(const sns_sensor *sensor,
       else
       {
         diag->api->sensor_printf(diag, sensor, SNS_MED, __FILENAME__, __LINE__,
-                                 "sample_rate = %.2f", phy_sensor_config.sample_rate);
+                                 "has_sample_rate = %d sample_rate = %.2f",
+                                 phy_sensor_config.has_sample_rate, phy_sensor_config.sample_rate);
         diag->api->sensor_printf(diag, sensor, SNS_MED, __FILENAME__, __LINE__,
                                  "wm = %d  resolution = %0.4f  is_synch = %d",
                                  phy_sensor_config.water_mark, phy_sensor_config.resolution,
@@ -135,4 +136,18 @@ void sns_test_std_sensor_process_event(const sns_sensor *sensor,
       diag->api->sensor_printf(diag, sensor, SNS_ERROR, __FILENAME__, __LINE__,
                                "incorrect message_id %u", message_id);
   }
+}
+
+/** See sns_test_std_sensor.h */
+void sns_test_on_change_sensor_create_request(const sns_sensor *sensor,
+                                   void* payload,
+                                   const pb_field_t** payload_fields,
+                                   uint32_t* message_id,
+                                   sns_std_request *std_req)
+{
+  UNUSED_VAR(sensor);
+  UNUSED_VAR(std_req);
+  UNUSED_VAR(payload);
+  UNUSED_VAR(payload_fields);
+  *message_id = SNS_STD_SENSOR_MSGID_SNS_STD_ON_CHANGE_CONFIG;
 }

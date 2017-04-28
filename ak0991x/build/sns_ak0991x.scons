@@ -14,9 +14,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_03_24/sensors/ak0991x/build/sns_ak0991x.scons#1 $
-#  $DateTime: 2017/03/24 13:00:25 $
-#  $Change: 12817590 $
+#  $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_04_13/sensors/ak0991x/build/sns_ak0991x.scons#1 $
+#  $DateTime: 2017/04/13 13:57:31 $
+#  $Change: 13014165 $
 #
 #===============================================================================
 Import('env')

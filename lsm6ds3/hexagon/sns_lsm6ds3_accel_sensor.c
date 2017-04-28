@@ -55,7 +55,7 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
     range3[0].has_flt = true;
     range3[0].flt = LSM6DS3_ACCEL_RANGE_8G_MIN;
     range3[1].has_flt = true;
-    range3[1].flt = LSM6DS3_ACCEL_RANGE_8G_MIN;
+    range3[1].flt = LSM6DS3_ACCEL_RANGE_8G_MAX;
     values[2].has_subtype = true;
     values[2].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
     values[2].subtype.values.arg =
@@ -306,6 +306,7 @@ sns_rc lsm6ds3_accel_init(sns_sensor *const this)
 
   lsm6ds3_publish_attributes(this);
 
+  lsm6ds3_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
   lsm6ds3_send_suid_req(this, "interrupt", 10);
   lsm6ds3_send_suid_req(this, "async_com_port", 15);
   lsm6ds3_send_suid_req(this, "timer", 6);

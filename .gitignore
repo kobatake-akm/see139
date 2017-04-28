@@ -12,6 +12,7 @@ signal/
 sim/
 timer/
 flush_test/
+md_test/
 
 
 # Object files

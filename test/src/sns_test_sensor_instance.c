@@ -7,9 +7,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor_instance.c#4 $
- * $DateTime: 2017/01/05 17:02:30 $
- * $Change: 12155441 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor_instance.c#6 $
+ * $DateTime: 2017/04/11 13:56:52 $
+ * $Change: 12987497 $
  *
  **/
 
@@ -50,11 +50,9 @@ static sns_rc sns_test_inst_set_client_config(sns_sensor_instance *const this,
   return SNS_RC_SUCCESS;
 }
 
-static sns_rc sns_test_inst_deinit(sns_sensor_instance *const this,
-                                   sns_sensor_state *state)
+static sns_rc sns_test_inst_deinit(sns_sensor_instance *const this)
 {
   UNUSED_VAR(this);
-  UNUSED_VAR(state);
   return SNS_RC_SUCCESS;
 }
 

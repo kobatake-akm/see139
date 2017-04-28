@@ -17,7 +17,8 @@
 #include <stdint.h>
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
-
+#include "sns_std.pb.h"
+#include "sns_std_sensor.pb.h"
 #include "sns_ak0991x_sensor_instance.h"
 
 /* Referenced data sheet version
@@ -73,7 +74,7 @@ typedef enum
 } ak0991x_bus_type;
 // Set Serial interface
 #ifndef AK0991X_BUS_TYPE
-#define AK0991X_BUS_TYPE                            SNS_BUS_SPI
+#define AK0991X_BUS_TYPE                            SNS_BUS_I2C
 #endif
 
 /**
@@ -248,6 +249,25 @@ typedef enum
 #define TLIMIT_HI_SLF_RVHY_AK09911                  30
 #define TLIMIT_LO_SLF_RVHZ_AK09911                  -400
 #define TLIMIT_HI_SLF_RVHZ_AK09911                  -50
+
+
+/*******************************
+ * Log structure definition
+ */
+
+typedef struct log_sensor_state_raw_info
+{
+  /* Size of a single encoded sample */
+  size_t encoded_sample_size;
+  /* Pointer to log*/
+  void *log;
+  /* Size of allocated space for log*/
+  uint32_t log_size;
+  /* Number of actual bytes written*/
+  uint32_t bytes_written;
+  /* Number of batch samples written*/
+  uint32_t sample_cnt;
+} log_sensor_state_raw_info;
 
 
 /******************* Function Declarations ***********************************/
@@ -431,3 +451,74 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance
  */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance
 );
+
+/**
+ * Submit the Sensor State Raw Log Packet
+ *
+ * @param[i] diag       Pointer to diag service
+ * @param[i] instance   Pointer to sensor instance
+ * @param[i] sensor_uid SUID of the sensor
+ * @param[i] log_raw_info   Pointer to logging information
+ *                      pertaining to the sensor
+ */
+void ak0991x_log_sensor_state_raw_submit(
+  sns_diag_service *diag,
+  sns_sensor_instance *const instance,
+  struct sns_sensor_uid const *sensor_uid,
+  log_sensor_state_raw_info *log_raw_info);
+
+/**
+ * Add raw uncalibrated sensor data to Sensor State Raw log
+ * packet
+ *
+ * @param[i] log_raw_info Pointer to logging information
+ *                        pertaining to the sensor
+ * @param[i] raw_data     Uncalibrated sensor data to be logged
+ * @param[i] timestamp    Timestamp of the sensor data
+ * @param[i] status       Status of the sensor data
+ *
+ * * @return sns_rc,
+ * SNS_RC_SUCCESS if encoding was succesful
+ * SNS_RC_FAILED otherwise
+ */
+sns_rc ak0991x_log_sensor_state_raw_add(
+  log_sensor_state_raw_info *log_raw_info,
+  float *raw_data,
+  sns_time timestamp,
+  sns_std_sensor_sample_status status);
+
+/**
+ * Allocate Sensor State Raw Log Packet
+ *
+ * @param[i] diag       Pointer to diag service
+ * @param[i] instance   Pointer to sensor instance
+ * @param[i] sensor_uid SUID of the sensor
+ * @param[i] log_raw_info   Pointer to raw sensor state logging
+ *       information pertaining to the sensor
+ */
+void ak0991x_log_sensor_state_raw_alloc(
+  sns_diag_service *diag,
+  sns_sensor_instance *const instance,
+  struct sns_sensor_uid const *sensor_uid,
+  log_sensor_state_raw_info *log_raw_info);
+
+/**
+ * Encode log sensor state raw packet
+ *
+ * @param[i] log Pointer to log packet information
+ * @param[i] log_size Size of log packet information
+ * @param[i] encoded_log_size Maximum permitted encoded size of
+ *                            the log
+ * @param[o] encoded_log Pointer to location where encoded
+ *                       log should be generated
+ * @param[o] bytes_written Pointer to actual bytes written
+ *                       during encode
+ *
+ * @return sns_rc
+ * SNS_RC_SUCCESS if encoding was succesful
+ * SNS_RC_FAILED otherwise
+ */
+sns_rc ak0991x_encode_log_sensor_state_raw(
+  void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
+  size_t *bytes_written);
+

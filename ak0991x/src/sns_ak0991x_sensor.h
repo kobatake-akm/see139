@@ -39,12 +39,17 @@
  *  be available to the Sensor driver via Registry. */
 #define RAIL_1                     "/pmic/client/sensor_vddio"
 #define RAIL_2                     "/pmic/client/sensor_vdd"
-#define I2C_BUS_INSTANCE           0x03
-#define I2C_BUS_FREQ               400
-#define I2C_SLAVE_ADDRESS          0x0C
 #define IRQ_NUM                    119
 #define NUM_OF_RAILS               2
+#define I2C_BUS_FREQ               400
+#define I2C_SLAVE_ADDRESS          0x0C
+#ifdef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
+#define I2C_BUS_INSTANCE           0x06
+#define SPI_BUS_INSTANCE           0x02
+#else
+#define I2C_BUS_INSTANCE           0x03
 #define SPI_BUS_INSTANCE           0x01
+#endif
 #define SPI_BUS_MIN_FREQ_KHZ       0        // 0MHz
 #define SPI_BUS_MAX_FREQ_KHZ       33 * 100 // 3MHz
 #define SPI_SLAVE_CONTROL          0x0
@@ -220,8 +225,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this
  * @return sns_sensor_instance*
  */
 sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
-                                                struct sns_request *exist_request,
-                                                struct sns_request *new_request,
+                                                struct sns_request const *exist_request,
+                                                struct sns_request const *new_request,
                                                 bool remove
 );
 

@@ -32,6 +32,8 @@
 
 static void inst_cleanup(lsm6ds3_instance_state *state, sns_stream_service *stream_mgr)
 {
+  lsm6ds3_dae_if_deinit(state, stream_mgr);
+
   if(NULL != state->interrupt_data_stream)
   {
     stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
@@ -77,6 +79,7 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
               service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
 
   /**---------Setup stream connections with dependent Sensors---------*/
+
   stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                  this,
                                                  sensor_state->irq_suid,
@@ -165,6 +168,7 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
 
   /** Initialize IRQ info to be used by the Instance */
   state->irq_info.irq_config = sensor_state->irq_config;
+  state->irq_info.irq_ready = false;
 
   {
     sns_data_stream* data_stream = state->interrupt_data_stream;
@@ -198,7 +202,8 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
       .request     = &pb_encode_buffer
     };
 
-    state->ascp_config.bus_type          = SNS_ASYNC_COM_PORT_BUS_TYPE_SPI;
+    state->ascp_config.bus_type          = (com_config->bus_type == SNS_BUS_I2C) ? 
+      SNS_ASYNC_COM_PORT_BUS_TYPE_I2C : SNS_ASYNC_COM_PORT_BUS_TYPE_SPI;
     state->ascp_config.slave_control     = com_config->slave_control;
     state->ascp_config.reg_addr_type     = SNS_ASYNC_COM_PORT_REG_ADDR_TYPE_8_BIT;
     state->ascp_config.min_bus_speed_kHz = com_config->min_bus_speed_KHz;
@@ -237,13 +242,14 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
     }
   }
 
+  lsm6ds3_dae_if_init(this, stream_mgr, &sensor_state->dae_suid);
+
   return SNS_RC_SUCCESS;
 }
 
-sns_rc lsm6ds3_inst_deinit(sns_sensor_instance *const this,
-    sns_sensor_state *sensor_state)
+// QC: Removed sensor_state parameter
+sns_rc lsm6ds3_inst_deinit(sns_sensor_instance *const this)
 {
-  UNUSED_VAR(sensor_state);
   lsm6ds3_instance_state *state =
                   (lsm6ds3_instance_state*)this->state->state;
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
@@ -254,6 +260,4 @@ sns_rc lsm6ds3_inst_deinit(sns_sensor_instance *const this,
 
   return SNS_RC_SUCCESS;
 }
-
-
 

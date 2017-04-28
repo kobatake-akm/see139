@@ -129,6 +129,7 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
     if((0 == sns_memcmp(&state->irq_suid, &((sns_sensor_uid){{0}}), sizeof(state->irq_suid)))
      || (0 == sns_memcmp(&state->acp_suid, &((sns_sensor_uid){{0}}), sizeof(state->acp_suid)))
      || (0 == sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid)))
+     || (0 == sns_memcmp(&state->dae_suid, &((sns_sensor_uid){{0}}), sizeof(state->dae_suid)))
 #if LSM6DS3_ENABLE_DEPENDENCY
      || (0 == sns_memcmp(&state->reg_suid, &((sns_sensor_uid){{0}}), sizeof(state->reg_suid)))
 #endif
@@ -232,12 +233,12 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
     {
 #endif  //LSM6DS3_ENABLE_DEPENDENCY
 #if LSM6DS3_USE_DEFAULTS
-      state->com_port_info.com_config.bus_instance = SPI_BUS_INSTANCE;
-      state->com_port_info.com_config.bus_type = SNS_BUS_SPI;
-      state->com_port_info.com_config.max_bus_speed_KHz = SPI_BUS_MAX_FREQ_KHZ;
+      state->com_port_info.com_config.bus_instance = BUS_INSTANCE;
+      state->com_port_info.com_config.bus_type = BUS_TYPE;
+      state->com_port_info.com_config.max_bus_speed_KHz = BUS_FREQ;
       state->com_port_info.com_config.min_bus_speed_KHz = SPI_BUS_MIN_FREQ_KHZ;
       state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
-      state->com_port_info.com_config.slave_control = SPI_SLAVE_CONTROL;
+      state->com_port_info.com_config.slave_control = SLAVE_CONTROL;
       state->irq_config.interrupt_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
       state->irq_config.interrupt_num = IRQ_NUM;
       state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_KEEPER;
@@ -406,11 +407,11 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
         float report_rate;
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                        decoded_payload.sample_rate);
-        if(decoded_request.has_batch_period
+        if(decoded_request.has_batching
            &&
-           decoded_request.batch_period > 0)
+           decoded_request.batching.batch_period > 0)
         {
-          report_rate = (1000000.0 / (float)decoded_request.batch_period);
+          report_rate = (1000000.0 / (float)decoded_request.batching.batch_period);
         }
         else
         {
@@ -498,11 +499,11 @@ static void lsm6ds3_get_sensor_temp_config(sns_sensor *this,
         float report_rate;
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                        decoded_payload.sample_rate);
-        if(decoded_request.has_batch_period
+        if(decoded_request.has_batching
            &&
-           decoded_request.batch_period > 0)
+           decoded_request.batching.batch_period > 0)
         {
-          report_rate = (1000000.0 / (float)decoded_request.batch_period);
+          report_rate = (1000000.0 / (float)decoded_request.batching.batch_period);
         }
         else
         {
@@ -681,8 +682,8 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
 
 /** See sns_lsm6ds3_sensor.h */
 sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
-                                                struct sns_request *exist_request,
-                                                struct sns_request *new_request,
+                                                struct sns_request const *exist_request,
+                                                struct sns_request const *new_request,
                                                 bool remove)
 {
   sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
@@ -819,8 +820,9 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
         {
           instance->cb->add_client_request(instance, new_request);
 
-          if(new_request->message_id ==
-             SNS_MOTION_DETECT_MSGID_SNS_MOTION_DETECT_ENABLE_REQ)
+          if(new_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_ON_CHANGE_CONFIG
+             &&
+             state->sensor == LSM6DS3_MOTION_DETECT)
           {
             inst_state->md_info.md_new_req = true;
           }
@@ -830,6 +832,20 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
           lsm6ds3_reval_instance_config(this, instance, state->sensor);
         }
      }
+  }
+
+  // QC: Sensors are required to call remove_instance when clientless
+  if(NULL != instance &&
+     NULL == instance->cb->get_client_request(instance,
+       &(sns_sensor_uid)MOTION_DETECT_SUID, true) &&
+     NULL == instance->cb->get_client_request(instance,
+       &(sns_sensor_uid)ACCEL_SUID, true) &&
+     NULL == instance->cb->get_client_request(instance,
+       &(sns_sensor_uid)GYRO_SUID, true) &&
+     NULL == instance->cb->get_client_request(instance,
+       &(sns_sensor_uid)SENSOR_TEMPERATURE_SUID, true))
+  {
+    this->cb->remove_instance(instance);
   }
 
   return instance;
@@ -851,47 +867,57 @@ void lsm6ds3_process_suid_events(sns_sensor *const this)
 
     if(SNS_SUID_MSGID_SNS_SUID_EVENT == event->message_id)
     {
-      sns_sensor_uid suid;
-      int num_suids_found = 0;
-      char const *datatype_name;
-      int datatype_name_len;
+      pb_istream_t stream = pb_istream_from_buffer((void*)event->event, event->event_len);
+      sns_suid_event suid_event = sns_suid_event_init_default;
+      pb_buffer_arg data_type_arg = { .buf = NULL, .buf_len = 0 };
+      sns_sensor_uid uid_list;
+      sns_suid_search suid_search;
+      suid_search.suid = &uid_list;
+      suid_search.num_of_suids = 0;
 
-      if (!pb_decode_suid_event(event, &suid, 1, &num_suids_found,
-                                &datatype_name, &datatype_name_len))
-      {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                 "pb_decode_suid_event() failed");
-        continue;
-      }
+      suid_event.data_type.funcs.decode = &pb_decode_string_cb;
+      suid_event.data_type.arg = &data_type_arg;
+      suid_event.suid.funcs.decode = &pb_decode_suid_event;
+      suid_event.suid.arg = &suid_search;
+
+      if(!pb_decode(&stream, sns_suid_event_fields, &suid_event)) {
+         diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
+                                 "SUID Decode failed");
+         continue;
+       }
 
       /* if no suids found, ignore the event */
-      if (num_suids_found == 0)
+      if(suid_search.num_of_suids == 0)
       {
         continue;
       }
 
       /* save suid based on incoming data type name */
-      if(0 == strncmp(datatype_name, "interrupt", datatype_name_len))
+      if(0 == strncmp(data_type_arg.buf, "data_acquisition_engine", data_type_arg.buf_len))
       {
-        state->irq_suid = suid;
+        state->dae_suid = uid_list;
       }
-      else if(0 == strncmp(datatype_name, "timer", datatype_name_len))
+      else if(0 == strncmp(data_type_arg.buf, "interrupt", data_type_arg.buf_len))
       {
-        state->timer_suid = suid;
+        state->irq_suid = uid_list;
       }
-      else if (0 == strncmp(datatype_name, "async_com_port",
-                            datatype_name_len))
+      else if(0 == strncmp(data_type_arg.buf, "timer", data_type_arg.buf_len))
       {
-        state->acp_suid = suid;
+        state->timer_suid = uid_list;
       }
-      else if (0 == strncmp(datatype_name, "registry", datatype_name_len))
+      else if (0 == strncmp(data_type_arg.buf, "async_com_port",
+                            data_type_arg.buf_len))
       {
-        state->reg_suid = suid;
+        state->acp_suid = uid_list;
+      }
+      else if (0 == strncmp(data_type_arg.buf, "registry", data_type_arg.buf_len))
+      {
+        state->reg_suid = uid_list;
       }
       else
       {
         diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                 "invalid datatype_name %s", datatype_name);
+                                 "invalid datatype_name %s", data_type_arg.buf);
       }
     }
   }
