@@ -98,7 +98,7 @@ void ak0991x_publish_default_attributes(sns_sensor *const this)
         this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
   }
   {
-    char const vendor[] = "akm";
+    char const vendor[] = "template";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)

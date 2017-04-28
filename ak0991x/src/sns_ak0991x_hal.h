@@ -55,7 +55,7 @@
 // AK09915D and AK09916D should set SNS_INTTERRUPT_PULL_TYPE_PULL_UP
 // Other devices should set SNS_INTTERRUPT_PULL_TYPE_KEEPER
 #ifndef AK0991X_INTERRUPT_PULL_TYPE
-#define AK0991X_INTERRUPT_PULL_TYPE      SNS_INTTERRUPT_PULL_TYPE_KEEPER
+#define AK0991X_INTERRUPT_PULL_TYPE      SNS_INTTERRUPT_PULL_TYPE_PULL_UP
 #endif
 
 
@@ -63,7 +63,7 @@
 // AK09912 and AK09915C should set SNS_INTTERRUPT_TRIGGER_TYPE_RISING
 // AK09915D and AK09916D should set SNS_INTTERRUPT_TRIGGER_TYPE_FALLING
 #ifndef AK0991X_INTERRUPT_TIRIGGER_TYPE
-#define AK0991X_INTERRUPT_TIRIGGER_TYPE  SNS_INTTERRUPT_TRIGGER_TYPE_RISING
+#define AK0991X_INTERRUPT_TIRIGGER_TYPE  SNS_INTTERRUPT_TRIGGER_TYPE_FALLING
 #endif
 
 
@@ -74,7 +74,7 @@ typedef enum
 } ak0991x_bus_type;
 // Set Serial interface
 #ifndef AK0991X_BUS_TYPE
-#define AK0991X_BUS_TYPE                            SNS_BUS_I2C
+#define AK0991X_BUS_TYPE                            SNS_BUS_SPI
 #endif
 
 /**
@@ -142,7 +142,7 @@ typedef enum
                                                       AK0991X_NUM_DATA_HXL_TO_ST2 + 1
 
 /** FIFO setting */
-#define AK0991X_ENABLE_FIFO                         1
+#define AK0991X_ENABLE_FIFO                         0
 
 /** NSF setting */
 #define AK0991X_NSF                                 0
