@@ -433,7 +433,7 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
   uint8_t  buffer;
 
   // Configure control register 1
-  if ((device_select == AK09912) || (device_select == AK09915C) || (device_select == AK09915D))
+  if ((device_select == AK09912) || (device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
     if (device_select == AK09912)
     {
@@ -467,7 +467,7 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
   }
 
   // Configure control register 2
-  if ((device_select == AK09915C) || (device_select == AK09915D))
+  if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
     buffer = 0x0
       | (AK0991X_ENABLE_FIFO << 7) // FIFO bit
@@ -764,6 +764,17 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
   {
     usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
   }
+  else if (device_select == AK09917)
+  {
+    if (AK0991X_SDR == 1)
+    {
+      usec_time_for_measure = AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
+    }
+    else
+    {
+      usec_time_for_measure = AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
+    }
+  }
   else if ((device_select == AK09916C) || (device_select == AK09916D))
   {
     usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
@@ -835,6 +846,15 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
     AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09918, TLIMIT_HI_SLF_RVHY_AK09918,
             err);
     AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09918, TLIMIT_HI_SLF_RVHZ_AK09918,
+            err);
+  }
+  else if (device_select == AK09917)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09917, TLIMIT_HI_SLF_RVHX_AK09917,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09917, TLIMIT_HI_SLF_RVHY_AK09917,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09917, TLIMIT_HI_SLF_RVHZ_AK09917,
             err);
   }
   else if ((device_select == AK09916C) || (device_select == AK09916D))
@@ -1480,6 +1500,30 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+    phy_sensor_config.has_stream_is_synchronous = false;
+    phy_sensor_config.stream_is_synchronous = false;
+    break;
+
+  case AK09917:
+
+    if (AK0991X_SDR == 1)
+    {
+      operating_mode = AK0991X_LOW_NOISE;
+    }
+    else
+    {
+      operating_mode = AK0991X_LOW_POWER;
+    }
+
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
+    phy_sensor_config.has_active_current = true;
+    phy_sensor_config.active_current = AK09917_HI_PWR;
+    phy_sensor_config.has_resolution = true;
+    phy_sensor_config.resolution = AK09917_RESOLUTION;
+    phy_sensor_config.range_count = 2;
+    phy_sensor_config.range[0] = AK09917_MIN_RANGE;
+    phy_sensor_config.range[1] = AK09917_MAX_RANGE;
     phy_sensor_config.has_stream_is_synchronous = false;
     phy_sensor_config.stream_is_synchronous = false;
     break;

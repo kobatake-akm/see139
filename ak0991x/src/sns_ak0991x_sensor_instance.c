@@ -106,7 +106,7 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   else if (desired_sample_rate <= AK0991X_ODR_10)
   {
     if ((desired_sample_rate <= AK0991X_ODR_1) &&
-        ((device_select == AK09915C) || (device_select == AK09915D)))
+        ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
     {
       *chosen_sample_rate = AK0991X_ODR_1;
       *chosen_reg_value = AK0991X_MAG_ODR1;
@@ -133,7 +133,7 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR100;
   }
   else if ((desired_sample_rate <= AK0991X_ODR_200) &&
-           ((device_select == AK09915C) || (device_select == AK09915D)))
+           ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
   {
     *chosen_sample_rate = AK0991X_ODR_200;
     *chosen_reg_value = AK0991X_MAG_ODR200;
@@ -389,6 +389,13 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = AK0991X_USE_DRI;
     break;
 
+  case AK09917:
+    state->mag_info.resolution = AK09917_RESOLUTION;
+    state->mag_info.use_fifo = AK0991X_ENABLE_FIFO;
+    state->mag_info.max_fifo_size = AK09917_FIFO_SIZE;
+    state->mag_info.use_dri = AK0991X_USE_DRI;
+    break;
+
   case AK09918:
     state->mag_info.resolution = AK09918_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -453,8 +460,8 @@ static sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /** Initialize IRQ info to be used by the Instance */
   sns_memscpy(&state->irq_info,
               sizeof(state->irq_info),
-              &sensor_state->irq_info,
-              sizeof(sensor_state->irq_info));
+              &sensor_state->irq_config,
+              sizeof(sensor_state->irq_config));
 
   state->irq_info.is_registered = false;
   state->irq_info.detect_irq_event = false;
@@ -590,6 +597,15 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
         break;
 
+      case AK09917:
+
+        if (AK09917_FIFO_SIZE <= desired_wmk)
+        {
+          desired_wmk = AK09917_FIFO_SIZE - 1;
+        }
+
+        break;
+
       default:
         desired_wmk = 0;
         break;
@@ -629,11 +645,11 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         uint8_t           buffer[20];
         sns_memset(buffer, 0, sizeof(buffer));
 
-        irq_req_payload.interrupt_num = state->irq_info.irq_num;
-        irq_req_payload.interrupt_trigger_type = state->irq_info.irq_trigger_type;
-        irq_req_payload.interrupt_drive_strength = state->irq_info.irq_drive_strength;
-        irq_req_payload.interrupt_pull_type = state->irq_info.irq_pull;
-        irq_req_payload.is_chip_pin = state->irq_info.is_chip_pin;
+        irq_req_payload.interrupt_num = state->irq_info.irq_config.interrupt_num;
+        irq_req_payload.interrupt_trigger_type = state->irq_info.irq_config.interrupt_trigger_type;
+        irq_req_payload.interrupt_drive_strength = state->irq_info.irq_config.interrupt_drive_strength;
+        irq_req_payload.interrupt_pull_type = state->irq_info.irq_config.interrupt_pull_type;
+        irq_req_payload.is_chip_pin = state->irq_info.irq_config.is_chip_pin;
 
         irq_req_len = pb_encode_request(buffer,
                                         sizeof(buffer),

@@ -65,6 +65,8 @@ float ak09915_odr_table[] =
 {AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 float ak09916_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+float ak09917_odr_table[] =
+{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 float ak09918_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 
@@ -73,6 +75,7 @@ static char *ak09912_ope_mode_table[] = {AK0991X_NORMAL};
 static char *ak09913_ope_mode_table[] = {AK0991X_NORMAL};
 static char *ak09915_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 static char *ak09916_ope_mode_table[] = {AK0991X_NORMAL};
+static char *ak09917_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 static char *ak09918_ope_mode_table[] = {AK0991X_NORMAL};
 
 typedef struct ak0991x_dev_info
@@ -165,6 +168,17 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .operating_modes      = ak09916_ope_mode_table,
     .supports_dri         = true,
     .supports_sync_stream = false,
+  },
+  [AK09917] = {
+    .odr                  = ak09917_odr_table,
+    .resolutions          = AK09917_RESOLUTION,
+    .max_fifo_depth       = AK09917_FIFO_SIZE,
+    .active_current       = AK09917_HI_PWR,
+    .sleep_current        = AK09917_LO_PWR,
+    .ranges               = {AK09917_MIN_RANGE, AK09917_MAX_RANGE},
+    .operating_modes      = ak09917_ope_mode_table,
+    .supports_dri         = true,
+    .supports_sync_stream = true,
   },
   [AK09918] = {
     .odr                  = ak09918_odr_table,
@@ -273,6 +287,20 @@ void ak0991x_publish_hw_attributes(sns_sensor *const this,
      values[4].has_flt = true;
      values[4].flt = ak09915_odr_table[4];
      value_len = ARR_SIZE(ak09915_odr_table);
+   }
+   else if(state->device_select == AK09917)
+   {
+     values[0].has_flt = true;
+     values[0].flt = ak09917_odr_table[0];
+     values[1].has_flt = true;
+     values[1].flt = ak09917_odr_table[1];
+     values[2].has_flt = true;
+     values[2].flt = ak09917_odr_table[2];
+     values[3].has_flt = true;
+     values[3].flt = ak09917_odr_table[3];
+     values[4].has_flt = true;
+     values[4].flt = ak09917_odr_table[4];
+     value_len = ARR_SIZE(ak09917_odr_table);
    }
    else // Other parts use same ODR as ak09911
    {
@@ -427,6 +455,10 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
             {
               state->device_select = AK09916C;
             }
+            else if (buffer[1] == AK09917_WHOAMI_DEV_ID)
+            {
+              state->device_select = AK09917;
+            }
             else if (buffer[1] == AK09916D_WHOAMI_DEV_ID)
             {
               state->device_select = AK09916D;
@@ -451,57 +483,63 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
 #if (!AK0991X_ENABLE_DEPENDENCY)
           // IRQ settings, it depends on the device.
-          state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
-          state->irq_info.irq_num = IRQ_NUM;
+          state->irq_config.interrupt_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
+          state->irq_config.interrupt_num = IRQ_NUM;
 
           switch (state->device_select)
           {
           case AK09911:
-            state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = false;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
+            state->irq_config.is_chip_pin = false;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
             break;
 
           case AK09912:
-            state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = true;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
+            state->irq_config.is_chip_pin = true;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_KEEPER;
             break;
 
           case AK09913:
-            state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = false;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
+            state->irq_config.is_chip_pin = false;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
             break;
 
           case AK09915C:
-            state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = true;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_KEEPER;
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
+            state->irq_config.is_chip_pin = true;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_KEEPER;
             break;
 
           case AK09915D:
-            state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
-            state->irq_info.is_chip_pin = true;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
+            state->irq_config.is_chip_pin = true;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
             break;
 
           case AK09916C:
-            state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = false;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
+            state->irq_config.is_chip_pin = false;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
             break;
 
           case AK09916D:
-            state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
-            state->irq_info.is_chip_pin = true;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
+            state->irq_config.is_chip_pin = true;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
+            break;
+
+          case AK09917:
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
+            state->irq_config.is_chip_pin = true;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
             break;
 
           case AK09918:
-            state->irq_info.irq_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-            state->irq_info.is_chip_pin = false;
-            state->irq_info.irq_pull = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
+            state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
+            state->irq_config.is_chip_pin = false;
+            state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
             break;
 
           default:
@@ -621,8 +659,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       // IRQ settings, it depends on the device.
       state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
       state->irq_info.irq_num = IRQ_NUM;
-      state->irq_info.irq_pull = AK0991X_INTERRUPT_PULL_TYPE;
-      state->irq_info.irq_trigger_type = AK0991X_INTERRUPT_TRIGGER_TYPE;
+      state->irq_info.interrupt_pull_type = AK0991X_INTERRUPT_PULL_TYPE;
+      state->irq_info.interrupt_trigger_type = AK0991X_INTERRUPT_TRIGGER_TYPE;
 #endif //AK0991X_ENABLE_DEPENDENCY
 #else   //AK0991X_USE_DEFAULTS
       //TODO update to use Registry Sensor data

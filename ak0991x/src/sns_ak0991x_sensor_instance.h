@@ -26,6 +26,7 @@
 #include "sns_interrupt.pb.h"
 #include "sns_physical_sensor_test.pb.h"
 #include "sns_std_sensor.pb.h"
+#include "sns_ak0991x_dae_if.h"
 
 /** Forward Declaration of Instance API */
 sns_sensor_instance_api ak0991x_sensor_instance_api;
@@ -48,6 +49,7 @@ typedef enum
   AK09915D,
   AK09916C,
   AK09916D,
+  AK09917,
   AK09918,
   SUPPORTED_DEVICES
 } akm_device_type;
@@ -103,20 +105,18 @@ typedef struct ak0991x_mag_info
 
 typedef struct ak0991x_irq_info
 {
-  uint16_t irq_num;
-  sns_interrupt_trigger_type   irq_trigger_type;
-  sns_interrupt_drive_strength irq_drive_strength;
-  sns_interrupt_pull_type      irq_pull;
-  bool is_chip_pin;
+  sns_interrupt_req irq_config;
   bool is_registered;
   bool is_ready;
   bool detect_irq_event;
 } ak0991x_irq_info;
 
+
 typedef struct ak0991x_async_com_port_info
 {
   uint32_t port_handle;
 } ak0991x_async_com_port_info;
+
 
 /** Private state. */
 typedef struct ak0991x_instance_state
@@ -142,6 +142,9 @@ typedef struct ak0991x_instance_state
   /**--------Async Com Port--------*/
   ak0991x_async_com_port_info async_com_port_info;
   sns_time interrupt_timestamp;
+
+  /**--------DAE interface---------*/
+  ak0991x_dae_if_info       dae_if;
 
   /** Data streams from dependentcies. */
   sns_data_stream       *interrupt_data_stream;
