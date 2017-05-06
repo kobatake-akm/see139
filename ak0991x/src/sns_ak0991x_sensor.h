@@ -247,3 +247,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 void ak0991x_mag_init_attributes(sns_sensor *const this,
                                  akm_device_type device_select
 );
+
+
+
+sns_rc ak0991x_mag_init(sns_sensor *const this);
+sns_rc ak0991x_mag_deinit(sns_sensor *const this);

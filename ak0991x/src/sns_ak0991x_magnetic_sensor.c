@@ -25,7 +25,7 @@
  * Initialize attributes to their default state.  They may/will be updated
  * within notify_event.
  */
-void ak0991x_publish_default_attributes(sns_sensor *const this)
+static void ak0991x_publish_default_attributes(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   {
@@ -145,17 +145,9 @@ void ak0991x_publish_default_attributes(sns_sensor *const this)
   }
 }
 
-/* See sns_sensor::get_sensor_uid */
-static sns_sensor_uid const *ak0991x_mag_get_sensor_uid(sns_sensor const *const this)
-{
-  UNUSED_VAR(this);
-  static const sns_sensor_uid sensor_uid = MAG_SUID;
-
-  return &sensor_uid;
-}
 
 /* See sns_sensor::init */
-static sns_rc ak0991x_mag_init(sns_sensor *const this)
+sns_rc ak0991x_mag_init(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
 
@@ -169,8 +161,10 @@ static sns_rc ak0991x_mag_init(sns_sensor *const this)
 
   sns_memscpy(&state->my_suid,
               sizeof(state->my_suid),
-              ak0991x_mag_get_sensor_uid(this),
+              &((sns_sensor_uid)MAG_SUID),
               sizeof(sns_sensor_uid));
+
+
   ak0991x_publish_default_attributes(this);
   ak0991x_send_suid_req(this, "interrupt", 10);
   ak0991x_send_suid_req(this, "async_com_port", 15);
@@ -183,21 +177,8 @@ static sns_rc ak0991x_mag_init(sns_sensor *const this)
 }
 
 /** See sns_sensor.h */
-static sns_rc ak0991x_mag_deinit(sns_sensor *const this)
+sns_rc ak0991x_mag_deinit(sns_sensor *const this)
 {
   UNUSED_VAR(this);
   return SNS_RC_SUCCESS;
 }
-
-/*===========================================================================
-  Public Data Definitions
-  ===========================================================================*/
-
-sns_sensor_api ak0991x_mag_sensor_api = {
-  .struct_len         = sizeof(sns_sensor_api),
-  .init               = &ak0991x_mag_init,
-  .deinit             = &ak0991x_mag_deinit,
-  .get_sensor_uid     = &ak0991x_mag_get_sensor_uid,
-  .set_client_request = &ak0991x_set_client_request,
-  .notify_event       = &ak0991x_sensor_notify_event,
-};

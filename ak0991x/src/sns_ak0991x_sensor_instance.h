@@ -176,3 +176,10 @@ typedef struct sns_ak0991x_mag_req
   float sample_rate;
   float report_rate;
 } sns_ak0991x_mag_req;
+
+
+sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
+    sns_sensor_state const *sstate);
+
+sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this);
+
