@@ -49,7 +49,7 @@
 
 // Set DRI(true) or Polling(false)
 #ifndef AK0991X_USE_DRI
-#define AK0991X_USE_DRI                  (true)
+#define AK0991X_USE_DRI                  (false)
 #endif
 
 // Set Interrupt pull type
@@ -147,13 +147,14 @@ typedef enum
                                                       AK0991X_NUM_DATA_HXL_TO_ST2 + 1
 
 /** FIFO setting */
-#define AK0991X_ENABLE_FIFO                         1
+#define AK0991X_ENABLE_FIFO                         0
 
 /** NSF setting */
 #define AK0991X_NSF                                 0
 
 /** Sensor driver setting */
-#define AK0991X_SDR                                 0 // 0: low power mode, 1: low noise mode
+#define AK0991X_SDR                                 0 // AK09915 case, 0: low power mode, 1: low noise mode
+                                                      // AK09917 case, 0: low noise mode, 1: low power mode
 
 /** Off to idle time */
 #define AK0991X_OFF_TO_IDLE_MS                      100 //ms

@@ -766,7 +766,7 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
   }
   else if (device_select == AK09917)
   {
-    if (AK0991X_SDR == 1)
+    if (AK0991X_SDR == 0)
     {
       usec_time_for_measure = AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
     }
@@ -829,10 +829,20 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  // raw data in 16 bits
-  data[0] = (int16_t)(((buffer[2] << 8) & 0xFF00) | buffer[1]);
-  data[1] = (int16_t)(((buffer[4] << 8) & 0xFF00) | buffer[3]);
-  data[2] = (int16_t)(((buffer[6] << 8) & 0xFF00) | buffer[5]);
+  if (device_select == AK09917)
+  {
+    // raw data in 16 bits
+    data[0] = (int16_t)(((buffer[1] << 8) & 0xFF00) | buffer[0]);
+    data[1] = (int16_t)(((buffer[3] << 8) & 0xFF00) | buffer[2]);
+    data[2] = (int16_t)(((buffer[5] << 8) & 0xFF00) | buffer[4]);
+  }
+  else
+  {
+    // raw data in 16 bits
+    data[0] = (int16_t)(((buffer[2] << 8) & 0xFF00) | buffer[1]);
+    data[1] = (int16_t)(((buffer[4] << 8) & 0xFF00) | buffer[3]);
+    data[2] = (int16_t)(((buffer[6] << 8) & 0xFF00) | buffer[5]);
+  }
   // adjust sensitivity
   data[0] = (int16_t)(data[0] * sstvt_adj[0]);
   data[1] = (int16_t)(data[1] * sstvt_adj[1]);
@@ -1056,15 +1066,30 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   float                        data[3];
   sns_std_sensor_sample_status status;
 
-  data[0] =
-    (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0] *
-    state->mag_info.resolution;
-  data[1] =
-    (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1] *
-    state->mag_info.resolution;
-  data[2] =
-    (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] *
-    state->mag_info.resolution;
+  if (state->mag_info.device_select == AK09917)
+  {
+    data[0] =
+      (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]) * state->mag_info.sstvt_adj[0] *
+      state->mag_info.resolution;
+    data[1] =
+      (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]) * state->mag_info.sstvt_adj[1] *
+      state->mag_info.resolution;
+    data[2] =
+      (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]) * state->mag_info.sstvt_adj[2] *
+      state->mag_info.resolution;
+  }
+  else
+  {
+    data[0] =
+      (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0] *
+      state->mag_info.resolution;
+    data[1] =
+      (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1] *
+      state->mag_info.resolution;
+    data[2] =
+      (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] *
+      state->mag_info.resolution;
+  }
 
   // Check magnetic sensor overflow
   if ((mag_sample[7] & AK0991X_HOFL_BIT) != 0)
@@ -1506,7 +1531,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   case AK09917:
 
-    if (AK0991X_SDR == 1)
+    if (AK0991X_SDR == 0)
     {
       operating_mode = AK0991X_LOW_NOISE;
     }
