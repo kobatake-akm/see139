@@ -387,6 +387,17 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
 );
 
 /**
+ * Gets current ODR.
+ *
+ * @param[i] curr_odr       Current ODR.
+ *
+ * @return current ODR
+ */
+float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr
+);
+
+
+/**
  * Provides sample interval based on current ODR
  *
  * @param[i] curr_odr       Current ODR.
@@ -417,6 +428,31 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
 );
 
 /**
+ * Process a fifo buffer and extracts mag samples from the buffer
+ * and generates event.
+ *
+ * @param[i] instance              Sensor instance
+ * @param[i] first_ts              Timestamp of first sample in fifo
+ * @param[i] interval              Sampling interval in time ticks
+ * @param[i] fifo                  Buffer containing sample read from HW FIFO
+ * @param[i] num_bytes             Number of bytes in fifo buffer
+ *
+ */
+void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
+                                      sns_time            first_ts,
+                                      sns_time            interval,
+                                      uint8_t             *fifo,
+                                      size_t              num_bytes
+);
+
+/**
+ * Sends a FIFO complete event.
+ *
+ * @param instance   Instance reference
+ */
+void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
+
+/**
  * Extracts mag samples from the buffer
  * and generates event.
  *
@@ -436,7 +472,6 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
  */
 void ak0991x_flush_fifo(sns_sensor_instance *const instance
 );
-
 
 /**
  * Handle an interrupt by reading the Fifo status register and sending out

@@ -1019,6 +1019,33 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
 }
 
 /**
+ * Gets current ODR.
+ *
+ * @param[i] curr_odr              Current ODR.
+ *
+ * @return current ODR
+ */
+float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr)
+{
+  float odr = 0.0;
+  int8_t idx;
+
+  for (idx = 0; idx < ARR_SIZE(reg_map_ak0991x); idx++)
+  {
+    if (curr_odr == reg_map_ak0991x[idx].mag_odr_reg_value
+        &&
+        curr_odr != AK0991X_MAG_ODR_OFF)
+    {
+      odr = reg_map_ak0991x[idx].odr;
+      break;
+    }
+  }
+
+  return odr;
+}
+
+
+/**
  * Provides sample interval based on current ODR.
  *
  * @param[i] curr_odr              Current FIFO ODR.
@@ -1130,6 +1157,61 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     data,
     timestamp,
     status);
+}
+
+void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
+                                      sns_time            first_timestamp,
+                                      sns_time            sample_interval_ticks,
+                                      uint8_t             *fifo_start,
+                                      size_t              num_bytes
+)
+{
+  uint16_t num_samples_sets = 0;
+  uint32_t i;
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_service_manager *service_manager = instance->cb->get_service_manager(instance);
+  sns_event_service *event_service =
+    (sns_event_service*)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
+  sns_diag_service* diag = state->diag_service;
+  log_sensor_state_raw_info log_mag_state_raw_info;
+
+  // Allocate Sensor State Raw log packets for mag
+  sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
+  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
+  ak0991x_log_sensor_state_raw_alloc(diag, instance, &state->mag_info.suid,
+    &log_mag_state_raw_info);
+
+  for(i = 0; i < num_bytes; i += 8)
+  {
+    sns_time timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
+    ak0991x_handle_mag_sample(&fifo_start[i],
+                              timestamp,
+                              instance,
+                              event_service,
+                              state,
+                              &log_mag_state_raw_info);
+  }
+
+
+}
+
+/** See ak0991x_hal.h */
+void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
+{
+  sns_service_manager *mgr = instance->cb->get_service_manager(instance);
+  sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr,SNS_EVENT_SERVICE);
+  sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+
+  if(NULL != event)
+  {
+    event->message_id = SNS_STD_MSGID_SNS_STD_FLUSH_EVENT;
+    event->event_len = 0;
+    event->timestamp = sns_get_system_time();
+
+    e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
+  }
+
 }
 
 void ak0991x_process_mag_data_buffer(sns_port_vector *vector,

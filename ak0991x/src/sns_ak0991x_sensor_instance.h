@@ -27,6 +27,7 @@
 #include "sns_physical_sensor_test.pb.h"
 #include "sns_std_sensor.pb.h"
 #include "sns_ak0991x_dae_if.h"
+#include "sns_async_com_port.pb.h"
 
 /** Forward Declaration of Instance API */
 sns_sensor_instance_api ak0991x_sensor_instance_api;
@@ -89,6 +90,15 @@ typedef struct range_attr
   float max;
 } range_attr;
 
+typedef enum
+{
+  AK0991X_CONFIG_IDLE,              /** not configuring */
+  AK0991X_CONFIG_POWERING_DOWN,     /** cleaning up when no clients left */
+  AK0991X_CONFIG_STOPPING_STREAM,   /** stream stop initiated, waiting for completion */
+  AK0991X_CONFIG_FLUSHING_HW,       /** FIFO flush initiated, waiting for completion */
+  AK0991X_CONFIG_UPDATING_HW        /** updating sensor HW, when done goes back to IDLE */
+} ak0991x_config_step;
+
 typedef struct ak0991x_mag_info
 {
   ak0991x_mag_odr   desired_odr;
@@ -143,8 +153,11 @@ typedef struct ak0991x_instance_state
   ak0991x_async_com_port_info async_com_port_info;
   sns_time interrupt_timestamp;
 
+  sns_async_com_port_config ascp_config;
+
   /**--------DAE interface---------*/
   ak0991x_dae_if_info       dae_if;
+  ak0991x_config_step       config_step;
 
   /** Data streams from dependentcies. */
   sns_data_stream       *interrupt_data_stream;
@@ -160,6 +173,8 @@ typedef struct ak0991x_instance_state
 
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
+
+  bool fifo_flush_in_progress;
 
   size_t           log_raw_encoded_size;
 } ak0991x_instance_state;

@@ -155,6 +155,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event    *event;
   sns_diag_service    *diag = state->diag_service;
 
+  ak0991x_dae_if_process_events(this);
+
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
@@ -406,16 +408,26 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_req.sample_rate = mag_chosen_sample_rate;
     state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
-    rv = ak0991x_send_config_event(this);
-
-    if (rv != SNS_RC_SUCCESS)
+    if (AK0991X_CONFIG_IDLE == state->config_step &&
+        ak0991x_dae_if_stop_streaming(this))
     {
-      state->mag_info.cur_wmk = pre_wmk;
-      // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-        state->com_port_info.port_handle,
-        false);
-      return rv;
+      state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
+    }
+
+    if (state->config_step == AK0991X_CONFIG_IDLE)
+    {
+      ak0991x_dae_if_start_streaming(this);
+      rv = ak0991x_send_config_event(this);
+
+      if (rv != SNS_RC_SUCCESS)
+      {
+        state->mag_info.cur_wmk = pre_wmk;
+        // Turn COM port OFF
+        state->scp_service->api->sns_scp_update_bus_power(
+          state->com_port_info.port_handle,
+          false);
+        return rv;
+      }
     }
 
     if (state->mag_info.use_dri)
@@ -549,6 +561,15 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->timer_stream_is_created = false;
         }
       }
+    }
+  }
+  //TODO_AKM
+  else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
+  {
+    state->fifo_flush_in_progress = true;
+    if(!ak0991x_dae_if_flush_samples(this))
+    {
+      ak0991x_handle_interrupt_event(this);
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)

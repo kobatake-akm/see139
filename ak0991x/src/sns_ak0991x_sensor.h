@@ -140,6 +140,7 @@ typedef struct ak0991x_state
   sns_sensor_uid        irq_suid;
   sns_sensor_uid        timer_suid;
   sns_sensor_uid        acp_suid; // Asynchronous COM Port
+  sns_sensor_uid        dae_suid; // Data Acquisition Engine
   sns_sensor_uid        my_suid;
   ak0991x_com_port_info com_port_info;
   //  ak0991x_irq_info      irq_info;

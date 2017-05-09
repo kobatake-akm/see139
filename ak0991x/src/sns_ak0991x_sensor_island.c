@@ -398,8 +398,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   {
     if ((0 == sns_memcmp(&state->irq_suid, &((sns_sensor_uid){{0}}), sizeof(state->irq_suid)))
         || (0 == sns_memcmp(&state->acp_suid, &((sns_sensor_uid){{0}}), sizeof(state->acp_suid)))
-        || (0 ==
-            sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid)))
+        || (0 == sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid)))
+        || (0 == sns_memcmp(&state->dae_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid)))
 #if AK0991X_ENABLE_DEPENDENCY
         || (0 == sns_memcmp(&state->reg_suid, &((sns_sensor_uid){{0}}), sizeof(state->reg_suid)))
 #endif
@@ -1085,7 +1085,11 @@ void ak0991x_process_suid_events(sns_sensor *const this)
       }
 
       /* save suid based on incoming data type name */
-      if(0 == strncmp(data_type_arg.buf, "interrupt", data_type_arg.buf_len))
+      if(0 == strncmp(data_type_arg.buf, "data_acquisition_engine", data_type_arg.buf_len))
+      {
+        state->dae_suid = uid_list;
+      }
+      else if(0 == strncmp(data_type_arg.buf, "interrupt", data_type_arg.buf_len))
       {
         state->irq_suid = uid_list;
       }

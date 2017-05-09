@@ -217,25 +217,44 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /** Configure the Async Com Port */
   uint8_t                   pb_encode_buffer[100];
   uint32_t                  enc_len;
-  sns_async_com_port_config async_com_port_config;
-  async_com_port_config.bus_instance = sensor_state->com_port_info.com_config.bus_instance;
+
+  state->ascp_config.bus_instance = sensor_state->com_port_info.com_config.bus_instance;
   if (sensor_state->com_port_info.com_config.bus_type == SNS_BUS_I2C)
   {
-    async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_I2C;
+    state->ascp_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_I2C;
   }
   else
   {
-    async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_SPI;
+    state->ascp_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_SPI;
   }
-  async_com_port_config.max_bus_speed_kHz =
+  state->ascp_config.max_bus_speed_kHz =
     sensor_state->com_port_info.com_config.max_bus_speed_KHz;
-  async_com_port_config.min_bus_speed_kHz =
+  state->ascp_config.min_bus_speed_kHz =
     sensor_state->com_port_info.com_config.min_bus_speed_KHz;
-  async_com_port_config.reg_addr_type = SNS_ASYNC_COM_PORT_REG_ADDR_TYPE_8_BIT;
-  async_com_port_config.slave_control = sensor_state->com_port_info.com_config.slave_control;
-  enc_len = pb_encode_request(pb_encode_buffer, 100, &async_com_port_config,
+  state->ascp_config.reg_addr_type = SNS_ASYNC_COM_PORT_REG_ADDR_TYPE_8_BIT;
+  state->ascp_config.slave_control = sensor_state->com_port_info.com_config.slave_control;
+  enc_len = pb_encode_request(pb_encode_buffer, 100, &state->ascp_config,
                               sns_async_com_port_config_fields, NULL);
 
+//  sns_async_com_port_config async_com_port_config;
+//  async_com_port_config.bus_instance = sensor_state->com_port_info.com_config.bus_instance;
+//  if (sensor_state->com_port_info.com_config.bus_type == SNS_BUS_I2C)
+//  {
+//    async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_I2C;
+//  }
+//  else
+//  {
+//    async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_SPI;
+//  }
+//  async_com_port_config.max_bus_speed_kHz =
+//    sensor_state->com_port_info.com_config.max_bus_speed_KHz;
+//  async_com_port_config.min_bus_speed_kHz =
+//    sensor_state->com_port_info.com_config.min_bus_speed_KHz;
+//  async_com_port_config.reg_addr_type = SNS_ASYNC_COM_PORT_REG_ADDR_TYPE_8_BIT;
+//  async_com_port_config.slave_control = sensor_state->com_port_info.com_config.slave_control;
+//  enc_len = pb_encode_request(pb_encode_buffer, 100, &async_com_port_config,
+//                              sns_async_com_port_config_fields, NULL);
+//
   sns_request async_com_port_request =
     (sns_request)
   {
@@ -262,6 +281,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     }
   }
 
+  ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid);
+
   return SNS_RC_SUCCESS;
 }
 
@@ -274,6 +295,8 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   sns_stream_service  *stream_mgr =
     (sns_stream_service *)service_mgr->get_service(service_mgr,
                                                    SNS_STREAM_SERVICE);
+
+  ak0991x_dae_if_deinit(state, stream_mgr);
 
   if (state->timer_stream_is_created)
   {
