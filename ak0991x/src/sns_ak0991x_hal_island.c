@@ -1183,6 +1183,12 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
 
   for(i = 0; i < num_bytes; i += 8)
   {
+    // check if there's valid data in FIFO
+    if ((fifo_start[i + 7] & AK0991X_INV_FIFO_DATA) && (state->mag_info.use_fifo))
+    {
+      break;
+    }
+
     sns_time timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     ak0991x_handle_mag_sample(&fifo_start[i],
                               timestamp,

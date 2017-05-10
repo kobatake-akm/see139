@@ -132,8 +132,8 @@ static void process_fifo_samples(
   uint8_t             *buf, 
   size_t              buf_len)
 {
-  uint8_t *fifo_start = buf + 2; /* 1st byte = CNTRL2, 2nd byte = ... */
-  uint16_t num_sample_sets = (buf_len / 6);
+  uint8_t *fifo_start = buf + 1; /* 1st byte = CNTRL2 */
+  uint16_t num_sample_sets = (buf_len / 8);
   ak0991x_mag_odr mag_odr = (ak0991x_mag_odr)(*buf & 0x1F);
   sns_time sampling_intvl = ak0991x_get_sample_interval(mag_odr);
 
@@ -144,7 +144,7 @@ static void process_fifo_samples(
                                      first_timestamp, 
                                      sampling_intvl,
                                      fifo_start, 
-                                     buf_len - 2);
+                                     buf_len - 1);
 
   }
 }

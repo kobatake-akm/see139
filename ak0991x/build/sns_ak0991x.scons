@@ -32,3 +32,4 @@ if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):
                register_func_name = "sns_register_ak0991x",
                binary_lib = False,
                add_island_files = ak0991x_island_enable)
+  env.AddDeviceDriver(env, ["ak0991x_hal_table"])
