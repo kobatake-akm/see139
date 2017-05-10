@@ -433,7 +433,7 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
   uint8_t  buffer;
 
   // Configure control register 1
-  if ((device_select == AK09912) || (device_select == AK09915C) || (device_select == AK09915D))
+  if ((device_select == AK09912) || (device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
     if (device_select == AK09912)
     {
@@ -467,7 +467,7 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
   }
 
   // Configure control register 2
-  if ((device_select == AK09915C) || (device_select == AK09915D))
+  if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
     buffer = 0x0
       | (AK0991X_ENABLE_FIFO << 7) // FIFO bit
@@ -764,6 +764,17 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
   {
     usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
   }
+  else if (device_select == AK09917)
+  {
+    if (AK0991X_SDR == 0)
+    {
+      usec_time_for_measure = AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
+    }
+    else
+    {
+      usec_time_for_measure = AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
+    }
+  }
   else if ((device_select == AK09916C) || (device_select == AK09916D))
   {
     usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
@@ -818,10 +829,20 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  // raw data in 16 bits
-  data[0] = (int16_t)(((buffer[2] << 8) & 0xFF00) | buffer[1]);
-  data[1] = (int16_t)(((buffer[4] << 8) & 0xFF00) | buffer[3]);
-  data[2] = (int16_t)(((buffer[6] << 8) & 0xFF00) | buffer[5]);
+  if (device_select == AK09917)
+  {
+    // raw data in 16 bits
+    data[0] = (int16_t)(((buffer[1] << 8) & 0xFF00) | buffer[0]);
+    data[1] = (int16_t)(((buffer[3] << 8) & 0xFF00) | buffer[2]);
+    data[2] = (int16_t)(((buffer[5] << 8) & 0xFF00) | buffer[4]);
+  }
+  else
+  {
+    // raw data in 16 bits
+    data[0] = (int16_t)(((buffer[2] << 8) & 0xFF00) | buffer[1]);
+    data[1] = (int16_t)(((buffer[4] << 8) & 0xFF00) | buffer[3]);
+    data[2] = (int16_t)(((buffer[6] << 8) & 0xFF00) | buffer[5]);
+  }
   // adjust sensitivity
   data[0] = (int16_t)(data[0] * sstvt_adj[0]);
   data[1] = (int16_t)(data[1] * sstvt_adj[1]);
@@ -835,6 +856,15 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
     AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09918, TLIMIT_HI_SLF_RVHY_AK09918,
             err);
     AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09918, TLIMIT_HI_SLF_RVHZ_AK09918,
+            err);
+  }
+  else if (device_select == AK09917)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09917, TLIMIT_HI_SLF_RVHX_AK09917,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09917, TLIMIT_HI_SLF_RVHY_AK09917,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09917, TLIMIT_HI_SLF_RVHZ_AK09917,
             err);
   }
   else if ((device_select == AK09916C) || (device_select == AK09916D))
@@ -989,6 +1019,33 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
 }
 
 /**
+ * Gets current ODR.
+ *
+ * @param[i] curr_odr              Current ODR.
+ *
+ * @return current ODR
+ */
+float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr)
+{
+  float odr = 0.0;
+  int8_t idx;
+
+  for (idx = 0; idx < ARR_SIZE(reg_map_ak0991x); idx++)
+  {
+    if (curr_odr == reg_map_ak0991x[idx].mag_odr_reg_value
+        &&
+        curr_odr != AK0991X_MAG_ODR_OFF)
+    {
+      odr = reg_map_ak0991x[idx].odr;
+      break;
+    }
+  }
+
+  return odr;
+}
+
+
+/**
  * Provides sample interval based on current ODR.
  *
  * @param[i] curr_odr              Current FIFO ODR.
@@ -1036,15 +1093,30 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   float                        data[3];
   sns_std_sensor_sample_status status;
 
-  data[0] =
-    (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0] *
-    state->mag_info.resolution;
-  data[1] =
-    (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1] *
-    state->mag_info.resolution;
-  data[2] =
-    (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] *
-    state->mag_info.resolution;
+  if (state->mag_info.device_select == AK09917)
+  {
+    data[0] =
+      (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]) * state->mag_info.sstvt_adj[0] *
+      state->mag_info.resolution;
+    data[1] =
+      (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]) * state->mag_info.sstvt_adj[1] *
+      state->mag_info.resolution;
+    data[2] =
+      (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]) * state->mag_info.sstvt_adj[2] *
+      state->mag_info.resolution;
+  }
+  else
+  {
+    data[0] =
+      (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0] *
+      state->mag_info.resolution;
+    data[1] =
+      (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1] *
+      state->mag_info.resolution;
+    data[2] =
+      (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] *
+      state->mag_info.resolution;
+  }
 
   // Check magnetic sensor overflow
   if ((mag_sample[7] & AK0991X_HOFL_BIT) != 0)
@@ -1085,6 +1157,67 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     data,
     timestamp,
     status);
+}
+
+void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
+                                      sns_time            first_timestamp,
+                                      sns_time            sample_interval_ticks,
+                                      uint8_t             *fifo_start,
+                                      size_t              num_bytes
+)
+{
+  uint16_t num_samples_sets = 0;
+  uint32_t i;
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_service_manager *service_manager = instance->cb->get_service_manager(instance);
+  sns_event_service *event_service =
+    (sns_event_service*)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
+  sns_diag_service* diag = state->diag_service;
+  log_sensor_state_raw_info log_mag_state_raw_info;
+
+  // Allocate Sensor State Raw log packets for mag
+  sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
+  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
+  ak0991x_log_sensor_state_raw_alloc(diag, instance, &state->mag_info.suid,
+    &log_mag_state_raw_info);
+
+  for(i = 0; i < num_bytes; i += 8)
+  {
+    // check if there's valid data in FIFO
+    if ((fifo_start[i + 7] & AK0991X_INV_FIFO_DATA) && (state->mag_info.use_fifo))
+    {
+      break;
+    }
+
+    sns_time timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
+    ak0991x_handle_mag_sample(&fifo_start[i],
+                              timestamp,
+                              instance,
+                              event_service,
+                              state,
+                              &log_mag_state_raw_info);
+  }
+
+
+}
+
+/** See ak0991x_hal.h */
+void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
+{
+  sns_service_manager *mgr = instance->cb->get_service_manager(instance);
+  sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr,SNS_EVENT_SERVICE);
+  sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+
+  if(NULL != event)
+  {
+    event->message_id = SNS_STD_MSGID_SNS_STD_FLUSH_EVENT;
+    event->event_len = 0;
+    event->timestamp = sns_get_system_time();
+
+    e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
+  }
+
 }
 
 void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
@@ -1480,6 +1613,30 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+    phy_sensor_config.has_stream_is_synchronous = false;
+    phy_sensor_config.stream_is_synchronous = false;
+    break;
+
+  case AK09917:
+
+    if (AK0991X_SDR == 0)
+    {
+      operating_mode = AK0991X_LOW_NOISE;
+    }
+    else
+    {
+      operating_mode = AK0991X_LOW_POWER;
+    }
+
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
+    phy_sensor_config.has_active_current = true;
+    phy_sensor_config.active_current = AK09917_HI_PWR;
+    phy_sensor_config.has_resolution = true;
+    phy_sensor_config.resolution = AK09917_RESOLUTION;
+    phy_sensor_config.range_count = 2;
+    phy_sensor_config.range[0] = AK09917_MIN_RANGE;
+    phy_sensor_config.range[1] = AK09917_MAX_RANGE;
     phy_sensor_config.has_stream_is_synchronous = false;
     phy_sensor_config.stream_is_synchronous = false;
     break;

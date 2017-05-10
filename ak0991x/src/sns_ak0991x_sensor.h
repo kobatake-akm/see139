@@ -74,6 +74,8 @@ sns_sensor_api ak0991x_mag_sensor_api;
  */
 #define AK09918_MIN_RANGE          -4912 /* Minimum -4912uT */
 #define AK09918_MAX_RANGE          4912  /* Maximum  4912uT */
+#define AK09917_MIN_RANGE          -4912 /* Minimum -4912uT */
+#define AK09917_MAX_RANGE          4912  /* Maximum  4912uT */
 #define AK09916_MIN_RANGE          -4912 /* Minimum -4912uT */
 #define AK09916_MAX_RANGE          4912  /* Maximum  4912uT */
 #define AK09915_MIN_RANGE          -4912 /* Minimum -4912uT */
@@ -89,6 +91,7 @@ sns_sensor_api ak0991x_mag_sensor_api;
  * Magnetometer resolution
  */
 #define AK09918_RESOLUTION         (0.15f) /* uT/LSB */
+#define AK09917_RESOLUTION         (0.15f) /* uT/LSB */
 #define AK09916_RESOLUTION         (0.15f) /* uT/LSB */
 #define AK09915_RESOLUTION         (0.15f) /* uT/LSB */
 #define AK09913_RESOLUTION         (0.15f) /* uT/LSB */
@@ -98,6 +101,8 @@ sns_sensor_api ak0991x_mag_sensor_api;
 /* Power consumption limits */
 #define AK09918_LO_PWR             1    /* unit of uA */
 #define AK09918_HI_PWR             1100 /* unit of uA @ 100Hz */
+#define AK09917_LO_PWR             1    /* unit of uA */
+#define AK09917_HI_PWR             900  /* unit of uA @ 100Hz low power (TBD copy from AK09915)*/
 #define AK09916_LO_PWR             1    /* unit of uA */
 #define AK09916_HI_PWR             1100 /* unit of uA @ 100Hz */
 #define AK09915_LO_PWR             3    /* unit of uA */
@@ -135,9 +140,11 @@ typedef struct ak0991x_state
   sns_sensor_uid        irq_suid;
   sns_sensor_uid        timer_suid;
   sns_sensor_uid        acp_suid; // Asynchronous COM Port
+  sns_sensor_uid        dae_suid; // Data Acquisition Engine
   sns_sensor_uid        my_suid;
   ak0991x_com_port_info com_port_info;
-  ak0991x_irq_info      irq_info;
+  //  ak0991x_irq_info      irq_info;
+  sns_interrupt_req      irq_config;
 
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
@@ -241,3 +248,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 void ak0991x_mag_init_attributes(sns_sensor *const this,
                                  akm_device_type device_select
 );
+
+
+
+sns_rc ak0991x_mag_init(sns_sensor *const this);
+sns_rc ak0991x_mag_deinit(sns_sensor *const this);

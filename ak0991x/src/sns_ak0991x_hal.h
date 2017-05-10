@@ -29,6 +29,7 @@
  * AK09915D data sheet version 016009278-E-00
  * AK09916C data sheet version 015007392-E-02
  * AK09916D data sheet version preliminary_E-00
+ * AK09917D data sheet version preliminary_E-00-Q
  * AK09918  data sheet version 016014242_E_00
  */
 
@@ -52,18 +53,20 @@
 #endif
 
 // Set Interrupt pull type
-// AK09915D and AK09916D should set SNS_INTTERRUPT_PULL_TYPE_PULL_UP
+// AK09915D, AK09916D and AK09917D should set SNS_INTTERRUPT_PULL_TYPE_PULL_UP
 // Other devices should set SNS_INTTERRUPT_PULL_TYPE_KEEPER
 #ifndef AK0991X_INTERRUPT_PULL_TYPE
 #define AK0991X_INTERRUPT_PULL_TYPE      SNS_INTTERRUPT_PULL_TYPE_PULL_UP
+//#define AK0991X_INTERRUPT_PULL_TYPE      SNS_INTTERRUPT_PULL_TYPE_KEEPER
 #endif
 
 
 // Set Interrupt trigger type
 // AK09912 and AK09915C should set SNS_INTTERRUPT_TRIGGER_TYPE_RISING
-// AK09915D and AK09916D should set SNS_INTTERRUPT_TRIGGER_TYPE_FALLING
+// AK09915D, AK09916D and AK09917D should set SNS_INTTERRUPT_TRIGGER_TYPE_FALLING
 #ifndef AK0991X_INTERRUPT_TIRIGGER_TYPE
 #define AK0991X_INTERRUPT_TIRIGGER_TYPE  SNS_INTTERRUPT_TRIGGER_TYPE_FALLING
+//#define AK0991X_INTERRUPT_TIRIGGER_TYPE  SNS_INTTERRUPT_TRIGGER_TYPE_RISING
 #endif
 
 
@@ -74,7 +77,7 @@ typedef enum
 } ak0991x_bus_type;
 // Set Serial interface
 #ifndef AK0991X_BUS_TYPE
-#define AK0991X_BUS_TYPE                            SNS_BUS_SPI
+#define AK0991X_BUS_TYPE                            SNS_BUS_I2C
 #endif
 
 /**
@@ -115,6 +118,7 @@ typedef enum
 #define AK09915_WHOAMI_DEV_ID                       (0x10) /** Who Am I device ID */
 #define AK09916C_WHOAMI_DEV_ID                      (0x9)  /** Who Am I device ID */
 #define AK09916D_WHOAMI_DEV_ID                      (0xB)  /** Who Am I device ID */
+#define AK09917_WHOAMI_DEV_ID                       (0xD)  /** Who Am I device ID */
 #define AK09918_WHOAMI_DEV_ID                       (0xC)  /** Who Am I device ID */
 
 /** DEVICE SUB ID to distinguish AK09915C and AK09915D */
@@ -137,18 +141,20 @@ typedef enum
 #define AK09913_FIFO_SIZE                           0
 #define AK09915_FIFO_SIZE                           32
 #define AK09916_FIFO_SIZE                           0
+#define AK09917_FIFO_SIZE                           32
 #define AK09918_FIFO_SIZE                           0
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2 + 1
 
 /** FIFO setting */
-#define AK0991X_ENABLE_FIFO                         0
+#define AK0991X_ENABLE_FIFO                         1
 
 /** NSF setting */
 #define AK0991X_NSF                                 0
 
 /** Sensor driver setting */
-#define AK0991X_SDR                                 0 // 0: low power mode, 1: low noise mode
+#define AK0991X_SDR                                 0 // AK09915 case, 0: low power mode, 1: low noise mode
+                                                      // AK09917 case, 0: low noise mode, 1: low power mode
 
 /** Off to idle time */
 #define AK0991X_OFF_TO_IDLE_MS                      100 //ms
@@ -160,6 +166,8 @@ typedef enum
 #define AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4950 //us
 #define AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8500 //us
 #define AK09916_TIME_FOR_MEASURE_US                 8200 //us
+#define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4100 //us
+#define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us
 #define AK09918_TIME_FOR_MEASURE_US                 8200 //us
 
 /** Limit of factory shipment test */
@@ -199,6 +207,16 @@ typedef enum
 #define TLIMIT_HI_SLF_RVHY_AK09918                  200
 #define TLIMIT_LO_SLF_RVHZ_AK09918                  -1000
 #define TLIMIT_HI_SLF_RVHZ_AK09918                  -150
+
+/*******************************
+* AK09917 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09917                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09917                  200
+#define TLIMIT_LO_SLF_RVHY_AK09917                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09917                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09917                  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09917                  -150
 
 /*******************************
 * AK09916 dependent value
@@ -369,6 +387,17 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
 );
 
 /**
+ * Gets current ODR.
+ *
+ * @param[i] curr_odr       Current ODR.
+ *
+ * @return current ODR
+ */
+float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr
+);
+
+
+/**
  * Provides sample interval based on current ODR
  *
  * @param[i] curr_odr       Current ODR.
@@ -399,6 +428,31 @@ sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
 );
 
 /**
+ * Process a fifo buffer and extracts mag samples from the buffer
+ * and generates event.
+ *
+ * @param[i] instance              Sensor instance
+ * @param[i] first_ts              Timestamp of first sample in fifo
+ * @param[i] interval              Sampling interval in time ticks
+ * @param[i] fifo                  Buffer containing sample read from HW FIFO
+ * @param[i] num_bytes             Number of bytes in fifo buffer
+ *
+ */
+void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
+                                      sns_time            first_ts,
+                                      sns_time            interval,
+                                      uint8_t             *fifo,
+                                      size_t              num_bytes
+);
+
+/**
+ * Sends a FIFO complete event.
+ *
+ * @param instance   Instance reference
+ */
+void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
+
+/**
  * Extracts mag samples from the buffer
  * and generates event.
  *
@@ -418,7 +472,6 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
  */
 void ak0991x_flush_fifo(sns_sensor_instance *const instance
 );
-
 
 /**
  * Handle an interrupt by reading the Fifo status register and sending out
