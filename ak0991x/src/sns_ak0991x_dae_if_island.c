@@ -132,24 +132,6 @@ static void process_fifo_samples(
   uint8_t             *buf, 
   size_t              buf_len)
 {
-//  ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
-//  sns_service_manager *service_manager =
-//    this->cb->get_service_manager(this);
-//  sns_event_service *event_service =
-//    (sns_event_service *)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
-//
-//  sns_diag_service *diag = state->diag_service;
-//  log_sensor_state_raw_info log_mag_state_raw_info;
-//
-//  sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-//  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
-//
-//  ak0991x_log_sensor_state_raw_alloc(
-//    diag,
-//    this,
-//    &state->mag_info.suid,
-//    &log_mag_state_raw_info); 
-//
   uint8_t *fifo_start = buf + 2; /* 1st byte = CNTRL2, 2nd byte = ... */
   uint16_t num_sample_sets = (buf_len / 6);
   ak0991x_mag_odr mag_odr = (ak0991x_mag_odr)(*buf & 0x1F);
@@ -164,13 +146,6 @@ static void process_fifo_samples(
                                      fifo_start, 
                                      buf_len - 2);
 
-//    //TODO just confirm first data.
-//    ak0991x_handle_mag_sample(fifo_start[8],
-//                              first_timestamp,
-//                              this,
-//                              event_service,
-//                              state,
-//                              &log_mag_state_raw_info);
   }
 }
 
@@ -227,8 +202,7 @@ static bool process_response(
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
-        //TODO
-        //ak0991x_reconfig_hw(this);
+        ak0991x_start_mag_streaming(state);
         state->config_step = AK0991X_CONFIG_IDLE;
       }
       break;

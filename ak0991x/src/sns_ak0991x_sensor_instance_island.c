@@ -563,13 +563,12 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
     }
   }
-  //TODO_AKM
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->fifo_flush_in_progress = true;
     if(!ak0991x_dae_if_flush_samples(this))
     {
-      ak0991x_handle_interrupt_event(this);
+      ak0991x_flush_fifo(this);
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
