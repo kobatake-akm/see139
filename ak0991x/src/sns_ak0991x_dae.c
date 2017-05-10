@@ -1,5 +1,5 @@
 /**
- * @file sns_ak0991x.c
+ * @file sns_ak0991x_dae.c
  *
  * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
@@ -27,7 +27,6 @@
 #define AKM_AK0991X_REG_HXL                         (0x11)
 #define AKM_AK0991X_REG_CNTL1                       (0x30)
 #define AKM_AK0991X_REG_CNTL2                       (0x31)
-
 #define AK09917_WHOAMI_DEV_ID                       (0xD)  /** Who Am I device ID */
 
 /**
