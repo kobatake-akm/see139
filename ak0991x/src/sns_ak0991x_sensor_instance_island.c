@@ -188,6 +188,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
+        	state->pre_timestamp = state->interrupt_timestamp;
           state->interrupt_timestamp = irq_event.timestamp;
           // Add setting for timestamp in case of flush event caused by irq trigger
           state->irq_info.detect_irq_event = true;
@@ -198,7 +199,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           }
           else
           {
-            ak0991x_handle_interrupt_event(this);
+            diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"pre_t=%u int_t=%u sub=%u",(uint32_t)state->pre_timestamp, (uint32_t)state->interrupt_timestamp,(uint32_t)(state->interrupt_timestamp - state->pre_timestamp));
+            if( (state->interrupt_timestamp - state->pre_timestamp) > (2*19200) ){
+              ak0991x_handle_interrupt_event(this);
+            }else{
+            	diag->api->sensor_inst_printf(diag, this, &state->mag_info.suid, SNS_ERROR, __FILENAME__,__LINE__,"previous_timestamp and interrupt_timestamp is less than 2msec!!! Ignore this interrupt.");
+            }
           }
 
           state->irq_info.detect_irq_event = false;
