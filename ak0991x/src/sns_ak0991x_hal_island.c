@@ -510,9 +510,6 @@ sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state)
     return rv;
   }
 
-  // for the first data
-  state->interrupt_timestamp = sns_get_system_time();
-
   rv = ak0991x_set_mag_config(state->scp_service,
                               state->com_port_info.port_handle,
                               state->mag_info.desired_odr,
@@ -523,6 +520,12 @@ sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state)
   {
     return rv;
   }
+
+  // for the first data
+  // previous_timestamp = current_time - one_data_sample_time + measurement_time
+  state->interrupt_timestamp = sns_get_system_time()
+  		- ak0991x_get_sample_interval(state->mag_info.desired_odr)
+			+ ak0991x_get_measurement_time(state->mag_info.device_select);
 
   state->mag_info.curr_odr = state->mag_info.desired_odr;
 
@@ -707,7 +710,6 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
-  sns_time usec_time_for_measure;
   uint8_t  asa[AK0991X_NUM_SENSITIVITY];
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
@@ -762,57 +764,8 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
     goto TEST_SEQUENCE_FAILED;
   }
 
-
-  if (device_select == AK09918)
-  {
-    usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
-  }
-  else if (device_select == AK09917)
-  {
-    if (AK0991X_SDR == 0)
-    {
-      usec_time_for_measure = AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
-    }
-    else
-    {
-      usec_time_for_measure = AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
-    }
-  }
-  else if ((device_select == AK09916C) || (device_select == AK09916D))
-  {
-    usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
-  }
-  else if ((device_select == AK09915C) || (device_select == AK09915D))
-  {
-    if (AK0991X_SDR == 1)
-    {
-      usec_time_for_measure = AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
-    }
-    else
-    {
-      usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
-    }
-  }
-  else if (device_select == AK09913)
-  {
-    usec_time_for_measure = AK09913_TIME_FOR_MEASURE_US;
-  }
-  else if (device_select == AK09912)
-  {
-    usec_time_for_measure = AK09912_TIME_FOR_MEASURE_US;
-  }
-  else if (device_select == AK09911)
-  {
-    usec_time_for_measure = AK09911_TIME_FOR_MEASURE_US;
-  }
-  else
-  {
-    *err = (TLIMIT_NO_INVALID_ID << 16);
-    goto TEST_SEQUENCE_FAILED;
-  }
-
   // To ensure that measurement is finished, wait for double as typical
-  sns_busy_wait(sns_convert_ns_to_ticks(usec_time_for_measure * 1000 * 2));
+  sns_busy_wait( ak0991x_get_measurement_time(device_select) * 2 );
 
   /** Step 3
    *   Read and check data
@@ -1073,6 +1026,69 @@ sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr)
 
   return sample_interval;
 }
+
+
+/**
+ * Provides measurement time
+ *
+ * @param[i] select_device   AKM device type
+ *
+ * @return measurement time in ticks
+ */
+sns_time ak0991x_get_measurement_time(akm_device_type device_select)
+{
+  sns_time usec_time_for_measure;
+
+  if (device_select == AK09918)
+  {
+    usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
+  }
+  else if (device_select == AK09917)
+  {
+    if (AK0991X_SDR == 0)
+    {
+      usec_time_for_measure = AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
+    }
+    else
+    {
+      usec_time_for_measure = AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
+    }
+  }
+  else if ((device_select == AK09916C) || (device_select == AK09916D))
+  {
+    usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
+  }
+  else if ((device_select == AK09915C) || (device_select == AK09915D))
+  {
+    if (AK0991X_SDR == 1)
+    {
+      usec_time_for_measure = AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
+    }
+    else
+    {
+      usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
+    }
+  }
+  else if (device_select == AK09913)
+  {
+    usec_time_for_measure = AK09913_TIME_FOR_MEASURE_US;
+  }
+  else if (device_select == AK09912)
+  {
+    usec_time_for_measure = AK09912_TIME_FOR_MEASURE_US;
+  }
+  else if (device_select == AK09911)
+  {
+    usec_time_for_measure = AK09911_TIME_FOR_MEASURE_US;
+  }
+  else
+  {
+    usec_time_for_measure = AK09911_TIME_FOR_MEASURE_US; // default AK09911
+  }
+
+  return sns_convert_ns_to_ticks(usec_time_for_measure * 1000);
+}
+
 
 /**
  * Extract a mag sample from a segment of the mag buffer and generate an

@@ -396,7 +396,6 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
 float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr
 );
 
-
 /**
  * Provides sample interval based on current ODR
  *
@@ -405,6 +404,16 @@ float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr
  * @return sampling interval time in ticks
  */
 sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr
+);
+
+/**
+ * Provides measurement time
+ *
+ * @param[i] select_device   AKM device type
+ *
+ * @return measurement time in ticks
+ */
+sns_time ak0991x_get_measurement_time(akm_device_type device_select
 );
 
 /**
