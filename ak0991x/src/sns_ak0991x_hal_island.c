@@ -510,6 +510,9 @@ sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state)
     return rv;
   }
 
+  // for the first data
+  state->interrupt_timestamp = sns_get_system_time();
+
   rv = ak0991x_set_mag_config(state->scp_service,
                               state->com_port_info.port_handle,
                               state->mag_info.desired_odr,
@@ -1239,21 +1242,12 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
     uint16_t                  cnt_for_ts = state->mag_info.cur_wmk;
 
 
-    sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-
     sns_time interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) /
       (state->mag_info.cur_wmk + 1);
 
     for (i = 1; i < vector->bytes; i += AK0991X_NUM_DATA_HXL_TO_ST2)
     {
-      if (state->this_is_first_data)
-      {
-        timestamp = state->interrupt_timestamp - (sample_interval_ticks * cnt_for_ts);
-      }
-      else
-      {
-        timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
-      }
+      timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
 
       ak0991x_handle_mag_sample(&vector->buffer[i],
                                 timestamp,
