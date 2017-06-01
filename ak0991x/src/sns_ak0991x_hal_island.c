@@ -28,6 +28,7 @@
  *
  * when         who     what, where, why
  * --------     ---     ------------------------------------------------
+ * 06/01/17     AKM     Fix selftest for AK09917D.
  * 06/01/17     AKM     Modify for the first timestamp.
  * 05/11/17     AKM     Add DAE sensor support.
  * 05/11/17     AKM     Add AK09917D support.
@@ -800,9 +801,9 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
   if (device_select == AK09917)
   {
     // raw data in 16 bits
-    data[0] = (int16_t)(((buffer[1] << 8) & 0xFF00) | buffer[0]);
-    data[1] = (int16_t)(((buffer[3] << 8) & 0xFF00) | buffer[2]);
-    data[2] = (int16_t)(((buffer[5] << 8) & 0xFF00) | buffer[4]);
+    data[0] = (int16_t)(((buffer[1] << 8) & 0xFF00) | buffer[2]);
+    data[1] = (int16_t)(((buffer[3] << 8) & 0xFF00) | buffer[4]);
+    data[2] = (int16_t)(((buffer[5] << 8) & 0xFF00) | buffer[6]);
   }
   else
   {
