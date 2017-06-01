@@ -428,12 +428,16 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
           rv = ak0991x_get_who_am_i(state->scp_service,
                                     state->com_port_info.port_handle, &buffer[0]);
 
+          // Enable the debug log output.
+          ak0991x_sensor_publish_available(this);
+
           if (rv != SNS_RC_SUCCESS)
           {
             diag->api->sensor_printf(diag, this, SNS_LOW, __FILENAME__, __LINE__,
                                      "Read WHO-AM-I error");
             return rv;
           }
+          diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__,__LINE__,"WIA1=%x,WIA2=%x",buffer[0],buffer[1]);
 
           state->who_am_i = buffer[1] << 8 | buffer[0];
 
@@ -595,7 +599,6 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
           if (state->hw_is_present)
           {
-            ak0991x_sensor_publish_available(this);
             ak0991x_publish_hw_attributes(this,state->device_select);
           }
           else
