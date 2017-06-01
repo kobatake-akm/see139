@@ -14,6 +14,27 @@
  *
  **/
 
+/**
+ * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
+ * Version          : v2017.06.01
+ * Date(MM/DD/YYYY) : 06/01/2017
+ *
+ **/
+
+ /**
+ * EDIT HISTORY FOR FILE
+ *
+ * This section contains comments describing changes made to the module.
+ * Notice that changes are listed in reverse chronological order.
+ *
+ *
+ * when         who     what, where, why
+ * --------     ---     ------------------------------------------------
+ * 05/11/17     AKM     Add DAE sensor support.
+ * 05/11/17     AKM     Add AK09917D support.
+ *
+ **/
+
 #include "sns_sensor.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"

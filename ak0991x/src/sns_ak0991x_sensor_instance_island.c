@@ -13,6 +13,13 @@
  **/
 
 /**
+ * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
+ * Version          : v2017.06.01
+ * Date(MM/DD/YYYY) : 06/01/2017
+ *
+ **/
+
+/**
  * EDIT HISTORY FOR FILE
  *
  * This section contains comments describing changes made to the module.
@@ -21,11 +28,14 @@
  *
  * when         who     what, where, why
  * --------     ---     ------------------------------------------------
+ * 06/01/17     AKM     Ignore interrupt if the interval is too short(2msec).
+ * 05/11/17     AKM     Add DAE sensor support.
+ * 05/11/17     AKM     Add AK09917D support.
+ * 05/11/17     AKM     Add island mode support.
  * 04/04/17     AKM     Optimize code of MAG_SUID configuration.
  * 04/04/17     AKM     Fix bus_type of Async Com Port configuration.
  *
  **/
-
 
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
