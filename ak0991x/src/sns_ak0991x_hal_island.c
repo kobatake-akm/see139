@@ -28,6 +28,7 @@
  *
  * when         who     what, where, why
  * --------     ---     ------------------------------------------------
+ * 06/01/17     AKM     Support FNUM bits of AK09917D.
  * 06/01/17     AKM     Fix selftest for AK09917D.
  * 06/01/17     AKM     Modify for the first timestamp.
  * 05/11/17     AKM     Add DAE sensor support.
