@@ -1388,16 +1388,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     // flush event trigger is IRQ
     if (state->irq_info.detect_irq_event)
     {
-      if (state->this_is_first_data)
-      {
-        timestamp = state->interrupt_timestamp -
-          (sample_interval_ticks * (state->mag_info.cur_wmk - i));
-      }
-      else
-      {
         timestamp = state->interrupt_timestamp -
           (interrupt_interval_ticks * (state->mag_info.cur_wmk - i));
-      }
     }
     else
     {
