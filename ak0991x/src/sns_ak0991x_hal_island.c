@@ -596,6 +596,38 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service *scp_service,
 }
 
 /**
+ * Read ST1 register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[o] buffer                   ST1 register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
+                               uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  // Read ST1 register
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_ST1,
+                                &buffer[0],
+                                1,
+                                &xfer_bytes);
+
+  if (xfer_bytes != 1)
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+
+/**
  * Read asa value.
  *
  * @param[i] port_handle              handle to synch COM port
@@ -1413,8 +1445,19 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    // Water mark level : 0x0 -> 1step, 0x1F ->32step
-    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
+    if(state->mag_info.device_select == AK09917)
+    {
+      uint8_t st1_buffer;
+      // Read the ST1 register for FNUM bits.
+      ak0991x_read_st1(state, &st1_buffer);
+      // FNUM[5:0] bits correspond to how many samples are currently in the FIFO buffer.
+      num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (st1_buffer >> 2) + 1;
+    }
+    else
+    {
+      // Water mark level : 0x0 -> 1step, 0x1F ->32step
+      num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
+    }
   }
   else
   {
