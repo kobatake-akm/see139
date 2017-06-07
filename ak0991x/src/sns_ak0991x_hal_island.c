@@ -1718,7 +1718,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   default:
     return SNS_RC_FAILED;
   }
-
+  pb_buffer_arg op_mode_args;
+  op_mode_args.buf = operating_mode;
+  op_mode_args.buf_len = sizeof(operating_mode);
+  phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
+  phy_sensor_config.operation_mode.arg = &op_mode_args;
   phy_sensor_config.has_sample_rate = true;
   phy_sensor_config.sample_rate = state->mag_req.sample_rate;
 
