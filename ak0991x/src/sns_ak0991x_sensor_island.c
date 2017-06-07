@@ -73,11 +73,11 @@ float ak09912_odr_table[] =
 float ak09913_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 float ak09915_odr_table[] =
-{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100, AK0991X_ODR_200};
 float ak09916_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 float ak09917_odr_table[] =
-{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100, AK0991X_ODR_200};
 float ak09918_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 
@@ -292,7 +292,7 @@ void ak0991x_publish_hw_attributes(sns_sensor *const this,
  {
    uint32_t value_len = 0;
    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
-       SNS_ATTR};
+       SNS_ATTR, SNS_ATTR};
 
    if((state->device_select == AK09915C) || (state->device_select == AK09915D))
    {
@@ -306,6 +306,8 @@ void ak0991x_publish_hw_attributes(sns_sensor *const this,
      values[3].flt = ak09915_odr_table[3];
      values[4].has_flt = true;
      values[4].flt = ak09915_odr_table[4];
+     values[5].has_flt = true;
+     values[5].flt = ak09915_odr_table[5];
      value_len = ARR_SIZE(ak09915_odr_table);
    }
    else if(state->device_select == AK09917)
@@ -320,7 +322,15 @@ void ak0991x_publish_hw_attributes(sns_sensor *const this,
      values[3].flt = ak09917_odr_table[3];
      values[4].has_flt = true;
      values[4].flt = ak09917_odr_table[4];
-     value_len = ARR_SIZE(ak09917_odr_table);
+     if (AK0991X_SDR == 0){	// Low Noise Mode Max ODR=100Hz
+    	 value_len = ARR_SIZE(ak09917_odr_table)-1;
+     }
+     else										// Low Power Mode Max ODR=200Hz
+     {
+       values[5].has_flt = true;
+       values[5].flt = ak09917_odr_table[5];
+       value_len = ARR_SIZE(ak09917_odr_table);
+     }
    }
    else // Other parts use same ODR as ak09911
    {

@@ -1,5 +1,5 @@
 /**
- * @file sns_ak0991x_hal.c
+ * @file sns_ak0991x_hal_island.c
  *
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
@@ -1718,11 +1718,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   default:
     return SNS_RC_FAILED;
   }
-
-  pb_buffer_arg op_mode_args;
-
-  op_mode_args.buf = operating_mode;
-  op_mode_args.buf_len = sizeof(operating_mode);
 
   phy_sensor_config.has_sample_rate = true;
   phy_sensor_config.sample_rate = state->mag_req.sample_rate;
