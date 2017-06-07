@@ -13,6 +13,13 @@
  *
  **/
 
+/**
+ * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
+ * Version          : v2017.06.01
+ * Date(MM/DD/YYYY) : 06/01/2017
+ *
+ **/
+
 #include <string.h>
 #include "sns_mem_util.h"
 #include "sns_types.h"

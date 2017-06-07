@@ -1,5 +1,5 @@
 /**
- * @file sns_ak0991x_hal.c
+ * @file sns_ak0991x_hal_island.c
  *
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
@@ -8,6 +8,14 @@
  * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ *
+ **/
+
+
+/**
+ * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
+ * Version          : v2017.06.01
+ * Date(MM/DD/YYYY) : 06/01/2017
  *
  **/
 
@@ -20,6 +28,12 @@
  *
  * when         who     what, where, why
  * --------     ---     ------------------------------------------------
+ * 06/01/17     AKM     Support FNUM bits of AK09917D.
+ * 06/01/17     AKM     Fix selftest for AK09917D.
+ * 06/01/17     AKM     Modify for the first timestamp.
+ * 05/11/17     AKM     Add DAE sensor support.
+ * 05/11/17     AKM     Add AK09917D support.
+ * 05/11/17     AKM     Add island mode support.
  * 04/04/17     AKM     Fix sensitivity configuration.
  *
  **/
@@ -583,6 +597,38 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service *scp_service,
 }
 
 /**
+ * Read ST1 register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[o] buffer                   ST1 register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
+                               uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  // Read ST1 register
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_ST1,
+                                &buffer[0],
+                                1,
+                                &xfer_bytes);
+
+  if (xfer_bytes != 1)
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+
+/**
  * Read asa value.
  *
  * @param[i] port_handle              handle to synch COM port
@@ -788,9 +834,9 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
   if (device_select == AK09917)
   {
     // raw data in 16 bits
-    data[0] = (int16_t)(((buffer[1] << 8) & 0xFF00) | buffer[0]);
-    data[1] = (int16_t)(((buffer[3] << 8) & 0xFF00) | buffer[2]);
-    data[2] = (int16_t)(((buffer[5] << 8) & 0xFF00) | buffer[4]);
+    data[0] = (int16_t)(((buffer[1] << 8) & 0xFF00) | buffer[2]);
+    data[1] = (int16_t)(((buffer[3] << 8) & 0xFF00) | buffer[4]);
+    data[2] = (int16_t)(((buffer[5] << 8) & 0xFF00) | buffer[6]);
   }
   else
   {
@@ -1343,16 +1389,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     // flush event trigger is IRQ
     if (state->irq_info.detect_irq_event)
     {
-      if (state->this_is_first_data)
-      {
-        timestamp = state->interrupt_timestamp -
-          (sample_interval_ticks * (state->mag_info.cur_wmk - i));
-      }
-      else
-      {
         timestamp = state->interrupt_timestamp -
           (interrupt_interval_ticks * (state->mag_info.cur_wmk - i));
-      }
     }
     else
     {
@@ -1400,8 +1438,19 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    // Water mark level : 0x0 -> 1step, 0x1F ->32step
-    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
+    if(state->mag_info.device_select == AK09917)
+    {
+      uint8_t st1_buffer;
+      // Read the ST1 register for FNUM bits.
+      ak0991x_read_st1(state, &st1_buffer);
+      // FNUM[5:0] bits correspond to how many samples are currently in the FIFO buffer.
+      num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (st1_buffer >> 2) + 1;
+    }
+    else
+    {
+      // Water mark level : 0x0 -> 1step, 0x1F ->32step
+      num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
+    }
   }
   else
   {
@@ -1669,11 +1718,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   default:
     return SNS_RC_FAILED;
   }
-
-  pb_buffer_arg op_mode_args;
-
-  op_mode_args.buf = operating_mode;
-  op_mode_args.buf_len = sizeof(operating_mode);
 
   phy_sensor_config.has_sample_rate = true;
   phy_sensor_config.sample_rate = state->mag_req.sample_rate;

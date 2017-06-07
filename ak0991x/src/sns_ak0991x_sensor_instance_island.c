@@ -13,6 +13,13 @@
  **/
 
 /**
+ * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
+ * Version          : v2017.06.01
+ * Date(MM/DD/YYYY) : 06/01/2017
+ *
+ **/
+
+/**
  * EDIT HISTORY FOR FILE
  *
  * This section contains comments describing changes made to the module.
@@ -21,11 +28,14 @@
  *
  * when         who     what, where, why
  * --------     ---     ------------------------------------------------
+ * 06/01/17     AKM     Ignore interrupt if the interval is too short(2msec).
+ * 05/11/17     AKM     Add DAE sensor support.
+ * 05/11/17     AKM     Add AK09917D support.
+ * 05/11/17     AKM     Add island mode support.
  * 04/04/17     AKM     Optimize code of MAG_SUID configuration.
  * 04/04/17     AKM     Fix bus_type of Async Com Port configuration.
  *
  **/
-
 
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
@@ -133,10 +143,21 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR100;
   }
   else if ((desired_sample_rate <= AK0991X_ODR_200) &&
-           ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
+           ((device_select == AK09915C) || (device_select == AK09915D)))
   {
     *chosen_sample_rate = AK0991X_ODR_200;
     *chosen_reg_value = AK0991X_MAG_ODR200;
+  }
+  else if ((desired_sample_rate <= AK0991X_ODR_200) && (device_select == AK09917))
+  {
+    if (AK0991X_SDR == 0){	// Low Noise Mode Max ODR=100Hz, Should return SNS_RC_FAILED???
+      *chosen_sample_rate = AK0991X_ODR_100;
+      *chosen_reg_value = AK0991X_MAG_ODR100;
+    }
+    else{										// Low Power Mode Max ODR=200Hz
+    	*chosen_sample_rate = AK0991X_ODR_200;
+      *chosen_reg_value = AK0991X_MAG_ODR200;
+    }
   }
   else
   {
