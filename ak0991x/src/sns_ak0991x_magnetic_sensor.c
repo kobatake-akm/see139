@@ -13,13 +13,6 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
 #include <string.h>
 #include "sns_mem_util.h"
 #include "sns_types.h"
@@ -27,6 +20,7 @@
 #include "sns_ak0991x_sensor.h"
 #include "sns_pb_util.h"
 #include "sns_attribute_util.h"
+#include "sns_printf.h"
 
 /**
  * Initialize attributes to their default state.  They may/will be updated
@@ -73,16 +67,11 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         values, ARR_SIZE(values), false);
   }
   {
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
-    char const proto1[] = "sns_physical_sensor_test.proto";
-    char const proto2[] = "sns_std_sensor.proto";
-
+    sns_std_attr_value_data values[] = {SNS_ATTR};
+    char const proto1[] = "sns_mag.proto";
     values[0].str.funcs.encode = pb_encode_string_cb;
     values[0].str.arg = &((pb_buffer_arg)
         { .buf = proto1, .buf_len = sizeof(proto1) });
-    values[1].str.funcs.encode = pb_encode_string_cb;
-    values[1].str.arg = &((pb_buffer_arg)
-        { .buf = proto2, .buf_len = sizeof(proto2) });
     sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_API,
         values, ARR_SIZE(values), false);
   }
@@ -164,6 +153,10 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->scp_service =
      (sns_sync_com_port_service *)smgr->get_service(smgr, SNS_SYNC_COM_PORT_SERVICE);
 
+  ak0991x_publish_default_attributes(this);
+
+  SNS_PRINTF(LOW, this, "ak0991x: init");
+
   state->sensor_client_present = false;
 
   sns_memscpy(&state->my_suid,
@@ -171,13 +164,12 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
               &((sns_sensor_uid)MAG_SUID),
               sizeof(sns_sensor_uid));
 
-
-  ak0991x_publish_default_attributes(this);
-  ak0991x_send_suid_req(this, "interrupt", 10);
-  ak0991x_send_suid_req(this, "async_com_port", 15);
-  ak0991x_send_suid_req(this, "timer", 6);
+  ak0991x_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
+  ak0991x_send_suid_req(this, "interrupt", sizeof("interrupt"));
+  ak0991x_send_suid_req(this, "async_com_port", sizeof("async_com_port"));
+  ak0991x_send_suid_req(this, "timer", sizeof("timer"));
 #if AK0991X_ENABLE_DEPENDENCY
-  ak0991x_send_suid_req(this, "registry", 9);
+  ak0991x_send_suid_req(this, "registry", sizeof("registry"));
 #endif //
 
   return SNS_RC_SUCCESS;

@@ -13,13 +13,6 @@
  **/
 
 /**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
-/**
  * EDIT HISTORY FOR FILE
  *
  * This section contains comments describing changes made to the module.
@@ -28,9 +21,6 @@
  *
  * when         who     what, where, why
  * --------     ---     ------------------------------------------------
- * 05/11/17     AKM     Add DAE sensor support.
- * 05/11/17     AKM     Add AK09917D support.
- * 05/11/17     AKM     Add island mode support.
  * 04/04/17     AKM     Optimize code of MAG_SUID configuration.
  * 04/04/17     AKM     Fix bus_type of Async Com Port configuration.
  *
@@ -57,6 +47,7 @@
 #include "sns_diag_service.h"
 #include "sns_diag.pb.h"
 #include "sns_sync_com_port_service.h"
+#include "sns_printf.h"
 
 /** See sns_sensor_instance_api::init */
 sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
@@ -72,21 +63,27 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
   uint64_t buffer[10];
   pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)buffer, sizeof(buffer));
-  sns_diag_batch_sample sample = sns_diag_batch_sample_init_default;
-  sample.sample_count = 3;
+  sns_diag_batch_sample batch_sample = sns_diag_batch_sample_init_default;
+  sns_rc rv;
+  uint8_t arr_index = 0;
+  float diag_temp[AK0991X_NUM_AXES];
+  pb_float_arr_arg arg = {.arr = (float*)diag_temp, .arr_len = AK0991X_NUM_AXES,
+    .arr_index = &arr_index};
+  batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
+  batch_sample.sample.arg = &arg;
 
   state->diag_service = (sns_diag_service *)
     service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
   state->scp_service = (sns_sync_com_port_service *)
     service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
 
-  sns_rc rv;
-
   /**----------------Copy Sensor UID in instance state---------------*/
   sns_memscpy(&state->mag_info.suid,
               sizeof(state->mag_info.suid),
               &((sns_sensor_uid)MAG_SUID),
               sizeof(state->mag_info.suid));
+
+  SNS_INST_PRINTF(LOW, this, "ak0991x inst init" );
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -167,7 +164,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->pre_timestamp = 0;
   state->this_is_first_data = true;
 
-  state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, 3);
+  state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
 
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
@@ -246,25 +243,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   enc_len = pb_encode_request(pb_encode_buffer, 100, &state->ascp_config,
                               sns_async_com_port_config_fields, NULL);
 
-//  sns_async_com_port_config async_com_port_config;
-//  async_com_port_config.bus_instance = sensor_state->com_port_info.com_config.bus_instance;
-//  if (sensor_state->com_port_info.com_config.bus_type == SNS_BUS_I2C)
-//  {
-//    async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_I2C;
-//  }
-//  else
-//  {
-//    async_com_port_config.bus_type = SNS_ASYNC_COM_PORT_BUS_TYPE_SPI;
-//  }
-//  async_com_port_config.max_bus_speed_kHz =
-//    sensor_state->com_port_info.com_config.max_bus_speed_KHz;
-//  async_com_port_config.min_bus_speed_kHz =
-//    sensor_state->com_port_info.com_config.min_bus_speed_KHz;
-//  async_com_port_config.reg_addr_type = SNS_ASYNC_COM_PORT_REG_ADDR_TYPE_8_BIT;
-//  async_com_port_config.slave_control = sensor_state->com_port_info.com_config.slave_control;
-//  enc_len = pb_encode_request(pb_encode_buffer, 100, &async_com_port_config,
-//                              sns_async_com_port_config_fields, NULL);
-//
   sns_request async_com_port_request =
     (sns_request)
   {
@@ -285,13 +263,13 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
                     sns_diag_sensor_state_raw_sample_tag))
   {
     if(pb_encode_delimited(&stream, sns_diag_batch_sample_fields,
-                               &sample))
+                               &batch_sample))
     {
       state->log_raw_encoded_size = stream.bytes_written;
     }
   }
 
-  ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid);
+  ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid, &((sns_sensor_uid)MAG_SUID));
 
   return SNS_RC_SUCCESS;
 }

@@ -14,33 +14,14 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
-/**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 05/11/17     AKM     Add DAE sensor support.
- * 05/11/17     AKM     Add AK09917D support.
- *
- **/
-
 #include <stdint.h>
+
+#include "sns_ak0991x_sensor_instance.h"
+#include "sns_diag.pb.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
 #include "sns_std.pb.h"
 #include "sns_std_sensor.pb.h"
-#include "sns_ak0991x_sensor_instance.h"
 
 /* Referenced data sheet version
  * AK09911  data sheet version MS1626_E-01
@@ -67,6 +48,9 @@
 #ifndef AK0991X_USE_DEFAULTS
 #define AK0991X_USE_DEFAULTS             1
 #endif
+
+// Define to enable extra debugging
+#define AK0991X_VERBOSE_DEBUG            1
 
 // Set DRI(true) or Polling(false)
 #ifndef AK0991X_USE_DRI
@@ -289,13 +273,22 @@ typedef enum
 #define TLIMIT_LO_SLF_RVHZ_AK09911                  -400
 #define TLIMIT_HI_SLF_RVHZ_AK09911                  -50
 
+/*******************************
+ * Number of axes in a 3 axis sensor
+ */
+#define AK0991X_NUM_AXES                            3
 
 /*******************************
  * Log structure definition
  */
-
 typedef struct log_sensor_state_raw_info
 {
+  /* Pointer to diag service */
+  sns_diag_service *diag;
+  /* Pointer to sensor instance */
+  sns_sensor_instance *instance;
+  /* Pointer to sensor UID*/
+  struct sns_sensor_uid *sensor_uid;
   /* Size of a single encoded sample */
   size_t encoded_sample_size;
   /* Pointer to log*/
@@ -305,8 +298,26 @@ typedef struct log_sensor_state_raw_info
   /* Number of actual bytes written*/
   uint32_t bytes_written;
   /* Number of batch samples written*/
-  uint32_t sample_cnt;
+  /* A batch may be composed of several logs*/
+  uint32_t batch_sample_cnt;
+  /* Number of log samples written*/
+  uint32_t log_sample_cnt;
 } log_sensor_state_raw_info;
+
+/*******************************
+ * Unencoded batch sample
+ */
+typedef struct
+{
+  /* Batch Sample type as defined in sns_diag.pb.h */
+  sns_diag_batch_sample_type sample_type;
+  /* Timestamp of the sensor state data sample */
+  sns_time timestamp;
+  /*Raw sensor state data sample*/
+  float sample[AK0991X_NUM_AXES];
+  /* Data status.*/
+  sns_std_sensor_sample_status status;
+} ak0991x_batch_sample;
 
 
 /******************* Function Declarations ***********************************/
@@ -324,8 +335,10 @@ typedef struct log_sensor_state_raw_info
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_device_sw_reset(sns_sync_com_port_service * scp_service,
-		                       sns_sync_com_port_handle *port_handle);
+sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
+                               sns_sync_com_port_service * scp_service,
+                               sns_sync_com_port_handle *port_handle,
+                               sns_diag_service *diag );
 
 /**
  * Enable Mag streaming. enables Mag sensor with
@@ -337,8 +350,7 @@ sns_rc ak0991x_device_sw_reset(sns_sync_com_port_service * scp_service,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state
-);
+sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this);
 
 /**
  * Disable Mag streaming.
@@ -349,8 +361,7 @@ sns_rc ak0991x_start_mag_streaming(ak0991x_instance_state *state
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_stop_mag_streaming(ak0991x_instance_state *state
-);
+sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this);
 
 /**
  * Gets Who-Am-I register for the sensor.
@@ -365,9 +376,8 @@ sns_rc ak0991x_stop_mag_streaming(ak0991x_instance_state *state
  * SNS_RC_SUCCESS
  */
 sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service * scp_service,
-		                    sns_sync_com_port_handle *port_handle,
-                            uint8_t *buffer
-);
+                            sns_sync_com_port_handle *port_handle,
+                            uint8_t *buffer);
 
 /**
  * Run a self-test.
@@ -382,12 +392,13 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service * scp_service,
  * SNS_RC_FAILED
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
-		                 sns_sync_com_port_handle *port_handle,
+sns_rc ak0991x_self_test(sns_sensor_instance *const this,
+                         sns_sync_com_port_service * scp_service,
+                         sns_sync_com_port_handle *port_handle,
+                         sns_diag_service *diag,
                          akm_device_type device_select,
                          float *sstvt_adj,
-                         uint32_t *err
-);
+                         uint32_t *err);
 
 /**
  * Sets sensitivity adjustment for the sensor.
@@ -402,10 +413,10 @@ sns_rc ak0991x_self_test(sns_sync_com_port_service * scp_service,
  * SNS_RC_SUCCESS
  */
 sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
-		                     sns_sync_com_port_handle *port_handle,
+                             sns_sync_com_port_handle *port_handle,
+                             sns_diag_service *diag,
                              uint8_t device_select,
-                             float *sstvt_adj
-);
+                             float *sstvt_adj);
 
 /**
  * Gets current ODR.
@@ -414,8 +425,8 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
  *
  * @return current ODR
  */
-float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr
-);
+float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr);
+
 
 /**
  * Provides sample interval based on current ODR
@@ -424,38 +435,7 @@ float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr
  *
  * @return sampling interval time in ticks
  */
-sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr
-);
-
-/**
- * Provides measurement time
- *
- * @param[i] select_device   AKM device type
- *
- * @return measurement time in ticks
- */
-sns_time ak0991x_get_measurement_time(akm_device_type device_select
-);
-
-/**
- * Sets Mag ODR, range and sensitivity.
- *
- * @param[i] scp_service     handle to synch COM port service
- * @param[i] port_handle     handle to synch COM port
- * @param[i] curr_odr        Mag ODR
- * @param[i] select_device   AKM device type
- * @param[i] cur_wmk         current FIFO water mark
- *
- * @return sns_rc
- * SNS_RC_FAILED - COM port failure
- * SNS_RC_SUCCESS
- */
-sns_rc ak0991x_set_mag_config(sns_sync_com_port_service *scp_service,
-		                      sns_sync_com_port_handle *port_handle,
-                              ak0991x_mag_odr curr_odr,
-                              akm_device_type device_select,
-                              uint16_t cur_wmk
-);
+sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr);
 
 /**
  * Process a fifo buffer and extracts mag samples from the buffer
@@ -472,8 +452,7 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
                                       sns_time            first_ts,
                                       sns_time            interval,
                                       uint8_t             *fifo,
-                                      size_t              num_bytes
-);
+                                      size_t              num_bytes);
 
 /**
  * Sends a FIFO complete event.
@@ -490,9 +469,7 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
  * @param[i] user_arg              Pointer to instance passed as user_arg
  */
 void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
-                                     void *user_arg
-)
-;
+                                     void *user_arg);
 
 /**
  * Flush mag samples from the buffer
@@ -500,8 +477,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
  *
  * @param instance                 Sensor Instance
  */
-void ak0991x_flush_fifo(sns_sensor_instance *const instance
-);
+void ak0991x_flush_fifo(sns_sensor_instance *const instance);
 
 /**
  * Handle an interrupt by reading the Fifo status register and sending out
@@ -509,8 +485,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance
  *
  * @param instance                 Sensor Instance
  */
-void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance
-);
+void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
 
 /**
  * Handle an timer by reading the register and sending out
@@ -521,8 +496,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance
  * SNS_RC_SUCCESS
  * @param instance                 Sensor Instance
  */
-sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance
-);
+sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance);
 
 /**
  * Sends config update event for the chosen sample_rate
@@ -532,23 +506,19 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance
  * SNS_RC_SUCCESS
  * @param[i] instance    reference to this Instance
  */
-sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance
-);
+sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance);
 
 /**
  * Submit the Sensor State Raw Log Packet
  *
- * @param[i] diag       Pointer to diag service
- * @param[i] instance   Pointer to sensor instance
- * @param[i] sensor_uid SUID of the sensor
- * @param[i] log_raw_info   Pointer to logging information
- *                      pertaining to the sensor
- */
+ * @param[i] log_raw_info   Pointer to logging information 
+ *       pertaining to the sensor
+ * @param[i] batch_complete true if submit request is for end 
+ *       of batch
+ *  */ 
 void ak0991x_log_sensor_state_raw_submit(
-  sns_diag_service *diag,
-  sns_sensor_instance *const instance,
-  struct sns_sensor_uid const *sensor_uid,
-  log_sensor_state_raw_info *log_raw_info);
+  log_sensor_state_raw_info *log_raw_info,
+  bool batch_complete);
 
 /**
  * Add raw uncalibrated sensor data to Sensor State Raw log
@@ -571,19 +541,16 @@ sns_rc ak0991x_log_sensor_state_raw_add(
   sns_std_sensor_sample_status status);
 
 /**
- * Allocate Sensor State Raw Log Packet
+ * Allocate Sensor State Raw Log Packet 
  *
- * @param[i] diag       Pointer to diag service
- * @param[i] instance   Pointer to sensor instance
- * @param[i] sensor_uid SUID of the sensor
- * @param[i] log_raw_info   Pointer to raw sensor state logging
- *       information pertaining to the sensor
+ * @param[i] diag       Pointer to diag service 
+ * @param[i] log_size   Optional size of log packet to 
+ *    be allocated. If not provided by setting to 0, will
+ *    default to using maximum supported log packet size
  */
 void ak0991x_log_sensor_state_raw_alloc(
-  sns_diag_service *diag,
-  sns_sensor_instance *const instance,
-  struct sns_sensor_uid const *sensor_uid,
-  log_sensor_state_raw_info *log_raw_info);
+  log_sensor_state_raw_info *log_raw_info,
+  uint32_t log_size);
 
 /**
  * Encode log sensor state raw packet
@@ -605,3 +572,20 @@ sns_rc ak0991x_encode_log_sensor_state_raw(
   void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
   size_t *bytes_written);
 
+/**
+ * Enable interrupt if not already enabled
+ *
+ */
+void ak0991x_register_interrupt(sns_sensor_instance *this);
+
+/**
+ * Get time for measurement
+ *
+ * @param[i] device_select  Device type
+ * @param[o] measure_us     Measurement time in usec
+ *
+ * @return sns_rc
+ * SNS_RC_SUCCESS if encoding was succesful
+ * SNS_RC_FAILED otherwise
+ */
+sns_rc ak0991x_get_meas_time( uint8_t device_select, sns_time* measure_us );

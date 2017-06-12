@@ -5,10 +5,10 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
-#include "sns_rc.h"
-#include "sns_register.h"
 #include "sns_lsm6ds3_sensor.h"
 #include "sns_lsm6ds3_sensor_instance.h"
+#include "sns_rc.h"
+#include "sns_register.h"
 
 /** Public Function Definitions. */
 

@@ -11,9 +11,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/rel/ssc.slpi/3.0/sensors/lsm6ds3/build/sns_lsm6ds3.scons#8 $
-#  $DateTime: 2017/03/21 23:46:58 $
-#  $Change: 12783940 $
+#  $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_06_11/sensors/lsm6ds3/build/sns_lsm6ds3.scons#1 $
+#  $DateTime: 2017/06/11 12:38:13 $
+#  $Change: 13546828 $
 #
 #===============================================================================
 Import('env')
@@ -30,6 +30,9 @@ import inspect
 #    when env.AddSSCSU() is called.
 # 4. Include the flag in build flag options (-f) to enable island mode for
 #    the driver.
+
+if ('DISABLE_LSM6DS3' in env['CPPDEFINES']):
+  Return()
 
 lsm6ds3_island_enable = False
 

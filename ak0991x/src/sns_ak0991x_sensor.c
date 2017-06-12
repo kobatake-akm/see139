@@ -14,13 +14,6 @@
  **/
 
 /**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
-/**
  * EDIT HISTORY FOR FILE
  *
  * This section contains comments describing changes made to the module.
@@ -29,13 +22,13 @@
  *
  * when         who     what, where, why
  * --------     ---     ------------------------------------------------
- * 05/11/17     AKM     Add island mode support.
  * 04/04/17     AKM     Optimize code of MAG_SUID configuration.
  * 04/04/17     AKM     Optimize code of sample_rate and report_rate configuration.
  * 04/04/17     AKM     Fix IRQ configuration.
  * 04/04/17     AKM     Fix ODR attribute configuration.
  *
  **/
+
 
 #include <string.h>
 #include "sns_mem_util.h"

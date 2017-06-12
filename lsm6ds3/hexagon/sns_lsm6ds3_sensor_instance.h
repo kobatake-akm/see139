@@ -10,21 +10,24 @@
  **/
 
 #include <stdint.h>
-#include "sns_sensor_instance.h"
-#include "sns_data_stream.h"
-#include "sns_time.h"
 #include "sns_com_port_types.h"
+#include "sns_data_stream.h"
+#include "sns_sensor_instance.h"
+#include "sns_time.h"
 
 #include "sns_sensor_uid.h"
 
 #include "sns_async_com_port.pb.h"
+#include "sns_diag_service.h"
 #include "sns_interrupt.pb.h"
-#include "sns_std_sensor.pb.h"
+#include "sns_lsm6ds3_dae_if.h"
 #include "sns_motion_detect.pb.h"
 #include "sns_physical_sensor_test.pb.h"
-#include "sns_diag_service.h"
+#include "sns_std_sensor.pb.h"
 #include "sns_sync_com_port_service.h"
-#include "sns_lsm6ds3_dae_if.h"
+
+#include "sns_math_util.h"
+#include "sns_registry_util.h"
 
 /** Forward Declaration of Instance API */
 sns_sensor_instance_api lsm6ds3_sensor_instance_api;
@@ -148,6 +151,12 @@ typedef enum
   LSM6DS3_CONFIG_UPDATING_HW      /** updating sensor HW, when done goes back to IDLE */
 } lsm6ds3_config_step;
 
+typedef struct lsm6ds3_self_test_info
+{
+  sns_physical_sensor_test_type test_type;
+  bool test_client_present;
+} lsm6ds3_self_test_info;
+
 /** HW FIFO information */
 typedef struct lsm6ds3_fifo_info
 {
@@ -180,6 +189,7 @@ typedef struct lsm6ds3_accel_info
   sns_sensor_uid          suid;
   uint8_t                 num_samples_to_discard;
   bool                    gated_client_present;
+  lsm6ds3_self_test_info  test_info;
 } lsm6ds3_accel_info;
 
 typedef struct lsm6ds3_gyro_info
@@ -190,6 +200,7 @@ typedef struct lsm6ds3_gyro_info
   bool                    is_in_sleep;
   sns_sensor_uid          suid;
   uint8_t                 num_samples_to_discard;
+  lsm6ds3_self_test_info  test_info;
 } lsm6ds3_gyro_info;
 
 typedef struct lsm6ds3_motion_detect_info
@@ -204,6 +215,8 @@ typedef struct lsm6ds3_motion_detect_info
   bool                    md_client_present;
   bool                    md_new_req;
   sns_motion_detect_event md_state;
+  lsm6ds3_self_test_info  test_info;
+  sns_registry_md_cfg     md_config;
 } lsm6ds3_motion_detect_info;
 
 typedef struct lsm6ds3_sensor_temp_info
@@ -213,6 +226,7 @@ typedef struct lsm6ds3_sensor_temp_info
   float                   report_rate_hz;
   float                   sampling_rate_hz;
   sns_time                sampling_intvl;
+  lsm6ds3_self_test_info  test_info;
 } lsm6ds3_sensor_temp_info;
 
 typedef struct lsm6ds3_irq_info
@@ -225,6 +239,13 @@ typedef struct lsm6ds3_async_com_port_info
 {
   uint32_t                port_handle;
 }lsm6ds3_async_com_port_info;
+
+typedef struct sns_lsm6ds3_registry_cfg
+{
+  lsm6ds3_sensor_type sensor_type;
+  matrix3             fac_cal_corr_mat;
+  float               fac_cal_bias[3];
+}sns_lsm6ds3_registry_cfg;
 
 /** Private state. */
 typedef struct lsm6ds3_instance_state
@@ -268,6 +289,14 @@ typedef struct lsm6ds3_instance_state
   size_t               encoded_imu_event_len;
   size_t               encoded_sensor_temp_event_len;
 
+  /**----------Axis Conversion----------*/
+  triaxis_conversion axis_map[TRIAXIS_NUM];
+
+  /**----------Sensor specific registry configuration----------*/
+  sns_lsm6ds3_registry_cfg accel_registry_cfg;
+  sns_lsm6ds3_registry_cfg gyro_registry_cfg;
+  sns_lsm6ds3_registry_cfg sensor_temp_registry_cfg;
+
   /**----------debug----------*/
   uint8_t   reg_status[LSM6DS3_DEBUG_REGISTERS];
 
@@ -277,6 +306,7 @@ typedef struct lsm6ds3_instance_state
   size_t           log_interrupt_encoded_size;
   bool instance_is_ready_to_configure;
   bool fifo_flush_in_progress;
+  bool new_self_test_request;
 
   size_t           log_raw_encoded_size;
 
@@ -292,8 +322,9 @@ typedef struct odr_reg_map
 
 typedef struct sns_lsm6ds3_req
 {
-  float desired_sample_rate;
-  float desired_report_rate;
+  float                     desired_sample_rate;
+  float                     desired_report_rate;
+  sns_lsm6ds3_registry_cfg  registry_cfg;
 } sns_lsm6ds3_req;
 
 sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,

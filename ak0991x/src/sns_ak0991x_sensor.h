@@ -14,27 +14,6 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
- /**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 05/11/17     AKM     Add DAE sensor support.
- * 05/11/17     AKM     Add AK09917D support.
- *
- **/
-
 #include "sns_sensor.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
@@ -65,7 +44,11 @@
 #define I2C_BUS_FREQ               400
 #define I2C_SLAVE_ADDRESS          0x0C
 #ifdef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
+#ifdef USE_RUMI_SE
 #define I2C_BUS_INSTANCE           0x06
+#else
+#define I2C_BUS_INSTANCE           0x01
+#endif /* USE_RUMI_SE */
 #define SPI_BUS_INSTANCE           0x02
 #else
 #define I2C_BUS_INSTANCE           0x03

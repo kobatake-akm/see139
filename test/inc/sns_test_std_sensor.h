@@ -9,15 +9,15 @@
  **/
 
 #include "sns_mem_util.h"
-#include "sns_sensor_instance.h"
-#include "sns_service_manager.h"
-#include "sns_stream_service.h"
 #include "sns_rc.h"
 #include "sns_request.h"
-#include "sns_time.h"
 #include "sns_sensor_event.h"
-#include "sns_std_sensor.pb.h"
+#include "sns_sensor_instance.h"
+#include "sns_service_manager.h"
 #include "sns_std.pb.h"
+#include "sns_std_sensor.pb.h"
+#include "sns_stream_service.h"
+#include "sns_time.h"
 
 /**
  * Sensor specific test data structure

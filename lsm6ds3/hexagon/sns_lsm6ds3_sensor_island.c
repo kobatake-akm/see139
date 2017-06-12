@@ -3,38 +3,39 @@
  *
  * Common implementation for LSM6DS3 Sensors for island mode.
  *
- * Copyright (c) 2017 Qualcomm Technologies, Inc. All Rights 
- * Reserved. Confidential and Proprietary - Qualcomm 
- * Technologies, Inc. 
+ * Copyright (c) 2017 Qualcomm Technologies, Inc.
+ * All Rights Reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
 
 #include <string.h>
+#include "sns_attribute_util.h"
+#include "sns_diag_service.h"
+#include "sns_event_service.h"
+#include "sns_math_util.h"
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
-#include "sns_service_manager.h"
-#include "sns_event_service.h"
-#include "sns_stream_service.h"
-#include "sns_service.h"
 #include "sns_sensor_util.h"
-#include "sns_mem_util.h"
-#include "sns_math_util.h"
-#include "sns_types.h"
-#include "sns_diag_service.h"
-#include "sns_attribute_util.h"
+#include "sns_service.h"
+#include "sns_service_manager.h"
+#include "sns_stream_service.h"
 #include "sns_sync_com_port_service.h"
+#include "sns_types.h"
 
-#include "sns_lsm6ds3_sensor.h"
 #include "sns_lsm6ds3_hal.h"
+#include "sns_lsm6ds3_sensor.h"
 
-#include "pb_encode.h"
 #include "pb_decode.h"
+#include "pb_encode.h"
+#include "sns_motion_detect.pb.h"
 #include "sns_pb_util.h"
 #include "sns_std.pb.h"
-#include "sns_std_sensor.pb.h"
-#include "sns_motion_detect.pb.h"
 #include "sns_std_event_gated_sensor.pb.h"
+#include "sns_std_sensor.pb.h"
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
+#include "sns_registry.pb.h"
+#include "sns_printf.h"
 
 static sns_sensor_uid const* lsm6ds3_accel_get_sensor_uid(sns_sensor const *const this)
 {
@@ -78,13 +79,63 @@ lsm6ds3_publish_available(sns_sensor *const this)
       this, SNS_STD_SENSOR_ATTRID_AVAILABLE, &value, 1, true);
 }
 
+/**
+ * Publish attributes read from registry
+ *
+ * @param[i] this    reference to this Sensor
+ *
+ * @return none
+ */
+static void
+lsm6ds3_publish_registry_attributes(sns_sensor *const this)
+{
+  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = state->is_dri;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = state->supports_sync_stream;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = state->hardware_id;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_HW_ID, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
+      SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
+    for(uint8_t i = 0; i < 12; i++)
+    {
+      values[i].has_flt = true;
+      values[i].flt = state->placement[i];
+    }
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PLACEMENT,
+        values, ARR_SIZE(values), false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_sint = true;
+    value.sint = state->registry_pf_cfg.rigid_body_type;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
+  }
+}
+
 static void lsm6ds3_start_power_rail_timer(sns_sensor *const this,
                                            sns_time timeout_ticks,
                                            lsm6ds3_power_rail_pending_state pwr_rail_pend_state)
 {
   lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
-
-  sns_diag_service* diag = state->diag_service;
 
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   size_t req_len;
@@ -106,9 +157,392 @@ static void lsm6ds3_start_power_rail_timer(sns_sensor *const this,
   }
   else
   {
-    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                             "LSM timer req encode error");
+    SNS_PRINTF(ERROR, this, "LSM timer req encode error");
   }
+}
+
+static void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
+                                                  sns_sensor_event *event)
+{
+  bool rv = true;
+  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
+
+  pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
+      event->event_len);
+
+  if(SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_EVENT == event->message_id)
+  {
+    sns_registry_read_event read_event = sns_registry_read_event_init_default;
+    pb_buffer_arg group_name = {0,0};
+    read_event.name.arg = &group_name;
+    read_event.name.funcs.decode = pb_decode_string_cb;
+
+    if(!pb_decode(&stream, sns_registry_read_event_fields, &read_event))
+    {
+      SNS_PRINTF(ERROR, this, "Error decoding registry event");
+    }
+    else
+    {
+      stream = pb_istream_from_buffer((void*)event->event, event->event_len);
+
+      if(0 == strncmp((char*)group_name.buf, "lsm6ds3_0.accel.config",
+                      group_name.buf_len) ||
+         0 == strncmp((char*)group_name.buf, "lsm6ds3_0.gyro.config",
+                      group_name.buf_len) ||
+         0 == strncmp((char*)group_name.buf, "lsm6ds3_0.temp.config",
+                      group_name.buf_len) ||
+         0 == strncmp((char*)group_name.buf, "lsm6ds3_0.md.config",
+                      group_name.buf_len))
+      {
+        {
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+              .group_name = "config",
+              .parse_func = sns_registry_parse_phy_sensor_cfg,
+              .parsed_buffer = &state->registry_cfg
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_cfg_received = true;
+          state->is_dri = state->registry_cfg.is_dri;
+          state->hardware_id = state->registry_cfg.hw_id;
+          state->resolution_idx = state->registry_cfg.res_idx;
+          state->supports_sync_stream = state->registry_cfg.sync_stream;
+
+          SNS_PRINTF(LOW, this, "Registry read event for group %s received "
+                                   "is_dri:%d, hardware_id:%lld ",
+                                   (char*)group_name.buf,
+                                   state->is_dri,
+                                   state->hardware_id);
+          SNS_PRINTF(LOW, this, "resolution_idx:%d, supports_sync_stream:%d ",
+                                   state->resolution_idx,
+                                   state->supports_sync_stream);
+        }
+      }
+      else if(0 == strncmp((char*)group_name.buf, "lsm6ds3_0_platform.config",
+                           group_name.buf_len))
+      {
+        {
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+              .group_name = "config",
+              .parse_func = sns_registry_parse_phy_sensor_pf_cfg,
+              .parsed_buffer = &state->registry_pf_cfg
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_pf_cfg_received = true;
+
+          state->com_port_info.com_config.bus_type = state->registry_pf_cfg.bus_type;
+          state->com_port_info.com_config.bus_instance = state->registry_pf_cfg.bus_instance;
+          state->com_port_info.com_config.slave_control = state->registry_pf_cfg.slave_config;
+          state->com_port_info.com_config.min_bus_speed_KHz = state->registry_pf_cfg.min_bus_speed_khz;
+          state->com_port_info.com_config.max_bus_speed_KHz = state->registry_pf_cfg.max_bus_speed_khz;
+          state->com_port_info.com_config.reg_addr_type = state->registry_pf_cfg.reg_addr_type;
+          state->irq_config.interrupt_num = state->registry_pf_cfg.dri_irq_num;
+          state->irq_config.interrupt_pull_type = state->registry_pf_cfg.irq_pull_type;
+          state->irq_config.is_chip_pin = state->registry_pf_cfg.irq_is_chip_pin;
+          state->irq_config.interrupt_drive_strength = state->registry_pf_cfg.irq_drive_strength;
+          state->irq_config.interrupt_trigger_type = state->registry_pf_cfg.irq_trigger_type;
+          state->rail_config.num_of_rails = state->registry_pf_cfg.num_rail;
+          state->registry_rail_on_state = state->registry_pf_cfg.rail_on_state;
+          sns_strlcpy(state->rail_config.rails[0].name,
+                      state->registry_pf_cfg.vddio_rail,
+                      sizeof(state->rail_config.rails[0].name));
+          sns_strlcpy(state->rail_config.rails[1].name,
+                      state->registry_pf_cfg.vdd_rail,
+                      sizeof(state->rail_config.rails[1].name));
+
+          SNS_PRINTF(LOW, this, "Registry read event for group %s received "
+             "bus_type:%d bus_instance:%d slave_control:%d",
+                                   (char*)group_name.buf,
+                               state->com_port_info.com_config.bus_type,
+                               state->com_port_info.com_config.bus_instance,
+                               state->com_port_info.com_config.slave_control);
+
+          SNS_PRINTF(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
+                               state->com_port_info.com_config.min_bus_speed_KHz,
+                               state->com_port_info.com_config.max_bus_speed_KHz,
+                               state->com_port_info.com_config.reg_addr_type);
+
+          SNS_PRINTF(LOW, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d",
+                               state->irq_config.interrupt_num,
+                               state->irq_config.interrupt_pull_type,
+                               state->irq_config.is_chip_pin);
+
+          SNS_PRINTF(LOW, this, "interrupt_drive_strength:%d interrupt_trigger_type:%d"
+             " rigid body type:%d",
+             state->irq_config.interrupt_drive_strength,
+             state->irq_config.interrupt_trigger_type,
+             state->registry_pf_cfg.rigid_body_type);
+
+          //SENSOR_PRINTF_LOW_FULL(this, "num_rail:%d, rail_on_state:%d, vddio_rail:%s, vdd_rail:%s", state->rail_config.num_of_rails,
+          //   state->registry_rail_on_state,
+          //   state->rail_config.rails[0].name,
+          //   state->rail_config.rails[1].name);
+        }
+      }
+      else if(0 == strncmp((char*)group_name.buf, "lsm6ds3_0_platform.placement",
+                           group_name.buf_len))
+      {
+        {
+          uint8_t arr_index = 0;
+          pb_float_arr_arg arr_arg = {
+            .arr = state->placement,
+            .arr_index = &arr_index,
+            .arr_len = 12
+          };
+
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+              .group_name = "placement",
+              .parse_func = sns_registry_parse_float_arr,
+              .parsed_buffer = &arr_arg
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_placement_received = true;
+          SNS_PRINTF(LOW, this, "Registry read event for group %s received "
+                 "p[0]:%f p[6]:%f p[11]:%f",
+                 (char*)group_name.buf, state->placement[0], state->placement[6],
+                 state->placement[11]);
+        }
+      }
+      else if(0 == strncmp((char*)group_name.buf, "lsm6ds3_0_platform.orient",
+                           group_name.buf_len))
+      {
+        {
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+              .group_name = "orient",
+              .parse_func = sns_registry_parse_axis_orientation,
+              .parsed_buffer = state->axis_map
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_orient_received = true;
+          //SENSOR_PRINTF_LOW_FULL(this, "Registry read event for group %s received ", (char*)group_name.buf);
+
+          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+                 state->axis_map[0].ipaxis,
+                 state->axis_map[0].opaxis, state->axis_map[0].invert);
+
+          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+                 state->axis_map[1].ipaxis, state->axis_map[1].opaxis,
+                 state->axis_map[1].invert);
+
+          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+                 state->axis_map[2].ipaxis, state->axis_map[2].opaxis,
+                 state->axis_map[2].invert);
+        }
+      }
+        else if(0 == strncmp((char*)group_name.buf,
+                           "lsm6ds3_0_platform.accel.fac_cal",
+                           group_name.buf_len) ||
+              0 == strncmp((char*)group_name.buf,
+                         "lsm6ds3_0_platform.gyro.fac_cal",
+                           group_name.buf_len) ||
+              0 == strncmp((char*)group_name.buf,
+                         "lsm6ds3_0_platform.temp.fac_cal",
+                         group_name.buf_len))
+        {
+        {
+          uint8_t bias_arr_index = 0, scale_arr_index = 0;
+          pb_float_arr_arg bias_arr_arg = {
+            .arr = state->fac_cal_bias,
+            .arr_index = &bias_arr_index,
+            .arr_len = TRIAXIS_NUM
+          };
+
+          pb_float_arr_arg scale_arr_arg = {
+            .arr = state->fac_cal_scale,
+            .arr_index = &scale_arr_index,
+            .arr_len = TRIAXIS_NUM
+          };
+
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 3,
+            .parse_info[0] = {
+              .group_name = "bias",
+              .parse_func = sns_registry_parse_float_arr,
+              .parsed_buffer = &bias_arr_arg
+            },
+            .parse_info[1] = {
+              .group_name = "scale",
+              .parse_func = sns_registry_parse_float_arr,
+              .parsed_buffer = &scale_arr_arg
+            },
+            .parse_info[2] = {
+              .group_name = "corr_mat",
+              .parse_func = sns_registry_parse_corr_matrix_3,
+              .parsed_buffer = &state->fac_cal_corr_mat
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_fac_cal_received = true;
+          if(state->fac_cal_scale[0] != 0.0)
+          {
+            state->fac_cal_corr_mat.e00 = state->fac_cal_scale[0];
+            state->fac_cal_corr_mat.e11 = state->fac_cal_scale[1];
+            state->fac_cal_corr_mat.e22 = state->fac_cal_scale[2];
+          }
+
+          //SENSOR_PRINTF_LOW_FULL(this, "Registry read event for group %s received ", group_name.buf);
+          //SENSOR_PRINTF_LOW_FULL(this, "Fac Cal Corr Matrix e00:%f e01:%f e02:%f", state->fac_cal_corr_mat.e00,state->fac_cal_corr_mat.e01,
+          //       state->fac_cal_corr_mat.e02);
+          //SENSOR_PRINTF_LOW_FULL(this, "Fac Cal Corr Matrix e10:%f e11:%f e12:%f", state->fac_cal_corr_mat.e10,state->fac_cal_corr_mat.e11,
+          //       state->fac_cal_corr_mat.e12);
+          //SENSOR_PRINTF_LOW_FULL(this, "Fac Cal Corr Matrix e20:%f e21:%f e22:%f", state->fac_cal_corr_mat.e20,state->fac_cal_corr_mat.e21,
+          //       state->fac_cal_corr_mat.e22);
+          //SENSOR_PRINTF_LOW_FULL(this, "Fac Cal Bias x:%f y:%f z:%f", state->fac_cal_bias[0], state->fac_cal_bias[1],
+          //       state->fac_cal_bias[2]);
+        }
+      }
+      else if(0 == strncmp((char*)group_name.buf,
+                           "lsm6ds3_0_platform.md.config",
+                           group_name.buf_len))
+      {
+        {
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+              .group_name = "lsm6ds3_0_platform.md.config",
+              .parse_func = sns_registry_parse_md_cfg,
+              .parsed_buffer = &state->md_config
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_md_config_received = true;
+          //SENSOR_PRINTF_LOW_FULL(this, "Registry read event for group %s received ", (char*)group_name.buf);
+
+          //SENSOR_PRINTF_LOW_FULL(this, "MD Threshold:%f m/s2 MD Window:%f sec MD Disable :%d", state->md_config.thresh, state->md_config.win, state->md_config.disable);
+        }
+      }
+      else
+      {
+        rv = false;
+      }
+
+      if(!rv)
+      {
+        //SENSOR_PRINTF_ERROR_FULL(this, "Error decoding registry group %s due to %s", (char*)group_name.buf,
+        //                         PB_GET_ERROR(&stream));
+      }
+    }
+  }
+  else
+  {
+    SNS_PRINTF(ERROR, this, "Received unsupported registry event msg id %u",
+                             event->message_id);
+  }
+}
+
+static void lsm6ds3_sensor_send_registry_request(sns_sensor *const this,
+                                                 char *reg_group_name)
+{
+  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
+  uint8_t buffer[100];
+  int32_t encoded_len;
+  sns_memset(buffer, 0, sizeof(buffer));
+  sns_rc rc = SNS_RC_SUCCESS;
+
+  sns_registry_read_req read_request;
+  pb_buffer_arg data = (pb_buffer_arg){ .buf = reg_group_name,
+    .buf_len = (strlen(reg_group_name) + 1) };
+
+  read_request.name.arg = &data;
+  read_request.name.funcs.encode = pb_encode_string_cb;
+
+  encoded_len = pb_encode_request(buffer, sizeof(buffer),
+      &read_request, sns_registry_read_req_fields, NULL);
+  if(0 < encoded_len)
+  {
+    sns_request request = (sns_request){
+      .request_len = encoded_len, .request = buffer,
+      .message_id = SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_REQ };
+    rc = state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
+  }
+
+  //SENSOR_PRINTF_LOW_FULL(this, "Sending registry request for group name:%s", reg_group_name);
+}
+
+/**
+ * Sets instance config to run a self test.
+ *
+ * @param[i] this      Sensor reference
+ * @param[i] instance  Sensor Instance reference
+ *
+ * @return none
+ */
+void lsm6ds3_set_self_test_inst_config(sns_sensor *this,
+                              sns_sensor_instance *instance)
+{
+
+  sns_request config;
+
+  config.message_id = SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG;
+  config.request_len = 0;
+  config.request = NULL;
+
+  this->instance_api->set_client_config(instance, &config);
 }
 
 /** See sns_lsm6ds3_sensor.h*/
@@ -122,7 +556,6 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
   uint8_t buffer[1];
   sns_rc rv = SNS_RC_SUCCESS;
   sns_sensor_event *event;
-  sns_diag_service* diag = state->diag_service;
 
   if(state->fw_stream)
   {
@@ -130,12 +563,47 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
      || (0 == sns_memcmp(&state->acp_suid, &((sns_sensor_uid){{0}}), sizeof(state->acp_suid)))
      || (0 == sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid)))
      || (0 == sns_memcmp(&state->dae_suid, &((sns_sensor_uid){{0}}), sizeof(state->dae_suid)))
-#if LSM6DS3_ENABLE_DEPENDENCY
-     || (0 == sns_memcmp(&state->reg_suid, &((sns_sensor_uid){{0}}), sizeof(state->reg_suid)))
-#endif
-    )
+     || (0 == sns_memcmp(&state->reg_suid, &((sns_sensor_uid){{0}}), sizeof(state->reg_suid))))
     {
       lsm6ds3_process_suid_events(this);
+
+      // place a request to registry sensor
+      if((0 != sns_memcmp(&state->reg_suid, &((sns_sensor_uid){{0}}), sizeof(state->reg_suid))))
+      {
+        if(state->reg_data_stream == NULL)
+        {
+          stream_svc->api->create_sensor_stream(stream_svc,
+              this, state->reg_suid , &state->reg_data_stream);
+
+          lsm6ds3_sensor_send_registry_request(this, "lsm6ds3_0_platform.config");
+          lsm6ds3_sensor_send_registry_request(this, "lsm6ds3_0_platform.placement");
+          lsm6ds3_sensor_send_registry_request(this, "lsm6ds3_0_platform.orient");
+          lsm6ds3_sensor_send_registry_request(this, "lsm6ds3_0_platform.md.config");
+
+          if(LSM6DS3_ACCEL == state->sensor)
+          {
+            lsm6ds3_sensor_send_registry_request(this, "lsm6ds3_0.accel.config");
+            lsm6ds3_sensor_send_registry_request(
+              this, "lsm6ds3_0_platform.accel.fac_cal");
+          }
+          else if(LSM6DS3_GYRO == state->sensor)
+          {
+            lsm6ds3_sensor_send_registry_request(this, "lsm6ds3_0.gyro.config");
+            lsm6ds3_sensor_send_registry_request(
+              this, "lsm6ds3_0_platform.gyro.fac_cal");
+          }
+          else if(LSM6DS3_SENSOR_TEMP == state->sensor)
+          {
+            lsm6ds3_sensor_send_registry_request(
+              this, "lsm6ds3_0.temp.config");
+          }
+          else if(LSM6DS3_MOTION_DETECT == state->sensor)
+          {
+            lsm6ds3_sensor_send_registry_request(
+              this, "lsm6ds3_0.md.config");
+          }
+        }
+      }
     }
   }
 
@@ -148,127 +616,124 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
       pb_istream_t stream = pb_istream_from_buffer((pb_byte_t*)event->event,
                                                    event->event_len);
       sns_timer_sensor_event timer_event;
-      if(pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
+
+      if(SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
       {
-        if(state->power_rail_pend_state == LSM6DS3_POWER_RAIL_PENDING_INIT)
+        if(pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
-          /**-------------------Read and Confirm WHO-AM-I------------------------*/
-          buffer[0] = 0x0;
-          rv = lsm6ds3_get_who_am_i(state->scp_service,state->com_port_info.port_handle, &buffer[0]);
-          if(rv == SNS_RC_SUCCESS
-             &&
-             buffer[0] == LSM6DS3_WHOAMI_VALUE)
+          if(state->power_rail_pend_state == LSM6DS3_POWER_RAIL_PENDING_INIT)
           {
-            // Reset Sensor
-            rv = lsm6ds3_reset_device(state->scp_service,state->com_port_info.port_handle,
-                                      LSM6DS3_ACCEL | LSM6DS3_GYRO | LSM6DS3_MOTION_DETECT | LSM6DS3_SENSOR_TEMP);
-
-            if(rv == SNS_RC_SUCCESS)
+            /**-------------------Read and Confirm WHO-AM-I------------------------*/
+            buffer[0] = 0x0;
+            rv = lsm6ds3_get_who_am_i(state->scp_service,state->com_port_info.port_handle, &buffer[0]);
+            if(rv == SNS_RC_SUCCESS
+               &&
+               buffer[0] == LSM6DS3_WHOAMI_VALUE)
             {
-               state->hw_is_present = true;
+              // Reset Sensor
+              rv = lsm6ds3_reset_device(state->scp_service,state->com_port_info.port_handle,
+                                        LSM6DS3_ACCEL | LSM6DS3_GYRO | LSM6DS3_MOTION_DETECT | LSM6DS3_SENSOR_TEMP);
+
+              if(rv == SNS_RC_SUCCESS)
+              {
+                 state->hw_is_present = true;
+              }
             }
-          }
-          state->who_am_i = buffer[0];
+            state->who_am_i = buffer[0];
 
-          /**------------------Power Down and Close COM Port--------------------*/
-          state->scp_service->api->sns_scp_update_bus_power(
-                                                      state->com_port_info.port_handle,
-                                                      false);
+            /**------------------Power Down and Close COM Port--------------------*/
+            state->scp_service->api->sns_scp_update_bus_power(
+                                                        state->com_port_info.port_handle,
+                                                        false);
 
-          state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
-          state->scp_service->api->sns_scp_deregister_com_port(state->com_port_info.port_handle);
+            state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
+            state->scp_service->api->sns_scp_deregister_com_port(state->com_port_info.port_handle);
 
-          /**----------------------Turn Power Rail OFF--------------------------*/
-          state->rail_config.rail_vote = SNS_RAIL_OFF;
-          state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
-                                                                   this,
-                                                                   &state->rail_config,
-                                                                   NULL);
-          if(state->hw_is_present)
-          {
-            lsm6ds3_publish_available(this);
-          }
-          else
-          {
-            rv = SNS_RC_INVALID_STATE;
-            diag->api->sensor_printf(diag, this, SNS_LOW, __FILENAME__, __LINE__,
-                                     "LSM6DS3 HW absent");
-
+            /**----------------------Turn Power Rail OFF--------------------------*/
             state->rail_config.rail_vote = SNS_RAIL_OFF;
             state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                                      this,
                                                                      &state->rail_config,
                                                                      NULL);
+            if(state->hw_is_present)
+            {
+              lsm6ds3_publish_available(this);
+            }
+            else
+            {
+              rv = SNS_RC_INVALID_STATE;
+              SNS_PRINTF(LOW, this, "LSM6DS3 HW absent");
+            }
+            state->power_rail_pend_state = LSM6DS3_POWER_RAIL_PENDING_NONE;
           }
-          state->power_rail_pend_state = LSM6DS3_POWER_RAIL_PENDING_NONE;
-        }
-        else if(state->power_rail_pend_state == LSM6DS3_POWER_RAIL_PENDING_SET_CLIENT_REQ)
-        {
-          sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
-          if(NULL != instance)
+          else if(state->power_rail_pend_state == LSM6DS3_POWER_RAIL_PENDING_SET_CLIENT_REQ)
           {
-            lsm6ds3_instance_state *inst_state =
-               (lsm6ds3_instance_state*) instance->state->state;
-            inst_state->instance_is_ready_to_configure = true;
-            lsm6ds3_reval_instance_config(this, instance, state->sensor);
+            sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
+            if(NULL != instance)
+            {
+              lsm6ds3_instance_state *inst_state =
+                 (lsm6ds3_instance_state*) instance->state->state;
+              inst_state->instance_is_ready_to_configure = true;
+              lsm6ds3_reval_instance_config(this, instance, state->sensor);
+              if(inst_state->new_self_test_request)
+              {
+                lsm6ds3_set_self_test_inst_config(this, instance);
+              }
+            }
+            state->power_rail_pend_state = LSM6DS3_POWER_RAIL_PENDING_NONE;
           }
-          state->power_rail_pend_state = LSM6DS3_POWER_RAIL_PENDING_NONE;
+        }
+        else
+        {
+          SNS_PRINTF(ERROR, this, "pb_decode error");
         }
       }
-      else
-      {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                 "pb_decode error");
-      }
-
       event = state->timer_stream->api->get_next_input(state->timer_stream);
     }
   }
 
-#if LSM6DS3_ENABLE_DEPENDENCY
   if(NULL != state->reg_data_stream)
   {
     event = state->reg_data_stream->api->peek_input(state->reg_data_stream);
     while(NULL != event)
     {
-#endif  //LSM6DS3_ENABLE_DEPENDENCY
-#if LSM6DS3_USE_DEFAULTS
-      state->com_port_info.com_config.bus_instance = BUS_INSTANCE;
-      state->com_port_info.com_config.bus_type = BUS_TYPE;
-      state->com_port_info.com_config.max_bus_speed_KHz = BUS_FREQ;
-      state->com_port_info.com_config.min_bus_speed_KHz = SPI_BUS_MIN_FREQ_KHZ;
-      state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
-      state->com_port_info.com_config.slave_control = SLAVE_CONTROL;
-      state->irq_config.interrupt_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
-      state->irq_config.interrupt_num = IRQ_NUM;
-      state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_KEEPER;
-      state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-      state->irq_config.is_chip_pin = true;
-#else   //LSM6DS3_USE_DEFAULTS
-      //TODO update to use Registry Sensor data
-#endif  //LSM6DS3_USE_DEFAULTS
+      lsm6ds3_sensor_process_registry_event(this, event);
+
+      if(state->registry_cfg_received && state->registry_placement_received)
+      {
+        lsm6ds3_publish_registry_attributes(this);
+      }
+
+      event = state->reg_data_stream->api->get_next_input(state->reg_data_stream);
+    }
+  }
+
+  if(0 != sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid)) &&
+     state->registry_pf_cfg_received && state->registry_cfg_received &&
+     state->registry_orient_received &&
+     state->registry_placement_received && state->registry_md_config_received)
+  {
+      state->registry_pf_cfg_received = false;
 
       /**-----------------Register and Open COM Port-------------------------*/
       if(NULL == state->com_port_info.port_handle)
       {
-        state->scp_service->api->sns_scp_register_com_port(&state->com_port_info.com_config,
+        rv = state->scp_service->api->sns_scp_register_com_port(
+           &state->com_port_info.com_config,
                                                 &state->com_port_info.port_handle);
 
-        state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
+        if(rv == SNS_RC_SUCCESS)
+        {
+          rv = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
+        }
       }
 
       /**---------------------Register Power Rails --------------------------*/
       if(0 != sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid))
-         && NULL == state->pwr_rail_service)
+         && NULL == state->pwr_rail_service
+         && rv == SNS_RC_SUCCESS)
       {
         state->rail_config.rail_vote = SNS_RAIL_OFF;
-        state->rail_config.num_of_rails = NUM_OF_RAILS;
-        strlcpy(state->rail_config.rails[0].name,
-                RAIL_1,
-                sizeof(state->rail_config.rails[0].name));
-        strlcpy(state->rail_config.rails[1].name,
-                RAIL_2,
-                sizeof(state->rail_config.rails[1].name));
 
         state->pwr_rail_service =
          (sns_pwr_rail_service*)service_mgr->get_service(service_mgr,
@@ -284,8 +749,9 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
         }
         else
         {
-          state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
+          state->rail_config.rail_vote = state->registry_rail_on_state;
         }
+
         state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                                  this,
                                                                  &state->rail_config,
@@ -304,16 +770,11 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
           }
         }
       }
-
-#if LSM6DS3_ENABLE_DEPENDENCY
-      event = state->reg_data_stream->api->get_next_input(state->reg_data_stream);
     }
-  }
-#endif  //LSM6DS3_ENABLE_DEPENDENCY
   return rv;
 }
 
-static void  lsm6ds3_send_flush_config(sns_sensor *const this,
+static void lsm6ds3_send_flush_config(sns_sensor *const this,
                                        sns_sensor_instance *instance)
 {
   sns_request config;
@@ -340,9 +801,6 @@ static bool lsm6ds3_get_decoded_imu_request(sns_sensor const *this, sns_request 
                                             sns_std_request *decoded_request,
                                             sns_std_sensor_config *decoded_payload)
 {
-
-  lsm6ds3_state *state = (lsm6ds3_state *) this->state->state;
-  sns_diag_service* diag = state->diag_service;
   pb_istream_t stream;
   pb_simple_cb_arg arg =
       { .decoded_struct = decoded_payload,
@@ -353,13 +811,56 @@ static bool lsm6ds3_get_decoded_imu_request(sns_sensor const *this, sns_request 
                                   in_request->request_len);
   if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-    diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                             "LSM decode error");
+    SNS_PRINTF(ERROR, this, "LSM decode error");
     return false;
   }
   return true;
 }
 
+/**
+ * Decodes self test requests.
+ *
+ * @param[i] this              Sensor reference
+ * @param[i] request           Encoded input request
+ * @param[o] decoded_request   Decoded standard request
+ * @param[o] test_config       decoded self test request
+ *
+ * @return bool True if decoding is successfull else false.
+ */
+static bool lsm6ds3_get_decoded_self_test_request(sns_sensor const *this, sns_request const *request,
+                                                  sns_std_request *decoded_request,
+                                                  sns_physical_sensor_test_config *test_config)
+{
+  pb_istream_t stream;
+  pb_simple_cb_arg arg =
+      { .decoded_struct = test_config,
+        .fields = sns_physical_sensor_test_config_fields };
+  decoded_request->payload = (struct pb_callback_s)
+      { .funcs.decode = &pb_decode_simple_cb, .arg = &arg };
+  stream = pb_istream_from_buffer(request->request,
+                                  request->request_len);
+  if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
+  {
+    SNS_PRINTF(ERROR, this, "LSM decode error");
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Parses through all starndard streaming requests and deduces
+ * best HW config for the inertial sensor type.
+ *
+ * @param[i] this             Sensor reference
+ * @param[i] instance         Instance reference
+ * @param[i] sensor_type      sensor type
+ * @param[o] chosen_sample_rate   chosen sample rate in Hz
+ * @param[o] chosen_report_rate   chosen report rate in Hz
+ * @param[o] non_gated_sensor_client_present  True if non-gated
+ *       client is present.
+ * @param[o] gated_sensor_client_present  Tur if gated client is
+ *       present.
+ */
 static void lsm6ds3_get_imu_config(sns_sensor *this,
                                    sns_sensor_instance *instance,
                                    lsm6ds3_sensor_type sensor_type,
@@ -436,6 +937,17 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
   }
 }
 
+/**
+ * Determines motion detect config.
+ *
+ * @param[i] this   Sensor reference
+ * @param[i] instance  Sensor Instance reference
+ * @param[o] chosen_md_enable  True if MD should be enabled
+ * @param[o] md_client_present True if there is an MD client
+ *       present.
+ *
+ * @return none
+ */
 static void lsm6ds3_get_motion_detect_config(sns_sensor *this,
                                              sns_sensor_instance *instance,
                                              bool *chosen_md_enable,
@@ -445,28 +957,49 @@ static void lsm6ds3_get_motion_detect_config(sns_sensor *this,
   sns_sensor_uid suid = MOTION_DETECT_SUID;
   lsm6ds3_instance_state *inst_state =
      (lsm6ds3_instance_state*)instance->state->state;
+  sns_request const *request;
 
   *chosen_md_enable = false;
+  *md_client_present = false;
 
-  if(NULL != instance->cb->get_client_request(instance, &suid, true))
+  for(request = instance->cb->get_client_request(instance, &suid, true);
+      NULL != request;
+      request = instance->cb->get_client_request(instance, &suid, false))
   {
-    // Enable MD interrupt when:
-    // 1. There is a new request and MD is in MDF state OR
-    // 2. There is an existing request and MD is in MDE/MDD state
+    if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_ON_CHANGE_CONFIG)
+    {
+      // Enable MD interrupt when:
+      // 1. There is a new request and MD is in MDF state OR
+      // 2. There is an existing request and MD is in MDE/MDD state
 
-    *chosen_md_enable = ((inst_state->md_info.md_new_req &&
-                         inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_FIRED)
-                         ||
-                         (inst_state->md_info.md_client_present &&
-                          (inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_ENABLED
-                           || inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_DISABLED)));
+      *chosen_md_enable = ((inst_state->md_info.md_new_req &&
+                           inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_FIRED)
+                           ||
+                           (inst_state->md_info.md_client_present &&
+                            (inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_ENABLED
+                             || inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_DISABLED)));
 
-    *md_client_present = true;
-    // Consumed new request
-    inst_state->md_info.md_new_req = false;
+      *md_client_present = true;
+      // Consumed new request
+      inst_state->md_info.md_new_req = false;
+      return;
+    }
   }
 }
 
+/**
+ * Parses through standard streaming requests for the sensor
+ * temperature dataype and deduces best HW config.
+ *
+ * @param[i] this      Sensor reference
+ * @param[i] instance  Sensor Intance reference
+ * @param[o] chosen_sample_rate  chosen sample rate in Hz
+ * @param[o] chosen_report_rate  chosen report rate in Hz
+ * @param[o] sensor_temp_client_present  True if there is a
+ *       sensor temp client present
+ *
+ * @return none
+ */
 static void lsm6ds3_get_sensor_temp_config(sns_sensor *this,
                                            sns_sensor_instance *instance,
                                            float *chosen_sample_rate,
@@ -499,6 +1032,11 @@ static void lsm6ds3_get_sensor_temp_config(sns_sensor *this,
         float report_rate;
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                        decoded_payload.sample_rate);
+        bool rc = sns_sensor_util_decide_max_batch(instance,&suid);
+        //There is request with max batch not set .
+        // do normal calculation
+        if(!rc)
+        {
         if(decoded_request.has_batching
            &&
            decoded_request.batching.batch_period > 0)
@@ -509,6 +1047,11 @@ static void lsm6ds3_get_sensor_temp_config(sns_sensor *this,
         {
           report_rate = *chosen_sample_rate;
         }
+        }
+        else
+        {
+          report_rate = (1000000.0 / (float)UINT32_MAX);
+        }
         *chosen_report_rate = SNS_MAX(*chosen_report_rate, report_rate);
         *sensor_temp_client_present = true;
       }
@@ -518,10 +1061,23 @@ static void lsm6ds3_get_sensor_temp_config(sns_sensor *this,
   inst_state->sensor_temp_info.sampling_rate_hz = *chosen_sample_rate;
 }
 
+/**
+ * Set standard streaming config for the instance.
+ *
+ * @param[i] this        Sensor reference
+ * @param[i] instance    Sensor Instance reference
+ * @param[i] chosen_report_rate   chosen report rate in Hz
+ * @param[i] chosen_sample_rate   chosen sample rate in Hz
+ * @param[i] registry_cfg Sensor specific registry configuration
+ * @param[i] message_id           input message ID 
+ *
+ * @return none
+ */
 static void lsm6ds3_set_inst_config(sns_sensor *this,
                                     sns_sensor_instance *instance,
                                     float chosen_report_rate,
                                     float chosen_sample_rate,
+                                    sns_lsm6ds3_registry_cfg registry_cfg,
                                     uint32_t message_id)
 {
   sns_lsm6ds3_req new_client_config;
@@ -529,6 +1085,7 @@ static void lsm6ds3_set_inst_config(sns_sensor *this,
 
   new_client_config.desired_report_rate = chosen_report_rate;
   new_client_config.desired_sample_rate = chosen_sample_rate;
+  new_client_config.registry_cfg = registry_cfg;
 
   config.message_id = message_id;
   config.request_len = sizeof(sns_lsm6ds3_req);
@@ -537,6 +1094,13 @@ static void lsm6ds3_set_inst_config(sns_sensor *this,
   this->instance_api->set_client_config(instance, &config);
 }
 
+/**
+ * Turns power rails off
+ *
+ * @paramp[i] this   Sensor reference
+ *
+ * @return none
+ */
 static void lsm6ds3_turn_rails_off(sns_sensor *this)
 {
   sns_sensor *sensor;
@@ -557,9 +1121,63 @@ static void lsm6ds3_turn_rails_off(sns_sensor *this)
   }
 }
 
-void lsm6ds3_reval_instance_config(sns_sensor *this,
+/**
+ * Decodes a physical sensor self test request and updates
+ * instance state with request info.
+ *
+ * @param[i] this      Sensor reference
+ * @param[i] instance  Sensor Instance reference
+ * @param[i] new_request Encoded request
+ *
+ * @return True if request is valid else false
+ */
+static bool lsm6ds3_extract_self_test_info(sns_sensor *this,
                               sns_sensor_instance *instance,
-                              lsm6ds3_sensor_type sensor_type)
+                              struct sns_request const *new_request)
+{
+  sns_std_request decoded_request;
+  sns_physical_sensor_test_config test_config = sns_physical_sensor_test_config_init_default;
+  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
+  lsm6ds3_instance_state *inst_state = (lsm6ds3_instance_state*)instance->state->state;
+  lsm6ds3_self_test_info *self_test_info;
+
+  if(state->sensor == LSM6DS3_ACCEL)
+  {
+    self_test_info = &inst_state->accel_info.test_info;
+  }
+  else if(state->sensor == LSM6DS3_GYRO)
+  {
+    self_test_info = &inst_state->gyro_info.test_info;
+  }
+  else if(state->sensor == LSM6DS3_MOTION_DETECT)
+  {
+    self_test_info = &inst_state->md_info.test_info;
+  }
+  else if(state->sensor == LSM6DS3_SENSOR_TEMP)
+  {
+    self_test_info = &inst_state->sensor_temp_info.test_info;
+  }
+  else
+  {
+    return false;
+  }
+
+  if(lsm6ds3_get_decoded_self_test_request(this, new_request, &decoded_request, &test_config))
+  {
+    self_test_info->test_type = test_config.test_type;
+    self_test_info->test_client_present = true;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+/** See sns_lsm6ds3_sensor.h */
+void lsm6ds3_reval_instance_config(sns_sensor *this,
+                                   sns_sensor_instance *instance,
+                                   lsm6ds3_sensor_type sensor_type)
 {
   /**
    * 1. Get best non-gated and gated Accel Config.
@@ -568,7 +1186,6 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
    * 4. Get best Sensor Temperature Config.
    * 5. Decide best Instance Config based on above outputs.
    */
-  UNUSED_VAR(sensor_type);
   float chosen_sample_rate = 0;
   float chosen_report_rate = 0;
   float sample_rate = 0;
@@ -580,6 +1197,8 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
   bool sensor_temp_client_present;
   lsm6ds3_instance_state *inst_state =
      (lsm6ds3_instance_state*)instance->state->state;
+  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
+  sns_lsm6ds3_registry_cfg registry_cfg = {.sensor_type = sensor_type};
 
   lsm6ds3_get_imu_config(this,
                          instance,
@@ -606,8 +1225,6 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
                                    instance,
                                    &inst_state->md_info.enable_md_int,
                                    &md_sensor_client_present);
-
-  //md_sensor_client_present = inst_state->md_info.enable_md_int;
 
   inst_state->md_info.md_client_present = md_sensor_client_present;
 
@@ -667,17 +1284,22 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
     inst_state->fifo_info.publish_sensors |= LSM6DS3_SENSOR_TEMP;
   }
 
+  if(LSM6DS3_ACCEL == sensor_type || LSM6DS3_GYRO == sensor_type ||
+     LSM6DS3_SENSOR_TEMP == sensor_type)
+  {
+    sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
+                state->fac_cal_bias, sizeof(state->fac_cal_bias));
+
+    sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
+                &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
+  }
+
   lsm6ds3_set_inst_config(this,
                           instance,
                           chosen_report_rate,
                           chosen_sample_rate,
+                          registry_cfg,
                           SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG);
-
-  if(!inst_state->fifo_info.fifo_enabled)
-  {
-    lsm6ds3_turn_rails_off(this);
-    inst_state->instance_is_ready_to_configure = false;
-  }
 }
 
 /** See sns_lsm6ds3_sensor.h */
@@ -734,8 +1356,9 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
        }
        else
        {
-         state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
+         state->rail_config.rail_vote = state->registry_rail_on_state;
        }
+
        state->pwr_rail_service->api->sns_vote_power_rail_update(
                                             state->pwr_rail_service,
                                             this,
@@ -826,15 +1449,27 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
           {
             inst_state->md_info.md_new_req = true;
           }
+          if(new_request->message_id ==
+             SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
+          {
+            if(lsm6ds3_extract_self_test_info(this, instance, new_request))
+            {
+              inst_state->new_self_test_request = true;
+            }
+          }
         }
         if(reval_config && inst_state->instance_is_ready_to_configure)
         {
           lsm6ds3_reval_instance_config(this, instance, state->sensor);
+
+          if(inst_state->new_self_test_request)
+          {
+            lsm6ds3_set_self_test_inst_config(this, instance);
+          }
         }
      }
   }
 
-  // QC: Sensors are required to call remove_instance when clientless
   if(NULL != instance &&
      NULL == instance->cb->get_client_request(instance,
        &(sns_sensor_uid)MOTION_DETECT_SUID, true) &&
@@ -846,6 +1481,7 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
        &(sns_sensor_uid)SENSOR_TEMPERATURE_SUID, true))
   {
     this->cb->remove_instance(instance);
+    lsm6ds3_turn_rails_off(this);
   }
 
   return instance;
@@ -855,8 +1491,6 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
 void lsm6ds3_process_suid_events(sns_sensor *const this)
 {
   lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
-
-  sns_diag_service* diag = state->diag_service;
 
   for(;
       0 != state->fw_stream->api->get_input_cnt(state->fw_stream);
@@ -881,8 +1515,7 @@ void lsm6ds3_process_suid_events(sns_sensor *const this)
       suid_event.suid.arg = &suid_search;
 
       if(!pb_decode(&stream, sns_suid_event_fields, &suid_event)) {
-         diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                 "SUID Decode failed");
+         SNS_PRINTF(ERROR, this, "SUID Decode failed");
          continue;
        }
 
@@ -916,8 +1549,7 @@ void lsm6ds3_process_suid_events(sns_sensor *const this)
       }
       else
       {
-        diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-                                 "invalid datatype_name %s", data_type_arg.buf);
+        //SENSOR_PRINTF_ERROR_FULL(this, "invalid datatype_name %s", data_type_arg.buf);
       }
     }
   }

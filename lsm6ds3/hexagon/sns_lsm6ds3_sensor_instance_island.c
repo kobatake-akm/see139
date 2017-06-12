@@ -10,31 +10,32 @@
  **/
 
 #include "sns_mem_util.h"
+#include "sns_rc.h"
+#include "sns_request.h"
+#include "sns_sensor_event.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
 #include "sns_stream_service.h"
-#include "sns_rc.h"
-#include "sns_request.h"
 #include "sns_time.h"
-#include "sns_sensor_event.h"
 #include "sns_types.h"
 
 #include "sns_lsm6ds3_hal.h"
 #include "sns_lsm6ds3_sensor.h"
 #include "sns_lsm6ds3_sensor_instance.h"
 
-#include "sns_interrupt.pb.h"
 #include "sns_async_com_port.pb.h"
+#include "sns_interrupt.pb.h"
 #include "sns_timer.pb.h"
 
-#include "pb_encode.h"
 #include "pb_decode.h"
-#include "sns_pb_util.h"
+#include "pb_encode.h"
 #include "sns_async_com_port_pb_utils.h"
-#include "sns_diag_service.h"
-#include "sns_std_event_gated_sensor.pb.h"
 #include "sns_diag.pb.h"
+#include "sns_diag_service.h"
+#include "sns_pb_util.h"
+#include "sns_std_event_gated_sensor.pb.h"
 #include "sns_sync_com_port_service.h"
+#include "sns_printf.h"
 
 const odr_reg_map reg_map[LSM6DS3_REG_MAP_TABLE_SIZE] =
 {
@@ -237,7 +238,6 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
          (lsm6ds3_instance_state*)this->state->state;
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
   sns_sensor_event *event;
-  sns_diag_service* diag = state->diag_service;
 
   lsm6ds3_dae_if_process_events(this);
 
@@ -268,6 +268,21 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
                                                      event->event_len);
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
+          /** lsm6ds3_read_gpio() and lsm6ds3_write_gpio() is example only
+          to demonstrate the gpio service. These functions are not needed
+          for the functioning of this driver.*/
+          lsm6ds3_read_gpio(this, state->irq_info.irq_config.interrupt_num,
+                            state->irq_info.irq_config.is_chip_pin);
+
+/** GPIO 80 is not dedicated for sensors in case of
+ *  SSC_TARGET_HEXAGON_CORE_QDSP6_2_0 */
+#ifndef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
+          /** GPIO 80 is LDO_EN pin. */
+          lsm6ds3_write_gpio(this, 80, true,
+                             SNS_GPIO_DRIVE_STRENGTH_2_MILLI_AMP,
+                             SNS_GPIO_PULL_TYPE_NO_PULL,
+                             SNS_GPIO_STATE_HIGH);
+#endif
           if(state->md_info.enable_md_int)
           {
             /**
@@ -312,9 +327,7 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
       }
       else
       {
-        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid,
-                                      SNS_ERROR, __FILENAME__, __LINE__,
-                                      "Received invalid event id=%d",
+        SNS_INST_PRINTF(ERROR, this, "Received invalid event id=%d",
                                       event->message_id);
       }
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
@@ -330,9 +343,7 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
       if(event->message_id == SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR)
       {
         //TODO: Warning;
-        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid,
-                                      SNS_ERROR, __FILENAME__, __LINE__,
-                                      "Received ASCP error event id=%d",
+        SNS_INST_PRINTF(ERROR, this, "Received ASCP error event id=%d",
                                       event->message_id);
       }
       else if(event->message_id == SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW)
@@ -345,6 +356,23 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
           state->fifo_flush_in_progress = false;
           lsm6ds3_send_fifo_flush_done(this);
         }
+
+       /** lsm6ds3_read_gpio() and lsm6ds3_write_gpio() is example only
+          to demonstrate the gpio service. These functions are not needed
+          for the functioning of this driver.*/
+       lsm6ds3_read_gpio(this, state->irq_info.irq_config.interrupt_num,
+                         state->irq_info.irq_config.is_chip_pin);
+
+/** GPIO 80 is not dedicated for sensors in case of
+ *  SSC_TARGET_HEXAGON_CORE_QDSP6_2_0 */
+#ifndef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
+       /** GPIO 80 is LDO_EN pin. */
+       lsm6ds3_write_gpio(this, 80, true,
+                          SNS_GPIO_DRIVE_STRENGTH_2_MILLI_AMP,
+                          SNS_GPIO_PULL_TYPE_NO_PULL,
+                          SNS_GPIO_STATE_LOW);
+#endif
+
       }
       event = state->async_com_port_data_stream->api->get_next_input(state->async_com_port_data_stream);
     }
@@ -404,7 +432,8 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
   sns_rc rv = SNS_RC_SUCCESS;
   uint8_t num_samples_to_discard;
   sns_lsm6ds3_req *payload = (sns_lsm6ds3_req*)client_request->request;
-  sns_diag_service* diag = state->diag_service;
+  float *fac_cal_bias = NULL;
+  matrix3 *fac_cal_corr_mat = NULL;
 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle,
@@ -435,9 +464,7 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
       if(rv != SNS_RC_SUCCESS)
       {
         // TODO Unsupported rate. Report error using sns_std_error_event.
-        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid,
-                                      SNS_ERROR, __FILENAME__, __LINE__,
-                                      "accel ODR match error %d", rv);
+        SNS_INST_PRINTF(ERROR, this, "accel ODR match error %d", rv);
         //return rv;
       }
     }
@@ -450,9 +477,7 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
       if(rv != SNS_RC_SUCCESS)
       {
         // TODO Unsupported rate. Report error using sns_std_error_event.
-        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid,
-                                      SNS_ERROR, __FILENAME__, __LINE__,
-                                      "gyro ODR match error %d", rv);
+        SNS_INST_PRINTF(ERROR, this, "gyro ODR match error %d", rv);
         //return rv;
       }
     }
@@ -463,9 +488,7 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
       if(rv != SNS_RC_SUCCESS)
       {
         // TODO Unsupported rate. Report error using sns_std_error_event.
-        diag->api->sensor_inst_printf(diag, this, &state->accel_info.suid,
-                                      SNS_ERROR, __FILENAME__, __LINE__,
-                                      "sensor_temp ODR match error %d", rv);
+        SNS_INST_PRINTF(ERROR, this, "sensor_temp ODR match error %d", rv);
         //return rv;
       }
     }
@@ -516,6 +539,34 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
       lsm6ds3_reconfig_hw(this);
       lsm6ds3_send_config_event(this);
     }
+
+    // update registry configuration
+    if(LSM6DS3_ACCEL == payload->registry_cfg.sensor_type)
+    {
+      fac_cal_bias = state->accel_registry_cfg.fac_cal_bias;
+      fac_cal_corr_mat = &state->accel_registry_cfg.fac_cal_corr_mat;
+    }
+    else if(LSM6DS3_GYRO == payload->registry_cfg.sensor_type)
+    {
+      fac_cal_bias = state->gyro_registry_cfg.fac_cal_bias;
+      fac_cal_corr_mat = &state->gyro_registry_cfg.fac_cal_corr_mat;
+    }
+    else if(LSM6DS3_SENSOR_TEMP == payload->registry_cfg.sensor_type)
+    {
+      fac_cal_bias = state->sensor_temp_registry_cfg.fac_cal_bias;
+      fac_cal_corr_mat = &state->sensor_temp_registry_cfg.fac_cal_corr_mat;
+    }
+
+    if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat)
+    {
+      sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
+                  payload->registry_cfg.fac_cal_bias, 
+                  sizeof(payload->registry_cfg.fac_cal_bias));
+
+      sns_memscpy(fac_cal_corr_mat, sizeof(payload->registry_cfg.fac_cal_corr_mat),
+                  &payload->registry_cfg.fac_cal_corr_mat, 
+                  sizeof(payload->registry_cfg.fac_cal_corr_mat));
+    }
   }
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
@@ -525,17 +576,16 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
       lsm6ds3_handle_interrupt_event(this);
     }
   }
-  else if(client_request->message_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
+  else if(client_request->message_id ==
+          SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
-     // 1. Extract test type from client_request.
-     // 2. Configure sensor HW for test type.
-     // 3. send_request() for Timer Sensor in case test needs polling/waits.
-     // 4. Factory test is TBD.
+    lsm6ds3_run_self_test(this);
+    state->new_self_test_request = false;
   }
 
   // Turn COM port OFF
   state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle,
-                                                                           false);
+                                                    false);
 
   return SNS_RC_SUCCESS;
 }

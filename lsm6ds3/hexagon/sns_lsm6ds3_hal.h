@@ -12,21 +12,13 @@
 #include <stdint.h>
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
+#include "sns_gpio_service.h"
 
 #include "sns_lsm6ds3_sensor_instance.h"
 
 // Enable for test code
 #ifndef LSM6DS3_ENABLE_TEST_CODE
 #define LSM6DS3_ENABLE_TEST_CODE      1
-#endif
-
-// Enable when Timer, Registry, ACP dependencies are available
-#ifndef LSM6DS3_ENABLE_DEPENDENCY
-#define LSM6DS3_ENABLE_DEPENDENCY     0
-#endif
-
-#ifndef LSM6DS3_USE_DEFAULTS
-#define LSM6DS3_USE_DEFAULTS          1
 #endif
 
 /**
@@ -123,9 +115,15 @@
 #define LSM6DS3_OFF_TO_IDLE_MS      100  //ms
 
 /** Motion detect configuration */
-#define LSM6DS3_MD_THRESH          0x1              // 1LSB = FS/2^6 FS = 4 1LSB=62.5mg
-#define LSM6DS3_MD_DUR             0x0              // 1 sample
+#define LSM6DS3_MD_THRESH          (0.6132f)             // m/s2
+#define LSM6DS3_MD_DUR             (0.0)                 // sec
+#define LSM6DS3_MD_ODR_VAL         (26.0)                // 26 Hz
 #define LSM6DS3_MD_ODR             LSM6DS3_ACCEL_ODR26   // 26 Hz
+// resolution of MD Threshold Register
+#define LSM6DS3_REG_WAKE_THS_RES   (0.6132f) // m/s2 1LSB = FS/2^6 FS = 4 1LSB=0.6132m/s2
+#define LSM6DS3_MD_THRESH_MAX      (LSM6DS3_REG_WAKE_THS_RES * ((uint16_t)pow(2,6) - 1))
+
+#define LSM6DS3_NUM_AXES           3
 
 /******************* Function Declarations ***********************************/
 
@@ -142,7 +140,7 @@
  * SNS_RC_SUCCESS
  */
 sns_rc lsm6ds3_reset_device(sns_sync_com_port_service *scp_service,
-		                    sns_sync_com_port_handle *port_handle,
+                            sns_sync_com_port_handle *port_handle,
                             lsm6ds3_sensor_type sensor);
 
 /**
@@ -157,7 +155,7 @@ sns_rc lsm6ds3_reset_device(sns_sync_com_port_service *scp_service,
  * SNS_RC_SUCCESS
  */
 sns_rc lsm6ds3_device_set_default_state(sns_sync_com_port_service *scp_service,
-		                                sns_sync_com_port_handle *port_handle,
+                                        sns_sync_com_port_handle *port_handle,
                                         lsm6ds3_sensor_type sensor);
 
 /**
@@ -219,7 +217,7 @@ void lsm6ds3_disable_fifo_intr(lsm6ds3_instance_state *state);
  * SNS_RC_SUCCESS
  */
 sns_rc lsm6ds3_get_who_am_i(sns_sync_com_port_service *scp_service,
-		                    sns_sync_com_port_handle  *port_handle,
+                            sns_sync_com_port_handle  *port_handle,
                             uint8_t                   *buffer);
 
 /**
@@ -237,7 +235,7 @@ sns_rc lsm6ds3_get_who_am_i(sns_sync_com_port_service *scp_service,
  * SNS_RC_SUCCESS
  */
 sns_rc lsm6ds3_set_accel_config(sns_sync_com_port_service *scp_service,
-		                        sns_sync_com_port_handle *port_handle,
+                                sns_sync_com_port_handle *port_handle,
                                 lsm6ds3_accel_odr      curr_odr,
                                 lsm6ds3_accel_sstvt    sstvt,
                                 lsm6ds3_accel_range    range,
@@ -257,7 +255,7 @@ sns_rc lsm6ds3_set_accel_config(sns_sync_com_port_service *scp_service,
  * SNS_RC_SUCCESS
  */
 sns_rc lsm6ds3_set_gyro_config(sns_sync_com_port_service *scp_service,
-		                       sns_sync_com_port_handle *port_handle,
+                               sns_sync_com_port_handle *port_handle,
                                lsm6ds3_gyro_odr      curr_odr,
                                lsm6ds3_gyro_sstvt    sstvt,
                                lsm6ds3_gyro_range    range);
@@ -368,7 +366,7 @@ sns_time lsm6ds3_get_sample_interval(lsm6ds3_accel_odr curr_odr);
  * @param[i] gyro_enabled Whether gyro is enabled
  * @param[i] first_ts     Timestamp of first sample in fifo
  * @param[i] interval     Sampling interval in time ticks
- * @param[i] fifo         Buffer containing samples read from HW FIFO 
+ * @param[i] fifo         Buffer containing samples read from HW FIFO
  * @param[i] num_bytes    Number of bytes in fifo buffer
  */
 void lsm6ds3_process_fifo_data_buffer(sns_sensor_instance *instance,
@@ -395,41 +393,86 @@ void lsm6ds3_handle_interrupt_event(sns_sensor_instance *const instance);
 void lsm6ds3_send_config_event(sns_sensor_instance *const instance);
 
 /**
- * Sends sensor temperature event. 
- *  
- * @param[i] instance   Sensor Instance 
+ * Sends sensor temperature event.
+ *
+ * @param[i] instance   Sensor Instance
  */
 void lsm6ds3_convert_and_send_temp_sample(
-  sns_sensor_instance *const instance, 
+  sns_sensor_instance *const instance,
   sns_time            timestamp,
   const uint8_t       temp_data[2]);
 
 /**
- * Sends sensor temperature event. 
- *  
- * @param[i] instance   Sensor Instance 
+ * Sends sensor temperature event.
+ *
+ * @param[i] instance   Sensor Instance
  */
 void lsm6ds3_handle_sensor_temp_sample(sns_sensor_instance *const instance);
 
 /**
  * Sends a FIFO complete event.
- * 
+ *
  * @param instance   Instance reference
  */
 void lsm6ds3_send_fifo_flush_done(sns_sensor_instance *const instance);
 
 /**
  * Starts/restarts polling timer
- * 
+ *
  * @param instance   Instance reference
  */
 void lsm6ds3_start_sensor_temp_polling_timer(sns_sensor_instance *this);
 
 /**
  * Configures sensor with new/recomputed settings
- * 
+ *
  * @param instance   Instance reference
  */
 void lsm6ds3_reconfig_hw(sns_sensor_instance *this);
 
+/**
+ * Reads value of a GPIO pin.
+ * Function has been written to demonstrate use of the GPIO
+ * Service to read gpio.
+ *
+ * @param[i] instance     instance reference
+ * @param[i] gpio         gpio pin to read
+ * @param[i] is_chip_pin  true if this is a chip level TLMM pin
+ *  	 else false.
+ *
+ * @return none
+ */
+void lsm6ds3_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin);
+
+/**
+ * Writes to a GPIO pin.
+ * Function has been written to demonstrate use of the GPIO
+ * Service to write to gpio.
+ *
+ * @param[i] instance        instance reference
+ * @param[i] gpio            gpio pin to write to
+ * @param[i] is_chip_pin     true if this is a chip level TLMM
+ *  	 pin
+ * @param[i] drive_strength  gpio pin drive strength
+ * @param[i] pull            pull type config
+ * @param[i] state           output state to write
+ *
+ * @return none
+ */
+#ifndef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
+void lsm6ds3_write_gpio(sns_sensor_instance *instance, uint32_t gpio,
+                        bool is_chip_pin,
+                        sns_gpio_drive_strength drive_strength,
+                        sns_gpio_pull_type pull,
+                        sns_gpio_state state);
+#endif
+
+/**
+ * Executes requested self-tests.
+ *
+ * @param instance   reference to the instace
+ *
+ * @return none
+ */
+void lsm6ds3_run_self_test(sns_sensor_instance *instance);
 

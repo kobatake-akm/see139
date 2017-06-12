@@ -9,14 +9,14 @@
  **/
 
 #include <string.h>
-#include "sns_mem_util.h"
-#include "sns_math_util.h"
-#include "sns_types.h"
-#include "sns_lsm6ds3_sensor.h"
 #include "pb_encode.h"
-#include "sns_service_manager.h"
 #include "sns_attribute_util.h"
+#include "sns_lsm6ds3_sensor.h"
+#include "sns_math_util.h"
+#include "sns_mem_util.h"
 #include "sns_pb_util.h"
+#include "sns_service_manager.h"
+#include "sns_types.h"
 
 /**
  * Publish all Sensor attributes
@@ -34,36 +34,6 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
     values[0].has_sint = true;
     values[0].sint = SNS_STD_SENSOR_STREAM_TYPE_SINGLE_OUTPUT;
     sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_STREAM_TYPE,
-        values, ARR_SIZE(values), false);
-  }
-  {
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
-      SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
-    values[0].has_flt = true;
-    values[0].flt = 0;
-    values[1].has_flt = true;
-    values[1].flt = 0;
-    values[2].has_flt = true;
-    values[2].flt = 0;
-    values[3].has_flt = true;
-    values[3].flt = 0;
-    values[4].has_flt = true;
-    values[4].flt = 0;
-    values[5].has_flt = true;
-    values[5].flt = 0;
-    values[6].has_flt = true;
-    values[6].flt = 0;
-    values[7].has_flt = true;
-    values[7].flt = 0;
-    values[8].has_flt = true;
-    values[8].flt = 0;
-    values[9].has_flt = true;
-    values[9].flt = 0;
-    values[10].has_flt = true;
-    values[10].flt = 0;
-    values[11].has_flt = true;
-    values[11].flt = 0;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PLACEMENT,
         values, ARR_SIZE(values), false);
   }
   {
@@ -86,15 +56,10 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
   }
   {
     sns_std_attr_value_data values[] = {SNS_ATTR};
-    char const proto1[] = "sns_physical_sensor_test.proto";
-    char const proto2[] = "sns_motion_detect.proto";
-
+    char const proto1[] = "sns_motion_detect.proto";
     values[0].str.funcs.encode = pb_encode_string_cb;
     values[0].str.arg = &((pb_buffer_arg)
         { .buf = proto1, .buf_len = sizeof(proto1) });
-    values[1].str.funcs.encode = pb_encode_string_cb;
-    values[1].str.arg = &((pb_buffer_arg)
-        { .buf = proto2, .buf_len = sizeof(proto2) });
     sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_API,
         values, ARR_SIZE(values), false);
   }
@@ -163,13 +128,6 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
-    value.sint = SNS_STD_SENSOR_RIGID_BODY_TYPE_DISPLAY;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
     value.sint = 0;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_HW_ID, &value, 1, false);
@@ -220,14 +178,16 @@ sns_rc lsm6ds3_motion_detect_init(sns_sensor *const this)
               &((sns_sensor_uid)MOTION_DETECT_SUID),
               sizeof(sns_sensor_uid));
 
+  // initialize md defaults
+  state->md_config.thresh = LSM6DS3_MD_THRESH;
+  state->md_config.win = LSM6DS3_MD_DUR;
+
   lsm6ds3_publish_attributes(this);
 
   lsm6ds3_send_suid_req(this, "interrupt", 10);
   lsm6ds3_send_suid_req(this, "async_com_port", 15);
   lsm6ds3_send_suid_req(this, "timer", 6);
-#if LSM6DS3_ENABLE_DEPENDENCY
   lsm6ds3_send_suid_req(this, "registry", 9);
-#endif //
 
   return SNS_RC_SUCCESS;
 }

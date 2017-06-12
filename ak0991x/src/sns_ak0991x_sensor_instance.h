@@ -14,27 +14,6 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
-/**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 05/11/17     AKM     Add DAE sensor support.
- * 05/11/17     AKM     Add AK09917D support.
- *
- **/
-
 #include "sns_com_port_types.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_instance.h"
@@ -124,9 +103,11 @@ typedef struct ak0991x_mag_info
 {
   ak0991x_mag_odr   desired_odr;
   ak0991x_mag_odr   curr_odr;
+  uint32_t          flush_period;
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
+  uint32_t       req_wmk;
   uint16_t       cur_wmk;
   uint16_t       max_fifo_size;
   bool           use_dri;
@@ -211,6 +192,7 @@ typedef struct sns_ak0991x_mag_req
 {
   float sample_rate;
   float report_rate;
+  uint32_t flush_period;
 } sns_ak0991x_mag_req;
 
 
