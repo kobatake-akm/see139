@@ -1525,6 +1525,9 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   sns_time timestamp;
   timestamp = sns_get_system_time();
 
+  SNS_INST_PRINTF(ERROR, instance, "handle timer event, timestamp=%d",timestamp);
+
+
   // Read register ST1->ST2
   rv = ak0991x_com_read_wrapper(state->scp_service,
                                 state->com_port_info.port_handle,

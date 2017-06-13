@@ -259,6 +259,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
+         //SNS_INST_PRINTF(ERROR, this, "Execute handle timer event");
           ak0991x_handle_timer_event(this);
         }
       }
@@ -298,6 +299,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   sns_stream_service  *stream_mgr = (sns_stream_service *)
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
 
+  SNS_INST_PRINTF(ERROR, this, "inst_set_client_config");
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
@@ -331,6 +333,10 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       desired_report_rate = desired_sample_rate;
     }
 
+ 
+    SNS_INST_PRINTF(ERROR, this, "desired_sample_rate=%d desired_report_rate=%d",
+        (int)desired_sample_rate, (int)desired_report_rate);
+ 
     state->mag_info.flush_period = payload->flush_period;
     rv = ak0991x_mag_match_odr(desired_sample_rate,
                                &mag_chosen_sample_rate,
@@ -372,6 +378,8 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
     }
 
+    SNS_INST_PRINTF(ERROR, this, "desired_wmk=%d",desired_wmk);
+ 
     state->mag_info.cur_wmk = desired_wmk;
 
     if (rv != SNS_RC_SUCCESS)
@@ -383,15 +391,22 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_req.sample_rate = mag_chosen_sample_rate;
     state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
+    SNS_INST_PRINTF(ERROR, this, "sample_rate=%d, reg_value=%d",
+        (int)mag_chosen_sample_rate,(int)mag_chosen_sample_rate_reg_value);
+
+    SNS_INST_PRINTF(ERROR, this, "config_step",state->config_step);
+ 
     if (AK0991X_CONFIG_IDLE == state->config_step &&
         ak0991x_dae_if_stop_streaming(this))
     {
+      SNS_INST_PRINTF(ERROR, this, "done dae_if_stop_streaming");
       state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
     }
 
     if (state->config_step == AK0991X_CONFIG_IDLE)
     {
       ak0991x_dae_if_start_streaming(this);
+      SNS_INST_PRINTF(ERROR, this, "done dae_if_start_streaming");
       ak0991x_send_config_event(this);
     }
 
@@ -399,11 +414,13 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
+        SNS_INST_PRINTF(ERROR, this, "flush fifo");
         ak0991x_flush_fifo(this);
       }
       if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
           (!state->mag_info.use_dri))
       {
+        SNS_INST_PRINTF(ERROR, this, "start_mag_streaming");
         ak0991x_start_mag_streaming(this);
       }
     }
@@ -452,6 +469,8 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         req_payload.timeout_period = sns_convert_ns_to_ticks(
             1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 
+        SNS_INST_PRINTF(ERROR, this, "timeout_period=%lld", req_payload.timeout_period);
+ 
         req_len = pb_encode_request(buffer,
                                     sizeof(buffer),
                                     &req_payload,

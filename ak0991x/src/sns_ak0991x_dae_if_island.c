@@ -484,8 +484,11 @@ bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this)
 /* ------------------------------------------------------------------------------------ */
 void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 {
+  SNS_INST_PRINTF(ERROR, this,"line=%d func=%s",__LINE__,__FUNCTION__);
+ 
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
+ 
   process_events(this, &state->dae_if.mag);
 
   if(NULL == state->dae_if.mag.stream)
