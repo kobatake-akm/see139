@@ -12,6 +12,13 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
 
+/**
+ * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
+ * Version          : v2017.06.13
+ * Date(MM/DD/YYYY) : 06/13/2017
+ *
+ **/
+
 #include "sns_mem_util.h"
 #include "sns_service_manager.h"
 #include "sns_stream_service.h"

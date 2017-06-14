@@ -14,6 +14,13 @@
  *
  **/
 
+/**
+ * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
+ * Version          : v2017.06.13
+ * Date(MM/DD/YYYY) : 06/13/2017
+ *
+ **/
+
 #include "sns_sensor.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
