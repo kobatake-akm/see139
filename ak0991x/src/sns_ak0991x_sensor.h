@@ -14,13 +14,6 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.13
- * Date(MM/DD/YYYY) : 06/13/2017
- *
- **/
-
 #include "sns_sensor.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
@@ -30,6 +23,7 @@
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_math_util.h"
 #include "sns_diag_service.h"
+#include "sns_registry_util.h"
 
 #define MAG_SUID \
   {  \
@@ -159,6 +153,7 @@ typedef struct ak0991x_state
 
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
+  sns_power_rail_state  registry_rail_on_state;
 
   bool hw_is_present;
   bool sensor_client_present;
@@ -168,6 +163,34 @@ typedef struct ak0991x_state
   // parameters which are determined when the connected device is specified.
   akm_device_type device_select; // store the current connected device
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
+
+  // sensor configuration 
+  bool is_dri;
+  int64_t hardware_id;
+  bool supports_sync_stream;
+  uint8_t resolution_idx;
+  
+  // registry sensor config
+  bool registry_cfg_received;
+  sns_registry_phy_sensor_cfg registry_cfg;
+  
+  // registry sensor platform config
+  bool registry_pf_cfg_received;
+  sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
+
+  // axis conversion
+  bool registry_orient_received;
+  triaxis_conversion axis_map[TRIAXIS_NUM];
+
+  // factory calibration
+  bool                    registry_fac_cal_received;
+  matrix3                 fac_cal_corr_mat;
+  float                   fac_cal_bias[TRIAXIS_NUM];
+  float                   fac_cal_scale[TRIAXIS_NUM];
+
+  // placement 
+  bool                    registry_placement_received;
+  float                   placement[12];
 
   // debug
   uint16_t who_am_i;

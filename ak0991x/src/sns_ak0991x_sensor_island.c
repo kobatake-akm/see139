@@ -14,13 +14,6 @@
  **/
 
 /**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.13
- * Date(MM/DD/YYYY) : 06/13/2017
- *
- **/
-
-/**
  * EDIT HISTORY FOR FILE
  *
  * This section contains comments describing changes made to the module.
@@ -254,10 +247,8 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
   if( !SUID_IS_NULL(&state->irq_suid) &&
       !SUID_IS_NULL(&state->acp_suid) &&
       !SUID_IS_NULL(&state->timer_suid) &&
-      !SUID_IS_NULL(&state->dae_suid)
-#if AK0991X_ENABLE_DEPENDENCY
-      && !SUID_IS_NULL(&state->reg_suid)
-#endif
+      !SUID_IS_NULL(&state->dae_suid) &&
+      !SUID_IS_NULL(&state->reg_suid)
       )
   {
     if( state->hw_is_present )
@@ -288,127 +279,350 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
     {
       SNS_PRINTF(LOW, this, "AK0991x waiting for DAE SUID" );
     }
-#if AK0991X_ENABLE_DEPENDENCY
+
     if( SUID_IS_NULL(&state->reg_suid) )
     {
       SNS_PRINTF(LOW, this, "AK0991x waiting for Reg SUID" );
     }
-#endif
+
+  }
+}
+
+static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
+                                                  sns_sensor_event *event)
+{
+  bool rv = true;
+  sns_rc rc = SNS_RC_SUCCESS;
+  ak0991x_state *state = (ak0991x_state *)this->state->state;
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+
+  pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
+      event->event_len);
+
+  if(SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_EVENT == event->message_id)
+  {
+    sns_registry_read_event read_event = sns_registry_read_event_init_default;
+    pb_buffer_arg group_name = {0,0};
+    read_event.name.arg = &group_name;
+    read_event.name.funcs.decode = pb_decode_string_cb;
+
+    if(!pb_decode(&stream, sns_registry_read_event_fields, &read_event))
+    {
+      SNS_PRINTF(ERROR, this, "Error decoding registry event");
+    }
+    else
+    {
+      stream = pb_istream_from_buffer((void*)event->event, event->event_len);
+
+      if(0 == strncmp((char*)group_name.buf, "ak0991x_0.mag.config",
+                           group_name.buf_len))
+      {
+        {
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+            .group_name = "config",
+            .parse_func = sns_registry_parse_phy_sensor_cfg,
+            .parsed_buffer = &state->registry_cfg } 
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_cfg_received = true;
+          state->is_dri = state->registry_cfg.is_dri;
+          state->hardware_id = state->registry_cfg.hw_id;
+          state->resolution_idx = state->registry_cfg.res_idx;
+          state->supports_sync_stream = state->registry_cfg.sync_stream;
+
+          SNS_PRINTF(MED, this, "resolution_idx:%d, supports_sync_stream:%d ",
+                                   state->resolution_idx,
+                                   state->supports_sync_stream);
+        }
+      }
+      else if(0 == strncmp((char*)group_name.buf, "ak0991x_0_platform.config",
+                           group_name.buf_len))
+      {
+        {
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+              .group_name = "config",
+              .parse_func = sns_registry_parse_phy_sensor_pf_cfg,
+              .parsed_buffer = &state->registry_pf_cfg }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_pf_cfg_received = true;
+
+          state->com_port_info.com_config.bus_type = state->registry_pf_cfg.bus_type;
+          state->com_port_info.com_config.bus_instance = state->registry_pf_cfg.bus_instance;
+          state->com_port_info.com_config.slave_control = state->registry_pf_cfg.slave_config;
+          state->com_port_info.com_config.min_bus_speed_KHz = state->registry_pf_cfg.min_bus_speed_khz;
+          state->com_port_info.com_config.max_bus_speed_KHz = state->registry_pf_cfg.max_bus_speed_khz;
+          state->com_port_info.com_config.reg_addr_type = state->registry_pf_cfg.reg_addr_type;
+          state->irq_config.interrupt_num = state->registry_pf_cfg.dri_irq_num;
+          state->irq_config.interrupt_pull_type = state->registry_pf_cfg.irq_pull_type;
+          state->irq_config.is_chip_pin = state->registry_pf_cfg.irq_is_chip_pin;
+          state->irq_config.interrupt_drive_strength = state->registry_pf_cfg.irq_drive_strength;
+          state->irq_config.interrupt_trigger_type = state->registry_pf_cfg.irq_trigger_type;
+          state->rail_config.num_of_rails = state->registry_pf_cfg.num_rail;
+          state->registry_rail_on_state = state->registry_pf_cfg.rail_on_state;
+          sns_strlcpy(state->rail_config.rails[0].name,
+                      state->registry_pf_cfg.vddio_rail,
+                      sizeof(state->rail_config.rails[0].name));
+          sns_strlcpy(state->rail_config.rails[1].name,
+                      state->registry_pf_cfg.vdd_rail,
+                      sizeof(state->rail_config.rails[1].name));
+
+          SNS_PRINTF(MED, this, "bus_type:%d bus_instance:%d slave_control:%d",
+                     state->com_port_info.com_config.bus_type,
+                     state->com_port_info.com_config.bus_instance,
+                     state->com_port_info.com_config.slave_control);
+
+          SNS_PRINTF(MED, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
+                               state->com_port_info.com_config.min_bus_speed_KHz,
+                               state->com_port_info.com_config.max_bus_speed_KHz,
+                               state->com_port_info.com_config.reg_addr_type);
+
+          SNS_PRINTF(MED, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d",
+                               state->irq_config.interrupt_num,
+                               state->irq_config.interrupt_pull_type,
+                               state->irq_config.is_chip_pin);
+
+          SNS_PRINTF(MED, this, "interrupt_drive_strength:%d interrupt_trigger_type:%d"
+             " rigid body type:%d",
+                               state->irq_config.interrupt_drive_strength,
+             state->irq_config.interrupt_trigger_type,
+             state->registry_pf_cfg.rigid_body_type);
+
+          SNS_PRINTF(MED, this, "num_rail:%d, rail_on_state:%d, vddio_rail:%s, vdd_rail:%s",
+             state->rail_config.num_of_rails,
+             state->registry_rail_on_state,
+             state->rail_config.rails[0].name,
+             state->rail_config.rails[1].name);
+
+          /**-----------------Register and Open COM Port-------------------------*/
+          if (NULL == state->com_port_info.port_handle)
+          {
+            state->scp_service =  (sns_sync_com_port_service *)
+                service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
+  
+            rc = state->scp_service->api->sns_scp_register_com_port(
+              &state->com_port_info.com_config,
+              &state->com_port_info.port_handle);
+  
+            if(rc == SNS_RC_SUCCESS)
+            {
+              rc = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
+            }
+            else
+            {
+              SNS_PRINTF(ERROR, this, "sns_scp_register_com_port fail rc:%u",rc);
+            }
+          }
+
+          /**---------------------Register Power Rails --------------------------*/
+          if(NULL == state->pwr_rail_service && rc == SNS_RC_SUCCESS)
+          {
+            state->rail_config.rail_vote = SNS_RAIL_OFF;
+  
+            state->pwr_rail_service =
+              (sns_pwr_rail_service*)service_mgr->get_service(service_mgr,
+                                                              SNS_POWER_RAIL_SERVICE);
+  
+            state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
+                                                                   &state->rail_config);
+          }
+        }
+      }
+      else if(0 == strncmp((char*)group_name.buf, "ak0991x_0_platform.placement",
+                           group_name.buf_len))
+      {
+        {
+          uint8_t arr_index = 0;
+          pb_float_arr_arg arr_arg = {
+            .arr = state->placement,
+            .arr_index = &arr_index,
+            .arr_len = 12
+          };
+
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+              .group_name = "placement",
+              .parse_func = sns_registry_parse_float_arr,
+              .parsed_buffer = &arr_arg
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_placement_received = true;
+        }
+      }
+      else if(0 == strncmp((char*)group_name.buf, "ak0991x_0_platform.orient",
+                             group_name.buf_len))
+      {
+        {
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+              .group_name = "orient",
+              .parse_func = sns_registry_parse_axis_orientation,
+              .parsed_buffer = state->axis_map
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_orient_received = true;
+
+          SNS_PRINTF(MED, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+                 state->axis_map[0].ipaxis,
+                 state->axis_map[0].opaxis, state->axis_map[0].invert);
+
+          SNS_PRINTF(MED, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+                 state->axis_map[1].ipaxis, state->axis_map[1].opaxis,
+                 state->axis_map[1].invert);
+
+          SNS_PRINTF(MED, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+                 state->axis_map[2].ipaxis, state->axis_map[2].opaxis,
+                 state->axis_map[2].invert);
+        }
+      }
+      else if(0 == strncmp((char*)group_name.buf,
+                             "ak0991x_0_platform.mag.fac_cal",
+                             group_name.buf_len))
+      {
+        {
+          uint8_t bias_arr_index = 0, scale_arr_index = 0;
+          pb_float_arr_arg bias_arr_arg = {
+            .arr = state->fac_cal_bias,
+            .arr_index = &bias_arr_index,
+            .arr_len = TRIAXIS_NUM
+          };
+
+          pb_float_arr_arg scale_arr_arg = {
+            .arr = state->fac_cal_scale,
+            .arr_index = &scale_arr_index,
+            .arr_len = TRIAXIS_NUM
+          };
+
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 3,
+            .parse_info[0] = {
+              .group_name = "bias",
+              .parse_func = sns_registry_parse_float_arr,
+              .parsed_buffer = &bias_arr_arg
+            },
+            .parse_info[1] = {
+              .group_name = "scale",
+              .parse_func = sns_registry_parse_float_arr,
+              .parsed_buffer = &scale_arr_arg
+            },
+            .parse_info[2] = {
+              .group_name = "corr_mat",
+              .parse_func = sns_registry_parse_corr_matrix_3,
+              .parsed_buffer = &state->fac_cal_corr_mat
+            }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_fac_cal_received = true;
+          if(state->fac_cal_scale[0] != 0.0)
+          {
+            state->fac_cal_corr_mat.e00 = state->fac_cal_scale[0];
+            state->fac_cal_corr_mat.e11 = state->fac_cal_scale[1];
+            state->fac_cal_corr_mat.e22 = state->fac_cal_scale[2];
+          }
+
+          SNS_PRINTF(MED, this, "Fac Cal Corr Matrix e00:%f e01:%f e02:%f", state->fac_cal_corr_mat.e00,state->fac_cal_corr_mat.e01,
+                 state->fac_cal_corr_mat.e02);
+          SNS_PRINTF(MED, this, "Fac Cal Corr Matrix e10:%f e11:%f e12:%f", state->fac_cal_corr_mat.e10,state->fac_cal_corr_mat.e11,
+                 state->fac_cal_corr_mat.e12);
+          SNS_PRINTF(MED, this, "Fac Cal Corr Matrix e20:%f e21:%f e22:%f", state->fac_cal_corr_mat.e20,state->fac_cal_corr_mat.e21,
+                 state->fac_cal_corr_mat.e22);
+          SNS_PRINTF(MED, this, "Fac Cal Bias x:%f y:%f z:%f", state->fac_cal_bias[0], state->fac_cal_bias[1],
+                 state->fac_cal_bias[2]);
+        }
+      }
+      else
+      {
+        rv = false;
+      }
+      if(!rv)
+      {
+        //SENSOR_PRINTF_MED_FULL(this, "Error decoding registry group %s due to %s", (char*)group_name.buf,
+        //                       PB_GET_ERROR(&stream));
+      }
+    }
+  }
+  else
+  {
+    SNS_PRINTF(ERROR, this, "Received unsupported registry event msg id %u",
+                             event->message_id);
   }
 }
 
 static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 {
-  ak0991x_state       *state = (ak0991x_state *)this->state->state;
-  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service  *stream_svc = (sns_stream_service *)
-    service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-  sns_sync_com_port_service * scp_service = (sns_sync_com_port_service *)
-    service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
+  sns_rc rv = SNS_RC_SUCCESS;
+  ak0991x_state *state = (ak0991x_state *)this->state->state;
+  sns_sensor_event *event;
 
-  sns_time         on_timestamp;
-  sns_rc           rv = SNS_RC_SUCCESS;
-
-#if AK0991X_ENABLE_DEPENDENCY
-
-  if (NULL != state->reg_data_stream)
+  if(NULL != state->reg_data_stream)
   {
     event = state->reg_data_stream->api->peek_input(state->reg_data_stream);
-    
-    while (NULL != event)
+    while(NULL != event)
     {
-#endif //AK0991X_ENABLE_DEPENDENCY
-#if AK0991X_USE_DEFAULTS
-
-      if (AK0991X_BUS_TYPE == AK0991X_SPI)
-      {
-        state->com_port_info.com_config.bus_instance = SPI_BUS_INSTANCE;
-        state->com_port_info.com_config.bus_type = SNS_BUS_SPI;
-        state->com_port_info.com_config.max_bus_speed_KHz = SPI_BUS_MAX_FREQ_KHZ;
-        state->com_port_info.com_config.min_bus_speed_KHz = SPI_BUS_MIN_FREQ_KHZ;
-        state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
-        state->com_port_info.com_config.slave_control = SPI_SLAVE_CONTROL;
-      }
-      else
-      {
-        state->com_port_info.com_config.bus_instance = I2C_BUS_INSTANCE;
-        state->com_port_info.com_config.bus_type = SNS_BUS_I2C;
-        state->com_port_info.com_config.max_bus_speed_KHz = I2C_BUS_FREQ;
-        state->com_port_info.com_config.min_bus_speed_KHz = I2C_BUS_FREQ;
-        state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
-        state->com_port_info.com_config.slave_control = I2C_SLAVE_ADDRESS;
-      }
-
-#if AK0991X_ENABLE_DEPENDENCY
-      // IRQ settings, it depends on the device.
-      state->irq_info.irq_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
-      state->irq_info.irq_num = IRQ_NUM;
-      state->irq_info.interrupt_pull_type = AK0991X_INTERRUPT_PULL_TYPE;
-      state->irq_info.interrupt_trigger_type = AK0991X_INTERRUPT_TRIGGER_TYPE;
-#endif //AK0991X_ENABLE_DEPENDENCY
-#else   //AK0991X_USE_DEFAULTS
-      //TODO update to use Registry Sensor data
-#endif //AK0991X_USE_DEFAULTS
-
-      /**-----------------Register and Open COM Port-------------------------*/
-      if (NULL == state->com_port_info.port_handle)
-      {
-        scp_service->api->sns_scp_register_com_port(&state->com_port_info.com_config,
-                                                    &state->com_port_info.port_handle);
-
-        state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
-      }
-
-      /**---------------------Register Power Rails --------------------------*/
-      if (0 != sns_memcmp(&state->timer_suid, &((sns_sensor_uid){{0}}), sizeof(state->timer_suid))
-          && NULL == state->pwr_rail_service)
-      {
-        state->rail_config.rail_vote = SNS_RAIL_OFF;
-        state->rail_config.num_of_rails = NUM_OF_RAILS;
-        sns_strlcpy(state->rail_config.rails[0].name,
-                RAIL_1,
-                sizeof(state->rail_config.rails[0].name));
-        sns_strlcpy(state->rail_config.rails[1].name,
-                RAIL_2,
-                sizeof(state->rail_config.rails[1].name));
-
-        state->pwr_rail_service =
-          (sns_pwr_rail_service *)service_mgr->get_service(service_mgr,
-                                                           SNS_POWER_RAIL_SERVICE);
-
-        state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
-                                                               &state->rail_config);
-
-        /**---------------------Turn Power Rails ON----------------------------*/
-        state->rail_config.rail_vote = SNS_RAIL_ON_NPM;
-        state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
-                                                                 this,
-                                                                 &state->rail_config,
-                                                                 &on_timestamp);
-
-        /**-------------Create a Timer stream for Power Rail ON timeout.---------*/
-        if (NULL == state->timer_stream)
-        {
-          stream_svc->api->create_sensor_stream(stream_svc, this, state->timer_suid,
-                                                &state->timer_stream);
-
-          if (NULL != state->timer_stream)
-          {
-            ak0991x_start_power_rail_timer(this,
-                                           sns_convert_ns_to_ticks(
-                                                                   AK0991X_OFF_TO_IDLE_MS * 1000 * 1000),
-                                           AK0991X_POWER_RAIL_PENDING_INIT);
-          }
-        }
-
-        SNS_PRINTF(LOW, this, "power rail settings finished");
-      }
-
-#if AK0991X_ENABLE_DEPENDENCY
+      ak0991x_sensor_process_registry_event(this, event);
       event = state->reg_data_stream->api->get_next_input(state->reg_data_stream);
     }
   }
-#endif //AK0991X_ENABLE_DEPENDENCY
+
+  if(state->registry_cfg_received
+     && state->registry_placement_received)
+  {
+    // TODO
+    //ak0991x_publish_registry_attributes(this);
+  }
 
   return rv;
 }
@@ -543,22 +757,17 @@ void ak0991x_publish_hw_attributes(sns_sensor *const this,
        this, SNS_STD_SENSOR_ATTRID_SLEEP_CURRENT, &value, 1, false);
  }
 }
-/** See sns_ak0991x_sensor.h*/
-sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
-{
-  ak0991x_state       *state = (ak0991x_state *)this->state->state;
 
+static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
+{
+  ak0991x_state    *state = (ak0991x_state *)this->state->state;
   uint8_t          buffer[AK0991X_NUM_READ_DEV_ID];
   sns_rc           rv = SNS_RC_SUCCESS;
   sns_sensor_event *event;
-
   sns_diag_service *diag = state->diag_service;
 
-  ak0991x_process_suid_events(this);
-  rv = ak0991x_process_registry_events(this);
+  if(NULL != state->timer_stream)
 
-  /**----------------------Handle a Timer Sensor event.-------------------*/
-  if (NULL != state->timer_stream)
   {
     event = state->timer_stream->api->peek_input(state->timer_stream);
 
@@ -637,73 +846,6 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
               return SNS_RC_FAILED;
             }
 
-#if (!AK0991X_ENABLE_DEPENDENCY)
-            // IRQ settings, it depends on the device.
-            state->irq_config.interrupt_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
-            state->irq_config.interrupt_num = IRQ_NUM;
-
-            switch (state->device_select)
-            {
-              case AK09911:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-                state->irq_config.is_chip_pin = false;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
-                break;
-
-              case AK09912:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-                state->irq_config.is_chip_pin = true;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_KEEPER;
-                break;
-
-              case AK09913:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-                state->irq_config.is_chip_pin = false;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
-                break;
-
-              case AK09915C:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-                state->irq_config.is_chip_pin = true;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_KEEPER;
-                break;
-
-              case AK09915D:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
-                state->irq_config.is_chip_pin = true;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
-                break;
-
-              case AK09916C:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-                state->irq_config.is_chip_pin = false;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
-                break;
-
-              case AK09916D:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
-                state->irq_config.is_chip_pin = true;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
-                break;
-
-              case AK09917:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
-                state->irq_config.is_chip_pin = true;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
-                break;
-
-              case AK09918:
-                state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-                state->irq_config.is_chip_pin = false;
-                state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
-                break;
-
-              default:
-                SNS_PRINTF(ERROR, this, "Unsupported Sensor");
-                return SNS_RC_FAILED;
-            }
-#endif //AK0991X_ENABLE_DEPENDENCY
-
             // Set sensitivity adjustment data
             rv = ak0991x_set_sstvt_adj(state->scp_service,
                                        state->com_port_info.port_handle,
@@ -753,11 +895,6 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
             {
               rv = SNS_RC_INVALID_STATE;
               SNS_PRINTF(MED, this, "AK0991X HW absent");
-              state->rail_config.rail_vote = SNS_RAIL_OFF;
-              state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
-                                                                       this,
-                                                                       &state->rail_config,
-                                                                       NULL);
             }
 
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
@@ -791,6 +928,40 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   return rv;
 }
 
+/** See sns_ak0991x_sensor.h*/
+sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
+{
+  ak0991x_state    *state = (ak0991x_state *)this->state->state;
+  sns_rc           rv = SNS_RC_SUCCESS;
+
+  ak0991x_process_suid_events(this);
+  rv = ak0991x_process_registry_events(this);
+
+  if(rv == SNS_RC_SUCCESS)
+  {
+    rv = ak0991x_process_timer_events(this);
+  }
+
+  if(rv == SNS_RC_SUCCESS &&
+     !state->hw_is_present &&
+     NULL != state->pwr_rail_service &&
+     NULL != state->timer_stream &&
+     state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
+  {
+    sns_time timeticks;
+
+    state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
+    state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
+                                                             this,
+                                                             &state->rail_config,
+                                                             &timeticks); /* ignored */
+    ak0991x_start_power_rail_timer(this,
+                                   sns_convert_ns_to_ticks(
+                                   AK0991X_OFF_TO_IDLE_MS * 1000000LL),
+                                   AK0991X_POWER_RAIL_PENDING_INIT);
+  }
+  return rv;
+}
 /**
  * Returns decoded request message for type
  * sns_sensor_stream_config.
@@ -934,18 +1105,6 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   this->instance_api->set_client_config(instance, &config);
 }
 
-static void ak0991x_send_flush_config(sns_sensor *const this,
-                                      sns_sensor_instance *instance)
-{
-  sns_request config;
-
-  config.message_id = SNS_STD_MSGID_SNS_STD_FLUSH_REQ;
-  config.request_len = 0;
-  config.request = NULL;
-
-  this->instance_api->set_client_config(instance, &config);
-}
-
 void ak0991x_reval_instance_config(sns_sensor *this,
                                    sns_sensor_instance *instance)
 {
@@ -1054,7 +1213,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       {
         ak0991x_start_power_rail_timer(this,
                                        sns_convert_ns_to_ticks(
-                                         AK0991X_OFF_TO_IDLE_MS * 1000000LL) - delta,
+                                       AK0991X_OFF_TO_IDLE_MS * 1000000LL) - delta,
                                        AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ);
       }
       else
@@ -1078,15 +1237,12 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         ak0991x_instance_state *inst_state =
           (ak0991x_instance_state *)instance->state->state;
 
-        if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+        if (inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
         {
-          ak0991x_send_flush_config(this, instance);
-          return instance;
+          ak0991x_flush_fifo(instance);
         }
-        else
-        {
-          return NULL;
-        }
+
+        instance = NULL;
       }
       else
       {
@@ -1131,11 +1287,51 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   return instance;
 }
 
+static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
+                                                 char *reg_group_name)
+{
+  ak0991x_state *state = (ak0991x_state *)this->state->state;
+  uint8_t buffer[100];
+  int32_t encoded_len;
+  sns_memset(buffer, 0, sizeof(buffer));
+  sns_rc rc = SNS_RC_SUCCESS;
+
+  sns_registry_read_req read_request;
+  pb_buffer_arg data = (pb_buffer_arg){ .buf = reg_group_name,
+    .buf_len = (strlen(reg_group_name) + 1) };
+
+  read_request.name.arg = &data;
+  read_request.name.funcs.encode = pb_encode_string_cb;
+
+  encoded_len = pb_encode_request(buffer, sizeof(buffer),
+      &read_request, sns_registry_read_req_fields, NULL);
+  if(0 < encoded_len)
+  {
+    sns_request request = (sns_request){
+      .request_len = encoded_len, .request = buffer,
+      .message_id = SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_REQ };
+    rc = state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
+  }
+
+  //SENSOR_PRINTF_LOW_FULL(this, "Sending registry request for group name:%s", reg_group_name);
+}
+
+static void ak0991x_request_registry(sns_sensor *const this)
+{
+  // place a request to registry sensor
+  ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.config");
+  ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.placement");
+  ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.orient");
+  ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.mag.fac_cal");
+  ak0991x_sensor_send_registry_request(this, "ak0991x_0.mag.config");
+}
 /** See sns_ak0991x_sensor.h */
 void ak0991x_process_suid_events(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
-
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service *stream_svc = (sns_stream_service*) service_mgr->get_service(service_mgr,
+                                                              SNS_STREAM_SERVICE);
   for (;
        0 != state->fw_stream->api->get_input_cnt(state->fw_stream);
        state->fw_stream->api->get_next_input(state->fw_stream))
@@ -1181,6 +1377,16 @@ void ak0991x_process_suid_events(sns_sensor *const this)
       else if(0 == strncmp(data_type_arg.buf, "timer", data_type_arg.buf_len))
       {
         state->timer_suid = uid_list;
+        if(!SUID_IS_NULL(&state->timer_suid))
+        {
+          stream_svc->api->create_sensor_stream(stream_svc, this, state->timer_suid,
+                                                &state->timer_stream);
+          if(NULL == state->timer_stream)
+          {
+            SNS_PRINTF(ERROR, this, __FILENAME__, __LINE__,
+                      "Failed to create timer stream");
+          }
+        }
       }
       else if (0 == strncmp(data_type_arg.buf, "async_com_port",
                             data_type_arg.buf_len))
@@ -1190,12 +1396,24 @@ void ak0991x_process_suid_events(sns_sensor *const this)
       else if (0 == strncmp(data_type_arg.buf, "registry", data_type_arg.buf_len))
       {
         state->reg_suid = uid_list;
+        if(!SUID_IS_NULL(&state->reg_suid))
+        {
+          stream_svc->api->create_sensor_stream(stream_svc, this, state->reg_suid,
+                                                &state->reg_data_stream);
+          if(NULL != state->reg_data_stream)
+          {
+            ak0991x_request_registry(this);
+          }
+          else
+          {
+            SNS_PRINTF(ERROR, this, "Failed to create registry stream");
+          }
+        }
       }
       else
       {
         SNS_PRINTF(ERROR, this, "unexpected datatype_name");
       }
-      ak0991x_sensor_publish_available( this );
     }
   }
 }

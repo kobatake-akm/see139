@@ -13,13 +13,6 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.13
- * Date(MM/DD/YYYY) : 06/13/2017
- *
- **/
-
 #include <string.h>
 #include "sns_mem_util.h"
 #include "sns_types.h"
@@ -175,9 +168,8 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   ak0991x_send_suid_req(this, "interrupt", sizeof("interrupt"));
   ak0991x_send_suid_req(this, "async_com_port", sizeof("async_com_port"));
   ak0991x_send_suid_req(this, "timer", sizeof("timer"));
-#if AK0991X_ENABLE_DEPENDENCY
+
   ak0991x_send_suid_req(this, "registry", sizeof("registry"));
-#endif //
 
   return SNS_RC_SUCCESS;
 }
