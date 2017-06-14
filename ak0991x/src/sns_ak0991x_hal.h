@@ -579,6 +579,13 @@ sns_rc ak0991x_encode_log_sensor_state_raw(
 void ak0991x_register_interrupt(sns_sensor_instance *this);
 
 /**
+ * Enable timer if not already enabled
+ *
+ */
+void ak0991x_register_timer(sns_sensor_instance *this);
+
+
+/**
  * Get time for measurement
  *
  * @param[i] device_select  Device type
@@ -589,3 +596,15 @@ void ak0991x_register_interrupt(sns_sensor_instance *this);
  * SNS_RC_FAILED otherwise
  */
 sns_rc ak0991x_get_meas_time( uint8_t device_select, sns_time* measure_us );
+
+/**
+ * Configures sensor with new/recomputed settings
+ *
+ * @param instance   Instance reference
+ * @return sns_rc
+ * SNS_RC_FAILED
+ * SNS_RC_SUCCESS
+ */
+sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this);
+
+

@@ -40,6 +40,7 @@
 #include "sns_ak0991x_sensor_instance.h"
 
 #include "sns_async_com_port.pb.h"
+#include "sns_timer.pb.h"
 
 #include "pb_encode.h"
 #include "pb_decode.h"
@@ -1525,8 +1526,6 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   sns_time timestamp;
   timestamp = sns_get_system_time();
 
-  SNS_INST_PRINTF(ERROR, instance, "handle timer event, timestamp=%d",timestamp);
-
 
   // Read register ST1->ST2
   rv = ak0991x_com_read_wrapper(state->scp_service,
@@ -1545,6 +1544,10 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   {
     return rv;
   }
+
+//  SNS_INST_PRINTF(ERROR, instance, "handle timer event, timestamp=%d st1=%d hxl=%d hxh=%d hyl=%d hyh=%d",
+//      timestamp,buffer[0],buffer[1], buffer[2],buffer[3],buffer[4]);
+  SNS_INST_PRINTF(ERROR, instance, "handle timer event");
 
   ak0991x_handle_mag_sample(&buffer[1],
                             timestamp,
@@ -1783,6 +1786,67 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
   }
 }
 
+void ak0991x_register_timer(sns_sensor_instance *this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service *stream_mgr = (sns_stream_service *)
+    service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
+  if (state->mag_req.sample_rate != AK0991X_ODR_0)
+  {
+    if (!state->timer_stream_is_created)
+    {
+      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                     this,
+                                                     state->timer_suid,
+                                                     &state->timer_data_stream);
+      state->timer_stream_is_created = true;
+    }
+
+    sns_request             timer_req;
+    sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
+    size_t                  req_len;
+    uint8_t                 buffer[20];
+    sns_memset(buffer, 0, sizeof(buffer));
+    req_payload.is_periodic = true;
+    req_payload.start_time = sns_get_system_time();
+    req_payload.timeout_period = sns_convert_ns_to_ticks(
+        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+
+    SNS_INST_PRINTF(ERROR, this, "timeout_period=%lld", req_payload.timeout_period);
+
+    req_len = pb_encode_request(buffer,
+                                sizeof(buffer),
+                                &req_payload,
+                                sns_timer_sensor_config_fields,
+                                NULL);
+
+    if (req_len > 0)
+    {
+      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
+      timer_req.request_len = req_len;
+      timer_req.request = buffer;
+
+      if (NULL != state->timer_data_stream)
+      {
+        /** Send encoded request to Timer Sensor */
+        state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+      }
+    }
+  }
+  else
+  {
+    if (state->timer_stream_is_created)
+    {
+      stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
+      state->timer_stream_is_created = false;
+    }
+  }
+
+}
+
 sns_rc ak0991x_get_meas_time( uint8_t device_select,
                               sns_time* meas_ts )
 {
@@ -1836,3 +1900,51 @@ sns_rc ak0991x_get_meas_time( uint8_t device_select,
   *meas_ts = usec_time_for_measure;
   return SNS_RC_SUCCESS;
 }
+
+sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  sns_rc rv = SNS_RC_SUCCESS;
+
+  if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
+  {
+//    if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
+//    {
+//      SNS_INST_PRINTF(ERROR, this, "flush fifo");
+//      ak0991x_flush_fifo(this);
+//    }
+    if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
+        (!state->mag_info.use_dri))
+    {
+      SNS_INST_PRINTF(ERROR, this, "start_mag_streaming");
+      ak0991x_start_mag_streaming(this);
+    }
+  }
+  else
+  {
+//    if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
+//    {
+//      ak0991x_flush_fifo(this);
+//      state->this_is_first_data = true;
+//    }
+
+    rv = ak0991x_stop_mag_streaming(this);
+
+    if (rv != SNS_RC_SUCCESS)
+    {
+      //state->mag_info.cur_wmk = pre_wmk;
+      // Turn COM port OFF
+      state->scp_service->api->sns_scp_update_bus_power(
+        state->com_port_info.port_handle,
+        false);
+      return rv;
+    }
+  }
+
+  ak0991x_dae_if_start_streaming(this);
+
+  state->config_step = AK0991X_CONFIG_IDLE; /* done with reconfig */
+
+  return rv;
+}
+

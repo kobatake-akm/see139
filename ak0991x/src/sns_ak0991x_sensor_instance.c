@@ -83,7 +83,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &((sns_sensor_uid)MAG_SUID),
               sizeof(state->mag_info.suid));
 
-  SNS_INST_PRINTF(LOW, this, "ak0991x inst init" );
+  SNS_INST_PRINTF(ERROR, this, "ak0991x inst init" );
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -268,6 +268,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
       state->log_raw_encoded_size = stream.bytes_written;
     }
   }
+
+
+  SNS_INST_PRINTF(ERROR, this, "before dae_if init" );
 
   ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid, &((sns_sensor_uid)MAG_SUID));
 
