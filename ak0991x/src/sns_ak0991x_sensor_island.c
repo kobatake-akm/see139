@@ -927,6 +927,18 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   this->instance_api->set_client_config(instance, &config);
 }
 
+static void ak0991x_send_flush_config(sns_sensor *const this,
+                                      sns_sensor_instance *instance)
+{
+  sns_request config;
+
+  config.message_id = SNS_STD_MSGID_SNS_STD_FLUSH_REQ;
+  config.request_len = 0;
+  config.request = NULL;
+
+  this->instance_api->set_client_config(instance, &config);
+}
+
 void ak0991x_reval_instance_config(sns_sensor *this,
                                    sns_sensor_instance *instance)
 {
@@ -1050,18 +1062,24 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     }
     else
     {
-      if (0) // flush_req
+      if(NULL != exist_request
+          &&
+          NULL != new_request
+          &&
+          new_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
       {
-        // TODO Flush FIFO samples.
         ak0991x_instance_state *inst_state =
           (ak0991x_instance_state *)instance->state->state;
 
-        if (inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+        if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
         {
-          ak0991x_flush_fifo(instance);
+          ak0991x_send_flush_config(this, instance);
+          return instance;
         }
-
-        instance = NULL;
+        else
+        {
+          return NULL;
+        }
       }
       else
       {

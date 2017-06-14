@@ -412,21 +412,21 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_flush_fifo(this);
         if (state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
-        {
-          state->this_is_first_data = true;
-        }
+      {
+        state->this_is_first_data = true;
       }
- 
+    }
+
       // hardware setting for measurement mode
       ak0991x_reconfig_hw(this);
       SNS_INST_PRINTF(ERROR, this, "done ak0991x_reconfig_hw");
       // Register for timer
-      if(!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-      {
+    if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+    {
         ak0991x_register_timer(this);
         SNS_INST_PRINTF(ERROR, this, "done register_timer");
-      }
- 
+        }
+
       //ak0991x_dae_if_start_streaming(this);
       ak0991x_send_config_event(this);
 
@@ -483,7 +483,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 //          }
 //        }
 //      }
- 
+
     }
 
 //    if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
@@ -529,6 +529,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       ak0991x_flush_fifo(this);
       state->this_is_first_data = true;
+      ak0991x_send_fifo_flush_done(this);
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
