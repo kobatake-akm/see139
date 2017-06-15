@@ -146,6 +146,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
 sns_rc ak0991x_mag_init(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
+  uint8_t i = 0;
 
   struct sns_service_manager *smgr = this->cb->get_service_manager(this);
   state->diag_service = (sns_diag_service *)
@@ -163,6 +164,19 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
               sizeof(state->my_suid),
               &((sns_sensor_uid)MAG_SUID),
               sizeof(sns_sensor_uid));
+
+  // initialize axis conversion settings
+  for(i = 0; i < TRIAXIS_NUM; i++)
+  {
+    state->axis_map[i].opaxis = i;
+    state->axis_map[i].ipaxis = i;
+    state->axis_map[i].invert = false;
+  }
+
+  // initialize fac cal correction matrix to identity
+  state->fac_cal_corr_mat.e00 = 1.0;
+  state->fac_cal_corr_mat.e11 = 1.0;
+  state->fac_cal_corr_mat.e22 = 1.0;
 
   ak0991x_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
   ak0991x_send_suid_req(this, "interrupt", sizeof("interrupt"));

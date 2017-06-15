@@ -253,6 +253,15 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->async_com_port_data_stream->api->send_request(
     state->async_com_port_data_stream, &async_com_port_request);
 
+ /** Copy down axis conversion settings */
+  sns_memscpy(state->axis_map,  sizeof(sensor_state->axis_map),
+              sensor_state->axis_map, sizeof(sensor_state->axis_map));
+
+  /** Initialize factory calibration */
+  state->mag_registry_cfg.fac_cal_corr_mat.e00 = 1.0;
+  state->mag_registry_cfg.fac_cal_corr_mat.e11 = 1.0;
+  state->mag_registry_cfg.fac_cal_corr_mat.e22 = 1.0;
+
   /** Determine size of sns_diag_sensor_state_raw as defined in
    *  sns_diag.proto
    *  sns_diag_sensor_state_raw is a repeated array of samples of

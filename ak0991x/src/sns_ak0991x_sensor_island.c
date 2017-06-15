@@ -1089,6 +1089,7 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
                                         sns_sensor_instance *instance,
                                         float chosen_report_rate,
                                         float chosen_sample_rate,
+                                        sns_ak0991x_registry_cfg registry_cfg,
                                         uint32_t chosen_flush_period)
 {
   sns_ak0991x_mag_req new_client_config;
@@ -1097,6 +1098,7 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   new_client_config.report_rate = chosen_report_rate;
   new_client_config.sample_rate = chosen_sample_rate;
   new_client_config.flush_period = chosen_flush_period;
+  new_client_config.registry_cfg = registry_cfg;
 
   config.message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
   config.request_len = sizeof(sns_ak0991x_mag_req);
@@ -1117,6 +1119,8 @@ void ak0991x_reval_instance_config(sns_sensor *this,
   uint32_t chosen_flush_period = 0;
   bool m_sensor_client_present;
   UNUSED_VAR(instance);
+  ak0991x_state *state = (ak0991x_state*)this->state->state;
+  sns_ak0991x_registry_cfg registry_cfg;
 
   ak0991x_get_mag_config(this,
                          instance,
@@ -1125,10 +1129,17 @@ void ak0991x_reval_instance_config(sns_sensor *this,
                          &chosen_flush_period,
                          &m_sensor_client_present);
 
+  sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
+      state->fac_cal_bias, sizeof(state->fac_cal_bias));
+
+  sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
+      &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
+
   ak0991x_set_mag_inst_config(this,
                               instance,
                               chosen_report_rate,
                               chosen_sample_rate,
+                              registry_cfg,
                               chosen_flush_period);
 }
 

@@ -29,6 +29,9 @@
 #include "sns_ak0991x_dae_if.h"
 #include "sns_async_com_port.pb.h"
 
+#include "sns_math_util.h"
+#include "sns_registry_util.h"
+
 /** Forward Declaration of Instance API */
 sns_sensor_instance_api ak0991x_sensor_instance_api;
 
@@ -129,6 +132,11 @@ typedef struct ak0991x_async_com_port_info
   uint32_t port_handle;
 } ak0991x_async_com_port_info;
 
+typedef struct sns_ak0991x_registry_cfg
+{
+  matrix3             fac_cal_corr_mat;
+  float               fac_cal_bias[3];
+}sns_ak0991x_registry_cfg;
 
 /** Private state. */
 typedef struct ak0991x_instance_state
@@ -170,6 +178,13 @@ typedef struct ak0991x_instance_state
   sns_std_sensor_config mag_req;
 
   size_t encoded_mag_event_len;
+
+  /**----------Axis Conversion----------*/
+  triaxis_conversion axis_map[TRIAXIS_NUM];
+
+  /**----------Sensor specific registry configuration----------*/
+  sns_ak0991x_registry_cfg mag_registry_cfg;
+ 
   /**----------debug----------*/
   float  m_stream_event[3];
 
@@ -193,6 +208,7 @@ typedef struct sns_ak0991x_mag_req
   float sample_rate;
   float report_rate;
   uint32_t flush_period;
+  sns_ak0991x_registry_cfg registry_cfg;
 } sns_ak0991x_mag_req;
 
 

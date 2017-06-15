@@ -188,10 +188,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
           if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
           {
+            SNS_INST_PRINTF(ERROR, this, "handle interrupt event for fifo wmk<2");
             ak0991x_flush_fifo(this);
           }
           else
           {
+            SNS_INST_PRINTF(ERROR, this, "handle interrupt event");
             ak0991x_handle_interrupt_event(this);
           }
 
@@ -229,6 +231,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 
+        SNS_INST_PRINTF(ERROR, this, "handle ASCP event");
+ 
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
 
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
@@ -259,7 +263,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
-         //SNS_INST_PRINTF(ERROR, this, "Execute handle timer event");
+          SNS_INST_PRINTF(ERROR, this, "handle timer event");
           ak0991x_handle_timer_event(this);
         }
       }
@@ -294,6 +298,8 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   uint16_t        desired_wmk = 0;
 //  uint16_t        pre_wmk = state->mag_info.cur_wmk;
   sns_rc          rv = SNS_RC_SUCCESS;
+  float *fac_cal_bias = NULL;
+  matrix3 *fac_cal_corr_mat = NULL;
 
 //  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
 //  sns_stream_service  *stream_mgr = (sns_stream_service *)
@@ -412,115 +418,95 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_flush_fifo(this);
         if (state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
-      {
-        state->this_is_first_data = true;
+        {
+          state->this_is_first_data = true;
+        }
       }
-    }
 
       // hardware setting for measurement mode
       ak0991x_reconfig_hw(this);
       SNS_INST_PRINTF(ERROR, this, "done ak0991x_reconfig_hw");
       // Register for timer
-    if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-    {
+      if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+      {
         ak0991x_register_timer(this);
         SNS_INST_PRINTF(ERROR, this, "done register_timer");
-        }
+      }
 
       //ak0991x_dae_if_start_streaming(this);
       ak0991x_send_config_event(this);
 
-//      if (!state->mag_info.use_dri)
-//      {
-//        if (state->mag_req.sample_rate != AK0991X_ODR_0)
-//        {
-//          if (!state->timer_stream_is_created)
-//          {
-//            stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-//                                                           this,
-//                                                           state->timer_suid,
-//                                                           &state->timer_data_stream);
-//            state->timer_stream_is_created = true;
-//          }
-//  
-//          sns_request             timer_req;
-//          sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
-//          size_t                  req_len;
-//          uint8_t                 buffer[20];
-//          sns_memset(buffer, 0, sizeof(buffer));
-//          req_payload.is_periodic = true;
-//          req_payload.start_time = sns_get_system_time();
-//          req_payload.timeout_period = sns_convert_ns_to_ticks(
-//              1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
-//  
-//          SNS_INST_PRINTF(ERROR, this, "timeout_period=%lld", req_payload.timeout_period);
-//   
-//          req_len = pb_encode_request(buffer,
-//                                      sizeof(buffer),
-//                                      &req_payload,
-//                                      sns_timer_sensor_config_fields,
-//                                      NULL);
-//  
-//          if (req_len > 0)
-//          {
-//            timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
-//            timer_req.request_len = req_len;
-//            timer_req.request = buffer;
-//  
-//            if (NULL != state->timer_data_stream)
-//            {
-//              /** Send encoded request to Timer Sensor */
-//              state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
-//            }
-//          }
-//        }
-//        else
-//        {
-//          if (state->timer_stream_is_created)
-//          {
-//            stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-//            state->timer_stream_is_created = false;
-//          }
-//        }
-//      }
-
     }
 
-//    if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
-//    {
-//      if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
-//      {
-//        SNS_INST_PRINTF(ERROR, this, "flush fifo");
-//        ak0991x_flush_fifo(this);
-//      }
-//      if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
-//          (!state->mag_info.use_dri))
-//      {
-//        SNS_INST_PRINTF(ERROR, this, "start_mag_streaming");
-//        ak0991x_start_mag_streaming(this);
-//      }
-//    }
-//    else
-//    {
-//      if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
-//      {
-//        ak0991x_flush_fifo(this);
-//        state->this_is_first_data = true;
-//      }
-//
-//      rv = ak0991x_stop_mag_streaming(this);
-//
-//      if (rv != SNS_RC_SUCCESS)
-//      {
-//        state->mag_info.cur_wmk = pre_wmk;
-//        // Turn COM port OFF
-//        state->scp_service->api->sns_scp_update_bus_power(
-//          state->com_port_info.port_handle,
-//          false);
-//        return rv;
-//      }
-//    }
+    // update registry configuration
+    fac_cal_bias = state->mag_registry_cfg.fac_cal_bias;
+    fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
 
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e00:%d e01:%d e02:%d", 
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e00,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e01,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e02);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e10:%d e11:%d e12:%d",
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e10,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e11,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e12);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e20:%d e21:%d e22:%d",
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e20,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e21,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e22);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Bias x:%d y:%d z:%d", 
+              (int)state->mag_registry_cfg.fac_cal_bias[0], 
+              (int)state->mag_registry_cfg.fac_cal_bias[1],
+              (int)state->mag_registry_cfg.fac_cal_bias[2]);
+ 
+
+    if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat)
+    {
+     SNS_INST_PRINTF(ERROR, this, "NULL or not for fac_cal_bias and corr_mat");
+
+     sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
+                  payload->registry_cfg.fac_cal_bias, 
+                  sizeof(payload->registry_cfg.fac_cal_bias));
+
+      sns_memscpy(fac_cal_corr_mat, sizeof(payload->registry_cfg.fac_cal_corr_mat),
+                  &payload->registry_cfg.fac_cal_corr_mat, 
+                  sizeof(payload->registry_cfg.fac_cal_corr_mat));
+
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e00:%d e01:%d e02:%d", 
+              (int)fac_cal_corr_mat->e00,
+              (int)fac_cal_corr_mat->e01,
+              (int)fac_cal_corr_mat->e02);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e10:%d e11:%d e12:%d", 
+              (int)fac_cal_corr_mat->e10,
+              (int)fac_cal_corr_mat->e11,
+              (int)fac_cal_corr_mat->e12);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e20:%d e21:%d e22:%d", 
+              (int)fac_cal_corr_mat->e20,
+              (int)fac_cal_corr_mat->e21,
+              (int)fac_cal_corr_mat->e22);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Bias x:%d y:%d z:%d", 
+              (int)fac_cal_bias[0],
+              (int)fac_cal_bias[1],
+              (int)fac_cal_bias[2]);
+
+          SNS_INST_PRINTF(ERROR, this, "MAG_REGISTRY Fac Cal Corr Matrix e00:%d e01:%d e02:%d", 
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e00,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e01,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e02);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e10:%d e11:%d e12:%d",
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e10,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e11,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e12);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e20:%d e21:%d e22:%d",
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e20,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e21,
+              (int)state->mag_registry_cfg.fac_cal_corr_mat.e22);
+          SNS_INST_PRINTF(ERROR, this, "Fac Cal Bias x:%d y:%d z:%d", 
+              (int)state->mag_registry_cfg.fac_cal_bias[0], 
+              (int)state->mag_registry_cfg.fac_cal_bias[1],
+              (int)state->mag_registry_cfg.fac_cal_bias[2]);
+ 
+    }
   }
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {

@@ -53,6 +53,8 @@
 #include "sns_diag.pb.h"
 #include "sns_printf.h"
 
+#include "sns_cal_util.h"
+
 /** Need to use ODR table. */
 extern const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE];
 
@@ -1176,30 +1178,48 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 {
   UNUSED_VAR(event_service);
 
-  float                        data[3];
+  float ipdata[TRIAXIS_NUM] = {0}, opdata_raw[TRIAXIS_NUM] = {0};
+  //float data[3];
+  uint8_t i = 0;
   sns_std_sensor_sample_status status;
+
+  SNS_INST_PRINTF(ERROR, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
+        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e00,
+        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e11,
+        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e22,
+        (uint32_t)state->mag_registry_cfg.fac_cal_bias[0],
+        (uint32_t)state->mag_registry_cfg.fac_cal_bias[1],
+        (uint32_t)state->mag_registry_cfg.fac_cal_bias[2]);
+
+
 
   if (state->mag_info.device_select == AK09917)
   {
-    data[0] =
+    ipdata[TRIAXIS_X] =
+    //data[0] =
       (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]) * state->mag_info.sstvt_adj[0] *
       state->mag_info.resolution;
-    data[1] =
+    ipdata[TRIAXIS_Y] =
+    //data[1] =
       (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]) * state->mag_info.sstvt_adj[1] *
       state->mag_info.resolution;
-    data[2] =
+    ipdata[TRIAXIS_Z] =
+    //data[2] =
       (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]) * state->mag_info.sstvt_adj[2] *
       state->mag_info.resolution;
   }
   else
   {
-    data[0] =
+    ipdata[TRIAXIS_X] =
+    //data[0] =
       (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0] *
       state->mag_info.resolution;
-    data[1] =
+    ipdata[TRIAXIS_Y] =
+    //data[1] =
       (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1] *
       state->mag_info.resolution;
-    data[2] =
+    ipdata[TRIAXIS_Z] =
+    //data[2] =
       (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] *
       state->mag_info.resolution;
   }
@@ -1214,33 +1234,45 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
   }
 
-  /** Hard coding axis mapping for QC Vertigo platform */
+  // axis conversion
+  for (i = 0; i < TRIAXIS_NUM; i++)
   {
-    float temp;
-    temp = data[0];
-    data[0] = data[1];
-    data[1] = temp;
-    data[2] = -data[2];
+    opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
+      ipdata[state->axis_map[i].ipaxis];
   }
+
+  // factory calibration
+  vector3 opdata_cal = sns_apply_calibration_correction_3(
+      make_vector3_from_array(opdata_raw),
+      make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
+      state->mag_registry_cfg.fac_cal_corr_mat);
+  
 
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,
                               timestamp,
                               SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_EVENT,
                               status,
-                              data,
-                              ARR_SIZE(data),
+//                              data,
+                              opdata_cal.data,
+//                              ARR_SIZE(data),
+                              ARR_SIZE(opdata_cal.data),
                               state->encoded_mag_event_len);
 
   //debug
-  state->m_stream_event[0] = data[0];
-  state->m_stream_event[1] = data[1];
-  state->m_stream_event[2] = data[2];
+//  state->m_stream_event[0] = data[0];
+//  state->m_stream_event[1] = data[1];
+//  state->m_stream_event[2] = data[2];
+  state->m_stream_event[0] = opdata_raw[TRIAXIS_X];
+  state->m_stream_event[1] = opdata_raw[TRIAXIS_Y];
+  state->m_stream_event[2] = opdata_raw[TRIAXIS_Z];
+
 
   // Log raw uncalibrated sensor data
   ak0991x_log_sensor_state_raw_add(
     log_mag_state_raw_info,
-    data,
+//    data,
+    opdata_raw,
     timestamp,
     status);
 }
@@ -1347,6 +1379,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                 &log_mag_state_raw_info);
       cnt_for_ts--;
     }
+
 
     state->this_is_first_data = false;
     state->pre_timestamp = state->interrupt_timestamp;
