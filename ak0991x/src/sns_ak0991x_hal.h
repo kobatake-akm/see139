@@ -40,40 +40,8 @@
 #define AK0991X_ENABLE_TEST_CODE         1
 #endif
 
-// Enable when Timer, Registry, ACP dependencies are available
-#ifndef AK0991X_ENABLE_DEPENDENCY
-#define AK0991X_ENABLE_DEPENDENCY        0
-#endif
-
-#ifndef AK0991X_USE_DEFAULTS
-#define AK0991X_USE_DEFAULTS             1
-#endif
-
 // Define to enable extra debugging
 #define AK0991X_VERBOSE_DEBUG            1
-
-// Set DRI(true) or Polling(false)
-#ifndef AK0991X_USE_DRI
-#define AK0991X_USE_DRI                  (true)
-#endif
-
-// Set Interrupt pull type
-// AK09915D, AK09916D and AK09917D should set SNS_INTTERRUPT_PULL_TYPE_PULL_UP
-// Other devices should set SNS_INTTERRUPT_PULL_TYPE_KEEPER
-#ifndef AK0991X_INTERRUPT_PULL_TYPE
-#define AK0991X_INTERRUPT_PULL_TYPE      SNS_INTTERRUPT_PULL_TYPE_PULL_UP
-//#define AK0991X_INTERRUPT_PULL_TYPE      SNS_INTTERRUPT_PULL_TYPE_KEEPER
-#endif
-
-
-// Set Interrupt trigger type
-// AK09912 and AK09915C should set SNS_INTTERRUPT_TRIGGER_TYPE_RISING
-// AK09915D, AK09916D and AK09917D should set SNS_INTTERRUPT_TRIGGER_TYPE_FALLING
-#ifndef AK0991X_INTERRUPT_TIRIGGER_TYPE
-#define AK0991X_INTERRUPT_TIRIGGER_TYPE  SNS_INTTERRUPT_TRIGGER_TYPE_FALLING
-//#define AK0991X_INTERRUPT_TIRIGGER_TYPE  SNS_INTTERRUPT_TRIGGER_TYPE_RISING
-#endif
-
 
 typedef enum
 {

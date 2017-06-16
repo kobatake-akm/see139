@@ -80,11 +80,11 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
   }
   config_req.has_accel_info      = false;
 
-  if((req.request_len = 
-      pb_encode_request(encoded_msg, 
-                        sizeof(encoded_msg), 
+  if((req.request_len =
+      pb_encode_request(encoded_msg,
+                        sizeof(encoded_msg),
                         &config_req,
-                        sns_dae_set_streaming_config_fields, 
+                        sns_dae_set_streaming_config_fields,
                         NULL)) > 0)
   {
     if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &req))
@@ -152,9 +152,9 @@ static bool stop_streaming(ak0991x_dae_stream *dae_stream)
 
 /* ------------------------------------------------------------------------------------ */
 static void process_fifo_samples(
-  sns_sensor_instance *this, 
+  sns_sensor_instance *this,
   sns_time            timestamp,
-  uint8_t             *buf, 
+  uint8_t             *buf,
   size_t              buf_len)
 {
   uint8_t *fifo_start = buf + 1; /* 1st byte = CNTRL2 */
@@ -165,10 +165,10 @@ static void process_fifo_samples(
   if(num_sample_sets >= 1 && sampling_intvl > 0)
   {
     sns_time first_timestamp = timestamp - sampling_intvl * (num_sample_sets - 1);
-    ak0991x_process_fifo_data_buffer(this, 
-                                     first_timestamp, 
+    ak0991x_process_fifo_data_buffer(this,
+                                     first_timestamp,
                                      sampling_intvl,
-                                     fifo_start, 
+                                     fifo_start,
                                      buf_len - 1);
 
   }
@@ -176,7 +176,7 @@ static void process_fifo_samples(
 
 /* ------------------------------------------------------------------------------------ */
 static void process_data_event(
-  sns_sensor_instance *this, 
+  sns_sensor_instance *this,
   ak0991x_dae_stream  *dae_stream,
   pb_istream_t        *pbstream)
 {
@@ -197,7 +197,7 @@ static void process_data_event(
 
 /* ------------------------------------------------------------------------------------ */
 static void process_response(
-  sns_sensor_instance *this, 
+  sns_sensor_instance *this,
   ak0991x_dae_stream  *dae_stream,
   pb_istream_t        *pbstream)
 {
@@ -218,13 +218,13 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
       break;
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
-         SNS_INST_PRINTF(LOW, this,"DAE_SET_STREAMING_CONFIG");
+      SNS_INST_PRINTF(LOW, this,"DAE_SET_STREAMING_CONFIG");
       if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
       {
         if(SNS_STD_ERROR_NO_ERROR == resp.err)
         {
           dae_stream->state = STREAMING;
-          //ak0991x_start_mag_streaming(this);
+          ak0991x_reconfig_hw(this);
         }
         else
         {
@@ -236,8 +236,8 @@ static void process_response(
       SNS_INST_PRINTF(LOW, this,"DAE_FLUSH_HW");
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
-        ak0991x_reconfig_hw(this);
-        //ak0991x_start_mag_streaming(this);
+        ak0991x_dae_if_start_streaming(this);
+        state->config_step = AK0991X_CONFIG_IDLE;
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
@@ -252,7 +252,7 @@ static void process_response(
       {
         dae_stream->state = (SNS_STD_ERROR_NO_ERROR != resp.err) ? STREAMING : IDLE;
       }
-      if(NULL != state->dae_if.mag.stream && 
+      if(NULL != state->dae_if.mag.stream &&
          state->dae_if.mag.state != STREAM_STOPPING)
       {
         /* done waiting */
@@ -278,13 +278,13 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
   sns_sensor_event *event;
 
   //SNS_INST_PRINTF(LOW, this,"line=%d process_events",__LINE__);
- 
-  while(NULL != dae_stream->stream && 
+
+  while(NULL != dae_stream->stream &&
         NULL != (event = dae_stream->stream->api->peek_input(dae_stream->stream)))
   {
     if (dae_stream->stream_usable)
     {
-      pb_istream_t pbstream = 
+      pb_istream_t pbstream =
         pb_istream_from_buffer((pb_byte_t*)event->event, event->event_len);
 
       if (SNS_DAE_MSGID_SNS_DAE_DATA_EVENT == event->message_id)
@@ -296,7 +296,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       }
       else if(SNS_DAE_MSGID_SNS_DAE_RESP == event->message_id)
       {
-        SNS_INST_PRINTF(LOW, this,"line=%d SNS_DAE_RESP",__LINE__);
+        SNS_INST_PRINTF(LOW, this,"SNS_DAE_RESP");
         process_response(this, dae_stream, &pbstream);
       }
       else if(SNS_STD_MSGID_SNS_STD_ERROR_EVENT == event->message_id)
@@ -305,7 +305,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       }
       else
       {
-        SNS_INST_PRINTF(LOW, this,"Unexpected message id %u", event->message_id);
+        SNS_INST_PRINTF(ERROR, this,"Unexpected message id %u", event->message_id);
       }
     }
     event = dae_stream->stream->api->get_next_input(dae_stream->stream);
@@ -382,7 +382,7 @@ sns_rc ak0991x_dae_if_init(
     dae_if->mag.nano_hal_vtable_name = "ak0991x_hal_table";
 
     sns_strlcpy(config_req.func_table_name,
-                dae_if->mag.nano_hal_vtable_name, 
+                dae_if->mag.nano_hal_vtable_name,
                 sizeof(config_req.func_table_name));
     config_req.interrupt              = true;
     config_req.axis_map_count         = 3;
@@ -404,10 +404,10 @@ sns_rc ak0991x_dae_if_init(
         (state->axis_map[i].ipaxis + 1);
     }
 
-    req.request_len = pb_encode_request(encoded_msg, 
-                                        sizeof(encoded_msg), 
+    req.request_len = pb_encode_request(encoded_msg,
+                                        sizeof(encoded_msg),
                                         &config_req,
-                                        sns_dae_set_static_config_fields, 
+                                        sns_dae_set_static_config_fields,
                                         NULL);
     if(0 < req.request_len)
     {
@@ -449,7 +449,7 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
   if(stream_usable(&state->dae_if.mag) &&
      (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
   {
-    SNS_INST_PRINTF(LOW, this,"%s- Mag stream=%x", __FUNCTION__,&dae_if->mag.stream);
+    SNS_INST_PRINTF(LOW, this,"Mag stream=0x%x", &dae_if->mag.stream);
     cmd_sent |= stop_streaming(&dae_if->mag);
   }
 
@@ -506,11 +506,11 @@ bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this)
 /* ------------------------------------------------------------------------------------ */
 void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 {
-  SNS_INST_PRINTF(LOW, this,"line=%d func=%s",__LINE__,__FUNCTION__);
- 
+  SNS_INST_PRINTF(LOW, this,"ak0991x_dae_if_process_events");
+
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
- 
+
   process_events(this, &state->dae_if.mag);
 
   if(NULL == state->dae_if.mag.stream)

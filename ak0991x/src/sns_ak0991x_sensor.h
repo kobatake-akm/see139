@@ -34,7 +34,7 @@
     }  \
   }
 
-#if AK0991X_USE_DEFAULTS
+#if 0
 /** TODO Using 8996 Platform config as defaults. This is for
  *  test purpose only. All platform specific information will
  *  be available to the Sensor driver via Registry. */

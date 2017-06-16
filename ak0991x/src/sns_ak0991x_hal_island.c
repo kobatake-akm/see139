@@ -61,65 +61,19 @@ extern const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE];
 log_sensor_state_raw_info log_mag_state_raw_info;
 
 /**
- * Encode Sensor State Log.Interrupt
- *  
- * @param[i] log Pointer to log packet information
- * @param[i] log_size Size of log packet information
- * @param[i] encoded_log_size Maximum permitted encoded size of 
- *                            the log
- * @param[o] encoded_log Pointer to location where encoded 
- *                       log should be generated
- * @param[o] bytes_written Pointer to actual bytes written 
- *       during encode
- *  
- * @return sns_rc,
- * SNS_RC_SUCCESS if encoding was succesful 
- * SNS_RC_FAILED otherwise 
- */
-sns_rc ak0991x_encode_sensor_state_log_interrupt(
-  void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
-  size_t *bytes_written)
-{
-  UNUSED_VAR(log_size);
-  sns_rc rc = SNS_RC_SUCCESS;
-
-  if(NULL == encoded_log || NULL == log || NULL == bytes_written)
-  {
-    return SNS_RC_FAILED;
-  }
-
-  sns_diag_sensor_state_interrupt *sensor_state_interrupt =
-    (sns_diag_sensor_state_interrupt *)log;
-  pb_ostream_t stream = pb_ostream_from_buffer(encoded_log, encoded_log_size);
-
-  if(!pb_encode(&stream, sns_diag_sensor_state_interrupt_fields,
-                sensor_state_interrupt))
-  {
-    rc = SNS_RC_FAILED;
-  }
-
-  if (SNS_RC_SUCCESS == rc)
-  {
-    *bytes_written = stream.bytes_written;
-  }
-
-  return rc;
-}
-
-/**
  * Encode log sensor state raw packet
- *  
+ *
  * @param[i] log Pointer to log packet information
  * @param[i] log_size Size of log packet information
- * @param[i] encoded_log_size Maximum permitted encoded size of 
+ * @param[i] encoded_log_size Maximum permitted encoded size of
  *                            the log
- * @param[o] encoded_log Pointer to location where encoded 
+ * @param[o] encoded_log Pointer to location where encoded
  *                       log should be generated
- * @param[o] bytes_written Pointer to actual bytes written 
+ * @param[o] bytes_written Pointer to actual bytes written
  *       during encode
- *  
- * @return sns_rc 
- * SNS_RC_SUCCESS if encoding was succesful 
+ *
+ * @return sns_rc
+ * SNS_RC_SUCCESS if encoding was succesful
  * SNS_RC_FAILED otherwise
  */
 sns_rc ak0991x_encode_log_sensor_state_raw(
@@ -190,10 +144,10 @@ sns_rc ak0991x_encode_log_sensor_state_raw(
 }
 
 /**
- * Allocate Sensor State Raw Log Packet 
+ * Allocate Sensor State Raw Log Packet
  *
- * @param[i] diag       Pointer to diag service 
- * @param[i] log_size   Optional size of log packet to 
+ * @param[i] diag       Pointer to diag service
+ * @param[i] log_size   Optional size of log packet to
  *    be allocated. If not provided by setting to 0, will
  *    default to using maximum supported log packet size
  */
@@ -242,11 +196,11 @@ void ak0991x_log_sensor_state_raw_alloc(
 /**
  * Submit the Sensor State Raw Log Packet
  *
- * @param[i] log_raw_info   Pointer to logging information 
+ * @param[i] log_raw_info   Pointer to logging information
  *       pertaining to the sensor
- * @param[i] batch_complete true if submit request is for end 
+ * @param[i] batch_complete true if submit request is for end
  *       of batch
- *  */ 
+ *  */
 void ak0991x_log_sensor_state_raw_submit(
   log_sensor_state_raw_info *log_raw_info,
   bool batch_complete)
@@ -290,20 +244,19 @@ void ak0991x_log_sensor_state_raw_submit(
   log_raw_info->log = NULL;
 }
 
-/** 
- *  
- * Add raw uncalibrated sensor data to Sensor State Raw log 
- * packet 
- *  
- * @param[i] log_raw_info Pointer to logging information 
+/**
+ * Add raw uncalibrated sensor data to Sensor State Raw log
+ * packet
+ *
+ * @param[i] log_raw_info Pointer to logging information
  *                        pertaining to the sensor
  * @param[i] raw_data     Uncalibrated sensor data to be logged
  * @param[i] timestamp    Timestamp of the sensor data
- * @param[i] status       Status of the sensor data 
- *  
+ * @param[i] status       Status of the sensor data
+ *
  * * @return sns_rc,
- * SNS_RC_SUCCESS if encoding was succesful 
- * SNS_RC_FAILED otherwise  
+ * SNS_RC_SUCCESS if encoding was succesful
+ * SNS_RC_FAILED otherwise
  */
 sns_rc ak0991x_log_sensor_state_raw_add(
   log_sensor_state_raw_info *log_raw_info,
@@ -434,8 +387,8 @@ static sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
     if( diag )
     {
       SNS_INST_PRINTF(MED, this,
-                             "ak0991x write reg:0x%x val:0x%x, bytes %d",
-                             reg_addr, (uint32_t) buffer[0], bytes);
+                      "ak0991x write reg:0x%x val:0x%x, bytes %d",
+                      reg_addr, (uint32_t) buffer[0], bytes);
     }
   }
 #else
@@ -521,7 +474,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   static const struct {
     ak0991x_mag_odr odr;
     char* name;
-  } odr_debug_string_map[] = 
+  } odr_debug_string_map[] =
     {
       {AK0991X_MAG_ODR_OFF, "off" },
       {AK0991X_MAG_ODR_SNG_MEAS, "single measurment" },
@@ -543,7 +496,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   }
   if( i < ARR_SIZE( odr_debug_string_map ) )
   {
-    SNS_INST_PRINTF(MED, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
+    SNS_INST_PRINTF(ERROR, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
                                   odr_debug_string_map[i].name, device_select,
                                   cur_wmk );
   }
@@ -555,7 +508,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 
   }
 #else
-  SNS_INST_PRINTF(MED, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
+  SNS_INST_PRINTF(ERROR, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
                                 desired_odr, device_select,
                                 cur_wmk );
 #endif
@@ -714,9 +667,9 @@ static sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint8_t  buffer[1];
   uint32_t xfer_bytes;
-  
+
   UNUSED_VAR(diag);
-  
+
 
   buffer[0] = AK0991X_MAG_FUSEROM;
   // Set Fuse ROM access mode
@@ -1183,7 +1136,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
 
-  SNS_INST_PRINTF(ERROR, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
+  SNS_INST_PRINTF(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e00,
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e11,
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e22,
@@ -1196,30 +1149,24 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   if (state->mag_info.device_select == AK09917)
   {
     ipdata[TRIAXIS_X] =
-    //data[0] =
       (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]) * state->mag_info.sstvt_adj[0] *
       state->mag_info.resolution;
     ipdata[TRIAXIS_Y] =
-    //data[1] =
       (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]) * state->mag_info.sstvt_adj[1] *
       state->mag_info.resolution;
     ipdata[TRIAXIS_Z] =
-    //data[2] =
       (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]) * state->mag_info.sstvt_adj[2] *
       state->mag_info.resolution;
   }
   else
   {
     ipdata[TRIAXIS_X] =
-    //data[0] =
       (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0] *
       state->mag_info.resolution;
     ipdata[TRIAXIS_Y] =
-    //data[1] =
       (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1] *
       state->mag_info.resolution;
     ipdata[TRIAXIS_Z] =
-    //data[2] =
       (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] *
       state->mag_info.resolution;
   }
@@ -1239,10 +1186,10 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   {
     opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
       ipdata[state->axis_map[i].ipaxis];
-    SNS_INST_PRINTF(ERROR, instance, "ip=%d op=%d invert=%d",
+    /*SNS_INST_PRINTF(LOW, instance, "ip=%d op=%d invert=%d",
         (uint32_t)state->axis_map[i].ipaxis,
         (uint32_t)state->axis_map[i].opaxis,
-        (uint32_t)state->axis_map[i].invert);
+        (uint32_t)state->axis_map[i].invert);*/
   }
 
   // factory calibration
@@ -1250,23 +1197,17 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       make_vector3_from_array(opdata_raw),
       make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
       state->mag_registry_cfg.fac_cal_corr_mat);
-  
+
 
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,
                               timestamp,
                               SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_EVENT,
                               status,
-//                              data,
                               opdata_cal.data,
-//                              ARR_SIZE(data),
                               ARR_SIZE(opdata_cal.data),
                               state->encoded_mag_event_len);
 
-  //debug
-//  state->m_stream_event[0] = data[0];
-//  state->m_stream_event[1] = data[1];
-//  state->m_stream_event[2] = data[2];
   state->m_stream_event[0] = opdata_raw[TRIAXIS_X];
   state->m_stream_event[1] = opdata_raw[TRIAXIS_Y];
   state->m_stream_event[2] = opdata_raw[TRIAXIS_Z];
@@ -1450,7 +1391,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   for (i = 0; i < num_samples; i++)
   {
     // flush event trigger is IRQ
-    // TODO: get timestamp from DAE
     if (state->irq_info.detect_irq_event)
     {
       if (state->this_is_first_data)
@@ -1479,7 +1419,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   if (num_samples != 0)
   {
-    // TODO: get timestamp from DAE
     if (state->irq_info.detect_irq_event)
     {
       state->pre_timestamp = state->interrupt_timestamp;
@@ -1584,7 +1523,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 
 //  SNS_INST_PRINTF(ERROR, instance, "handle timer event, timestamp=%d st1=%d hxl=%d hxh=%d hyl=%d hyh=%d",
 //      timestamp,buffer[0],buffer[1], buffer[2],buffer[3],buffer[4]);
-  SNS_INST_PRINTF(ERROR, instance, "handle timer event");
+  SNS_INST_PRINTF(LOW, instance, "handle timer event");
 
   ak0991x_handle_mag_sample(&buffer[1],
                             timestamp,
@@ -1802,14 +1741,13 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
   if(!state->irq_info.is_registered)
   {
     sns_data_stream* data_stream = state->interrupt_data_stream;
-    uint8_t buffer[20];
+    uint8_t buffer[20] = {0};
     sns_request irq_req =
       {
         .message_id = SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REQ,
         .request    = buffer
       };
-      
-    sns_memset(buffer, 0, sizeof(buffer));
+
     irq_req.request_len = pb_encode_request(buffer,
                                             sizeof(buffer),
                                             &state->irq_info.irq_config,
@@ -1826,7 +1764,7 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
 void ak0991x_register_timer(sns_sensor_instance *this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-  
+
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
   sns_stream_service *stream_mgr = (sns_stream_service *)
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
@@ -1845,14 +1783,13 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     sns_request             timer_req;
     sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
     size_t                  req_len;
-    uint8_t                 buffer[20];
-    sns_memset(buffer, 0, sizeof(buffer));
+    uint8_t                 buffer[20] = {0};
     req_payload.is_periodic = true;
     req_payload.start_time = sns_get_system_time();
     req_payload.timeout_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 
-    SNS_INST_PRINTF(ERROR, this, "timeout_period=%lld", req_payload.timeout_period);
+    SNS_INST_PRINTF(LOW, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
@@ -1970,17 +1907,9 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
     if (rv != SNS_RC_SUCCESS)
     {
       //state->mag_info.cur_wmk = pre_wmk;
-      // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-        state->com_port_info.port_handle,
-        false);
       return rv;
     }
   }
-
-  ak0991x_dae_if_start_streaming(this);
-
-  state->config_step = AK0991X_CONFIG_IDLE; /* done with reconfig */
 
   return rv;
 }

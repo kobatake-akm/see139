@@ -37,36 +37,6 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         values, ARR_SIZE(values), false);
   }
   {
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
-      SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
-    values[0].has_flt = true;
-    values[0].flt = 0;
-    values[1].has_flt = true;
-    values[1].flt = 0;
-    values[2].has_flt = true;
-    values[2].flt = 0;
-    values[3].has_flt = true;
-    values[3].flt = 0;
-    values[4].has_flt = true;
-    values[4].flt = 0;
-    values[5].has_flt = true;
-    values[5].flt = 0;
-    values[6].has_flt = true;
-    values[6].flt = 0;
-    values[7].has_flt = true;
-    values[7].flt = 0;
-    values[8].has_flt = true;
-    values[8].flt = 0;
-    values[9].has_flt = true;
-    values[9].flt = 0;
-    values[10].has_flt = true;
-    values[10].flt = 0;
-    values[11].has_flt = true;
-    values[11].flt = 0;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PLACEMENT,
-        values, ARR_SIZE(values), false);
-  }
-  {
     sns_std_attr_value_data values[] = {SNS_ATTR};
     char const proto1[] = "sns_mag.proto";
     values[0].str.funcs.encode = pb_encode_string_cb;
@@ -115,20 +85,6 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     value.sint = 0x00000100;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
-    value.sint = SNS_STD_SENSOR_RIGID_BODY_TYPE_DISPLAY;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
-    value.sint = 0;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_HW_ID, &value, 1, false);
   }
   {
     float data[3] = {0};
