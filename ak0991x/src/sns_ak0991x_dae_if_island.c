@@ -218,7 +218,7 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
       break;
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
-         SNS_INST_PRINTF(ERROR, this,"DAE_SET_STREAMING_CONFIG");
+         SNS_INST_PRINTF(LOW, this,"DAE_SET_STREAMING_CONFIG");
       if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
       {
         if(SNS_STD_ERROR_NO_ERROR == resp.err)
@@ -233,7 +233,7 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
-      SNS_INST_PRINTF(ERROR, this,"DAE_FLUSH_HW");
+      SNS_INST_PRINTF(LOW, this,"DAE_FLUSH_HW");
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
         ak0991x_reconfig_hw(this);
@@ -277,7 +277,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 {
   sns_sensor_event *event;
 
-  SNS_INST_PRINTF(ERROR, this,"line=%d process_events",__LINE__);
+  //SNS_INST_PRINTF(LOW, this,"line=%d process_events",__LINE__);
  
   while(NULL != dae_stream->stream && 
         NULL != (event = dae_stream->stream->api->peek_input(dae_stream->stream)))
@@ -296,7 +296,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       }
       else if(SNS_DAE_MSGID_SNS_DAE_RESP == event->message_id)
       {
-        SNS_INST_PRINTF(ERROR, this,"line=%d SNS_DAE_RESP",__LINE__);
+        SNS_INST_PRINTF(LOW, this,"line=%d SNS_DAE_RESP",__LINE__);
         process_response(this, dae_stream, &pbstream);
       }
       else if(SNS_STD_MSGID_SNS_STD_ERROR_EVENT == event->message_id)
@@ -305,8 +305,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       }
       else
       {
-        SNS_INST_PRINTF(ERROR, this,
-                                 "Unexpected message id %u", event->message_id);
+        SNS_INST_PRINTF(LOW, this,"Unexpected message id %u", event->message_id);
       }
     }
     event = dae_stream->stream->api->get_next_input(dae_stream->stream);
@@ -334,9 +333,9 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 bool ak0991x_dae_if_available(sns_sensor_instance *this)
 {
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
-  SNS_INST_PRINTF(ERROR, this,"mag.stream=%d mag.stream_usable=%d",
-     (int)(dae_if->mag.stream != NULL),  (int)dae_if->mag.stream_usable);
-  
+  //SNS_INST_PRINTF(ERROR, this,"mag.stream=%d mag.stream_usable=%d",
+  //   (int)(dae_if->mag.stream != NULL),  (int)dae_if->mag.stream_usable);
+
   return (dae_if->mag.stream != NULL && dae_if->mag.stream_usable);
 }
 
@@ -347,7 +346,7 @@ sns_rc ak0991x_dae_if_init(
   sns_sensor_uid       *dae_suid,
   sns_sensor_uid const *parent_suid)
 {
-  SNS_INST_PRINTF(ERROR, this,"line=%d dae_if_init",__LINE__);
+  SNS_INST_PRINTF(LOW, this,"line=%d dae_if_init",__LINE__);
   sns_rc rc = SNS_RC_NOT_AVAILABLE;
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info* dae_if = &state->dae_if;
@@ -386,7 +385,7 @@ sns_rc ak0991x_dae_if_init(
                 dae_if->mag.nano_hal_vtable_name, 
                 sizeof(config_req.func_table_name));
     config_req.interrupt              = true;
-    config_req.axis_map_count         = 0;
+    config_req.axis_map_count         = 3;
     config_req.has_irq_config         = true;
 #ifdef AK0991X_DAE_FORCE_POLLING
     config_req.interrupt              = false;
@@ -402,7 +401,7 @@ sns_rc ak0991x_dae_if_init(
     for(i = 0; i < TRIAXIS_NUM; i++)
     {
       config_req.axis_map[i] = (state->axis_map[i].invert ? -1.0 : 1.0) *
-        state->axis_map[i].ipaxis;
+        (state->axis_map[i].ipaxis + 1);
     }
 
     req.request_len = pb_encode_request(encoded_msg, 
@@ -450,7 +449,7 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
   if(stream_usable(&state->dae_if.mag) &&
      (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
   {
-    SNS_INST_PRINTF(ERROR, this,"%s- Mag stream=%x", __FUNCTION__,&dae_if->mag.stream);
+    SNS_INST_PRINTF(LOW, this,"%s- Mag stream=%x", __FUNCTION__,&dae_if->mag.stream);
     cmd_sent |= stop_streaming(&dae_if->mag);
   }
 
@@ -507,7 +506,7 @@ bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this)
 /* ------------------------------------------------------------------------------------ */
 void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 {
-  SNS_INST_PRINTF(ERROR, this,"line=%d func=%s",__LINE__,__FUNCTION__);
+  SNS_INST_PRINTF(LOW, this,"line=%d func=%s",__LINE__,__FUNCTION__);
  
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 

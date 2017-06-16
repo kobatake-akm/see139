@@ -239,6 +239,22 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   }
 }
 
+static void ak0991x_remove_stream(sns_sensor *const this, sns_data_stream *stream)
+{
+  // debug
+  return;
+
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service  *stream_mgr =
+    (sns_stream_service *)service_mgr->get_service(service_mgr,
+                                                   SNS_STREAM_SERVICE);
+  if(stream)
+  {
+    stream_mgr->api->remove_stream(stream_mgr, stream);
+    stream = NULL;
+  }
+}
+
 static void
 ak0991x_sensor_publish_available(sns_sensor *const this)
 {
@@ -260,6 +276,8 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
       sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_AVAILABLE,
                             &value, 1, true);
     }
+
+    ak0991x_remove_stream(this, state->fw_stream);
   }
   else
   {
@@ -573,13 +591,13 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
             state->fac_cal_corr_mat.e22 = state->fac_cal_scale[2];
           }
 
-          SNS_PRINTF(MED, this, "Fac Cal Corr Matrix e00:%f e01:%f e02:%f", state->fac_cal_corr_mat.e00,state->fac_cal_corr_mat.e01,
+          SNS_PRINTF(LOW, this, "Fac Cal Corr Matrix e00:%f e01:%f e02:%f", state->fac_cal_corr_mat.e00,state->fac_cal_corr_mat.e01,
                  state->fac_cal_corr_mat.e02);
-          SNS_PRINTF(MED, this, "Fac Cal Corr Matrix e10:%f e11:%f e12:%f", state->fac_cal_corr_mat.e10,state->fac_cal_corr_mat.e11,
+          SNS_PRINTF(LOW, this, "Fac Cal Corr Matrix e10:%f e11:%f e12:%f", state->fac_cal_corr_mat.e10,state->fac_cal_corr_mat.e11,
                  state->fac_cal_corr_mat.e12);
-          SNS_PRINTF(MED, this, "Fac Cal Corr Matrix e20:%f e21:%f e22:%f", state->fac_cal_corr_mat.e20,state->fac_cal_corr_mat.e21,
+          SNS_PRINTF(LOW, this, "Fac Cal Corr Matrix e20:%f e21:%f e22:%f", state->fac_cal_corr_mat.e20,state->fac_cal_corr_mat.e21,
                  state->fac_cal_corr_mat.e22);
-          SNS_PRINTF(MED, this, "Fac Cal Bias x:%f y:%f z:%f", state->fac_cal_bias[0], state->fac_cal_bias[1],
+          SNS_PRINTF(LOW, this, "Fac Cal Bias x:%f y:%f z:%f", state->fac_cal_bias[0], state->fac_cal_bias[1],
                  state->fac_cal_bias[2]);
         }
       }
@@ -617,11 +635,15 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
     }
   }
 
-  if(state->registry_cfg_received
+  if(NULL != state->reg_data_stream
+     && state->registry_cfg_received
+     && state->registry_pf_cfg_received
+     && state->registry_orient_received
+     && state->registry_fac_cal_received
      && state->registry_placement_received)
   {
-    // TODO
-    //ak0991x_publish_registry_attributes(this);
+    // Done receiving all registry.
+    ak0991x_remove_stream(this, state->reg_data_stream);
   }
 
   return rv;
@@ -1107,6 +1129,18 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   this->instance_api->set_client_config(instance, &config);
 }
 
+static void ak0991x_send_flush_config(sns_sensor *const this,
+                                      sns_sensor_instance *instance)
+{
+  sns_request config;
+
+  config.message_id = SNS_STD_MSGID_SNS_STD_FLUSH_REQ;
+  config.request_len = 0;
+  config.request = NULL;
+
+  this->instance_api->set_client_config(instance, &config);
+}
+
 void ak0991x_reval_instance_config(sns_sensor *this,
                                    sns_sensor_instance *instance)
 {
@@ -1155,6 +1189,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_time delta;
   bool reval_config = false;
 
+  SNS_PRINTF(HIGH, this, "ak0991x_set_client_request");
+
   if (remove)
   {
     if (NULL != instance)
@@ -1165,25 +1201,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                    low power state happens in Instance deinit().*/
 
       ak0991x_reval_instance_config(this, instance);
-
-      sns_sensor *sensor;
-
-      for (sensor = this->cb->get_library_sensor(this, true);
-           NULL != sensor;
-           sensor = this->cb->get_library_sensor(this, false))
-      {
-        ak0991x_state *sensor_state = (ak0991x_state *)sensor->state->state;
-
-        if (sensor_state->rail_config.rail_vote != SNS_RAIL_OFF)
-        {
-          sensor_state->rail_config.rail_vote = SNS_RAIL_OFF;
-          sensor_state->pwr_rail_service->api->sns_vote_power_rail_update(
-            sensor_state->pwr_rail_service,
-            sensor,
-            &sensor_state->rail_config,
-            NULL);
-        }
-      }
     }
   }
   else
@@ -1233,6 +1250,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         reval_config = true;
       }
 
+      SNS_PRINTF(LOW, this, "Creating instance");
+
       /** create_instance() calls init() for the Sensor Instance */
       instance = this->cb->create_instance(this,
                                            sizeof(ak0991x_instance_state));
@@ -1248,12 +1267,15 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         ak0991x_instance_state *inst_state =
           (ak0991x_instance_state *)instance->state->state;
 
-        if (inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+        if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
         {
-          ak0991x_flush_fifo(instance);
+          ak0991x_send_flush_config(this, instance);
+          return instance;
         }
-
-        instance = NULL;
+        else
+        {
+          return NULL;
+        }
       }
       else
       {
@@ -1292,7 +1314,26 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
      NULL == instance->cb->
      get_client_request(instance, &(sns_sensor_uid)MAG_SUID, true))
   {
+    sns_sensor *sensor;
+    SNS_PRINTF(LOW, this, "Removing instance");
     this->cb->remove_instance(instance);
+
+    for (sensor = this->cb->get_library_sensor(this, true);
+         NULL != sensor;
+         sensor = this->cb->get_library_sensor(this, false))
+    {
+      ak0991x_state *sensor_state = (ak0991x_state *)sensor->state->state;
+
+      if (sensor_state->rail_config.rail_vote != SNS_RAIL_OFF)
+      {
+        sensor_state->rail_config.rail_vote = SNS_RAIL_OFF;
+        sensor_state->pwr_rail_service->api->sns_vote_power_rail_update(
+          sensor_state->pwr_rail_service,
+          sensor,
+          &sensor_state->rail_config,
+          NULL);
+      }
+    }
   }
 
   return instance;
@@ -1343,6 +1384,12 @@ void ak0991x_process_suid_events(sns_sensor *const this)
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
   sns_stream_service *stream_svc = (sns_stream_service*) service_mgr->get_service(service_mgr,
                                                               SNS_STREAM_SERVICE);
+
+  if(NULL == state->fw_stream)
+  {
+    return;
+  }
+
   for (;
        0 != state->fw_stream->api->get_input_cnt(state->fw_stream);
        state->fw_stream->api->get_next_input(state->fw_stream))

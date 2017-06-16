@@ -1953,7 +1953,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
     if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
         (!state->mag_info.use_dri))
     {
-      SNS_INST_PRINTF(ERROR, this, "start_mag_streaming");
+      SNS_INST_PRINTF(LOW, this, "start_mag_streaming");
       ak0991x_start_mag_streaming(this);
     }
   }
@@ -1964,7 +1964,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
 //      ak0991x_flush_fifo(this);
 //      state->this_is_first_data = true;
 //    }
-
+    SNS_INST_PRINTF(LOW, this, "ak0991x_stop_mag_streaming");
     rv = ak0991x_stop_mag_streaming(this);
 
     if (rv != SNS_RC_SUCCESS)
