@@ -1358,6 +1358,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
   //Continue reading until fifo buffer is clear
+  //TODO preferably read all data bytes in single read operation
   for (i = 0; i < state->mag_info.max_fifo_size; i++)
   {
     ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
@@ -1502,6 +1503,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   sns_time timestamp;
   timestamp = sns_get_system_time();
 
+  // TODO: update function to handle FIFO reads
 
   // Read register ST1->ST2
   rv = ak0991x_com_read_wrapper(state->scp_service,
@@ -1546,7 +1548,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   sns_std_sensor_physical_config_event phy_sensor_config =
     sns_std_sensor_physical_config_event_init_default;
 
-  // TODO: Use appropriate op_mode selected by driver.
   char *operating_mode;
 
   switch (state->mag_info.device_select)
@@ -1771,6 +1772,7 @@ void ak0991x_register_timer(sns_sensor_instance *this)
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
   {
+    // TODO: replace boolean check with NULL check for timer_data_stream
     if (!state->timer_stream_is_created)
     {
       stream_mgr->api->create_sensor_instance_stream(stream_mgr,
@@ -1803,6 +1805,8 @@ void ak0991x_register_timer(sns_sensor_instance *this)
       timer_req.request_len = req_len;
       timer_req.request = buffer;
 
+      // TODO: clean up error handling in this function.
+      // Print error, return error if timer stream is not created.
       if (NULL != state->timer_data_stream)
       {
         /** Send encoded request to Timer Sensor */
@@ -1816,6 +1820,7 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     {
       stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
       state->timer_stream_is_created = false;
+      state->timer_data_stream = NULL;
     }
   }
 

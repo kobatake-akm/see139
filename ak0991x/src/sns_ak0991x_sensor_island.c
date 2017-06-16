@@ -370,7 +370,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       event->event_len);
 
   SNS_PRINTF(ERROR, this, "ak0991x_sensor_process_registry_event");
- 
+
   if(SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_EVENT == event->message_id)
   {
     sns_registry_read_event read_event = sns_registry_read_event_init_default;
@@ -396,7 +396,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
             .parse_info[0] = {
             .group_name = "config",
             .parse_func = sns_registry_parse_phy_sensor_cfg,
-            .parsed_buffer = &state->registry_cfg } 
+            .parsed_buffer = &state->registry_cfg }
           };
 
           read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
@@ -495,11 +495,11 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           {
             state->scp_service =  (sns_sync_com_port_service *)
                 service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
-  
+
             rc = state->scp_service->api->sns_scp_register_com_port(
               &state->com_port_info.com_config,
               &state->com_port_info.port_handle);
-  
+
             if(rc == SNS_RC_SUCCESS)
             {
               rc = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
@@ -511,14 +511,15 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           }
 
           /**---------------------Register Power Rails --------------------------*/
+          // TODO: potentially extract below code in another function
           if(NULL == state->pwr_rail_service && rc == SNS_RC_SUCCESS)
           {
             state->rail_config.rail_vote = SNS_RAIL_OFF;
-  
+
             state->pwr_rail_service =
               (sns_pwr_rail_service*)service_mgr->get_service(service_mgr,
                                                               SNS_POWER_RAIL_SERVICE);
-  
+
             state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
                                                                    &state->rail_config);
           }
@@ -1139,7 +1140,7 @@ static void ak0991x_get_mag_config(sns_sensor *this,
           report_rate = *chosen_sample_rate;
           flush_period = UINT32_MAX;
         }
-        
+
 
         *chosen_report_rate = SNS_MAX(*chosen_report_rate,
                                       report_rate);
@@ -1439,6 +1440,7 @@ static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
 static void ak0991x_request_registry(sns_sensor *const this)
 {
   // place a request to registry sensor
+   // TODO: make string #define
   ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.config");
   ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.placement");
   ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.orient");

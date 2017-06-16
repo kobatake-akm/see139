@@ -296,14 +296,9 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float           mag_chosen_sample_rate = 0;
   ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
   uint16_t        desired_wmk = 0;
-//  uint16_t        pre_wmk = state->mag_info.cur_wmk;
   sns_rc          rv = SNS_RC_SUCCESS;
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
-
-//  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-//  sns_stream_service  *stream_mgr = (sns_stream_service *)
-//    service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
 
   SNS_INST_PRINTF(ERROR, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
@@ -399,11 +394,10 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_req.sample_rate = mag_chosen_sample_rate;
     state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
-    SNS_INST_PRINTF(ERROR, this, "sample_rate=%d, reg_value=%d",
-        (int)mag_chosen_sample_rate,(int)mag_chosen_sample_rate_reg_value);
+    SNS_INST_PRINTF(ERROR, this, "sample_rate=%d, reg_value=%d, config_step=%d",
+                    (int)mag_chosen_sample_rate,(int)mag_chosen_sample_rate_reg_value,
+                    (int)state->config_step);
 
-    SNS_INST_PRINTF(ERROR, this, "config_step=%d",(int)state->config_step);
- 
     if (AK0991X_CONFIG_IDLE == state->config_step &&
         ak0991x_dae_if_stop_streaming(this))
     {

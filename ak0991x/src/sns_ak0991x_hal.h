@@ -22,6 +22,7 @@
 #include "sns_sensor_uid.h"
 #include "sns_std.pb.h"
 #include "sns_std_sensor.pb.h"
+#include "sns_registry_util.h"
 
 /* Referenced data sheet version
  * AK09911  data sheet version MS1626_E-01
@@ -48,10 +49,6 @@ typedef enum
   AK0991X_I2C = SNS_BUS_I2C,
   AK0991X_SPI = SNS_BUS_SPI,
 } ak0991x_bus_type;
-// Set Serial interface
-#ifndef AK0991X_BUS_TYPE
-#define AK0991X_BUS_TYPE                            SNS_BUS_I2C
-#endif
 
 /**
  *  Address registers
@@ -118,7 +115,7 @@ typedef enum
 #define AK09918_FIFO_SIZE                           0
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2 + 1
-
+// TODO: few of these configs can be pulled into registry
 /** FIFO setting */
 #define AK0991X_ENABLE_FIFO                         1
 
@@ -244,7 +241,7 @@ typedef enum
 /*******************************
  * Number of axes in a 3 axis sensor
  */
-#define AK0991X_NUM_AXES                            3
+#define AK0991X_NUM_AXES                            TRIAXIS_NUM
 
 /*******************************
  * Log structure definition
