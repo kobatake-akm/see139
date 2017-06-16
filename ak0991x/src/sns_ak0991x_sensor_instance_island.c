@@ -442,29 +442,9 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     fac_cal_bias = state->mag_registry_cfg.fac_cal_bias;
     fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
 
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e00:%d e01:%d e02:%d", 
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e00,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e01,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e02);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e10:%d e11:%d e12:%d",
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e10,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e11,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e12);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e20:%d e21:%d e22:%d",
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e20,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e21,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e22);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Bias x:%d y:%d z:%d", 
-              (int)state->mag_registry_cfg.fac_cal_bias[0], 
-              (int)state->mag_registry_cfg.fac_cal_bias[1],
-              (int)state->mag_registry_cfg.fac_cal_bias[2]);
- 
-
     if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat)
     {
-     SNS_INST_PRINTF(ERROR, this, "NULL or not for fac_cal_bias and corr_mat");
-
-     sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
+      sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
                   payload->registry_cfg.fac_cal_bias, 
                   sizeof(payload->registry_cfg.fac_cal_bias));
 
@@ -472,42 +452,9 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                   &payload->registry_cfg.fac_cal_corr_mat, 
                   sizeof(payload->registry_cfg.fac_cal_corr_mat));
 
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e00:%d e01:%d e02:%d", 
-              (int)fac_cal_corr_mat->e00,
-              (int)fac_cal_corr_mat->e01,
-              (int)fac_cal_corr_mat->e02);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e10:%d e11:%d e12:%d", 
-              (int)fac_cal_corr_mat->e10,
-              (int)fac_cal_corr_mat->e11,
-              (int)fac_cal_corr_mat->e12);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e20:%d e21:%d e22:%d", 
-              (int)fac_cal_corr_mat->e20,
-              (int)fac_cal_corr_mat->e21,
-              (int)fac_cal_corr_mat->e22);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Bias x:%d y:%d z:%d", 
-              (int)fac_cal_bias[0],
-              (int)fac_cal_bias[1],
-              (int)fac_cal_bias[2]);
-
-          SNS_INST_PRINTF(ERROR, this, "MAG_REGISTRY Fac Cal Corr Matrix e00:%d e01:%d e02:%d", 
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e00,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e01,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e02);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e10:%d e11:%d e12:%d",
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e10,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e11,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e12);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Corr Matrix e20:%d e21:%d e22:%d",
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e20,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e21,
-              (int)state->mag_registry_cfg.fac_cal_corr_mat.e22);
-          SNS_INST_PRINTF(ERROR, this, "Fac Cal Bias x:%d y:%d z:%d", 
-              (int)state->mag_registry_cfg.fac_cal_bias[0], 
-              (int)state->mag_registry_cfg.fac_cal_bias[1],
-              (int)state->mag_registry_cfg.fac_cal_bias[2]);
- 
     }
-  }
+
+   }
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->fifo_flush_in_progress = true;

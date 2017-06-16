@@ -1239,6 +1239,10 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   {
     opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
       ipdata[state->axis_map[i].ipaxis];
+    SNS_INST_PRINTF(ERROR, instance, "ip=%d op=%d invert=%d",
+        (uint32_t)state->axis_map[i].ipaxis,
+        (uint32_t)state->axis_map[i].opaxis,
+        (uint32_t)state->axis_map[i].invert);
   }
 
   // factory calibration

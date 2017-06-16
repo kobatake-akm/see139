@@ -397,6 +397,14 @@ sns_rc ak0991x_dae_if_init(
     config_req.ascp_config            = state->ascp_config;
     config_req.has_accel_info         = false;
 
+    uint8_t i = 0;
+
+    for(i = 0; i < TRIAXIS_NUM; i++)
+    {
+      config_req.axis_map[i] = (state->axis_map[i].invert ? -1.0 : 1.0) *
+        state->axis_map[i].ipaxis;
+    }
+
     req.request_len = pb_encode_request(encoded_msg, 
                                         sizeof(encoded_msg), 
                                         &config_req,
