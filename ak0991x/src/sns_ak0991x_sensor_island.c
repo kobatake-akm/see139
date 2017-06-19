@@ -402,6 +402,21 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
   return rv;
 }
 
+static void ak0991x_register_power_rails(sns_sensor *const this)
+{
+   ak0991x_state *state = (ak0991x_state *)this->state->state;
+   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+
+   state->rail_config.rail_vote = SNS_RAIL_OFF;
+
+   state->pwr_rail_service =
+     (sns_pwr_rail_service*)service_mgr->get_service(service_mgr,
+                                                     SNS_POWER_RAIL_SERVICE);
+
+   state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
+                                                          &state->rail_config);
+}
+
 static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                                   sns_sensor_event *event)
 {
@@ -588,17 +603,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           }
 
           /**---------------------Register Power Rails --------------------------*/
-          // TODO: potentially extract below code in another function
           if(NULL == state->pwr_rail_service && rc == SNS_RC_SUCCESS)
           {
-            state->rail_config.rail_vote = SNS_RAIL_OFF;
-
-            state->pwr_rail_service =
-              (sns_pwr_rail_service*)service_mgr->get_service(service_mgr,
-                                                              SNS_POWER_RAIL_SERVICE);
-
-            state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
-                                                                   &state->rail_config);
+            ak0991x_register_power_rails(this);
           }
         }
       }
