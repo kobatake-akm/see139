@@ -358,6 +358,50 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
   }
 }
 
+static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_item,
+                                                  pb_buffer_arg *item_name,
+                                                  pb_buffer_arg *item_str_val,
+                                                  void *parsed_buffer)
+{
+  bool rv = true;
+
+  if(NULL == reg_item || NULL == item_name || NULL == item_str_val ||
+     NULL == parsed_buffer)
+  {
+    rv = false;
+  }
+  else if(reg_item->has_sint)
+  {
+    ak0991x_registry_phy_sensor_cfg *cfg =
+      (ak0991x_registry_phy_sensor_cfg *)parsed_buffer;
+
+    if(0 == strncmp((char*)item_name->buf,
+                    "use_fifo",
+                    item_name->buf_len))
+    {
+      cfg->use_fifo = (reg_item->sint == 1) ? true : false;
+    }
+    else if(0 == strncmp((char*)item_name->buf,
+                         "nsf",
+                         item_name->buf_len))
+    {
+      cfg->nsf = reg_item->sint;
+    }
+    else if(0 == strncmp((char*)item_name->buf,
+                         "sdr",
+                         item_name->buf_len))
+    {
+      cfg->sdr = reg_item->sint;
+    }
+  }
+  else
+  {
+    rv = false;
+  }
+
+  return rv;
+}
+
 static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                                   sns_sensor_event *event)
 {
@@ -420,6 +464,39 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           SNS_PRINTF(ERROR, this, "resolution_idx:%d, supports_sync_stream:%d ",
                                    state->resolution_idx,
                                    state->supports_sync_stream);
+       }
+      }
+      if(0 == strncmp((char*)group_name.buf, "ak0991x_0_reg.mag.config",
+                           group_name.buf_len))
+      {
+        {
+          sns_registry_decode_arg arg = {
+            .item_group_name = &group_name,
+            .parse_info_len = 1,
+            .parse_info[0] = {
+            .group_name = "config",
+            .parse_func = ak0991x_registry_parse_phy_sensor_cfg,
+            .parsed_buffer = &state->registry_reg_cfg }
+          };
+
+          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
+          read_event.data.items.arg = &arg;
+
+          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+        }
+
+        if(rv)
+        {
+          state->registry_reg_cfg_received = true;
+          state->use_fifo = state->registry_reg_cfg.use_fifo;
+          state->nsf = state->registry_reg_cfg.nsf;
+          state->sdr = state->registry_reg_cfg.sdr;
+
+
+          SNS_PRINTF(ERROR, this, "use_fifo:%d, nsf:%d ,sdr:%d",
+                                   state->use_fifo,
+                                   state->nsf,
+                                   state->sdr);
         }
       }
       else if(0 == strncmp((char*)group_name.buf, "ak0991x_0_platform.config",
@@ -1440,12 +1517,12 @@ static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
 static void ak0991x_request_registry(sns_sensor *const this)
 {
   // place a request to registry sensor
-   // TODO: make string #define
-  ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.config");
-  ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.placement");
-  ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.orient");
-  ak0991x_sensor_send_registry_request(this, "ak0991x_0_platform.mag.fac_cal");
-  ak0991x_sensor_send_registry_request(this, "ak0991x_0.mag.config");
+  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_PF_CONFIG);
+  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_PLACE);
+  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_ORIENT);
+  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_FACCAL);
+  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_MAG_CONFIG);
+  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_REG_CONFIG);
 }
 /** See sns_ak0991x_sensor.h */
 void ak0991x_process_suid_events(sns_sensor *const this)

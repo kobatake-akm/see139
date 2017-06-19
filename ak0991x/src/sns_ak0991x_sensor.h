@@ -34,6 +34,13 @@
     }  \
   }
 
+#define AK0991X_REGISTRY_PF_CONFIG   "ak0991x_0_platform.config"
+#define AK0991X_REGISTRY_PLACE       "ak0991x_0_platform.placement"
+#define AK0991X_REGISTRY_ORIENT      "ak0991x_0_platform.orient"
+#define AK0991X_REGISTRY_FACCAL      "ak0991x_0_platform.mag.fac_cal"
+#define AK0991X_REGISTRY_MAG_CONFIG  "ak0991x_0.mag.config"
+#define AK0991X_REGISTRY_REG_CONFIG  "ak0991x_0_reg.mag.config"
+
 #if 0
 /** TODO Using 8996 Platform config as defaults. This is for
  *  test purpose only. All platform specific information will
@@ -134,6 +141,16 @@ typedef enum
   AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ,
 } ak0991x_power_rail_pending_state;
 
+/** Registry items supported as part of physical sensor
+ *  configuraton registry group
+ */
+typedef struct ak0991x_registry_phy_sensor_cfg
+{
+  bool    use_fifo;
+  uint8_t nsf;
+  uint8_t sdr;
+} ak0991x_registry_phy_sensor_cfg;
+ 
 /** Interrupt Sensor State. */
 
 typedef struct ak0991x_state
@@ -169,11 +186,18 @@ typedef struct ak0991x_state
   int64_t hardware_id;
   bool supports_sync_stream;
   uint8_t resolution_idx;
+  bool use_fifo;
+  uint8_t nsf;
+  uint8_t sdr;
   
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
-  
+
+  // registry sensor reg config
+  bool registry_reg_cfg_received;
+  ak0991x_registry_phy_sensor_cfg registry_reg_cfg;
+
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;

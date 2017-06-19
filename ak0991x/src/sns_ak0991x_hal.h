@@ -115,16 +115,6 @@ typedef enum
 #define AK09918_FIFO_SIZE                           0
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2 + 1
-// TODO: few of these configs can be pulled into registry
-/** FIFO setting */
-#define AK0991X_ENABLE_FIFO                         1
-
-/** NSF setting */
-#define AK0991X_NSF                                 0
-
-/** Sensor driver setting */
-#define AK0991X_SDR                                 0 // AK09915 case, 0: low power mode, 1: low noise mode
-                                                      // AK09917 case, 0: low noise mode, 1: low power mode
 
 /** Off to idle time */
 #define AK0991X_OFF_TO_IDLE_MS                      100 //ms
@@ -554,13 +544,14 @@ void ak0991x_register_timer(sns_sensor_instance *this);
  * Get time for measurement
  *
  * @param[i] device_select  Device type
+ * @param[i] sdr            Drive mode setting
  * @param[o] measure_us     Measurement time in usec
  *
  * @return sns_rc
  * SNS_RC_SUCCESS if encoding was succesful
  * SNS_RC_FAILED otherwise
  */
-sns_rc ak0991x_get_meas_time( uint8_t device_select, sns_time* measure_us );
+sns_rc ak0991x_get_meas_time( uint8_t device_select, uint8_t sdr, sns_time* measure_us );
 
 /**
  * Configures sensor with new/recomputed settings

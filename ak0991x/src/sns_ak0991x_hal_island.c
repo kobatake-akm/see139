@@ -518,13 +518,13 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     if (device_select == AK09912)
     {
       buffer = 0x0
-        | (AK0991X_NSF << 5); // NSF bit
+        | (state->mag_info.nsf << 5); // NSF bit
     }
     else
     {
       buffer = 0x0
-        | (AK0991X_NSF << 5) // NSF bit
-        | cur_wmk;           // WM[4:0] bits
+        | (state->mag_info.nsf << 5) // NSF bit
+        | cur_wmk;                   // WM[4:0] bits
     }
 
     rv = ak0991x_com_write_wrapper(this,
@@ -551,9 +551,9 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
     buffer = 0x0
-      | (AK0991X_ENABLE_FIFO << 7) // FIFO bit
-      | (AK0991X_SDR << 6)         // SDR bit
-      | (uint8_t)desired_odr;      // MODE[4:0] bits
+      | ((uint8_t)state->mag_info.use_fifo << 7) // FIFO bit
+      | (state->mag_info.sdr << 6)               // SDR bit
+      | (uint8_t)desired_odr;                    // MODE[4:0] bits
   }
   else
   {
@@ -791,6 +791,9 @@ sns_rc ak0991x_self_test(sns_sensor_instance *const this,
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
 
+  ak0991x_instance_state *state =
+    (ak0991x_instance_state *)this->state->state;
+
   // Initialize error code
   *err = 0;
 
@@ -842,7 +845,7 @@ sns_rc ak0991x_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  if( !ak0991x_get_meas_time( device_select, &usec_time_for_measure ) )
+  if( !ak0991x_get_meas_time(device_select, state->mag_info.sdr, &usec_time_for_measure ) )
   {
     *err = (TLIMIT_NO_INVALID_ID << 16);
     goto TEST_SEQUENCE_FAILED;
@@ -1599,7 +1602,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   case AK09915C:
 
-    if (AK0991X_SDR == 1)
+    if (state->mag_info.sdr == 1)
     {
       operating_mode = AK0991X_LOW_NOISE;
     }
@@ -1623,7 +1626,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   case AK09915D:
 
-    if (AK0991X_SDR == 1)
+    if (state->mag_info.sdr == 1)
     {
       operating_mode = AK0991X_LOW_NOISE;
     }
@@ -1677,7 +1680,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   case AK09917:
 
-    if (AK0991X_SDR == 0)
+    if (state->mag_info.sdr == 0)
     {
       operating_mode = AK0991X_LOW_NOISE;
     }
@@ -1827,6 +1830,7 @@ void ak0991x_register_timer(sns_sensor_instance *this)
 }
 
 sns_rc ak0991x_get_meas_time( uint8_t device_select,
+                              uint8_t sdr,
                               sns_time* meas_ts )
 {
   sns_time usec_time_for_measure;
@@ -1836,7 +1840,7 @@ sns_rc ak0991x_get_meas_time( uint8_t device_select,
   }
   else if (device_select == AK09917)
   {
-    if (AK0991X_SDR == 0)
+    if (sdr == 0)
     {
       usec_time_for_measure = AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
     }
@@ -1851,7 +1855,7 @@ sns_rc ak0991x_get_meas_time( uint8_t device_select,
   }
   else if ((device_select == AK09915C) || (device_select == AK09915D))
   {
-    if (AK0991X_SDR == 1)
+    if (sdr == 1)
     {
       usec_time_for_measure = AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
     }

@@ -105,6 +105,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09911_FIFO_SIZE;
     state->mag_info.use_dri = false;
+    state->mag_info.nsf = 0;
+    state->mag_info.sdr = 0;
     break;
 
   case AK09912:
@@ -112,6 +114,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09912_FIFO_SIZE;
     state->mag_info.use_dri = sensor_state->is_dri;
+    state->mag_info.nsf = sensor_state->nsf;
+    state->mag_info.sdr = 0;
     break;
 
   case AK09913:
@@ -119,14 +123,18 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09913_FIFO_SIZE;
     state->mag_info.use_dri = false;
+    state->mag_info.nsf = 0;
+    state->mag_info.sdr = 0;
     break;
 
   case AK09915C:
   case AK09915D:
     state->mag_info.resolution = AK09915_RESOLUTION;
-    state->mag_info.use_fifo = AK0991X_ENABLE_FIFO;
+    state->mag_info.use_fifo = sensor_state->use_fifo;
     state->mag_info.max_fifo_size = AK09915_FIFO_SIZE;
     state->mag_info.use_dri = sensor_state->is_dri;
+    state->mag_info.nsf = sensor_state->nsf;
+    state->mag_info.sdr = sensor_state->sdr;
     break;
 
   case AK09916C:
@@ -134,6 +142,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
     state->mag_info.use_dri = false;
+    state->mag_info.nsf = 0;
+    state->mag_info.sdr = 0;
     break;
 
   case AK09916D:
@@ -141,13 +151,17 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
     state->mag_info.use_dri = sensor_state->is_dri;
+    state->mag_info.nsf = 0;
+    state->mag_info.sdr = 0;
     break;
 
   case AK09917:
     state->mag_info.resolution = AK09917_RESOLUTION;
-    state->mag_info.use_fifo = AK0991X_ENABLE_FIFO;
+    state->mag_info.use_fifo = sensor_state->use_fifo;
     state->mag_info.max_fifo_size = AK09917_FIFO_SIZE;
     state->mag_info.use_dri = sensor_state->is_dri;
+    state->mag_info.nsf = sensor_state->nsf;
+    state->mag_info.sdr = sensor_state->sdr;
     break;
 
   case AK09918:
@@ -155,6 +169,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09918_FIFO_SIZE;
     state->mag_info.use_dri = false;
+    state->mag_info.nsf = 0;
+    state->mag_info.sdr = 0;
     break;
 
   default:

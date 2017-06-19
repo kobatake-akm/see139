@@ -115,6 +115,8 @@ typedef struct ak0991x_mag_info
   uint16_t       max_fifo_size;
   bool           use_dri;
   bool           use_fifo;
+  uint8_t        nsf;
+  uint8_t        sdr;
   sns_sensor_uid suid;
 } ak0991x_mag_info;
 

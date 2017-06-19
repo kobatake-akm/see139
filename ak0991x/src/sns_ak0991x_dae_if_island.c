@@ -71,7 +71,7 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
   if( config_req.has_polling_config )
   {
     sns_time meas_usec;
-    ak0991x_get_meas_time(mag_info->device_select, &meas_usec);
+    ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
     config_req.polling_config.polling_interval_ticks =
       sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)mag_info->cur_wmk
                                / (uint64_t) mag_info->curr_odr );
