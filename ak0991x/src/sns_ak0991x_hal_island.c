@@ -977,7 +977,75 @@ TEST_SEQUENCE_FAILED:
 }
 
 /**
- * Get fifo data.
+ * Read ST1 register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[i] port_handle              handle to synch COM port
+ * @param[o] buffer                   st1 register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
+                               sns_sync_com_port_handle *port_handle,
+                               uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                port_handle,
+                                AKM_AK0991X_REG_ST1,
+                                buffer,
+                                1,
+                                &xfer_bytes);
+
+  if (xfer_bytes != 1)
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+
+/**
+ * Get all fifo data.
+ *
+ * @param[i] state                    Instance state
+ * @param[i] port_handle              handle to synch COM port
+ * @param[i] num_samples              number of samples
+ * @param[o] buffer                   fifo data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_get_all_fifo_data(ak0991x_instance_state *state,
+                                        sns_sync_com_port_handle *port_handle,
+                                        uint16_t num_samples,
+                                        uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                port_handle,
+                                AKM_AK0991X_REG_HXL,
+                                buffer,
+                                (uint32_t)num_samples,
+                                &xfer_bytes);
+
+  if (xfer_bytes != num_samples)
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+
+/**
+ * Get fifo data for 1 sample.
  *
  * @param[i] port_handle              handle to synch COM port
  * @param[o] buffer                   fifo data
@@ -1360,21 +1428,37 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
-  //Continue reading until fifo buffer is clear
-  //TODO preferably read all data bytes in single read operation
-  for (i = 0; i < state->mag_info.max_fifo_size; i++)
+  if(state->mag_info.device_select == AK09917)
   {
-    ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
-                          &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
+    uint8_t st1_buf;
+    //In case of AK09917,
+    //Read ST1 register to check FIFO samples
+    ak0991x_read_st1(state,state->com_port_info.port_handle,
+                     &st1_buf);
 
-    if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
+    num_samples = AK0991X_NUM_DATA_HXL_TO_ST2 * (st1_buf >> 2) + 1;
+
+    //Read continuously all data in FIFO at one time.
+    ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
+                              num_samples,&buffer[0]);
+  }
+  else
+  {
+    //Continue reading until fifo buffer is clear
+    for (i = 0; i < state->mag_info.max_fifo_size; i++)
     {
-      //fifo buffer is clear
-      break;
-    }
-    else
-    {
-      num_samples++;
+      ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
+                            &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
+
+      if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
+      {
+        //fifo buffer is clear
+        break;
+      }
+      else
+      {
+        num_samples++;
+      }
     }
   }
 
@@ -1451,9 +1535,21 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    // Water mark level : 0x0 -> 1step, 0x1F ->32step
-    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
-  }
+    if(state->mag_info.device_select == AK09917)
+    {
+      uint8_t st1_buf;
+      //Read ST1 register to check FIFO samples
+      ak0991x_read_st1(state,state->com_port_info.port_handle,
+                       &st1_buf);
+
+      num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (st1_buf >> 2) + 1;
+    }
+    else
+    {
+      // Water mark level : 0x0 -> 1step, 0x1F ->32step
+      num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
+    }
+ }
   else
   {
     num_of_bytes = AK0991X_NUM_DATA_ST1_TO_ST2;
