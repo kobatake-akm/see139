@@ -1775,14 +1775,12 @@ void ak0991x_register_timer(sns_sensor_instance *this)
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
   {
-    // TODO: replace boolean check with NULL check for timer_data_stream
-    if (!state->timer_stream_is_created)
+    if (NULL == state->timer_data_stream)
     {
       stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                      this,
                                                      state->timer_suid,
                                                      &state->timer_data_stream);
-      state->timer_stream_is_created = true;
     }
 
     sns_request             timer_req;
@@ -1808,21 +1806,19 @@ void ak0991x_register_timer(sns_sensor_instance *this)
       timer_req.request_len = req_len;
       timer_req.request = buffer;
 
-      // TODO: clean up error handling in this function.
-      // Print error, return error if timer stream is not created.
-      if (NULL != state->timer_data_stream)
-      {
-        /** Send encoded request to Timer Sensor */
-        state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
-      }
+      /** Send encoded request to Timer Sensor */
+      state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+    }
+    else
+    {
+      SNS_INST_PRINTF(ERROR, this, "Fail to send request to Timer Sensor");
     }
   }
   else
   {
-    if (state->timer_stream_is_created)
+    if (state->timer_data_stream != NULL)
     {
       stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-      state->timer_stream_is_created = false;
       state->timer_data_stream = NULL;
     }
   }

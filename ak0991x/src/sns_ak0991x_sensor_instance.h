@@ -153,7 +153,6 @@ typedef struct ak0991x_instance_state
 
   /** Timer info */
   sns_sensor_uid timer_suid;
-  bool timer_stream_is_created;
 
   /** Interrupt dependency info. */
   ak0991x_irq_info irq_info;

@@ -210,7 +210,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               sizeof(state->timer_suid),
               &sensor_state->timer_suid,
               sizeof(sensor_state->timer_suid));
-  state->timer_stream_is_created = false;
+  state->timer_data_stream = NULL;
 
   /** Initialize COM port to be used by the Instance */
   sns_memscpy(&state->com_port_info.com_config,
@@ -314,10 +314,10 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 
   ak0991x_dae_if_deinit(state, stream_mgr);
 
-  if (state->timer_stream_is_created)
+  if (state->timer_data_stream != NULL)
   {
     stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-    state->timer_stream_is_created = false;
+    state->timer_data_stream = NULL;
   }
 
   stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
