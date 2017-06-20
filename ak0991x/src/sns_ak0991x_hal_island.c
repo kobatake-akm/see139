@@ -1535,21 +1535,9 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    if(state->mag_info.device_select == AK09917)
-    {
-      uint8_t st1_buf;
-      //Read ST1 register to check FIFO samples
-      ak0991x_read_st1(state,state->com_port_info.port_handle,
-                       &st1_buf);
-
-      num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (st1_buf >> 2) + 1;
-    }
-    else
-    {
-      // Water mark level : 0x0 -> 1step, 0x1F ->32step
-      num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
-    }
- }
+    // Water mark level : 0x0 -> 1step, 0x1F ->32step
+    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
+  }
   else
   {
     num_of_bytes = AK0991X_NUM_DATA_ST1_TO_ST2;
