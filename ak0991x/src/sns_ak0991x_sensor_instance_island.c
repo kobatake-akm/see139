@@ -428,7 +428,7 @@ static sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this);
-        SNS_INST_PRINTF(ERROR, this, "done register_timer");
+        SNS_INST_PRINTF(LOW, this, "done register_timer");
       }
 
       //ak0991x_dae_if_start_streaming(this);

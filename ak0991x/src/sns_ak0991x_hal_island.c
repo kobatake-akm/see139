@@ -1615,7 +1615,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
     return rv;
   }
 
-  SNS_INST_PRINTF(ERROR, instance, "handle timer event");
+  SNS_INST_PRINTF(LOW, instance, "handle timer event");
 
   ak0991x_handle_mag_sample(&buffer[1],
                             timestamp,

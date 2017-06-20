@@ -315,10 +315,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   if(NULL != state->com_port_info.port_handle)
   {
     state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, true);
-  }
-  ak0991x_reconfig_hw(this);
-  if(NULL != state->com_port_info.port_handle)
-  {
+    ak0991x_reconfig_hw(this);
     state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, false);
   }
 
