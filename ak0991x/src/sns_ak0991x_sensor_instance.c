@@ -312,6 +312,16 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     (sns_stream_service *)service_mgr->get_service(service_mgr,
                                                    SNS_STREAM_SERVICE);
 
+  if(NULL != state->com_port_info.port_handle)
+  {
+    state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, true);
+  }
+  ak0991x_reconfig_hw(this);
+  if(NULL != state->com_port_info.port_handle)
+  {
+    state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, false);
+  }
+
   ak0991x_dae_if_deinit(state, stream_mgr);
 
   if (state->timer_data_stream != NULL)

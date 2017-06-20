@@ -82,7 +82,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
-    value.sint = 0x00000100;
+    value.sint = 0x0100;  //TODO: update with appropriate value
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
   }

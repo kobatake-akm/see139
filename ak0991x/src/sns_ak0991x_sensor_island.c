@@ -416,7 +416,6 @@ static void ak0991x_register_power_rails(sns_sensor *const this)
    state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
                                                           &state->rail_config);
 }
-
 static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                                   sns_sensor_event *event)
 {
@@ -428,7 +427,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
       event->event_len);
 
-  SNS_PRINTF(ERROR, this, "ak0991x_sensor_process_registry_event");
+  SNS_PRINTF(LOW, this, "ak0991x_sensor_process_registry_event");
 
   if(SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_EVENT == event->message_id)
   {
@@ -472,11 +471,11 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->resolution_idx = state->registry_cfg.res_idx;
           state->supports_sync_stream = state->registry_cfg.sync_stream;
 
-          SNS_PRINTF(ERROR, this, "is_dri:%d, hardware_id:%lld ",
+          SNS_PRINTF(LOW, this, "is_dri:%d, hardware_id:%lld ",
                                    state->is_dri,
                                    state->hardware_id);
 
-          SNS_PRINTF(ERROR, this, "resolution_idx:%d, supports_sync_stream:%d ",
+          SNS_PRINTF(LOW, this, "resolution_idx:%d, supports_sync_stream:%d ",
                                    state->resolution_idx,
                                    state->supports_sync_stream);
        }
@@ -557,28 +556,28 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                       state->registry_pf_cfg.vdd_rail,
                       sizeof(state->rail_config.rails[1].name));
 
-          SNS_PRINTF(ERROR, this, "bus_type:%d bus_instance:%d slave_control:%d",
+          SNS_PRINTF(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
                      state->com_port_info.com_config.bus_type,
                      state->com_port_info.com_config.bus_instance,
                      state->com_port_info.com_config.slave_control);
 
-          SNS_PRINTF(ERROR, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
+          SNS_PRINTF(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
                      state->com_port_info.com_config.min_bus_speed_KHz,
                      state->com_port_info.com_config.max_bus_speed_KHz,
                      state->com_port_info.com_config.reg_addr_type);
 
-          SNS_PRINTF(ERROR, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d",
+          SNS_PRINTF(LOW, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d",
                      state->irq_config.interrupt_num,
                      state->irq_config.interrupt_pull_type,
                      state->irq_config.is_chip_pin);
 
-          SNS_PRINTF(ERROR, this, "interrupt_drive_strength:%d interrupt_trigger_type:%d"
+          SNS_PRINTF(LOW, this, "interrupt_drive_strength:%d interrupt_trigger_type:%d"
                      " rigid body type:%d",
                      state->irq_config.interrupt_drive_strength,
                      state->irq_config.interrupt_trigger_type,
                      state->registry_pf_cfg.rigid_body_type);
 
-          SNS_PRINTF(ERROR, this, "num_rail:%d, rail_on_state:%d",
+          SNS_PRINTF(LOW, this, "num_rail:%d, rail_on_state:%d",
                      state->rail_config.num_of_rails,
                      state->registry_rail_on_state);
 
@@ -639,7 +638,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         if(rv)
         {
           state->registry_placement_received = true;
-          SNS_PRINTF(ERROR, this, "p[0]:%d p[6]:%d p[11]:%d",
+          SNS_PRINTF(LOW, this, "p[0]:%d p[6]:%d p[11]:%d",
               (int)state->placement[0],(int)state->placement[6],
               (int)state->placement[11]);
         }
@@ -668,15 +667,15 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         {
           state->registry_orient_received = true;
 
-          SNS_PRINTF(MED, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[0].ipaxis,
                  state->axis_map[0].opaxis, state->axis_map[0].invert);
 
-          SNS_PRINTF(MED, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[1].ipaxis, state->axis_map[1].opaxis,
                  state->axis_map[1].invert);
 
-          SNS_PRINTF(MED, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[2].ipaxis, state->axis_map[2].opaxis,
                  state->axis_map[2].invert);
         }
@@ -962,6 +961,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             if (rv != SNS_RC_SUCCESS)
             {
               SNS_PRINTF(ERROR, this, "Read WHO-AM-I error");
+              //TODO: DO not return directly from this function.
+              //      Always consume all events and then return appropriate error code
+              //      Comment applies to all return statements in this functtion
               return rv;
             }
 

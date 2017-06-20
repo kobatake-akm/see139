@@ -209,6 +209,7 @@ static void process_response(
     switch(resp.msg_id)
     {
     case SNS_DAE_MSGID_SNS_DAE_SET_STATIC_CONFIG:
+      SNS_INST_PRINTF(LOW, this,"DAE_SET_STATIC_CONFIG");
       if(SNS_STD_ERROR_NO_ERROR != resp.err)
       {
         /* DAE sensor does not have support for this driver */
@@ -234,6 +235,7 @@ static void process_response(
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
       SNS_INST_PRINTF(LOW, this,"DAE_FLUSH_HW");
+      dae_stream->flushing_hw = false;
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
         ak0991x_dae_if_start_streaming(this);
@@ -248,6 +250,7 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
+      SNS_INST_PRINTF(LOW, this,"DAE_PAUSE_SAMPLING");
       if(dae_stream->state == STREAM_STOPPING)
       {
         dae_stream->state = (SNS_STD_ERROR_NO_ERROR != resp.err) ? STREAMING : IDLE;
@@ -256,9 +259,10 @@ static void process_response(
          state->dae_if.mag.state != STREAM_STOPPING)
       {
         /* done waiting */
-        if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM)
+        if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM
+           && ak0991x_dae_if_flush_hw(this))
         {
-          ak0991x_dae_if_flush_hw(this);
+          state->config_step = AK0991X_CONFIG_FLUSHING_HW;
         }
       }
       break;
@@ -276,8 +280,6 @@ static void process_response(
 static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_stream)
 {
   sns_sensor_event *event;
-
-  //SNS_INST_PRINTF(LOW, this,"line=%d process_events",__LINE__);
 
   while(NULL != dae_stream->stream &&
         NULL != (event = dae_stream->stream->api->peek_input(dae_stream->stream)))
@@ -302,6 +304,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       else if(SNS_STD_MSGID_SNS_STD_ERROR_EVENT == event->message_id)
       {
         dae_stream->stream_usable = false;
+        SNS_INST_PRINTF(LOW, this,"SNS_STD_ERROR_EVENT");
       }
       else
       {
@@ -313,6 +316,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 
   if(!dae_stream->stream_usable)
   {
+    ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 #if 0
   /* TODO - restore this once framework can properly deal with events published between
      the start and end of stream remove process */
@@ -323,6 +327,11 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
     stream_mgr->api->remove_stream(stream_mgr, dae_stream->stream);
     dae_stream->stream = NULL;
 #endif
+    // Register for interrupt
+    if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+    {
+      ak0991x_register_interrupt(this);
+    }
   }
 }
 
@@ -333,9 +342,6 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 bool ak0991x_dae_if_available(sns_sensor_instance *this)
 {
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
-  //SNS_INST_PRINTF(ERROR, this,"mag.stream=%d mag.stream_usable=%d",
-  //   (int)(dae_if->mag.stream != NULL),  (int)dae_if->mag.stream_usable);
-
   return (dae_if->mag.stream != NULL && dae_if->mag.stream_usable);
 }
 
@@ -463,7 +469,7 @@ bool ak0991x_dae_if_start_streaming(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info    *dae_if = &state->dae_if;
 
-  if(NULL != dae_if->mag.stream &&
+  if(stream_usable(&state->dae_if.mag) &&
      (0 < state->mag_info.desired_odr))
   {
     cmd_sent |= send_mag_config(&dae_if->mag, &state->mag_info);
@@ -477,8 +483,9 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if(NULL != dae_if->mag.stream && !dae_if->mag.flushing_hw)
+  if(stream_usable(&state->dae_if.mag) && !dae_if->mag.flushing_hw)
   {
     cmd_sent |= flush_hw(&dae_if->mag);
   }
@@ -490,8 +497,9 @@ bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if(NULL != dae_if->mag.stream && !dae_if->mag.flushing_data)
+  if(stream_usable(&state->dae_if.mag) && !dae_if->mag.flushing_data)
   {
     if(!dae_if->mag.flushing_data)
     {
@@ -506,10 +514,7 @@ bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this)
 /* ------------------------------------------------------------------------------------ */
 void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 {
-  SNS_INST_PRINTF(LOW, this,"ak0991x_dae_if_process_events");
-
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-
 
   process_events(this, &state->dae_if.mag);
 

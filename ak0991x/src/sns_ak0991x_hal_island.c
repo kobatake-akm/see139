@@ -386,7 +386,7 @@ static sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
     sns_diag_service *diag = state->diag_service;
     if( diag )
     {
-      SNS_INST_PRINTF(MED, this,
+      SNS_INST_PRINTF(LOW, this,
                       "ak0991x write reg:0x%x val:0x%x, bytes %d",
                       reg_addr, (uint32_t) buffer[0], bytes);
     }
@@ -496,19 +496,19 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   }
   if( i < ARR_SIZE( odr_debug_string_map ) )
   {
-    SNS_INST_PRINTF(ERROR, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
+    SNS_INST_PRINTF(LOW, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
                                   odr_debug_string_map[i].name, device_select,
                                   cur_wmk );
   }
   else
   {
-    SNS_INST_PRINTF(ERROR, this, "set_mag_config: INVALID ODR!: 0x%x dev:%d wmk:%d",
+    SNS_INST_PRINTF(LOW, this, "set_mag_config: INVALID ODR!: 0x%x dev:%d wmk:%d",
                                   desired_odr, device_select,
                                   cur_wmk );
 
   }
 #else
-  SNS_INST_PRINTF(ERROR, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
+  SNS_INST_PRINTF(LOW, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
                                 desired_odr, device_select,
                                 cur_wmk );
 #endif
@@ -845,7 +845,7 @@ sns_rc ak0991x_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  if( !ak0991x_get_meas_time(device_select, state->mag_info.sdr, &usec_time_for_measure ) )
+  if( !ak0991x_get_meas_time(device_select, state->mag_info.sdr, &usec_time_for_measure ))
   {
     *err = (TLIMIT_NO_INVALID_ID << 16);
     goto TEST_SEQUENCE_FAILED;
@@ -1615,9 +1615,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
     return rv;
   }
 
-//  SNS_INST_PRINTF(ERROR, instance, "handle timer event, timestamp=%d st1=%d hxl=%d hxh=%d hyl=%d hyh=%d",
-//      timestamp,buffer[0],buffer[1], buffer[2],buffer[3],buffer[4]);
-  SNS_INST_PRINTF(LOW, instance, "handle timer event");
+  SNS_INST_PRINTF(ERROR, instance, "handle timer event");
 
   ak0991x_handle_mag_sample(&buffer[1],
                             timestamp,
@@ -1974,14 +1972,12 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
+  SNS_INST_PRINTF(LOW, this, "ak0991x_reconfig_hw");
+
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
-//    if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
-//    {
-//      SNS_INST_PRINTF(ERROR, this, "flush fifo");
-//      ak0991x_flush_fifo(this);
-//    }
     if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
+         (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
         (!state->mag_info.use_dri))
     {
       SNS_INST_PRINTF(LOW, this, "start_mag_streaming");
@@ -1990,11 +1986,6 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   }
   else
   {
-//    if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
-//    {
-//      ak0991x_flush_fifo(this);
-//      state->this_is_first_data = true;
-//    }
     SNS_INST_PRINTF(LOW, this, "ak0991x_stop_mag_streaming");
     rv = ak0991x_stop_mag_streaming(this);
 

@@ -150,7 +150,7 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
- 
+
 /** Interrupt Sensor State. */
 
 typedef struct ak0991x_state
@@ -197,7 +197,6 @@ typedef struct ak0991x_state
   // registry sensor reg config
   bool registry_reg_cfg_received;
   ak0991x_registry_phy_sensor_cfg registry_reg_cfg;
-
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
