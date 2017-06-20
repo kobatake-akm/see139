@@ -1033,7 +1033,7 @@ static sns_rc ak0991x_get_all_fifo_data(ak0991x_instance_state *state,
                                 port_handle,
                                 AKM_AK0991X_REG_HXL,
                                 buffer,
-                                (uint32_t)num_samples,
+                                (uint32_t)(num_samples * AK0991X_NUM_DATA_HXL_TO_ST2),
                                 &xfer_bytes);
 
   if (xfer_bytes != num_samples)
@@ -1436,11 +1436,16 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     ak0991x_read_st1(state,state->com_port_info.port_handle,
                      &st1_buf);
 
-    num_samples = AK0991X_NUM_DATA_HXL_TO_ST2 * (st1_buf >> 2) + 1;
+    num_samples = st1_buf >> 2;
+    SNS_INST_PRINTF(ERROR, instance, "num=%d st1=%x",num_samples,st1_buf );
 
-    //Read continuously all data in FIFO at one time.
-    ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
-                              num_samples,&buffer[0]);
+
+    if(num_samples > 0)
+    {
+      //Read continuously all data in FIFO at one time.
+      ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
+                                num_samples,&buffer[0]);
+    }
   }
   else
   {
