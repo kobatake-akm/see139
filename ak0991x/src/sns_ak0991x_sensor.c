@@ -1026,23 +1026,6 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
   }
 }
 
-static void ak0991x_remove_stream(sns_sensor *const this, sns_data_stream *stream)
-{
-  // debug
-  return;
-
-  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service  *stream_mgr =
-    (sns_stream_service *)service_mgr->get_service(service_mgr,
-                                                   SNS_STREAM_SERVICE);
-  if(stream)
-  {
-    stream_mgr->api->remove_stream(stream_mgr, stream);
-    stream = NULL;
-  }
-}
-
-
 static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 {
   sns_rc rv = SNS_RC_SUCCESS;
@@ -1073,7 +1056,13 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
      && state->registry_placement_received)
   {
     // Done receiving all registry.
-    ak0991x_remove_stream(this, state->reg_data_stream);
+    // remove unused reg_data_stream.
+    sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+    sns_stream_service *stream_mgr =
+      (sns_stream_service *)service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
+    stream_mgr->api->remove_stream(stream_mgr, state->reg_data_stream);
+    state->reg_data_stream = NULL;
   }
 
   return rv;
@@ -1102,7 +1091,13 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
                             &value, 1, true);
     }
 
-    ak0991x_remove_stream(this, state->fw_stream);
+    // remove unused fw_stream
+    sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+    sns_stream_service *stream_mgr =
+      (sns_stream_service *)service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
+    stream_mgr->api->remove_stream(stream_mgr, state->fw_stream);
+    state->fw_stream = NULL;
   }
   else
   {
@@ -1271,6 +1266,8 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   sns_sensor_event *event;
   sns_diag_service *diag = state->diag_service;
 
+  SNS_PRINTF(ERROR, this, "ak0991x_porcess_timer_events");
+ 
   if(NULL != state->timer_stream)
 
   {
@@ -1295,9 +1292,6 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             if (rv != SNS_RC_SUCCESS)
             {
               SNS_PRINTF(ERROR, this, "Read WHO-AM-I error");
-              //TODO: DO not return directly from this function.
-              //      Always consume all events and then return appropriate error code
-              //      Comment applies to all return statements in this functtion
               return rv;
             }
 
@@ -1396,7 +1390,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             {
               ak0991x_publish_hw_attributes(this,state->device_select);
               ak0991x_sensor_publish_available(this);
-              SNS_PRINTF(HIGH, this, "AK0991X HW present. device_select: %u",
+              SNS_PRINTF(ERROR, this, "AK0991X HW present. device_select: %u",
                                        state->device_select);
             }
             else
@@ -1410,13 +1404,14 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ)
           {
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
-
+ 
             if (NULL != instance)
             {
               ak0991x_reval_instance_config(this, instance);
             }
 
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
           }
         }
         else
@@ -1643,6 +1638,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
   sns_rc           rv = SNS_RC_SUCCESS;
 
+  SNS_PRINTF(ERROR, this, "notify: remove_timer_stream=%d",state->remove_timer_stream);
+ 
   ak0991x_process_suid_events(this);
   rv = ak0991x_process_registry_events(this);
 
@@ -1669,5 +1666,23 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                    AK0991X_OFF_TO_IDLE_MS * 1000000LL),
                                    AK0991X_POWER_RAIL_PENDING_INIT);
   }
+
+  if(rv == SNS_RC_SUCCESS &&
+     state->hw_is_present &&
+     NULL != state->pwr_rail_service &&
+     NULL != state->timer_stream &&
+     state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE &&
+     state->remove_timer_stream)
+  {
+    // remove unused timer_data_stream
+    sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+    sns_stream_service *stream_mgr =
+      (sns_stream_service *)service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
+    stream_mgr->api->remove_stream(stream_mgr, state->timer_stream);
+    state->timer_stream = NULL;
+    SNS_PRINTF(ERROR, this, "remove timer_stream");
+  }
+
   return rv;
 }

@@ -162,6 +162,7 @@ typedef struct ak0991x_state
   sns_data_stream       *reg_data_stream;
   sns_data_stream       *fw_stream;
   sns_data_stream       *timer_stream;
+  bool                  remove_timer_stream;
   sns_sensor_uid        reg_suid;
   sns_sensor_uid        irq_suid;
   sns_sensor_uid        timer_suid;

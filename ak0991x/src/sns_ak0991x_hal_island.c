@@ -1595,7 +1595,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   sns_time timestamp;
   timestamp = sns_get_system_time();
 
-  // TODO: update function to handle FIFO reads
+  // TODO: update function to handle FIFO reads - will be added when S4S is added
 
   // Read register ST1->ST2
   rv = ak0991x_com_read_wrapper(state->scp_service,

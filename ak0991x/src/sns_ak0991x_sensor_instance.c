@@ -144,7 +144,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &((sns_sensor_uid)MAG_SUID),
               sizeof(state->mag_info.suid));
 
-  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init" );
+  SNS_INST_PRINTF(ERROR, this, "ak0991x inst init" );
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -356,7 +356,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
 
 
-  SNS_INST_PRINTF(HIGH, this, "before dae_if init" );
+  SNS_INST_PRINTF(ERROR, this, "before dae_if init" );
 
   ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid, &((sns_sensor_uid)MAG_SUID));
 
@@ -415,7 +415,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
 
-  SNS_INST_PRINTF(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
+  SNS_INST_PRINTF(ERROR, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
