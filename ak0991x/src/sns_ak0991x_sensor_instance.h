@@ -218,3 +218,5 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
 sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this);
 
+sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
+                                      sns_request const *client_request);

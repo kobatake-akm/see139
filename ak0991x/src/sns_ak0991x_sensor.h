@@ -34,12 +34,16 @@
     }  \
   }
 
+#define SUID_IS_NULL(suid_ptr) ( sns_memcmp( (suid_ptr),                \
+                                             &(sns_sensor_uid){{0}},    \
+                                             sizeof(sns_sensor_uid) ) == 0 )
+
 #define AK0991X_REGISTRY_PF_CONFIG   "ak0991x_0_platform.config"
 #define AK0991X_REGISTRY_PLACE       "ak0991x_0_platform.placement"
 #define AK0991X_REGISTRY_ORIENT      "ak0991x_0_platform.orient"
 #define AK0991X_REGISTRY_FACCAL      "ak0991x_0_platform.mag.fac_cal"
 #define AK0991X_REGISTRY_MAG_CONFIG  "ak0991x_0.mag.config"
-#define AK0991X_REGISTRY_REG_CONFIG  "ak0991x_0_reg.mag.config"
+#define AK0991X_REGISTRY_REG_CONFIG  "ak0991x_0.mag.config_2"
 
 #if 0
 /** TODO Using 8996 Platform config as defaults. This is for
@@ -224,18 +228,6 @@ typedef struct ak0991x_state
 
 /** Functions shared by all AK0991X Sensors */
 /**
- * This function parses the client_request list per Sensor and
- * determines final config for the Sensor Instance.
- *
- * @param[i] this          Sensor reference
- * @param[i] instance      Sensor Instance to config
- *
- * @return none
- */
-void ak0991x_reval_instance_config(sns_sensor * this,
-                                   sns_sensor_instance *instance);
-
-/**
  * Sends a request to the SUID Sensor to get SUID of a dependent
  * Sensor.
  *
@@ -245,27 +237,6 @@ void ak0991x_reval_instance_config(sns_sensor * this,
  */
 void ak0991x_send_suid_req(sns_sensor * this, char *const data_type,
                            uint32_t data_type_len);
-
-/**
- * Processes events from SUID Sensor.
- *
- * @param[i] this   Sensor reference
- *
- * @return none
- */
-void ak0991x_process_suid_events(sns_sensor *const this
-);
-
-/**
- * Publishes Sensor attributes.
- *
- * @param[i] this    Sensor Reference
- *
- * @return none
- */
-void ak0991x_publish_attributes(sns_sensor *const this,
-                                akm_device_type device_select
-);
 
 /**
  * notify_event() Sensor API common between all AK0991X Sensors.
