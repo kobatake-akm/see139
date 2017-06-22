@@ -228,9 +228,6 @@ static void ak0991x_get_mag_config(sns_sensor *this,
                                    uint32_t *chosen_flush_period,
                                    bool *sensor_client_present)
 {
-  ak0991x_state *state = (ak0991x_state *)this->state->state;
-  sns_diag_service *diag = state->diag_service;
-
   sns_sensor_uid suid = MAG_SUID;
   sns_request const *request;
 
@@ -284,27 +281,6 @@ static void ak0991x_get_mag_config(sns_sensor *this,
         *chosen_flush_period = SNS_MAX(*chosen_flush_period,
                                        flush_period);
         *sensor_client_present = true;
-      }
-      else // TODO handle self-test request
-      {
-        uint32_t err = 0;
-        sns_rc rv;
-        rv = ak0991x_self_test(instance,
-                               state->scp_service,
-                               state->com_port_info.port_handle,
-                               diag,
-                               state->device_select,
-                               state->sstvt_adj,
-                               &err);
-
-        if (rv != SNS_RC_SUCCESS)
-        {
-          SNS_PRINTF(ERROR, this, "Test failed, err code = %ld", err);
-        }
-        else
-        {
-          SNS_PRINTF(HIGH, this, "Test passed");
-        }
       }
     }
   }

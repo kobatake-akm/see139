@@ -774,15 +774,16 @@ sns_rc ak0991x_test_threshold(uint16_t testno,
   if (ak0991x_test_threshold((no), (data), (lo), (hi), (err)) \
       != SNS_RC_SUCCESS) { goto TEST_SEQUENCE_FAILED; }
 /**
- * see sns_ak0991x_hal.h
+ * Run a hardware self-test
+ * @param[i]            reference to the instance
+ * @param[o]            error code
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED
+ * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_self_test(sns_sensor_instance *const this,
-                         sns_sync_com_port_service * scp_service,
-                         sns_sync_com_port_handle *port_handle,
-                         sns_diag_service *diag,
-                         akm_device_type device_select,
-                         float *sstvt_adj,
-                         uint32_t *err)
+sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
+                            uint32_t *err)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
@@ -790,28 +791,104 @@ sns_rc ak0991x_self_test(sns_sensor_instance *const this,
   uint8_t  asa[AK0991X_NUM_SENSITIVITY];
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
+  akm_device_type device_select;
+  uint8_t  buffer_who_am_i[AK0991X_NUM_READ_DEV_ID];
+  float    sstvt_adj[3];
+  uint8_t  i;
+  uint8_t  sdr = 0;
 
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
+  sns_diag_service *diag = state->diag_service;
+
   // Initialize error code
   *err = 0;
 
+  rv = ak0991x_get_who_am_i(state->scp_service,
+                            state->com_port_info.port_handle,
+                            &buffer_who_am_i[0]);
+
+  if (rv != SNS_RC_SUCCESS)
+  {
+    *err = ((TLIMIT_NO_READ_ID) << 16);
+    goto TEST_SEQUENCE_FAILED;
+  }
+
+  //Check AKM device ID
+  if (buffer_who_am_i[0] == AK0991X_WHOAMI_COMPANY_ID)
+  {
+    if (buffer_who_am_i[1] == AK09911_WHOAMI_DEV_ID)
+    {
+      device_select = AK09911;
+    }
+    else if (buffer_who_am_i[1] == AK09912_WHOAMI_DEV_ID)
+    {
+      device_select = AK09912;
+    }
+    else if (buffer_who_am_i[1] == AK09913_WHOAMI_DEV_ID)
+    {
+      device_select = AK09913;
+    }
+    else if ((buffer_who_am_i[1] == AK09915_WHOAMI_DEV_ID) && (buffer_who_am_i[3] == AK09915C_SUB_ID))
+    {
+      device_select = AK09915C;
+    }
+    else if ((buffer_who_am_i[1] == AK09915_WHOAMI_DEV_ID) && (buffer_who_am_i[3] == AK09915D_SUB_ID))
+    {
+      device_select = AK09915D;
+    }
+    else if (buffer_who_am_i[1] == AK09916C_WHOAMI_DEV_ID)
+    {
+      device_select = AK09916C;
+    }
+    else if (buffer_who_am_i[1] == AK09916D_WHOAMI_DEV_ID)
+    {
+      device_select = AK09916D;
+    }
+    else if (buffer_who_am_i[1] == AK09917_WHOAMI_DEV_ID)
+    {
+      device_select = AK09917;
+    }
+    else if (buffer_who_am_i[1] == AK09918_WHOAMI_DEV_ID)
+    {
+      device_select = AK09918;
+    }
+    else
+    {
+     *err = ((TLIMIT_NO_READ_ID) << 16);
+      goto TEST_SEQUENCE_FAILED;
+    }
+  }
+  else
+  {
+    *err = ((TLIMIT_NO_READ_ID) << 16);
+    goto TEST_SEQUENCE_FAILED;
+  }
+
   // Reset device
-  rv = ak0991x_device_sw_reset(this,scp_service,port_handle,diag);
+  rv = ak0991x_device_sw_reset(this,
+                               state->scp_service,
+                               state->com_port_info.port_handle,
+                               diag);
 
   if (rv != SNS_RC_SUCCESS)
   {
     *err = ((TLIMIT_NO_RESET) << 16);
     goto TEST_SEQUENCE_FAILED;
   }
-
+ 
   /** Step 1
    *   If the device has FUSE ROM, test the sensitivity value
    **/
   if ((device_select == AK09911) || (device_select == AK09912))
   {
-    rv = ak0991x_read_asa(this,scp_service,port_handle,diag, asa);
+    rv = ak0991x_read_asa(this,
+                          state->scp_service,
+                          state->com_port_info.port_handle,
+                          diag,
+                          asa);
+
 
     if (rv != SNS_RC_SUCCESS)
     {
@@ -822,15 +899,37 @@ sns_rc ak0991x_self_test(sns_sensor_instance *const this,
     AKM_FST(TLIMIT_NO_ASAX, asa[0], TLIMIT_LO_ASAX, TLIMIT_HI_ASAX, err);
     AKM_FST(TLIMIT_NO_ASAY, asa[1], TLIMIT_LO_ASAY, TLIMIT_HI_ASAY, err);
     AKM_FST(TLIMIT_NO_ASAZ, asa[2], TLIMIT_LO_ASAZ, TLIMIT_HI_ASAZ, err);
-  }
 
+    if (device_select == AK09911)
+    {
+      for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
+      {
+        sstvt_adj[i] = ((asa[i] / 128.0f) + 1.0f);
+      }
+    }
+    else
+    {
+      for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
+      {
+        sstvt_adj[i] = ((asa[i] / 256.0f) + 0.5f);
+      }
+    }
+  }
+  else
+  {
+    for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
+    {
+      sstvt_adj[i] = 1.0f;
+    }
+  }
+ 
   /** Step 2
    *   Start self test
    **/
   buffer[0] = AK0991X_MAG_SELFTEST;
   rv = ak0991x_com_write_wrapper(this,
-                                 scp_service,
-                                 port_handle,
+                                 state->scp_service,
+                                 state->com_port_info.port_handle,
                                  AKM_AK0991X_REG_CNTL2,
                                  buffer,
                                  1,
@@ -845,20 +944,22 @@ sns_rc ak0991x_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  if( !ak0991x_get_meas_time(device_select, state->mag_info.sdr, &usec_time_for_measure ))
+  rv = ak0991x_get_meas_time(device_select, sdr, &usec_time_for_measure);
+ 
+  if(rv != SNS_RC_SUCCESS)
   {
     *err = (TLIMIT_NO_INVALID_ID << 16);
     goto TEST_SEQUENCE_FAILED;
   }
-
+ 
   // To ensure that measurement is finished, wait for double as typical
   sns_busy_wait(sns_convert_ns_to_ticks(usec_time_for_measure * 1000 * 2));
 
   /** Step 3
    *   Read and check data
    **/
-  rv = ak0991x_com_read_wrapper(scp_service,
-                                port_handle,
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
                                 AK0991X_NUM_DATA_ST1_TO_ST2,
@@ -871,7 +972,7 @@ sns_rc ak0991x_self_test(sns_sensor_instance *const this,
     *err = ((TLIMIT_NO_READ_DATA) << 16);
     goto TEST_SEQUENCE_FAILED;
   }
-
+ 
   if (device_select == AK09917)
   {
     // raw data in 16 bits
@@ -960,7 +1061,7 @@ sns_rc ak0991x_self_test(sns_sensor_instance *const this,
     *err = (TLIMIT_NO_INVALID_ID << 16);
     goto TEST_SEQUENCE_FAILED;
   }
-
+ 
   AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
           TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
 
@@ -1912,7 +2013,7 @@ void ak0991x_register_timer(sns_sensor_instance *this)
 
 }
 
-sns_rc ak0991x_get_meas_time( uint8_t device_select,
+sns_rc ak0991x_get_meas_time( akm_device_type device_select,
                               uint8_t sdr,
                               sns_time* meas_ts )
 {
@@ -2009,7 +2110,8 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
  * @return none
  */
 static void ak0991x_send_com_test_event(sns_sensor_instance *instance,
-                                        sns_sensor_uid *uid, bool test_result)
+                                        sns_sensor_uid *uid, bool test_result,
+                                        sns_physical_sensor_test_type test_type)
 {
   uint8_t data[1] = {0};
   pb_buffer_arg buff_arg = (pb_buffer_arg)
@@ -2018,7 +2120,7 @@ static void ak0991x_send_com_test_event(sns_sensor_instance *instance,
     sns_physical_sensor_test_event_init_default;
 
   test_event.test_passed = test_result;
-  test_event.test_type = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
+  test_event.test_type = test_type;
   test_event.test_data.funcs.encode = &pb_encode_string_cb;
   test_event.test_data.arg = &buff_arg;
 
@@ -2035,31 +2137,27 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)instance->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
-  uint8_t buffer[AK0991X_NUM_READ_DEV_ID] = {0};
-  bool who_am_i_success = false;
-
-  rv = ak0991x_get_who_am_i(state->scp_service,
-                            state->com_port_info.port_handle,
-                            &buffer[0]);
-
-  SNS_INST_PRINTF(ERROR, instance, "after get_who_am_i");
-
-  if(rv == SNS_RC_SUCCESS
-     &&
-     buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
-  {
-    who_am_i_success = true;
-    SNS_INST_PRINTF(ERROR, instance, "success!!");
-  }
 
   if(state->mag_info.test_info.test_client_present)
   {
-    SNS_INST_PRINTF(ERROR, instance, "test_client_present");
     if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
     {
-      SNS_INST_PRINTF(ERROR, instance, "send_com_test_event");
+      uint8_t buffer[AK0991X_NUM_READ_DEV_ID] = {0};
+      bool who_am_i_success = false;
 
-      ak0991x_send_com_test_event(instance, &state->mag_info.suid, who_am_i_success);
+      rv = ak0991x_get_who_am_i(state->scp_service,
+                                state->com_port_info.port_handle,
+                                &buffer[0]);
+
+      if(rv == SNS_RC_SUCCESS
+         &&
+         buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
+      {
+        who_am_i_success = true;
+        SNS_INST_PRINTF(ERROR, instance, "COM self-test success!!");
+      }
+      ak0991x_send_com_test_event(instance, &state->mag_info.suid, who_am_i_success,
+                                  SNS_PHYSICAL_SENSOR_TEST_TYPE_COM);
     }
     else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
     {
@@ -2068,7 +2166,20 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
     }
     else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_HW)
     {
+      bool hw_success = false;
+      uint32_t err;
 
+      rv = ak0991x_hw_self_test(instance, &err);
+
+      if(rv == SNS_RC_SUCCESS
+         &&
+         err == 0)
+      {
+        hw_success = true;
+        SNS_INST_PRINTF(ERROR, instance, "hw self-test success!!");
+      }
+      ak0991x_send_com_test_event(instance, &state->mag_info.suid, hw_success,
+                                  SNS_PHYSICAL_SENSOR_TEST_TYPE_HW);
     }
     state->mag_info.test_info.test_client_present = false;
   }

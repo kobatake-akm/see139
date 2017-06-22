@@ -335,27 +335,6 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service * scp_service,
                             uint8_t *buffer);
 
 /**
- * Run a self-test.
- *
- * @param[i] scp_service   handle to synch COM port service
- * @param[i] port_handle   handle to synch COM port
- * @param[i] device_select device ID
- * @param[i] sstvt_adj     Set sensitivity adjustment
- * @param[o] err           error code
- *
- * @return sns_rc
- * SNS_RC_FAILED
- * SNS_RC_SUCCESS
- */
-sns_rc ak0991x_self_test(sns_sensor_instance *const this,
-                         sns_sync_com_port_service * scp_service,
-                         sns_sync_com_port_handle *port_handle,
-                         sns_diag_service *diag,
-                         akm_device_type device_select,
-                         float *sstvt_adj,
-                         uint32_t *err);
-
-/**
  * Sets sensitivity adjustment for the sensor.
  *
  * @param[i] scp_service   handle to synch COM port service
@@ -551,7 +530,7 @@ void ak0991x_register_timer(sns_sensor_instance *this);
  * SNS_RC_SUCCESS if encoding was succesful
  * SNS_RC_FAILED otherwise
  */
-sns_rc ak0991x_get_meas_time( uint8_t device_select, uint8_t sdr, sns_time* measure_us );
+sns_rc ak0991x_get_meas_time(akm_device_type device_select, uint8_t sdr, sns_time* measure_us );
 
 /**
  * Configures sensor with new/recomputed settings
@@ -562,6 +541,19 @@ sns_rc ak0991x_get_meas_time( uint8_t device_select, uint8_t sdr, sns_time* meas
  * SNS_RC_SUCCESS
  */
 sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this);
+
+/**
+ * Run a hardware self-tests.
+ *
+ * @param[i] instance     reference to the instance
+ * @param[o] err          error code
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED
+ * SNS_RC_SUCCESS
+ */
+sns_rc ak0991x_hw_self_test(sns_sensor_instance *instance,
+                            uint32_t *err);
 
 /**
  * Executes requested self-tests.
