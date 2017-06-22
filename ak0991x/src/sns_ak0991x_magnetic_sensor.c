@@ -18,6 +18,7 @@
 #include "sns_types.h"
 #include "sns_service_manager.h"
 #include "sns_ak0991x_sensor.h"
+#include "sns_ak0991x_ver.h"
 #include "sns_pb_util.h"
 #include "sns_attribute_util.h"
 #include "sns_printf.h"
@@ -82,7 +83,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
-    value.sint = 0x000100000001; //major:0001 minor:0000 revision:0001
+    value.sint = AK0991X_DRIVER_VERSION;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
   }
