@@ -452,7 +452,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     }
 
  
-    SNS_INST_PRINTF(LOW, this, "desired_sample_rate=%d desired_report_rate=%d",
+    SNS_INST_PRINTF(ERROR, this, "desired_sample_rate=%d desired_report_rate=%d",
         (int)desired_sample_rate, (int)desired_report_rate);
  
     state->mag_info.flush_period = payload->flush_period;
@@ -496,7 +496,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
     }
 
-    SNS_INST_PRINTF(LOW, this, "desired_wmk=%d",desired_wmk);
+    SNS_INST_PRINTF(ERROR, this, "desired_wmk=%d",desired_wmk);
  
     state->mag_info.cur_wmk = desired_wmk;
 
@@ -580,10 +580,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
-    // 1. Extract test type from client_request.
-    // 2. Configure sensor HW for test type.
-    // 3. send_request() for Timer Sensor in case test needs polling/waits.
-    // 4. Factory test is TBD.
+    SNS_INST_PRINTF(ERROR, this, "SENSOR_TEST_CONFIG for selftest" );
+    ak0991x_run_self_test(this);
+    state->new_self_test_request = false;
   }
 
   // Turn COM port OFF

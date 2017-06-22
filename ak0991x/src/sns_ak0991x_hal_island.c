@@ -1999,3 +1999,78 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   return rv;
 }
 
+/**
+ * Runs a communication test - verifies WHO_AM_I, publishes self
+ * test event.
+ *
+ * @param[i] instance    Instance reference
+ * @param[i] uid         Sensor UID
+ *
+ * @return none
+ */
+static void ak0991x_send_com_test_event(sns_sensor_instance *instance,
+                                        sns_sensor_uid *uid, bool test_result)
+{
+  uint8_t data[1] = {0};
+  pb_buffer_arg buff_arg = (pb_buffer_arg)
+      { .buf = &data, .buf_len = sizeof(data) };
+  sns_physical_sensor_test_event test_event =
+    sns_physical_sensor_test_event_init_default;
+
+  test_event.test_passed = test_result;
+  test_event.test_type = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
+  test_event.test_data.funcs.encode = &pb_encode_string_cb;
+  test_event.test_data.arg = &buff_arg;
+
+  pb_send_event(instance,
+                sns_physical_sensor_test_event_fields,
+                &test_event,
+                sns_get_system_time(),
+                SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_EVENT,
+                uid);
+}
+
+/** See sns_ak0991x_hal.h */
+void ak0991x_run_self_test(sns_sensor_instance *instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)instance->state->state;
+  sns_rc rv = SNS_RC_SUCCESS;
+  uint8_t buffer[AK0991X_NUM_READ_DEV_ID] = {0};
+  bool who_am_i_success = false;
+
+  rv = ak0991x_get_who_am_i(state->scp_service,
+                            state->com_port_info.port_handle,
+                            &buffer[0]);
+
+  SNS_INST_PRINTF(ERROR, instance, "after get_who_am_i");
+
+  if(rv == SNS_RC_SUCCESS
+     &&
+     buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
+  {
+    who_am_i_success = true;
+    SNS_INST_PRINTF(ERROR, instance, "success!!");
+  }
+
+  if(state->mag_info.test_info.test_client_present)
+  {
+    SNS_INST_PRINTF(ERROR, instance, "test_client_present");
+    if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      SNS_INST_PRINTF(ERROR, instance, "send_com_test_event");
+
+      ak0991x_send_com_test_event(instance, &state->mag_info.suid, who_am_i_success);
+    }
+    else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test in progress.
+    }
+    else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_HW)
+    {
+
+    }
+    state->mag_info.test_info.test_client_present = false;
+  }
+}
+

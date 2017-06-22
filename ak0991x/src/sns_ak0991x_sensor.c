@@ -1258,6 +1258,89 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  }
 }
 
+/**
+ * Decodes self test requests.
+ *
+ * @param[i] this            Sensor reference
+ * @param[i] request         Encoded input request
+ * @param[o] decoded_request Decoded standard request
+ * @param[o] test_config     Decoded self test request
+ *
+ * @return bool True if decoding is successful else false.
+ */
+static bool ak0991x_get_decoded_self_test_request(sns_sensor const *this,
+                                                  sns_request const *request,
+                                                  sns_std_request *decoded_request,
+                                                  sns_physical_sensor_test_config *test_config)
+{
+  pb_istream_t stream;
+  pb_simple_cb_arg arg =
+      { .decoded_struct = test_config,
+        .fields = sns_physical_sensor_test_config_fields };
+  decoded_request->payload = (struct pb_callback_s)
+      { .funcs.decode = &pb_decode_simple_cb, .arg = &arg };
+  stream = pb_istream_from_buffer(request->request,
+                                  request->request_len);
+  if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
+  {
+    SNS_PRINTF(ERROR, this, "AK0991X decode error");
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Updates instance state with request info.
+ *
+ * @param[i] this          Sensor reference
+ * @param[i] instance      Sensor Instance reference
+ * @param[i] new_request   Encoded request
+ *
+ * @return Ture if request is valid else false
+ */
+static bool ak0991x_extract_self_test_info(sns_sensor *this,
+                                           sns_sensor_instance *instance,
+                                           struct sns_request const *new_request)
+{
+  sns_std_request decoded_request;
+  sns_physical_sensor_test_config test_config = sns_physical_sensor_test_config_init_default;
+  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
+  ak0991x_self_test_info *self_test_info;
+
+  self_test_info = &inst_state->mag_info.test_info;
+
+  if(ak0991x_get_decoded_self_test_request(this, new_request, &decoded_request, &test_config))
+  {
+    self_test_info->test_type = test_config.test_type;
+    self_test_info->test_client_present = true;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+/**
+ * Sets instance config to run a self test.
+ *
+ * @param[i] this      Sensor reference
+ * @param[i] instance  Sensor Instance reference
+ *
+ * @return none
+ */
+static void ak0991x_set_self_test_inst_config(sns_sensor *this,
+                                              sns_sensor_instance *instance)
+{
+  sns_request config;
+
+  config.message_id = SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG;
+  config.request_len = 0;
+  config.request = NULL;
+
+  this->instance_api->set_client_config(instance, &config);
+}
+
 static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 {
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
@@ -1405,9 +1488,19 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           {
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
  
+            SNS_PRINTF(ERROR, this, "state = SET_CLINET_REQ");
+ 
             if (NULL != instance)
             {
+              SNS_PRINTF(ERROR, this, "state = SET_CLINET_REQ && instance is Not NULL");
+              ak0991x_instance_state *inst_state =
+                (ak0991x_instance_state*) instance->state->state;
               ak0991x_reval_instance_config(this, instance);
+              if(inst_state->new_self_test_request)
+              {
+                SNS_PRINTF(ERROR, this, "new_self_test_request = true");
+                ak0991x_set_self_test_inst_config(this, instance);
+              }
             }
 
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
@@ -1481,7 +1574,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_time delta;
   bool reval_config = false;
 
-  SNS_PRINTF(HIGH, this, "ak0991x_set_client_request");
+  SNS_PRINTF(ERROR, this, "ak0991x_set_client_request");
 
   if (remove)
   {
@@ -1590,14 +1683,37 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     /** Add the new request to list of client_requests.*/
     if (NULL != instance)
     {
+      SNS_PRINTF(ERROR, this, "Add the new request to list");
+
+      ak0991x_instance_state *inst_state =
+        (ak0991x_instance_state *)instance->state->state;
       if (NULL != new_request)
       {
         instance->cb->add_client_request(instance, new_request);
+
+        SNS_PRINTF(ERROR, this, "message_id=%d",new_request->message_id);
+
+
+        if(new_request->message_id ==
+            SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
+        {
+          if(ak0991x_extract_self_test_info(this, instance, new_request))
+          {
+            SNS_PRINTF(ERROR, this, "new_self_test_request = true");
+
+            inst_state->new_self_test_request = true;
+          }
+        }
       }
 
       if (reval_config)
       {
         ak0991x_reval_instance_config(this, instance);
+
+        if(inst_state->new_self_test_request)
+        {
+          ak0991x_set_self_test_inst_config(this, instance);
+        }
       }
     }
   }

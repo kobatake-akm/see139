@@ -563,4 +563,12 @@ sns_rc ak0991x_get_meas_time( uint8_t device_select, uint8_t sdr, sns_time* meas
  */
 sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this);
 
+/**
+ * Executes requested self-tests.
+ *
+ * @param instance     reference to the instance
+ *
+ * @return none
+ */
+void ak0991x_run_self_test(sns_sensor_instance *instance);
 

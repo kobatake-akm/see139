@@ -28,6 +28,7 @@
 #include "sns_std_sensor.pb.h"
 #include "sns_ak0991x_dae_if.h"
 #include "sns_async_com_port.pb.h"
+#include "sns_physical_sensor_test.pb.h"
 
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
@@ -102,6 +103,12 @@ typedef enum
   AK0991X_CONFIG_UPDATING_HW        /** updating sensor HW, when done goes back to IDLE */
 } ak0991x_config_step;
 
+typedef struct ak0991x_self_test_info
+{
+  sns_physical_sensor_test_type test_type;
+  bool test_client_present;
+} ak0991x_self_test_info;
+
 typedef struct ak0991x_mag_info
 {
   ak0991x_mag_odr   desired_odr;
@@ -118,6 +125,7 @@ typedef struct ak0991x_mag_info
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;
+  ak0991x_self_test_info test_info;
 } ak0991x_mag_info;
 
 typedef struct ak0991x_irq_info
@@ -193,6 +201,7 @@ typedef struct ak0991x_instance_state
   sns_sync_com_port_service *scp_service;
 
   bool fifo_flush_in_progress;
+  bool new_self_test_request;
 
   size_t           log_raw_encoded_size;
 } ak0991x_instance_state;
