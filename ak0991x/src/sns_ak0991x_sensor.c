@@ -13,23 +13,6 @@
  *
  **/
 
-/**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 04/04/17     AKM     Optimize code of MAG_SUID configuration.
- * 04/04/17     AKM     Optimize code of sample_rate and report_rate configuration.
- * 04/04/17     AKM     Fix IRQ configuration.
- * 04/04/17     AKM     Fix ODR attribute configuration.
- *
- **/
-
-
 #include <string.h>
 #include "sns_mem_util.h"
 #include "sns_service_manager.h"
@@ -395,6 +378,16 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   req_payload.is_periodic = false;
   req_payload.start_time = sns_get_system_time();
   req_payload.timeout_period = timeout_ticks;
+  sns_service_manager *smgr = this->cb->get_service_manager(this);
+  sns_stream_service *stream_svc =
+     (sns_stream_service*)smgr->get_service(smgr, SNS_STREAM_SERVICE);
+
+  if (state->timer_stream == NULL)
+  {
+    stream_svc->api->create_sensor_stream(stream_svc, this, state->timer_suid,
+                                                &state->timer_stream);
+    state->remove_timer_stream = false;
+  }
 
   req_len = pb_encode_request(buffer, sizeof(buffer), &req_payload,
                               sns_timer_sensor_config_fields, NULL);
@@ -522,6 +515,7 @@ static void ak0991x_process_suid_events(sns_sensor *const this)
         {
           stream_svc->api->create_sensor_stream(stream_svc, this, state->timer_suid,
                                                 &state->timer_stream);
+          state->remove_timer_stream = false;
           if(NULL == state->timer_stream)
           {
             SNS_PRINTF(ERROR, this, __FILENAME__, __LINE__,
@@ -1325,8 +1319,8 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   sns_sensor_event *event;
   sns_diag_service *diag = state->diag_service;
 
-  SNS_PRINTF(ERROR, this, "ak0991x_porcess_timer_events");
- 
+  SNS_PRINTF(LOW, this, "ak0991x_porcess_timer_events");
+
   if(NULL != state->timer_stream)
 
   {
@@ -1449,7 +1443,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             {
               ak0991x_publish_hw_attributes(this,state->device_select);
               ak0991x_sensor_publish_available(this);
-              SNS_PRINTF(ERROR, this, "AK0991X HW present. device_select: %u",
+              SNS_PRINTF(HIGH, this, "AK0991X HW present. device_select: %u",
                                        state->device_select);
             }
             else
@@ -1459,22 +1453,23 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             }
 
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ)
           {
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
- 
-            SNS_PRINTF(ERROR, this, "state = SET_CLINET_REQ");
- 
+
+            SNS_PRINTF(LOW, this, "state = SET_CLINET_REQ");
+
             if (NULL != instance)
             {
-              SNS_PRINTF(ERROR, this, "state = SET_CLINET_REQ && instance is Not NULL");
+              SNS_PRINTF(LOW, this, "state = SET_CLINET_REQ && instance is Not NULL");
               ak0991x_instance_state *inst_state =
                 (ak0991x_instance_state*) instance->state->state;
               ak0991x_reval_instance_config(this, instance);
               if(inst_state->new_self_test_request)
               {
-                SNS_PRINTF(ERROR, this, "new_self_test_request = true");
+                SNS_PRINTF(LOW, this, "new_self_test_request = true");
                 ak0991x_set_self_test_inst_config(this, instance);
               }
             }
@@ -1550,7 +1545,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_time delta;
   bool reval_config = false;
 
-  SNS_PRINTF(ERROR, this, "ak0991x_set_client_request");
+  SNS_PRINTF(HIGH, this, "ak0991x_set_client_request");
 
   if (remove)
   {
@@ -1667,7 +1662,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       {
         instance->cb->add_client_request(instance, new_request);
 
-        SNS_PRINTF(ERROR, this, "message_id=%d",new_request->message_id);
+        SNS_PRINTF(LOW, this, "message_id=%d",new_request->message_id);
 
 
         if(new_request->message_id ==
@@ -1675,7 +1670,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         {
           if(ak0991x_extract_self_test_info(this, instance, new_request))
           {
-            SNS_PRINTF(ERROR, this, "new_self_test_request = true");
+            SNS_PRINTF(LOW, this, "new_self_test_request = true");
 
             inst_state->new_self_test_request = true;
           }
@@ -1730,8 +1725,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
   sns_rc           rv = SNS_RC_SUCCESS;
 
-  SNS_PRINTF(ERROR, this, "notify: remove_timer_stream=%d",state->remove_timer_stream);
- 
+  SNS_PRINTF(LOW, this, "notify: remove_timer_stream=%d",state->remove_timer_stream);
+
   ak0991x_process_suid_events(this);
   rv = ak0991x_process_registry_events(this);
 

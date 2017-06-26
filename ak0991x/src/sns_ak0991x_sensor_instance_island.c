@@ -12,21 +12,6 @@
  *
  **/
 
-/**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 04/04/17     AKM     Optimize code of MAG_SUID configuration.
- * 04/04/17     AKM     Fix bus_type of Async Com Port configuration.
- *
- **/
-
-
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
@@ -172,7 +157,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 
         SNS_INST_PRINTF(LOW, this, "handle ASCP event");
- 
+
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
 
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);

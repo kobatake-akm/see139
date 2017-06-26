@@ -352,7 +352,7 @@ sns_rc ak0991x_dae_if_init(
   sns_sensor_uid       *dae_suid,
   sns_sensor_uid const *parent_suid)
 {
-  SNS_INST_PRINTF(ERROR, this,"line=%d dae_if_init",__LINE__);
+  SNS_INST_PRINTF(LOW, this,"line=%d dae_if_init",__LINE__);
   sns_rc rc = SNS_RC_NOT_AVAILABLE;
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info* dae_if = &state->dae_if;

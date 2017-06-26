@@ -12,20 +12,6 @@
  *
  **/
 
-/**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 04/04/17     AKM     Optimize code of MAG_SUID configuration.
- * 04/04/17     AKM     Fix bus_type of Async Com Port configuration.
- *
- **/
-
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
@@ -144,7 +130,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &((sns_sensor_uid)MAG_SUID),
               sizeof(state->mag_info.suid));
 
-  SNS_INST_PRINTF(ERROR, this, "ak0991x inst init" );
+  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init" );
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -356,7 +342,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
 
 
-  SNS_INST_PRINTF(ERROR, this, "before dae_if init" );
+  SNS_INST_PRINTF(HIGH, this, "before dae_if init" );
 
   ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid, &((sns_sensor_uid)MAG_SUID));
 
@@ -415,19 +401,13 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
 
-  SNS_INST_PRINTF(ERROR, this, "inst_set_client_config msg_id %d", client_request->message_id);
+  SNS_INST_PRINTF(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     true);
-  // Register for interrupt
-  if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-  {
-    ak0991x_register_interrupt(this);
-  }
-
   SNS_INST_PRINTF(LOW, this, "dae_if_available %d",(int)ak0991x_dae_if_available(this));
- 
+
   if (client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
     // In case of DRI,
@@ -445,16 +425,23 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     desired_sample_rate = payload->sample_rate;
     desired_report_rate = payload->report_rate;
 
+    // Register for interrupt
+    if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+    {
+      ak0991x_register_interrupt(this);
+    }
+
+
     if (desired_report_rate > desired_sample_rate)
     {
       // bad request. Return error or default report_rate to sample_rate
       desired_report_rate = desired_sample_rate;
     }
 
- 
-    SNS_INST_PRINTF(ERROR, this, "desired_sample_rate=%d desired_report_rate=%d",
+
+    SNS_INST_PRINTF(LOW, this, "desired_sample_rate=%d desired_report_rate=%d",
         (int)desired_sample_rate, (int)desired_report_rate);
- 
+
     state->mag_info.flush_period = payload->flush_period;
     rv = ak0991x_mag_match_odr(desired_sample_rate,
                                &mag_chosen_sample_rate,
@@ -496,8 +483,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
     }
 
-    SNS_INST_PRINTF(ERROR, this, "desired_wmk=%d",desired_wmk);
- 
+    SNS_INST_PRINTF(LOW, this, "desired_wmk=%d",desired_wmk);
+
     state->mag_info.cur_wmk = desired_wmk;
 
     if (rv != SNS_RC_SUCCESS)
@@ -558,11 +545,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat)
     {
       sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
-                  payload->registry_cfg.fac_cal_bias, 
+                  payload->registry_cfg.fac_cal_bias,
                   sizeof(payload->registry_cfg.fac_cal_bias));
 
       sns_memscpy(fac_cal_corr_mat, sizeof(payload->registry_cfg.fac_cal_corr_mat),
-                  &payload->registry_cfg.fac_cal_corr_mat, 
+                  &payload->registry_cfg.fac_cal_corr_mat,
                   sizeof(payload->registry_cfg.fac_cal_corr_mat));
 
     }
@@ -580,7 +567,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
-    SNS_INST_PRINTF(ERROR, this, "SENSOR_TEST_CONFIG for selftest" );
+    SNS_INST_PRINTF(LOW, this, "SENSOR_TEST_CONFIG for selftest" );
     ak0991x_run_self_test(this);
     state->new_self_test_request = false;
   }

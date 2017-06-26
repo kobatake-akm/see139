@@ -94,16 +94,15 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     value.has_sint = true;
     value.sint = state->encoded_event_len;
     sns_publish_attribute(
-          this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, true);
-//        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, false);
+        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, false);
   }
-//  {
-//    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-//    value.has_boolean = true;
-//    value.boolean = true;
-//    sns_publish_attribute(
-//        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, true);
-//  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = true;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, true);
+  }
 }
 
 

@@ -11,19 +11,6 @@
  *
  **/
 
-/**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 04/04/17     AKM     Fix sensitivity configuration.
- *
- **/
-
 #include "sns_rc.h"
 #include "sns_time.h"
 #include "sns_sensor_event.h"
@@ -877,7 +864,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     *err = ((TLIMIT_NO_RESET) << 16);
     goto TEST_SEQUENCE_FAILED;
   }
- 
+
   /** Step 1
    *   If the device has FUSE ROM, test the sensitivity value
    **/
@@ -922,7 +909,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
       sstvt_adj[i] = 1.0f;
     }
   }
- 
+
   /** Step 2
    *   Start self test
    **/
@@ -945,13 +932,13 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   }
 
   rv = ak0991x_get_meas_time(device_select, sdr, &usec_time_for_measure);
- 
+
   if(rv != SNS_RC_SUCCESS)
   {
     *err = (TLIMIT_NO_INVALID_ID << 16);
     goto TEST_SEQUENCE_FAILED;
   }
- 
+
   // To ensure that measurement is finished, wait for double as typical
   sns_busy_wait(sns_convert_ns_to_ticks(usec_time_for_measure * 1000 * 2));
 
@@ -972,7 +959,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     *err = ((TLIMIT_NO_READ_DATA) << 16);
     goto TEST_SEQUENCE_FAILED;
   }
- 
+
   if (device_select == AK09917)
   {
     // raw data in 16 bits
@@ -1061,7 +1048,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     *err = (TLIMIT_NO_INVALID_ID << 16);
     goto TEST_SEQUENCE_FAILED;
   }
- 
+
   AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
           TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
 
@@ -1538,7 +1525,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                      &st1_buf);
 
     num_samples = st1_buf >> 2;
-    SNS_INST_PRINTF(ERROR, instance, "num=%d st1=%x",num_samples,st1_buf );
+    SNS_INST_PRINTF(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
 
 
     if(num_samples > 0)
