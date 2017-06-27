@@ -609,7 +609,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
       event->event_len);
 
-  SNS_PRINTF(ERROR, this, "ak0991x_sensor_process_registry_event");
+  SNS_PRINTF(LOW, this, "ak0991x_sensor_process_registry_event");
 
   if(SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_EVENT == event->message_id)
   {
@@ -653,7 +653,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->resolution_idx = state->registry_cfg.res_idx;
           state->supports_sync_stream = state->registry_cfg.sync_stream;
 
-          SNS_PRINTF(ERROR, this, "is_dri:%d, hardware_id:%lld ",
+          SNS_PRINTF(LOW, this, "is_dri:%d, hardware_id:%lld ",
                                    state->is_dri,
                                    state->hardware_id);
 
@@ -689,7 +689,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->sdr = state->registry_reg_cfg.sdr;
 
 
-          SNS_PRINTF(ERROR, this, "use_fifo:%d, nsf:%d ,sdr:%d",
+          SNS_PRINTF(LOW, this, "use_fifo:%d, nsf:%d ,sdr:%d",
                                    state->use_fifo,
                                    state->nsf,
                                    state->sdr);
@@ -738,7 +738,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                       state->registry_pf_cfg.vdd_rail,
                       sizeof(state->rail_config.rails[1].name));
 
-          SNS_PRINTF(ERROR, this, "bus_type:%d bus_instance:%d slave_control:%d",
+          SNS_PRINTF(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
                      state->com_port_info.com_config.bus_type,
                      state->com_port_info.com_config.bus_instance,
                      state->com_port_info.com_config.slave_control);
@@ -1319,7 +1319,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   sns_sensor_event *event;
   sns_diag_service *diag = state->diag_service;
 
-  SNS_PRINTF(LOW, this, "ak0991x_porcess_timer_events");
+  SNS_PRINTF(LOW, this, "ak0991x_process_timer_events");
 
   if(NULL != state->timer_stream)
 
@@ -1344,7 +1344,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
             if (rv != SNS_RC_SUCCESS)
             {
-              SNS_PRINTF(ERROR, this, "Read WHO-AM-I error");
+              SNS_PRINTF(LOW, this, "Read WHO-AM-I error");
               return rv;
             }
 
@@ -1654,7 +1654,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     /** Add the new request to list of client_requests.*/
     if (NULL != instance)
     {
-      SNS_PRINTF(ERROR, this, "Add the new request to list");
+      SNS_PRINTF(LOW, this, "Add the new request to list");
 
       ak0991x_instance_state *inst_state =
         (ak0991x_instance_state *)instance->state->state;
@@ -1754,6 +1754,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                    AK0991X_POWER_RAIL_PENDING_INIT);
   }
 
+  // TODO: Do we need to add so many checks here?
   if(rv == SNS_RC_SUCCESS &&
      state->hw_is_present &&
      NULL != state->pwr_rail_service &&
@@ -1768,7 +1769,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
     stream_mgr->api->remove_stream(stream_mgr, state->timer_stream);
     state->timer_stream = NULL;
-    SNS_PRINTF(ERROR, this, "remove timer_stream");
+    SNS_PRINTF(LOW, this, "remove timer_stream");
   }
 
   return rv;

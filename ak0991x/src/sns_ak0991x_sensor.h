@@ -162,7 +162,6 @@ typedef struct ak0991x_state
   sns_data_stream       *reg_data_stream;
   sns_data_stream       *fw_stream;
   sns_data_stream       *timer_stream;
-  bool                  remove_timer_stream;
   sns_sensor_uid        reg_suid;
   sns_sensor_uid        irq_suid;
   sns_sensor_uid        timer_suid;
@@ -179,6 +178,7 @@ typedef struct ak0991x_state
 
   bool hw_is_present;
   bool sensor_client_present;
+  bool remove_timer_stream;
 
   ak0991x_power_rail_pending_state power_rail_pend_state;
 
@@ -188,13 +188,13 @@ typedef struct ak0991x_state
 
   // sensor configuration 
   bool is_dri;
-  int64_t hardware_id;
   bool supports_sync_stream;
-  uint8_t resolution_idx;
   bool use_fifo;
   uint8_t nsf;
   uint8_t sdr;
-  
+  uint8_t resolution_idx;
+  int64_t hardware_id;
+
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;

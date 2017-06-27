@@ -792,6 +792,8 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   // Initialize error code
   *err = 0;
 
+  // TODO: wmo-am-i was read during init. Can't the
+  // driver use value from state->mag_info->device_select?
   rv = ak0991x_get_who_am_i(state->scp_service,
                             state->com_port_info.port_handle,
                             &buffer_who_am_i[0]);
@@ -891,6 +893,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     {
       for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
       {
+        // TODO: Why not use state->mag_info->sstvt_adj?
         sstvt_adj[i] = ((asa[i] / 128.0f) + 1.0f);
       }
     }
