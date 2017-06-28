@@ -24,17 +24,18 @@
  * --------     --------   ----------       ---------------------------------
  * 06/22/17     010005     Qualcomm/AKM     Support COM/HW self-test.
  * 06/22/17                Qualcomm/AKM     Re-do island refactoring.
- * 06/19/17                Qualcomm/AKM     Fix to work on 845 platform.
+ * 06/19/17     010004     Qualcomm/AKM     Fix to work on 845 platform.
  * 06/19/17                Qualcomm/AKM     Fix DAE sensor.
  * 06/19/17                Qualcomm/AKM     Fix mag streaming after flush.
  * 06/19/17                Qualcomm/AKM     Fix ODR sweep bugs.
  * 06/19/17                Qualcomm/AKM     Support registry.
- * 05/11/17                AKM              Add AK09917D support.
+ * 06/13/17     010003     Qualcomm         Work on OpenSSC v5.0.4.
+ * 05/11/17     010002     AKM              Add AK09917D support.
  * 05/11/17                AKM              Add island mode support.
  * 05/11/17                AKM              Add DAE sensor support.
- * 04/04/17                AKM              Fix IRQ configuration.
+ * 04/04/17     010001     AKM              Fix IRQ configuration.
  * 04/04/17                AKM              Fix ODR attribute configuration.
- * 02/20/17                AKM              First version.
+ * 02/20/17     010000     AKM              First version.
  *
  **/
 
