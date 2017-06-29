@@ -130,7 +130,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &((sns_sensor_uid)MAG_SUID),
               sizeof(state->mag_info.suid));
 
-  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init" );
+  SNS_INST_PRINTF(ERROR, this, "ak0991x inst init" );
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -342,7 +342,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
 
 
-  SNS_INST_PRINTF(HIGH, this, "before dae_if init" );
+  SNS_INST_PRINTF(ERROR, this, "before dae_if init" );
 
   ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid, &((sns_sensor_uid)MAG_SUID));
 
@@ -401,12 +401,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
 
-  SNS_INST_PRINTF(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
+  SNS_INST_PRINTF(ERROR, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     true);
-  SNS_INST_PRINTF(LOW, this, "dae_if_available %d",(int)ak0991x_dae_if_available(this));
+  SNS_INST_PRINTF(ERROR, this, "dae_if_available %d",(int)ak0991x_dae_if_available(this));
 
   if (client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
@@ -439,7 +439,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     }
 
 
-    SNS_INST_PRINTF(LOW, this, "desired_sample_rate=%d desired_report_rate=%d",
+    SNS_INST_PRINTF(ERROR, this, "desired_sample_rate=%d desired_report_rate=%d",
         (int)desired_sample_rate, (int)desired_report_rate);
 
     state->mag_info.flush_period = payload->flush_period;
@@ -483,7 +483,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
     }
 
-    SNS_INST_PRINTF(LOW, this, "desired_wmk=%d",desired_wmk);
+    SNS_INST_PRINTF(ERROR, this, "desired_wmk=%d",desired_wmk);
 
     state->mag_info.cur_wmk = desired_wmk;
 
@@ -496,14 +496,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_req.sample_rate = mag_chosen_sample_rate;
     state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
-    SNS_INST_PRINTF(LOW, this, "sample_rate=%d, reg_value=%d, config_step=%d",
+    SNS_INST_PRINTF(ERROR, this, "sample_rate=%d, reg_value=%d, config_step=%d",
                     (int)mag_chosen_sample_rate,(int)mag_chosen_sample_rate_reg_value,
                     (int)state->config_step);
 
     if (AK0991X_CONFIG_IDLE == state->config_step &&
         ak0991x_dae_if_stop_streaming(this))
     {
-      SNS_INST_PRINTF(LOW, this, "done dae_if_stop_streaming");
+      SNS_INST_PRINTF(ERROR, this, "done dae_if_stop_streaming");
       state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
     }
 
@@ -523,14 +523,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
       {
         ak0991x_reconfig_hw(this);
-        SNS_INST_PRINTF(LOW, this, "done ak0991x_reconfig_hw");
+        SNS_INST_PRINTF(ERROR, this, "done ak0991x_reconfig_hw");
       }
       // Register for timer
       if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
       {
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this);
-        SNS_INST_PRINTF(LOW, this, "done register_timer");
+        SNS_INST_PRINTF(ERROR, this, "done register_timer");
       }
 
       //ak0991x_dae_if_start_streaming(this);
@@ -567,7 +567,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
-    SNS_INST_PRINTF(LOW, this, "SENSOR_TEST_CONFIG for selftest" );
+    SNS_INST_PRINTF(ERROR, this, "SENSOR_TEST_CONFIG for selftest" );
     ak0991x_run_self_test(this);
     state->new_self_test_request = false;
   }

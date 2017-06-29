@@ -315,7 +315,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   sns_ak0991x_registry_cfg registry_cfg;
 
-  SNS_PRINTF(LOW, this, "ak0991x_reval_instance_config");
+  SNS_PRINTF(ERROR, this, "ak0991x_reval_instance_config");
 
   ak0991x_get_mag_config(this,
                          instance,
@@ -609,7 +609,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
       event->event_len);
 
-  SNS_PRINTF(LOW, this, "ak0991x_sensor_process_registry_event");
+  SNS_PRINTF(ERROR, this, "ak0991x_sensor_process_registry_event");
 
   if(SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_EVENT == event->message_id)
   {
@@ -653,11 +653,11 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->resolution_idx = state->registry_cfg.res_idx;
           state->supports_sync_stream = state->registry_cfg.sync_stream;
 
-          SNS_PRINTF(LOW, this, "is_dri:%d, hardware_id:%lld ",
+          SNS_PRINTF(ERROR, this, "is_dri:%d, hardware_id:%lld ",
                                    state->is_dri,
                                    state->hardware_id);
 
-          SNS_PRINTF(LOW, this, "resolution_idx:%d, supports_sync_stream:%d ",
+          SNS_PRINTF(ERROR, this, "resolution_idx:%d, supports_sync_stream:%d ",
                                    state->resolution_idx,
                                    state->supports_sync_stream);
        }
@@ -689,7 +689,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->sdr = state->registry_reg_cfg.sdr;
 
 
-          SNS_PRINTF(LOW, this, "use_fifo:%d, nsf:%d ,sdr:%d",
+          SNS_PRINTF(ERROR, this, "use_fifo:%d, nsf:%d ,sdr:%d",
                                    state->use_fifo,
                                    state->nsf,
                                    state->sdr);
@@ -738,28 +738,28 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                       state->registry_pf_cfg.vdd_rail,
                       sizeof(state->rail_config.rails[1].name));
 
-          SNS_PRINTF(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
+          SNS_PRINTF(ERROR, this, "bus_type:%d bus_instance:%d slave_control:%d",
                      state->com_port_info.com_config.bus_type,
                      state->com_port_info.com_config.bus_instance,
                      state->com_port_info.com_config.slave_control);
 
-          SNS_PRINTF(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
+          SNS_PRINTF(ERROR, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
                      state->com_port_info.com_config.min_bus_speed_KHz,
                      state->com_port_info.com_config.max_bus_speed_KHz,
                      state->com_port_info.com_config.reg_addr_type);
 
-          SNS_PRINTF(LOW, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d",
+          SNS_PRINTF(ERROR, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d",
                      state->irq_config.interrupt_num,
                      state->irq_config.interrupt_pull_type,
                      state->irq_config.is_chip_pin);
 
-          SNS_PRINTF(LOW, this, "interrupt_drive_strength:%d interrupt_trigger_type:%d"
+          SNS_PRINTF(ERROR, this, "interrupt_drive_strength:%d interrupt_trigger_type:%d"
                      " rigid body type:%d",
                      state->irq_config.interrupt_drive_strength,
                      state->irq_config.interrupt_trigger_type,
                      state->registry_pf_cfg.rigid_body_type);
 
-          SNS_PRINTF(LOW, this, "num_rail:%d, rail_on_state:%d",
+          SNS_PRINTF(ERROR, this, "num_rail:%d, rail_on_state:%d",
                      state->rail_config.num_of_rails,
                      state->registry_rail_on_state);
 
@@ -820,7 +820,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         if(rv)
         {
           state->registry_placement_received = true;
-          SNS_PRINTF(LOW, this, "p[0]:%d p[6]:%d p[11]:%d",
+          SNS_PRINTF(ERROR, this, "p[0]:%d p[6]:%d p[11]:%d",
               (int)state->placement[0],(int)state->placement[6],
               (int)state->placement[11]);
         }
@@ -849,15 +849,15 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         {
           state->registry_orient_received = true;
 
-          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          SNS_PRINTF(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[0].ipaxis,
                  state->axis_map[0].opaxis, state->axis_map[0].invert);
 
-          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          SNS_PRINTF(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[1].ipaxis, state->axis_map[1].opaxis,
                  state->axis_map[1].invert);
 
-          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          SNS_PRINTF(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[2].ipaxis, state->axis_map[2].opaxis,
                  state->axis_map[2].invert);
         }
@@ -916,14 +916,14 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
             state->fac_cal_corr_mat.e22 = state->fac_cal_scale[2];
           }
 
-          SNS_PRINTF(LOW, this, "Fac Cal Corr Matrix e00:%f e01:%f e02:%f", state->fac_cal_corr_mat.e00,state->fac_cal_corr_mat.e01,
-                 state->fac_cal_corr_mat.e02);
-          SNS_PRINTF(LOW, this, "Fac Cal Corr Matrix e10:%f e11:%f e12:%f", state->fac_cal_corr_mat.e10,state->fac_cal_corr_mat.e11,
-                 state->fac_cal_corr_mat.e12);
-          SNS_PRINTF(LOW, this, "Fac Cal Corr Matrix e20:%f e21:%f e22:%f", state->fac_cal_corr_mat.e20,state->fac_cal_corr_mat.e21,
-                 state->fac_cal_corr_mat.e22);
-          SNS_PRINTF(LOW, this, "Fac Cal Bias x:%f y:%f z:%f", state->fac_cal_bias[0], state->fac_cal_bias[1],
-                 state->fac_cal_bias[2]);
+          //SNS_PRINTF(ERROR, this, "Fac Cal Corr Matrix e00:%f e01:%f e02:%f", state->fac_cal_corr_mat.e00,state->fac_cal_corr_mat.e01,
+          //       state->fac_cal_corr_mat.e02);
+          //SNS_PRINTF(ERROR, this, "Fac Cal Corr Matrix e10:%f e11:%f e12:%f", state->fac_cal_corr_mat.e10,state->fac_cal_corr_mat.e11,
+          //       state->fac_cal_corr_mat.e12);
+          //SNS_PRINTF(ERROR, this, "Fac Cal Corr Matrix e20:%f e21:%f e22:%f", state->fac_cal_corr_mat.e20,state->fac_cal_corr_mat.e21,
+          //       state->fac_cal_corr_mat.e22);
+          //SNS_PRINTF(ERROR, this, "Fac Cal Bias x:%f y:%f z:%f", state->fac_cal_bias[0], state->fac_cal_bias[1],
+          //       state->fac_cal_bias[2]);
         }
       }
       else
@@ -1053,7 +1053,7 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
   {
     if( state->hw_is_present )
     {
-      SNS_PRINTF(MED, this, "AK0991x HW Present. Publishing available");
+      SNS_PRINTF(ERROR, this, "AK0991x HW Present. Publishing available");
       sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
       value.has_boolean = true;
       value.boolean = true;
@@ -1073,24 +1073,24 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
   {
     if( SUID_IS_NULL(&state->irq_suid) )
     {
-      SNS_PRINTF(LOW, this, "AK0991x waiting for IRQ SUID" );
+      SNS_PRINTF(ERROR, this, "AK0991x waiting for IRQ SUID" );
     }
     if( SUID_IS_NULL(&state->acp_suid) )
     {
-      SNS_PRINTF(LOW, this, "AK0991x waiting for ACP SUID" );
+      SNS_PRINTF(ERROR, this, "AK0991x waiting for ACP SUID" );
     }
     if( SUID_IS_NULL(&state->timer_suid) )
     {
-      SNS_PRINTF(LOW, this, "AK0991x waiting for Timer SUID" );
+      SNS_PRINTF(ERROR, this, "AK0991x waiting for Timer SUID" );
     }
     if( SUID_IS_NULL(&state->dae_suid) )
     {
-      SNS_PRINTF(LOW, this, "AK0991x waiting for DAE SUID" );
+      SNS_PRINTF(ERROR, this, "AK0991x waiting for DAE SUID" );
     }
 
     if( SUID_IS_NULL(&state->reg_suid) )
     {
-      SNS_PRINTF(LOW, this, "AK0991x waiting for Reg SUID" );
+      SNS_PRINTF(ERROR, this, "AK0991x waiting for Reg SUID" );
     }
 
   }
@@ -1319,7 +1319,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   sns_sensor_event *event;
   sns_diag_service *diag = state->diag_service;
 
-  SNS_PRINTF(LOW, this, "ak0991x_process_timer_events");
+  SNS_PRINTF(ERROR, this, "ak0991x_process_timer_events");
 
   if(NULL != state->timer_stream)
 
@@ -1344,7 +1344,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
             if (rv != SNS_RC_SUCCESS)
             {
-              SNS_PRINTF(LOW, this, "Read WHO-AM-I error");
+              SNS_PRINTF(ERROR, this, "Read WHO-AM-I error");
               return rv;
             }
 
@@ -1443,13 +1443,13 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             {
               ak0991x_publish_hw_attributes(this,state->device_select);
               ak0991x_sensor_publish_available(this);
-              SNS_PRINTF(HIGH, this, "AK0991X HW present. device_select: %u",
+              SNS_PRINTF(ERROR, this, "AK0991X HW present. device_select: %u",
                                        state->device_select);
             }
             else
             {
               rv = SNS_RC_INVALID_STATE;
-              SNS_PRINTF(MED, this, "AK0991X HW absent");
+              SNS_PRINTF(ERROR, this, "AK0991X HW absent");
             }
 
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
@@ -1459,17 +1459,17 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           {
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
 
-            SNS_PRINTF(LOW, this, "state = SET_CLINET_REQ");
+            SNS_PRINTF(ERROR, this, "state = SET_CLINET_REQ");
 
             if (NULL != instance)
             {
-              SNS_PRINTF(LOW, this, "state = SET_CLINET_REQ && instance is Not NULL");
+              SNS_PRINTF(ERROR, this, "state = SET_CLINET_REQ && instance is Not NULL");
               ak0991x_instance_state *inst_state =
                 (ak0991x_instance_state*) instance->state->state;
               ak0991x_reval_instance_config(this, instance);
               if(inst_state->new_self_test_request)
               {
-                SNS_PRINTF(LOW, this, "new_self_test_request = true");
+                SNS_PRINTF(ERROR, this, "new_self_test_request = true");
                 ak0991x_set_self_test_inst_config(this, instance);
               }
             }
@@ -1545,7 +1545,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_time delta;
   bool reval_config = false;
 
-  SNS_PRINTF(HIGH, this, "ak0991x_set_client_request");
+  SNS_PRINTF(ERROR, this, "ak0991x_set_client_request");
 
   if (remove)
   {
@@ -1603,11 +1603,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       else
       {
         // rail is already ON
-        SNS_PRINTF(LOW, this, "rail is already ON");
+        SNS_PRINTF(ERROR, this, "rail is already ON");
         reval_config = true;
       }
 
-      SNS_PRINTF(LOW, this, "Creating instance");
+      SNS_PRINTF(ERROR, this, "Creating instance");
 
       /** create_instance() calls init() for the Sensor Instance */
       instance = this->cb->create_instance(this,
@@ -1654,7 +1654,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     /** Add the new request to list of client_requests.*/
     if (NULL != instance)
     {
-      SNS_PRINTF(LOW, this, "Add the new request to list");
+      SNS_PRINTF(ERROR, this, "Add the new request to list");
 
       ak0991x_instance_state *inst_state =
         (ak0991x_instance_state *)instance->state->state;
@@ -1662,7 +1662,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       {
         instance->cb->add_client_request(instance, new_request);
 
-        SNS_PRINTF(LOW, this, "message_id=%d",new_request->message_id);
+        SNS_PRINTF(ERROR, this, "message_id=%d",new_request->message_id);
 
 
         if(new_request->message_id ==
@@ -1670,7 +1670,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         {
           if(ak0991x_extract_self_test_info(this, instance, new_request))
           {
-            SNS_PRINTF(LOW, this, "new_self_test_request = true");
+            SNS_PRINTF(ERROR, this, "new_self_test_request = true");
 
             inst_state->new_self_test_request = true;
           }
@@ -1695,7 +1695,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
      get_client_request(instance, &(sns_sensor_uid)MAG_SUID, true))
   {
     sns_sensor *sensor;
-    SNS_PRINTF(LOW, this, "Removing instance");
+    SNS_PRINTF(ERROR, this, "Removing instance");
     this->cb->remove_instance(instance);
 
     for (sensor = this->cb->get_library_sensor(this, true);
@@ -1725,7 +1725,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
   sns_rc           rv = SNS_RC_SUCCESS;
 
-  SNS_PRINTF(LOW, this, "notify: remove_timer_stream=%d",state->remove_timer_stream);
+  SNS_PRINTF(ERROR, this, "notify: remove_timer_stream=%d",state->remove_timer_stream);
 
   ak0991x_process_suid_events(this);
   rv = ak0991x_process_registry_events(this);
@@ -1769,7 +1769,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
     stream_mgr->api->remove_stream(stream_mgr, state->timer_stream);
     state->timer_stream = NULL;
-    SNS_PRINTF(LOW, this, "remove timer_stream");
+    SNS_PRINTF(ERROR, this, "remove timer_stream");
   }
 
   return rv;

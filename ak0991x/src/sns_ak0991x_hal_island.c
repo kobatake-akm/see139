@@ -373,7 +373,7 @@ static sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
     sns_diag_service *diag = state->diag_service;
     if( diag )
     {
-      SNS_INST_PRINTF(LOW, this,
+      SNS_INST_PRINTF(ERROR, this,
                       "ak0991x write reg:0x%x val:0x%x, bytes %d",
                       reg_addr, (uint32_t) buffer[0], bytes);
     }
@@ -483,19 +483,19 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   }
   if( i < ARR_SIZE( odr_debug_string_map ) )
   {
-    SNS_INST_PRINTF(LOW, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
+    SNS_INST_PRINTF(ERROR, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
                                   odr_debug_string_map[i].name, device_select,
                                   cur_wmk );
   }
   else
   {
-    SNS_INST_PRINTF(LOW, this, "set_mag_config: INVALID ODR!: 0x%x dev:%d wmk:%d",
+    SNS_INST_PRINTF(ERROR, this, "set_mag_config: INVALID ODR!: 0x%x dev:%d wmk:%d",
                                   desired_odr, device_select,
                                   cur_wmk );
 
   }
 #else
-  SNS_INST_PRINTF(LOW, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
+  SNS_INST_PRINTF(ERROR, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
                                 desired_odr, device_select,
                                 cur_wmk );
 #endif
@@ -1298,7 +1298,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
 
-  SNS_INST_PRINTF(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
+  SNS_INST_PRINTF(ERROR, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e00,
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e11,
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e22,
@@ -1348,7 +1348,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   {
     opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
       ipdata[state->axis_map[i].ipaxis];
-    /*SNS_INST_PRINTF(LOW, instance, "ip=%d op=%d invert=%d",
+    /*SNS_INST_PRINTF(ERROR, instance, "ip=%d op=%d invert=%d",
         (uint32_t)state->axis_map[i].ipaxis,
         (uint32_t)state->axis_map[i].opaxis,
         (uint32_t)state->axis_map[i].invert);*/
@@ -1528,7 +1528,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                      &st1_buf);
 
     num_samples = st1_buf >> 2;
-    SNS_INST_PRINTF(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
+    SNS_INST_PRINTF(ERROR, instance, "num=%d st1=%x",num_samples,st1_buf );
 
 
     if(num_samples > 0)
@@ -1706,7 +1706,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
     return rv;
   }
 
-  SNS_INST_PRINTF(LOW, instance, "handle timer event");
+  SNS_INST_PRINTF(ERROR, instance, "handle timer event");
 
   ak0991x_handle_mag_sample(&buffer[1],
                             timestamp,
@@ -1970,7 +1970,7 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     req_payload.timeout_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 
-    SNS_INST_PRINTF(LOW, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
+    SNS_INST_PRINTF(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
@@ -2063,7 +2063,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  SNS_INST_PRINTF(LOW, this, "ak0991x_reconfig_hw");
+  SNS_INST_PRINTF(ERROR, this, "ak0991x_reconfig_hw");
 
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
@@ -2071,13 +2071,13 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
          (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
         (!state->mag_info.use_dri))
     {
-      SNS_INST_PRINTF(LOW, this, "start_mag_streaming");
+      SNS_INST_PRINTF(ERROR, this, "start_mag_streaming");
       ak0991x_start_mag_streaming(this);
     }
   }
   else
   {
-    SNS_INST_PRINTF(LOW, this, "ak0991x_stop_mag_streaming");
+    SNS_INST_PRINTF(ERROR, this, "ak0991x_stop_mag_streaming");
     rv = ak0991x_stop_mag_streaming(this);
 
     if (rv != SNS_RC_SUCCESS)
