@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 07/03/17     010006     AKM              Support FIFO+Polling mode.
  * 06/22/17     010005     Qualcomm/AKM     Support COM/HW self-test.
  * 06/22/17                Qualcomm/AKM     Re-do island refactoring.
  * 06/19/17     010004     Qualcomm/AKM     Fix to work on 845 platform.
@@ -39,4 +40,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10005  // major:01 minor:00 revision:05
+#define AK0991X_DRIVER_VERSION 10006  // major:01 minor:00 revision:06

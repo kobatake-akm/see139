@@ -224,6 +224,11 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     return SNS_RC_FAILED;
   }
 
+  uint8_t i;
+  for (i = 0; i < AK0991X_NUM_DATA_HXL_TO_ST2; i++)
+  {
+    state->pre_data_buffer[i] = 0;
+  }
   state->pre_timestamp = 0;
   state->this_is_first_data = true;
 
@@ -438,7 +443,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       desired_report_rate = desired_sample_rate;
     }
 
-
     SNS_INST_PRINTF(ERROR, this, "desired_sample_rate=%d desired_report_rate=%d",
         (int)desired_sample_rate, (int)desired_report_rate);
 
@@ -448,7 +452,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                &mag_chosen_sample_rate_reg_value,
                                state->mag_info.device_select);
     state->mag_info.req_wmk = (uint16_t)(mag_chosen_sample_rate / desired_report_rate);
-    if ((state->mag_info.use_fifo) && (state->mag_info.use_dri))
+    if (state->mag_info.use_fifo)
     {
       if (desired_report_rate != 0)
       {

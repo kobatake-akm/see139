@@ -583,6 +583,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
+  state->pre_timestamp = sns_get_system_time();
   state->mag_info.curr_odr = state->mag_info.desired_odr;
 
   return SNS_RC_SUCCESS;
@@ -1127,7 +1128,7 @@ static sns_rc ak0991x_get_all_fifo_data(ak0991x_instance_state *state,
                                 (uint32_t)(num_samples * AK0991X_NUM_DATA_HXL_TO_ST2),
                                 &xfer_bytes);
 
-  if (xfer_bytes != num_samples)
+  if (xfer_bytes != (uint32_t)(num_samples * AK0991X_NUM_DATA_HXL_TO_ST2))
   {
     rv = SNS_RC_FAILED;
   }
@@ -1681,39 +1682,139 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
-  uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
+  uint8_t  buffer[AK0991X_MAX_FIFO_SIZE];
+  uint16_t num_samples =  0;
+  uint8_t  i;
 
   sns_time timestamp;
   timestamp = sns_get_system_time();
 
-  // TODO: update function to handle FIFO reads - will be added when S4S is added
-
-  // Read register ST1->ST2
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                state->com_port_info.port_handle,
-                                AKM_AK0991X_REG_ST1,
-                                &buffer[0],
-                                AK0991X_NUM_DATA_ST1_TO_ST2,
-                                &xfer_bytes);
-
-  if (xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+  if (state->mag_info.use_fifo)
   {
-    rv = SNS_RC_FAILED;
+    SNS_INST_PRINTF(ERROR, instance, "handle timer event for FIFO");
+
+    if (state->mag_info.device_select == AK09917)
+    {
+      uint8_t st1_buf;
+      //In case of AK09917,
+      //Read ST1 register to check FIFO samples
+      ak0991x_read_st1(state,state->com_port_info.port_handle,
+                       &st1_buf);
+
+      num_samples = st1_buf >> 2;
+      SNS_INST_PRINTF(ERROR, instance, "num=%d st1=%x",num_samples,st1_buf );
+
+      if(num_samples > 0)
+      {
+        //Read continuously all data in FIFO at one time.
+        ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
+                                  num_samples, &buffer[0]);
+      }
+    }
+    else
+    {
+      //Continue reading until fifo buffer is clear
+      for (i = 0; i < state->mag_info.max_fifo_size; i++)
+      {
+        ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
+                              &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
+
+        if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
+        {
+          //fifo buffer is clear
+          break;
+        }
+        else
+        {
+          num_samples++;
+        }
+      }
+    }
+
+    sns_time timer_interval_ticks;
+    timer_interval_ticks = (timestamp - state->pre_timestamp) / (state->mag_info.cur_wmk + 1);
+    if (num_samples > 0)
+    {
+      for (i = 0; i < AK0991X_NUM_DATA_HXL_TO_ST2; i++)
+      {
+        state->pre_data_buffer[i] = 
+          buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * (num_samples - 1) + i];
+      }
+    }
+
+    if (num_samples < state->mag_info.cur_wmk + 1)
+    {
+      for (i = 0; i < state->mag_info.cur_wmk + 1; i++)
+      {
+        if (num_samples < i + 1)
+        {
+           SNS_INST_PRINTF(ERROR, instance, "num_samples < cur_wmk + 1");
+
+           //Set the previous data to avoid publishing invalid data.
+           //In case of FIFO, The data are fixed 7FFFh when the buffer is empty.
+           ak0991x_handle_mag_sample(&state->pre_data_buffer[0],
+                                    (timestamp - (timer_interval_ticks * (state->mag_info.cur_wmk - i))),
+                                    instance,
+                                    event_service,
+                                    state,
+                                    &log_mag_state_raw_info);
+        }
+        else
+        {
+          ak0991x_handle_mag_sample(&buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * i],
+                                    (timestamp - (timer_interval_ticks * (state->mag_info.cur_wmk - i))),
+                                    instance,
+                                    event_service,
+                                    state,
+                                    &log_mag_state_raw_info);
+        }
+      }
+    }
+    else
+    {
+      for (i = 0; i < state->mag_info.cur_wmk + 1; i++)
+      {
+        ak0991x_handle_mag_sample(&buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * (i + num_samples - (state->mag_info.cur_wmk + 1))],
+                                  (timestamp - (timer_interval_ticks * (state->mag_info.cur_wmk - i))),
+                                  instance,
+                                  event_service,
+                                  state,
+                                  &log_mag_state_raw_info);
+      }
+    }
+
+    state->pre_timestamp = timestamp;
+  }
+  else
+  {
+    // Read register ST1->ST2
+    rv = ak0991x_com_read_wrapper(state->scp_service,
+                                  state->com_port_info.port_handle,
+                                  AKM_AK0991X_REG_ST1,
+                                  &buffer[0],
+                                  AK0991X_NUM_DATA_ST1_TO_ST2,
+                                  &xfer_bytes);
+
+    if (xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+    {
+      rv = SNS_RC_FAILED;
+    }
+
+    if (rv != SNS_RC_SUCCESS)
+    {
+      return rv;
+    }
+
+    SNS_INST_PRINTF(ERROR, instance, "handle timer event");
+
+    ak0991x_handle_mag_sample(&buffer[1],
+                              timestamp,
+                              instance,
+                              event_service,
+                              state,
+                              &log_mag_state_raw_info);
   }
 
-  if (rv != SNS_RC_SUCCESS)
-  {
-    return rv;
-  }
-
-  SNS_INST_PRINTF(ERROR, instance, "handle timer event");
-
-  ak0991x_handle_mag_sample(&buffer[1],
-                            timestamp,
-                            instance,
-                            event_service,
-                            state,
-                            &log_mag_state_raw_info);
   ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
 
 
@@ -1967,8 +2068,17 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     uint8_t                 buffer[20] = {0};
     req_payload.is_periodic = true;
     req_payload.start_time = sns_get_system_time();
-    req_payload.timeout_period = sns_convert_ns_to_ticks(
-        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+
+    if (state->mag_info.use_fifo)
+    {
+      req_payload.timeout_period = sns_convert_ns_to_ticks(
+          1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
+    }
+    else
+    {
+      req_payload.timeout_period = sns_convert_ns_to_ticks(
+          1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+    }
 
     SNS_INST_PRINTF(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
 

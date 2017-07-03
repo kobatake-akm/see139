@@ -185,6 +185,7 @@ typedef struct ak0991x_instance_state
 
   uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
+  uint8_t               pre_data_buffer[8];
 
   size_t encoded_mag_event_len;
 
