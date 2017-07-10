@@ -219,6 +219,9 @@ static void ak0991x_get_mag_config(sns_sensor *this,
   *chosen_flush_period = 0;
   *sensor_client_present = false;
 
+  SNS_PRINTF(ERROR, this, "ak0991x_get_mag_config");
+
+
   /** Parse through existing requests and get fastest sample
    *  rate, report rate, and longest flush period requests. */
   for (request = instance->cb->get_client_request(instance, &suid, true);
@@ -227,6 +230,8 @@ static void ak0991x_get_mag_config(sns_sensor *this,
   {
     sns_std_request decoded_request;
     sns_std_sensor_config decoded_payload;
+
+    SNS_PRINTF(ERROR, this, "ak0991x_reval_instance_config: message_id=%d",request->message_id);
 
     if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
@@ -287,6 +292,8 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   config.message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
   config.request_len = sizeof(sns_ak0991x_mag_req);
   config.request = &new_client_config;
+
+  SNS_PRINTF(ERROR, this, "ak0991x_set_mag_inst_config:rep_rate = %d samp_rate = %d",(int)chosen_report_rate,(int)chosen_sample_rate);
 
   this->instance_api->set_client_config(instance, &config);
 }
@@ -1615,14 +1622,17 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     }
     else
     {
+      SNS_PRINTF(ERROR, this, "instance is NOT NULL");
+
+      ak0991x_instance_state *inst_state =
+        (ak0991x_instance_state *)instance->state->state;
+
       if(NULL != exist_request
           &&
           NULL != new_request
           &&
           new_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
       {
-        ak0991x_instance_state *inst_state =
-          (ak0991x_instance_state *)instance->state->state;
 
         if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
         {
@@ -1636,17 +1646,27 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
       else
       {
-        reval_config = true;
-
-        /** An existing client is changing request*/
-        if ((NULL != exist_request) && (NULL != new_request))
+        // if the self-test is running,
+        // Keep the exist_request and Reject the incoming stream request.
+        if (inst_state->new_self_test_request)
         {
-          instance->cb->remove_client_request(instance, exist_request);
+          SNS_PRINTF(ERROR, this, "self-test is still running. Keep the exist_request.");
         }
-        /** A new client sent new_request*/
-        else if (NULL != new_request)
+        else
         {
-          // No-op. new_request will be added to requests list below.
+          reval_config = true;
+
+          /** An existing client is changing request*/
+          if ((NULL != exist_request) && (NULL != new_request))
+          {
+            SNS_PRINTF(ERROR, this, "remove client request for changing request");
+            instance->cb->remove_client_request(instance, exist_request);
+          }
+          /** A new client sent new_request*/
+          else if (NULL != new_request)
+          {
+            // No-op. new_request will be added to requests list below.
+          }
         }
       }
     }
@@ -1654,40 +1674,58 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     /** Add the new request to list of client_requests.*/
     if (NULL != instance)
     {
-      SNS_PRINTF(ERROR, this, "Add the new request to list");
-
       ak0991x_instance_state *inst_state =
-        (ak0991x_instance_state *)instance->state->state;
-      if (NULL != new_request)
+       (ak0991x_instance_state *)instance->state->state;
+
+      // if the self-test is running,
+      // Keep the exist_request and Reject the incoming stream request.
+      if (inst_state->new_self_test_request)
       {
-        instance->cb->add_client_request(instance, new_request);
+        SNS_PRINTF(ERROR, this, "self-test is still running. Reject the incoming stream request.");
+      }
+      else
+      {
+        SNS_PRINTF(ERROR, this, "Add the new request to list");
 
-        SNS_PRINTF(ERROR, this, "message_id=%d",new_request->message_id);
-
-
-        if(new_request->message_id ==
-            SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
+        if (NULL != new_request)
         {
-          if(ak0991x_extract_self_test_info(this, instance, new_request))
-          {
-            SNS_PRINTF(ERROR, this, "new_self_test_request = true");
+          instance->cb->add_client_request(instance, new_request);
 
-            inst_state->new_self_test_request = true;
+          SNS_PRINTF(ERROR, this, "message_id=%d",new_request->message_id);
+
+
+          if(new_request->message_id ==
+              SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
+          {
+            if(ak0991x_extract_self_test_info(this, instance, new_request))
+            {
+              SNS_PRINTF(ERROR, this, "new_self_test_request = true");
+
+              inst_state->new_self_test_request = true;
+              if (inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+              {
+                ak0991x_set_self_test_inst_config(this, instance);
+                reval_config = false;
+              }
+            }
           }
         }
-      }
 
-      if (reval_config)
-      {
-        ak0991x_reval_instance_config(this, instance);
-
-        if(inst_state->new_self_test_request)
+        if (reval_config)
         {
-          ak0991x_set_self_test_inst_config(this, instance);
+          SNS_PRINTF(ERROR, this, "reval_config = true");
+          ak0991x_reval_instance_config(this, instance);
+
+          if(inst_state->new_self_test_request)
+          {
+            ak0991x_set_self_test_inst_config(this, instance);
+          }
         }
       }
     }
   }
+
+  SNS_PRINTF(ERROR, this, "mid of set_client_req. ");
 
   // QC: Sensors are required to call remove_instance when clientless
   if(NULL != instance &&

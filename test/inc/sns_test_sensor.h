@@ -35,7 +35,7 @@
 #define NUM_TEST_ITERATIONS 20
 #else
 /* for on-target test */
-#define NUM_EVENTS_TO_PROCESS 10000
+#define NUM_EVENTS_TO_PROCESS 100
 #define NUM_TEST_ITERATIONS 1
 #endif
 

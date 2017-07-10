@@ -451,7 +451,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                &mag_chosen_sample_rate,
                                &mag_chosen_sample_rate_reg_value,
                                state->mag_info.device_select);
-    state->mag_info.req_wmk = (uint16_t)(mag_chosen_sample_rate / desired_report_rate);
+    if (desired_report_rate != 0)
+    {
+      state->mag_info.req_wmk = (uint16_t)(mag_chosen_sample_rate / desired_report_rate);
+    }
+    else
+    {
+      state->mag_info.req_wmk = 0;
+    }
+
     if (state->mag_info.use_fifo)
     {
       if (desired_report_rate != 0)
@@ -558,7 +566,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     }
 
-   }
+  }
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->fifo_flush_in_progress = true;
@@ -571,9 +579,86 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
-    SNS_INST_PRINTF(ERROR, this, "SENSOR_TEST_CONFIG for selftest" );
-    ak0991x_run_self_test(this);
-    state->new_self_test_request = false;
+    if (state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+    {
+      SNS_INST_PRINTF(ERROR, this, "pause the stream for self-test.");
+      mag_chosen_sample_rate = state->mag_req.sample_rate;
+      mag_chosen_sample_rate_reg_value = state->mag_info.desired_odr;
+      state->mag_req.sample_rate = 0;
+      state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
+
+      if (AK0991X_CONFIG_IDLE == state->config_step &&
+          ak0991x_dae_if_stop_streaming(this))
+      {
+        SNS_INST_PRINTF(ERROR, this, "done dae_if_stop_streaming");
+        state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
+      }
+
+      if (state->config_step == AK0991X_CONFIG_IDLE)
+      {
+        // care the FIFO buffer if enabled FIFO
+        if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
+        {
+          ak0991x_flush_fifo(this);
+          state->this_is_first_data = true;
+        }
+
+        // hardware setting for measurement mode
+        if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
+        {
+          ak0991x_reconfig_hw(this);
+          SNS_INST_PRINTF(ERROR, this, "done ak0991x_reconfig_hw");
+        }
+        // Register for timer
+        if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+        {
+          ak0991x_reconfig_hw(this);
+          ak0991x_register_timer(this);
+          SNS_INST_PRINTF(ERROR, this, "done register_timer");
+        }
+
+        ak0991x_send_config_event(this);
+      }
+
+      // DAE handles PAUSE_SAMPLING request
+      ak0991x_dae_if_process_events(this);
+
+      // DAE handles FLUSH_HW request
+      ak0991x_dae_if_process_events(this);
+
+      SNS_INST_PRINTF(ERROR, this, "Execute the self-test.");
+      ak0991x_run_self_test(this);
+      state->new_self_test_request = false;
+
+      SNS_INST_PRINTF(ERROR, this, "Resume the stream.");
+      state->mag_req.sample_rate = mag_chosen_sample_rate;
+      state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
+
+      // hardware setting for measurement mode
+      if (state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+      {
+        ak0991x_reconfig_hw(this);
+        SNS_INST_PRINTF(ERROR, this, "done ak0991x_reconfig_hw");
+      }
+      // Register for timer
+      if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+      {
+        ak0991x_reconfig_hw(this);
+        ak0991x_register_timer(this);
+        SNS_INST_PRINTF(ERROR, this, "done register_timer");
+      }
+ 
+      ak0991x_send_config_event(this);
+
+      // DAE handles SET_STREAMING_CONFIG request
+      ak0991x_dae_if_process_events(this);
+    }
+    else
+    {
+      SNS_INST_PRINTF(ERROR, this, "SENSOR_TEST_CONFIG for selftest" );
+      ak0991x_run_self_test(this);
+      state->new_self_test_request = false;
+    }
   }
 
   // Turn COM port OFF

@@ -81,6 +81,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event    *event;
   sns_diag_service    *diag = state->diag_service;
 
+  SNS_INST_PRINTF(ERROR, this, "ak0991x_inst_notify_event");
+
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
