@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 07/10/17     010007     AKM              Modify for self-test which cares streaming.
  * 07/03/17     010006     AKM              Support FIFO+Polling mode.
  * 06/22/17     010005     Qualcomm/AKM     Support COM/HW self-test.
  * 06/22/17                Qualcomm/AKM     Re-do island refactoring.
@@ -40,4 +41,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10006  // major:01 minor:00 revision:06
+#define AK0991X_DRIVER_VERSION 10007  // major:01 minor:00 revision:07

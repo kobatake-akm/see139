@@ -776,13 +776,9 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
   sns_time usec_time_for_measure;
-  //uint8_t  asa[AK0991X_NUM_SENSITIVITY];
+  uint8_t asa[AK0991X_NUM_SENSITIVITY];
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
-  //akm_device_type device_select;
-  //uint8_t  buffer_who_am_i[AK0991X_NUM_READ_DEV_ID];
-  //float    sstvt_adj[3];
-  //uint8_t  i;
   uint8_t  sdr = 0;
 
   ak0991x_instance_state *state =
@@ -792,73 +788,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
 
   // Initialize error code
   *err = 0;
-
-  SNS_INST_PRINTF(ERROR, this, "dev=%d",state->mag_info.device_select);
-
-      SNS_INST_PRINTF(ERROR, this, "sstvt=%d",(int)(state->mag_info.sstvt_adj[0] * 1000));
- 
-  // TODO: wmo-am-i was read during init. Can't the
-  // driver use value from state->mag_info->device_select?
-//  rv = ak0991x_get_who_am_i(state->scp_service,
-//                            state->com_port_info.port_handle,
-//                            &buffer_who_am_i[0]);
-//
-//  if (rv != SNS_RC_SUCCESS)
-//  {
-//    *err = ((TLIMIT_NO_READ_ID) << 16);
-//    goto TEST_SEQUENCE_FAILED;
-//  }
-//
-//  //Check AKM device ID
-//  if (buffer_who_am_i[0] == AK0991X_WHOAMI_COMPANY_ID)
-//  {
-//    if (buffer_who_am_i[1] == AK09911_WHOAMI_DEV_ID)
-//    {
-//      device_select = AK09911;
-//    }
-//    else if (buffer_who_am_i[1] == AK09912_WHOAMI_DEV_ID)
-//    {
-//      device_select = AK09912;
-//    }
-//    else if (buffer_who_am_i[1] == AK09913_WHOAMI_DEV_ID)
-//    {
-//      device_select = AK09913;
-//    }
-//    else if ((buffer_who_am_i[1] == AK09915_WHOAMI_DEV_ID) && (buffer_who_am_i[3] == AK09915C_SUB_ID))
-//    {
-//      device_select = AK09915C;
-//    }
-//    else if ((buffer_who_am_i[1] == AK09915_WHOAMI_DEV_ID) && (buffer_who_am_i[3] == AK09915D_SUB_ID))
-//    {
-//      device_select = AK09915D;
-//    }
-//    else if (buffer_who_am_i[1] == AK09916C_WHOAMI_DEV_ID)
-//    {
-//      device_select = AK09916C;
-//    }
-//    else if (buffer_who_am_i[1] == AK09916D_WHOAMI_DEV_ID)
-//    {
-//      device_select = AK09916D;
-//    }
-//    else if (buffer_who_am_i[1] == AK09917_WHOAMI_DEV_ID)
-//    {
-//      device_select = AK09917;
-//    }
-//    else if (buffer_who_am_i[1] == AK09918_WHOAMI_DEV_ID)
-//    {
-//      device_select = AK09918;
-//    }
-//    else
-//    {
-//     *err = ((TLIMIT_NO_READ_ID) << 16);
-//      goto TEST_SEQUENCE_FAILED;
-//    }
-//  }
-//  else
-//  {
-//    *err = ((TLIMIT_NO_READ_ID) << 16);
-//    goto TEST_SEQUENCE_FAILED;
-//  }
 
   // Reset device
   rv = ak0991x_device_sw_reset(this,
@@ -875,48 +804,25 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /** Step 1
    *   If the device has FUSE ROM, test the sensitivity value
    **/
-//  if ((state->mag_info.device_select == AK09911) || (state->mag_info.device_select == AK09912))
-//  {
-//    rv = ak0991x_read_asa(this,
-//                          state->scp_service,
-//                          state->com_port_info.port_handle,
-//                          diag,
-//                          asa);
-//
-//
-//    if (rv != SNS_RC_SUCCESS)
-//    {
-//      *err = ((TLIMIT_NO_READ_ASA) << 16);
-//      goto TEST_SEQUENCE_FAILED;
-//    }
-//
-//    AKM_FST(TLIMIT_NO_ASAX, asa[0], TLIMIT_LO_ASAX, TLIMIT_HI_ASAX, err);
-//    AKM_FST(TLIMIT_NO_ASAY, asa[1], TLIMIT_LO_ASAY, TLIMIT_HI_ASAY, err);
-//    AKM_FST(TLIMIT_NO_ASAZ, asa[2], TLIMIT_LO_ASAZ, TLIMIT_HI_ASAZ, err);
-//
-//    if (device_select == AK09911)
-//    {
-//      for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
-//      {
-//        // TODO: Why not use state->mag_info->sstvt_adj?
-//        sstvt_adj[i] = ((asa[i] / 128.0f) + 1.0f);
-//      }
-//    }
-//    else
-//    {
-//      for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
-//      {
-//        sstvt_adj[i] = ((asa[i] / 256.0f) + 0.5f);
-//      }
-//    }
-//  }
-//  else
-//  {
-//    for (i = 0; i < AK0991X_NUM_SENSITIVITY; i++)
-//    {
-//      sstvt_adj[i] = 1.0f;
-//    }
-//  }
+  if ((state->mag_info.device_select == AK09911) || (state->mag_info.device_select == AK09912))
+  {
+    rv = ak0991x_read_asa(this,
+                          state->scp_service,
+                          state->com_port_info.port_handle,
+                          diag,
+                          asa);
+
+
+    if (rv != SNS_RC_SUCCESS)
+    {
+      *err = ((TLIMIT_NO_READ_ASA) << 16);
+      goto TEST_SEQUENCE_FAILED;
+    }
+
+    AKM_FST(TLIMIT_NO_ASAX, asa[0], TLIMIT_LO_ASAX, TLIMIT_HI_ASAX, err);
+    AKM_FST(TLIMIT_NO_ASAY, asa[1], TLIMIT_LO_ASAY, TLIMIT_HI_ASAY, err);
+    AKM_FST(TLIMIT_NO_ASAZ, asa[2], TLIMIT_LO_ASAZ, TLIMIT_HI_ASAZ, err);
+  }
 
   /** Step 2
    *   Start self test

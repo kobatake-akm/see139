@@ -219,9 +219,6 @@ static void ak0991x_get_mag_config(sns_sensor *this,
   *chosen_flush_period = 0;
   *sensor_client_present = false;
 
-  SNS_PRINTF(ERROR, this, "ak0991x_get_mag_config");
-
-
   /** Parse through existing requests and get fastest sample
    *  rate, report rate, and longest flush period requests. */
   for (request = instance->cb->get_client_request(instance, &suid, true);
@@ -1702,6 +1699,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               SNS_PRINTF(ERROR, this, "new_self_test_request = true");
 
               inst_state->new_self_test_request = true;
+              // if the sensor is streaming and there is a client request to run self-test,
+              // avoid to reconfigure the settings by self-test.
               if (inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
               {
                 ak0991x_set_self_test_inst_config(this, instance);
@@ -1724,8 +1723,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
     }
   }
-
-  SNS_PRINTF(ERROR, this, "mid of set_client_req. ");
 
   // QC: Sensors are required to call remove_instance when clientless
   if(NULL != instance &&
@@ -1792,12 +1789,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                    AK0991X_POWER_RAIL_PENDING_INIT);
   }
 
-  // TODO: Do we need to add so many checks here?
   if(rv == SNS_RC_SUCCESS &&
-     state->hw_is_present &&
-     NULL != state->pwr_rail_service &&
      NULL != state->timer_stream &&
-     state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE &&
      state->remove_timer_stream)
   {
     // remove unused timer_data_stream
