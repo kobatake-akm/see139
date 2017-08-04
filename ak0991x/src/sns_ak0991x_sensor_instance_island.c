@@ -110,21 +110,29 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         if (pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
           state->interrupt_timestamp = irq_event.timestamp;
-          // Add setting for timestamp in case of flush event caused by irq trigger
-          state->irq_info.detect_irq_event = true;
 
-          if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
+          if(state->pre_timestamp >= state->interrupt_timestamp)
           {
-            SNS_INST_PRINTF(ERROR, this, "handle interrupt event for fifo wmk<2");
-            ak0991x_flush_fifo(this);
+						SNS_INST_PRINTF(ERROR, this, "duplicate timestamp. ignored.");
           }
           else
           {
-            SNS_INST_PRINTF(ERROR, this, "handle interrupt event");
-            ak0991x_handle_interrupt_event(this);
-          }
+						// Add setting for timestamp in case of flush event caused by irq trigger
+						state->irq_info.detect_irq_event = true;
 
-          state->irq_info.detect_irq_event = false;
+						if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
+						{
+							SNS_INST_PRINTF(ERROR, this, "handle interrupt event for fifo wmk<2");
+							ak0991x_flush_fifo(this);
+						}
+						else
+						{
+							SNS_INST_PRINTF(ERROR, this, "handle interrupt event");
+							ak0991x_handle_interrupt_event(this);
+						}
+
+						state->irq_info.detect_irq_event = false;
+          }
         }
       }
       else
