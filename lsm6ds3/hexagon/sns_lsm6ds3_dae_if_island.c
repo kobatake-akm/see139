@@ -9,12 +9,12 @@
  **/
 
 #include "sns_mem_util.h"
-#include "sns_service_manager.h"
-#include "sns_stream_service.h"
 #include "sns_rc.h"
 #include "sns_request.h"
-#include "sns_time.h"
 #include "sns_sensor_event.h"
+#include "sns_service_manager.h"
+#include "sns_stream_service.h"
+#include "sns_time.h"
 #include "sns_types.h"
 
 #include "sns_lsm6ds3_hal.h"
@@ -23,10 +23,11 @@
 
 #include "sns_dae.pb.h"
 
-#include "pb_encode.h"
 #include "pb_decode.h"
-#include "sns_pb_util.h"
+#include "pb_encode.h"
 #include "sns_diag_service.h"
+#include "sns_pb_util.h"
+#include "sns_printf.h"
 
 
 /*======================================================================================
@@ -194,10 +195,7 @@ static void process_temp_samples(
   }
   else
   {
-    lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
-    state->diag_service->api->sensor_inst_printf(
-      state->diag_service, this, &state->sensor_temp_info.suid, SNS_ERROR, 
-      __FILENAME__, __LINE__, "Unexpected data len %u from DAE sensor", buf_len);
+    SNS_INST_PRINTF(ERROR, this,  "Unexpected data len %u from DAE sensor", buf_len);
   }
 }
 
@@ -301,7 +299,6 @@ static bool process_response(
 /* ------------------------------------------------------------------------------------ */
 static void process_events(sns_sensor_instance *this, lsm6ds3_dae_stream *dae_stream)
 {
-  lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
   sns_sensor_event *event;
   bool stream_usable = true;
 
@@ -326,9 +323,7 @@ static void process_events(sns_sensor_instance *this, lsm6ds3_dae_stream *dae_st
       }
       else
       {
-        state->diag_service->api->sensor_inst_printf(
-          state->diag_service, this, &state->sensor_temp_info.suid, SNS_ERROR, 
-          __FILENAME__, __LINE__, "Unexpected message id %u", event->message_id);
+        SNS_INST_PRINTF(ERROR, this, "Unexpected message id %u", event->message_id);
         /* TODO - report unexpected message */
       }
     }

@@ -14,27 +14,6 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
-/**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 05/11/17     AKM     Add DAE sensor support.
- * 05/11/17     AKM     Add AK09917D support.
- *
- **/
-
 #include "sns_com_port_types.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_instance.h"
@@ -49,6 +28,10 @@
 #include "sns_std_sensor.pb.h"
 #include "sns_ak0991x_dae_if.h"
 #include "sns_async_com_port.pb.h"
+#include "sns_physical_sensor_test.pb.h"
+
+#include "sns_math_util.h"
+#include "sns_registry_util.h"
 
 /** Forward Declaration of Instance API */
 sns_sensor_instance_api ak0991x_sensor_instance_api;
@@ -120,18 +103,29 @@ typedef enum
   AK0991X_CONFIG_UPDATING_HW        /** updating sensor HW, when done goes back to IDLE */
 } ak0991x_config_step;
 
+typedef struct ak0991x_self_test_info
+{
+  sns_physical_sensor_test_type test_type;
+  bool test_client_present;
+} ak0991x_self_test_info;
+
 typedef struct ak0991x_mag_info
 {
   ak0991x_mag_odr   desired_odr;
   ak0991x_mag_odr   curr_odr;
+  uint32_t          flush_period;
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
+  uint32_t       req_wmk;
   uint16_t       cur_wmk;
   uint16_t       max_fifo_size;
   bool           use_dri;
   bool           use_fifo;
+  uint8_t        nsf;
+  uint8_t        sdr;
   sns_sensor_uid suid;
+  ak0991x_self_test_info test_info;
 } ak0991x_mag_info;
 
 typedef struct ak0991x_irq_info
@@ -148,6 +142,11 @@ typedef struct ak0991x_async_com_port_info
   uint32_t port_handle;
 } ak0991x_async_com_port_info;
 
+typedef struct sns_ak0991x_registry_cfg
+{
+  matrix3             fac_cal_corr_mat;
+  float               fac_cal_bias[3];
+}sns_ak0991x_registry_cfg;
 
 /** Private state. */
 typedef struct ak0991x_instance_state
@@ -162,7 +161,6 @@ typedef struct ak0991x_instance_state
 
   /** Timer info */
   sns_sensor_uid timer_suid;
-  bool timer_stream_is_created;
 
   /** Interrupt dependency info. */
   ak0991x_irq_info irq_info;
@@ -187,8 +185,16 @@ typedef struct ak0991x_instance_state
 
   uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
+  uint8_t               pre_data_buffer[8];
 
   size_t encoded_mag_event_len;
+
+  /**----------Axis Conversion----------*/
+  triaxis_conversion axis_map[TRIAXIS_NUM];
+
+  /**----------Sensor specific registry configuration----------*/
+  sns_ak0991x_registry_cfg mag_registry_cfg;
+ 
   /**----------debug----------*/
   float  m_stream_event[3];
 
@@ -196,6 +202,7 @@ typedef struct ak0991x_instance_state
   sns_sync_com_port_service *scp_service;
 
   bool fifo_flush_in_progress;
+  bool new_self_test_request;
 
   size_t           log_raw_encoded_size;
 } ak0991x_instance_state;
@@ -211,6 +218,8 @@ typedef struct sns_ak0991x_mag_req
 {
   float sample_rate;
   float report_rate;
+  uint32_t flush_period;
+  sns_ak0991x_registry_cfg registry_cfg;
 } sns_ak0991x_mag_req;
 
 
@@ -219,3 +228,5 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
 sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this);
 
+sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
+                                      sns_request const *client_request);

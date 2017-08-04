@@ -9,25 +9,25 @@
  **/
 
 #include "sns_mem_util.h"
+#include "sns_rc.h"
+#include "sns_request.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
 #include "sns_stream_service.h"
-#include "sns_rc.h"
-#include "sns_request.h"
 #include "sns_types.h"
 
 #include "sns_lsm6ds3_hal.h"
 #include "sns_lsm6ds3_sensor.h"
 #include "sns_lsm6ds3_sensor_instance.h"
 
-#include "sns_interrupt.pb.h"
 #include "sns_async_com_port.pb.h"
+#include "sns_interrupt.pb.h"
 
-#include "pb_encode.h"
 #include "pb_decode.h"
-#include "sns_pb_util.h"
-#include "sns_diag_service.h"
+#include "pb_encode.h"
 #include "sns_diag.pb.h"
+#include "sns_diag_service.h"
+#include "sns_pb_util.h"
 #include "sns_sync_com_port_service.h"
 
 static void inst_cleanup(lsm6ds3_instance_state *state, sns_stream_service *stream_mgr)
@@ -72,8 +72,13 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
               service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
   uint64_t buffer[10];
   pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)buffer, sizeof(buffer));
-  sns_diag_batch_sample sample = sns_diag_batch_sample_init_default;
-  sample.sample_count = 3;
+  sns_diag_batch_sample batch_sample = sns_diag_batch_sample_init_default;
+  uint8_t arr_index = 0;
+  float diag_temp[LSM6DS3_NUM_AXES];
+  pb_float_arr_arg arg = {.arr = (float*)diag_temp, .arr_len = LSM6DS3_NUM_AXES,
+    .arr_index = &arr_index};
+  batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
+  batch_sample.sample.arg = &arg;
 
   state->scp_service = (sns_sync_com_port_service*)
               service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
@@ -219,6 +224,25 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
     data_stream->api->send_request(data_stream, &async_com_port_request);
   }
 
+  /** Copy down axis conversion settings */
+  sns_memscpy(state->axis_map,  sizeof(sensor_state->axis_map),
+              sensor_state->axis_map, sizeof(sensor_state->axis_map));
+
+  /** Initialize factory calibration */
+  state->accel_registry_cfg.fac_cal_corr_mat.e00 = 1.0;
+  state->accel_registry_cfg.fac_cal_corr_mat.e11 = 1.0;
+  state->accel_registry_cfg.fac_cal_corr_mat.e22 = 1.0;
+  state->gyro_registry_cfg.fac_cal_corr_mat.e00 = 1.0;
+  state->gyro_registry_cfg.fac_cal_corr_mat.e11 = 1.0;
+  state->gyro_registry_cfg.fac_cal_corr_mat.e22 = 1.0;
+  state->sensor_temp_registry_cfg.fac_cal_corr_mat.e00 = 1.0;
+  state->sensor_temp_registry_cfg.fac_cal_corr_mat.e11 = 1.0;
+  state->sensor_temp_registry_cfg.fac_cal_corr_mat.e22 = 1.0;
+
+  /** Copy down MD configuration */
+  sns_memscpy(&state->md_info.md_config, sizeof(state->md_info.md_config),
+              &sensor_state->md_config, sizeof(sensor_state->md_config));
+
   /** Determine sizes of encoded logs */
   sns_diag_sensor_state_interrupt sensor_state_interrupt =
         sns_diag_sensor_state_interrupt_init_default;
@@ -236,7 +260,7 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
                     sns_diag_sensor_state_raw_sample_tag))
   {
     if(pb_encode_delimited(&stream, sns_diag_batch_sample_fields,
-                               &sample))
+                               &batch_sample))
     {
       state->log_raw_encoded_size = stream.bytes_written;
     }

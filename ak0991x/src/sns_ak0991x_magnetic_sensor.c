@@ -13,20 +13,15 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
 #include <string.h>
 #include "sns_mem_util.h"
 #include "sns_types.h"
 #include "sns_service_manager.h"
 #include "sns_ak0991x_sensor.h"
+#include "sns_ak0991x_ver.h"
 #include "sns_pb_util.h"
 #include "sns_attribute_util.h"
+#include "sns_printf.h"
 
 /**
  * Initialize attributes to their default state.  They may/will be updated
@@ -43,46 +38,11 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         values, ARR_SIZE(values), false);
   }
   {
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
-      SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
-    values[0].has_flt = true;
-    values[0].flt = 0;
-    values[1].has_flt = true;
-    values[1].flt = 0;
-    values[2].has_flt = true;
-    values[2].flt = 0;
-    values[3].has_flt = true;
-    values[3].flt = 0;
-    values[4].has_flt = true;
-    values[4].flt = 0;
-    values[5].has_flt = true;
-    values[5].flt = 0;
-    values[6].has_flt = true;
-    values[6].flt = 0;
-    values[7].has_flt = true;
-    values[7].flt = 0;
-    values[8].has_flt = true;
-    values[8].flt = 0;
-    values[9].has_flt = true;
-    values[9].flt = 0;
-    values[10].has_flt = true;
-    values[10].flt = 0;
-    values[11].has_flt = true;
-    values[11].flt = 0;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PLACEMENT,
-        values, ARR_SIZE(values), false);
-  }
-  {
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
-    char const proto1[] = "sns_physical_sensor_test.proto";
-    char const proto2[] = "sns_std_sensor.proto";
-
+    sns_std_attr_value_data values[] = {SNS_ATTR};
+    char const proto1[] = "sns_mag.proto";
     values[0].str.funcs.encode = pb_encode_string_cb;
     values[0].str.arg = &((pb_buffer_arg)
         { .buf = proto1, .buf_len = sizeof(proto1) });
-    values[1].str.funcs.encode = pb_encode_string_cb;
-    values[1].str.arg = &((pb_buffer_arg)
-        { .buf = proto2, .buf_len = sizeof(proto2) });
     sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_API,
         values, ARR_SIZE(values), false);
   }
@@ -123,23 +83,9 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
-    value.sint = 0x00000100;
+    value.sint = AK0991X_DRIVER_VERSION;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
-    value.sint = SNS_STD_SENSOR_RIGID_BODY_TYPE_DISPLAY;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
-    value.sint = 0;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_HW_ID, &value, 1, false);
   }
   {
     float data[3] = {0};
@@ -150,6 +96,13 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, true);
   }
+//  {
+//    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+//    value.has_boolean = true;
+//    value.boolean = true;
+//    sns_publish_attribute(
+//        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, true);
+//  }
 }
 
 
@@ -157,12 +110,17 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
 sns_rc ak0991x_mag_init(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
+  uint8_t i = 0;
 
   struct sns_service_manager *smgr = this->cb->get_service_manager(this);
   state->diag_service = (sns_diag_service *)
     smgr->get_service(smgr, SNS_DIAG_SERVICE);
   state->scp_service =
      (sns_sync_com_port_service *)smgr->get_service(smgr, SNS_SYNC_COM_PORT_SERVICE);
+
+  ak0991x_publish_default_attributes(this);
+
+  SNS_PRINTF(LOW, this, "ak0991x: init");
 
   state->sensor_client_present = false;
 
@@ -171,14 +129,25 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
               &((sns_sensor_uid)MAG_SUID),
               sizeof(sns_sensor_uid));
 
+  // initialize axis conversion settings
+  for(i = 0; i < TRIAXIS_NUM; i++)
+  {
+    state->axis_map[i].opaxis = i;
+    state->axis_map[i].ipaxis = i;
+    state->axis_map[i].invert = false;
+  }
 
-  ak0991x_publish_default_attributes(this);
-  ak0991x_send_suid_req(this, "interrupt", 10);
-  ak0991x_send_suid_req(this, "async_com_port", 15);
-  ak0991x_send_suid_req(this, "timer", 6);
-#if AK0991X_ENABLE_DEPENDENCY
-  ak0991x_send_suid_req(this, "registry", 9);
-#endif //
+  // initialize fac cal correction matrix to identity
+  state->fac_cal_corr_mat.e00 = 1.0;
+  state->fac_cal_corr_mat.e11 = 1.0;
+  state->fac_cal_corr_mat.e22 = 1.0;
+
+  ak0991x_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
+  ak0991x_send_suid_req(this, "interrupt", sizeof("interrupt"));
+  ak0991x_send_suid_req(this, "async_com_port", sizeof("async_com_port"));
+  ak0991x_send_suid_req(this, "timer", sizeof("timer"));
+
+  ak0991x_send_suid_req(this, "registry", sizeof("registry"));
 
   return SNS_RC_SUCCESS;
 }

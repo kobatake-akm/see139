@@ -10,8 +10,8 @@
  **/
 
 #include <stdint.h>
-#include "sns_sensor_instance.h"
 #include "sns_data_stream.h"
+#include "sns_sensor_instance.h"
 #include "sns_stream_service.h"
 
 struct sns_stream_service;

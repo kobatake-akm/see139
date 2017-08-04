@@ -13,26 +13,6 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
-/**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 05/11/17     AKM     Add DAE sensor support.
- *
- **/
-
 #include <stdint.h>
 #include "sns_sensor_instance.h"
 #include "sns_data_stream.h"
@@ -54,10 +34,12 @@ typedef enum
 typedef struct
 {
   struct sns_data_stream *stream;
+  const sns_sensor_uid   *suid; /* for diag print purpose */
   const char             *nano_hal_vtable_name;
   ak0991x_dae_if_state   state;
-  bool                   flushing_hw;
-  bool                   flushing_data;
+  bool                   stream_usable:1;
+  bool                   flushing_hw:1;
+  bool                   flushing_data:1;
 } ak0991x_dae_stream;
 
 typedef struct ak0991x_dae_if_info
@@ -70,7 +52,8 @@ bool ak0991x_dae_if_available(sns_sensor_instance *this);
 sns_rc ak0991x_dae_if_init(
   sns_sensor_instance        *const this,
   struct sns_stream_service  *stream_mgr,
-  sns_sensor_uid             *dae_suid);
+  sns_sensor_uid             *dae_suid,
+  sns_sensor_uid const       *parent_suid);
 
 void ak0991x_dae_if_deinit(
   struct ak0991x_instance_state *state,

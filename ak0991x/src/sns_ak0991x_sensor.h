@@ -14,27 +14,6 @@
  *
  **/
 
-/**
- * Authors(, name)  : Masahiko Fukasawa, Tomoya Nakajima
- * Version          : v2017.06.01
- * Date(MM/DD/YYYY) : 06/01/2017
- *
- **/
-
- /**
- * EDIT HISTORY FOR FILE
- *
- * This section contains comments describing changes made to the module.
- * Notice that changes are listed in reverse chronological order.
- *
- *
- * when         who     what, where, why
- * --------     ---     ------------------------------------------------
- * 05/11/17     AKM     Add DAE sensor support.
- * 05/11/17     AKM     Add AK09917D support.
- *
- **/
-
 #include "sns_sensor.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
@@ -44,6 +23,7 @@
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_math_util.h"
 #include "sns_diag_service.h"
+#include "sns_registry_util.h"
 
 #define MAG_SUID \
   {  \
@@ -54,7 +34,18 @@
     }  \
   }
 
-#if AK0991X_USE_DEFAULTS
+#define SUID_IS_NULL(suid_ptr) ( sns_memcmp( (suid_ptr),                \
+                                             &(sns_sensor_uid){{0}},    \
+                                             sizeof(sns_sensor_uid) ) == 0 )
+
+#define AK0991X_REGISTRY_PF_CONFIG   "ak0991x_0_platform.config"
+#define AK0991X_REGISTRY_PLACE       "ak0991x_0_platform.placement"
+#define AK0991X_REGISTRY_ORIENT      "ak0991x_0_platform.orient"
+#define AK0991X_REGISTRY_FACCAL      "ak0991x_0_platform.mag.fac_cal"
+#define AK0991X_REGISTRY_MAG_CONFIG  "ak0991x_0.mag.config"
+#define AK0991X_REGISTRY_REG_CONFIG  "ak0991x_0.mag.config_2"
+
+#if 0
 /** TODO Using 8996 Platform config as defaults. This is for
  *  test purpose only. All platform specific information will
  *  be available to the Sensor driver via Registry. */
@@ -65,7 +56,11 @@
 #define I2C_BUS_FREQ               400
 #define I2C_SLAVE_ADDRESS          0x0C
 #ifdef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
+#ifdef USE_RUMI_SE
 #define I2C_BUS_INSTANCE           0x06
+#else
+#define I2C_BUS_INSTANCE           0x01
+#endif /* USE_RUMI_SE */
 #define SPI_BUS_INSTANCE           0x02
 #else
 #define I2C_BUS_INSTANCE           0x03
@@ -150,6 +145,16 @@ typedef enum
   AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ,
 } ak0991x_power_rail_pending_state;
 
+/** Registry items supported as part of physical sensor
+ *  configuraton registry group
+ */
+typedef struct ak0991x_registry_phy_sensor_cfg
+{
+  bool    use_fifo;
+  uint8_t nsf;
+  uint8_t sdr;
+} ak0991x_registry_phy_sensor_cfg;
+
 /** Interrupt Sensor State. */
 
 typedef struct ak0991x_state
@@ -169,15 +174,51 @@ typedef struct ak0991x_state
 
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
+  sns_power_rail_state  registry_rail_on_state;
 
   bool hw_is_present;
   bool sensor_client_present;
+  bool remove_timer_stream;
 
   ak0991x_power_rail_pending_state power_rail_pend_state;
 
   // parameters which are determined when the connected device is specified.
   akm_device_type device_select; // store the current connected device
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
+
+  // sensor configuration 
+  bool is_dri;
+  bool supports_sync_stream;
+  bool use_fifo;
+  uint8_t nsf;
+  uint8_t sdr;
+  uint8_t resolution_idx;
+  int64_t hardware_id;
+
+  // registry sensor config
+  bool registry_cfg_received;
+  sns_registry_phy_sensor_cfg registry_cfg;
+
+  // registry sensor reg config
+  bool registry_reg_cfg_received;
+  ak0991x_registry_phy_sensor_cfg registry_reg_cfg;
+  // registry sensor platform config
+  bool registry_pf_cfg_received;
+  sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
+
+  // axis conversion
+  bool registry_orient_received;
+  triaxis_conversion axis_map[TRIAXIS_NUM];
+
+  // factory calibration
+  bool                    registry_fac_cal_received;
+  matrix3                 fac_cal_corr_mat;
+  float                   fac_cal_bias[TRIAXIS_NUM];
+  float                   fac_cal_scale[TRIAXIS_NUM];
+
+  // placement 
+  bool                    registry_placement_received;
+  float                   placement[12];
 
   // debug
   uint16_t who_am_i;
@@ -188,18 +229,6 @@ typedef struct ak0991x_state
 
 /** Functions shared by all AK0991X Sensors */
 /**
- * This function parses the client_request list per Sensor and
- * determines final config for the Sensor Instance.
- *
- * @param[i] this          Sensor reference
- * @param[i] instance      Sensor Instance to config
- *
- * @return none
- */
-void ak0991x_reval_instance_config(sns_sensor * this,
-                                   sns_sensor_instance *instance);
-
-/**
  * Sends a request to the SUID Sensor to get SUID of a dependent
  * Sensor.
  *
@@ -209,27 +238,6 @@ void ak0991x_reval_instance_config(sns_sensor * this,
  */
 void ak0991x_send_suid_req(sns_sensor * this, char *const data_type,
                            uint32_t data_type_len);
-
-/**
- * Processes events from SUID Sensor.
- *
- * @param[i] this   Sensor reference
- *
- * @return none
- */
-void ak0991x_process_suid_events(sns_sensor *const this
-);
-
-/**
- * Publishes Sensor attributes.
- *
- * @param[i] this    Sensor Reference
- *
- * @return none
- */
-void ak0991x_publish_attributes(sns_sensor *const this,
-                                akm_device_type device_select
-);
 
 /**
  * notify_event() Sensor API common between all AK0991X Sensors.

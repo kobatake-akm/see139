@@ -5,15 +5,16 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
-#include "sns_rc.h"
-#include "sns_time.h"
-#include "sns_sensor_event.h"
-#include "sns_event_service.h"
-#include "sns_mem_util.h"
-#include "sns_math_util.h"
-#include "sns_service_manager.h"
 #include "sns_com_port_types.h"
+#include "sns_event_service.h"
+#include "sns_gpio_service.h"
+#include "sns_math_util.h"
+#include "sns_mem_util.h"
+#include "sns_rc.h"
+#include "sns_sensor_event.h"
+#include "sns_service_manager.h"
 #include "sns_sync_com_port_service.h"
+#include "sns_time.h"
 #include "sns_types.h"
 
 #include "sns_lsm6ds3_hal.h"
@@ -22,23 +23,33 @@
 
 #include "sns_async_com_port.pb.h"
 
-#include "pb_encode.h"
 #include "pb_decode.h"
-#include "sns_pb_util.h"
+#include "pb_encode.h"
 #include "sns_async_com_port_pb_utils.h"
+#include "sns_pb_util.h"
 
 #include "sns_std_sensor.pb.h"
 
-#include "sns_diag_service.h"
 #include "sns_diag.pb.h"
-#include "sns_timer.pb.h"
+#include "sns_diag_service.h"
+#include "sns_std.pb.h"
 #include "sns_std_event_gated_sensor.pb.h"
+#include "sns_timer.pb.h"
+
+#include "sns_cal_util.h"
+#include "sns_printf.h"
 
 /** Need to use ODR table. */
 extern const odr_reg_map reg_map[LSM6DS3_REG_MAP_TABLE_SIZE];
 
 typedef struct log_sensor_state_raw_info
 {
+  /* Pointer to diag service */
+  sns_diag_service *diag;
+  /* Pointer to sensor instance */
+  sns_sensor_instance *instance;
+  /* Pointer to sensor UID*/
+  struct sns_sensor_uid *sensor_uid;
   /* Size of a single encoded sample */
   size_t encoded_sample_size;
   /* Pointer to log*/
@@ -48,8 +59,24 @@ typedef struct log_sensor_state_raw_info
   /* Number of actual bytes written*/
   uint32_t bytes_written;
   /* Number of batch samples written*/
-  uint32_t sample_cnt;
+  /* A batch may be composed of several logs*/
+  uint32_t batch_sample_cnt;
+  /* Number of log samples written*/
+  uint32_t log_sample_cnt;
 } log_sensor_state_raw_info;
+
+// Unencoded batch sample
+typedef struct
+{
+  /* Batch Sample type as defined in sns_diag.pb.h */
+  sns_diag_batch_sample_type sample_type;
+  /* Timestamp of the sensor state data sample */
+  sns_time timestamp;
+  /*Raw sensor state data sample*/
+  float sample[LSM6DS3_NUM_AXES];
+  /* Data status.*/
+  sns_std_sensor_sample_status status;
+} lsm6ds3_batch_sample;
 
 /**
  * Encode Sensor State Log.Interrupt
@@ -74,7 +101,7 @@ sns_rc lsm6ds3_encode_sensor_state_log_interrupt(
   UNUSED_VAR(log_size);
   sns_rc rc = SNS_RC_SUCCESS;
 
-  if(NULL == encoded_log || NULL == log || NULL ==bytes_written)
+  if(NULL == encoded_log || NULL == log || NULL == bytes_written)
   {
     return SNS_RC_FAILED;
   }
@@ -93,7 +120,6 @@ sns_rc lsm6ds3_encode_sensor_state_log_interrupt(
   {
     *bytes_written = stream.bytes_written;
   }
-
 
   return rc;
 }
@@ -122,27 +148,40 @@ sns_rc lsm6ds3_encode_log_sensor_state_raw(
   uint32_t i = 0;
   size_t encoded_sample_size = 0;
   size_t parsed_log_size = 0;
-  sns_diag_batch_sample sample = sns_diag_batch_sample_init_default;
-  sample.sample_count = 3;
+  sns_diag_batch_sample batch_sample = sns_diag_batch_sample_init_default;
+  uint8_t arr_index = 0;
+  float temp[LSM6DS3_NUM_AXES];
+  pb_float_arr_arg arg = {.arr = (float *)temp, .arr_len = LSM6DS3_NUM_AXES,
+    .arr_index = &arr_index};
 
-  if(NULL == encoded_log || NULL == log || NULL ==bytes_written)
+  if(NULL == encoded_log || NULL == log || NULL == bytes_written)
   {
     return SNS_RC_FAILED;
   }
 
+  batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
+  batch_sample.sample.arg = &arg;
+
   if(!pb_get_encoded_size(&encoded_sample_size, sns_diag_batch_sample_fields,
-                          &sample))
+                          &batch_sample))
   {
     return SNS_RC_FAILED;
   }
 
   pb_ostream_t stream = pb_ostream_from_buffer(encoded_log, encoded_log_size);
-  sns_diag_batch_sample *batch_sample = (sns_diag_batch_sample *)log;
+  lsm6ds3_batch_sample *raw_sample = (lsm6ds3_batch_sample *)log;
 
   while(parsed_log_size < log_size &&
         (stream.bytes_written + encoded_sample_size)<= encoded_log_size &&
         i < (uint32_t)(-1))
   {
+    arr_index = 0;
+    arg.arr = (float *)raw_sample[i].sample;
+
+    batch_sample.sample_type = raw_sample[i].sample_type;
+    batch_sample.status = raw_sample[i].status;
+    batch_sample.timestamp = raw_sample[i].timestamp;
+
     if(!pb_encode_tag(&stream, PB_WT_STRING,
                       sns_diag_sensor_state_raw_sample_tag))
     {
@@ -150,13 +189,13 @@ sns_rc lsm6ds3_encode_log_sensor_state_raw(
       break;
     }
     else if(!pb_encode_delimited(&stream, sns_diag_batch_sample_fields,
-                                 &batch_sample[i]))
+                                 &batch_sample))
     {
       rc = SNS_RC_FAILED;
       break;
     }
 
-    parsed_log_size += sizeof(sns_diag_batch_sample);
+    parsed_log_size += sizeof(lsm6ds3_batch_sample);
     i++;
   }
 
@@ -172,29 +211,105 @@ sns_rc lsm6ds3_encode_log_sensor_state_raw(
  * Allocate Sensor State Raw Log Packet
  *
  * @param[i] diag       Pointer to diag service
- * @param[i] instance   Pointer to sensor instance
- * @param[i] sensor_uid SUID of the sensor
- * @param[i] log_raw_info   Pointer to raw sensor state logging
- *       information pertaining to the sensor
+ * @param[i] log_size   Optional size of log packet to
+ *    be allocated. If not provided by setting to 0, will
+ *    default to using maximum supported log packet size
  */
 void lsm6ds3_log_sensor_state_raw_alloc(
-  sns_diag_service *diag,
-  sns_sensor_instance *const instance,
-  struct sns_sensor_uid const *sensor_uid,
-  log_sensor_state_raw_info *log_raw_info)
+  log_sensor_state_raw_info *log_raw_info,
+  uint32_t log_size)
 {
+  uint32_t max_log_size = 0;
+
+  if(NULL == log_raw_info || NULL == log_raw_info->diag ||
+     NULL == log_raw_info->instance || NULL == log_raw_info->sensor_uid)
+  {
+    return;
+  }
+
   // allocate memory for sensor state - raw sensor log packet
+  max_log_size = log_raw_info->diag->api->get_max_log_size(
+       log_raw_info->diag);
 
-  log_raw_info->log_size = diag->api->get_max_log_size(diag);
+  if(0 == log_size)
+  {
+    // log size not specified.
+    // Use max supported log packet size
+    log_raw_info->log_size = max_log_size;
+  }
+  else if(log_size <= max_log_size)
+  {
+    log_raw_info->log_size = log_size;
+  }
+  else
+  {
+    return;
+  }
 
-  log_raw_info->log = diag->api->alloc_log(diag,
-                                           instance,
-                                           sensor_uid,
-                                           log_raw_info->log_size,
-                                           SNS_DIAG_SENSOR_STATE_LOG_RAW);
+  log_raw_info->log = log_raw_info->diag->api->alloc_log(
+    log_raw_info->diag,
+    log_raw_info->instance,
+    log_raw_info->sensor_uid,
+    log_raw_info->log_size,
+    SNS_DIAG_SENSOR_STATE_LOG_RAW);
+
+  log_raw_info->log_sample_cnt = 0;
+  log_raw_info->bytes_written = 0;
 }
 
 /**
+ * Submit the Sensor State Raw Log Packet
+ *
+ * @param[i] log_raw_info   Pointer to logging information
+ *       pertaining to the sensor
+ * @param[i] batch_complete true if submit request is for end
+ *       of batch
+ *  */
+void lsm6ds3_log_sensor_state_raw_submit(
+  log_sensor_state_raw_info *log_raw_info,
+  bool batch_complete)
+{
+  lsm6ds3_batch_sample *sample = NULL;
+
+  if(NULL == log_raw_info || NULL == log_raw_info->diag ||
+     NULL == log_raw_info->instance || NULL == log_raw_info->sensor_uid ||
+     NULL == log_raw_info->log)
+  {
+    return;
+  }
+
+  sample = (lsm6ds3_batch_sample *)log_raw_info->log;
+
+  if(batch_complete)
+  {
+    // overwriting previously sample_type for last sample
+    if(1 == log_raw_info->batch_sample_cnt)
+    {
+      sample[0].sample_type =
+        SNS_DIAG_BATCH_SAMPLE_TYPE_ONLY;
+    }
+    else if(1 < log_raw_info->batch_sample_cnt)
+    {
+      sample[log_raw_info->log_sample_cnt - 1].sample_type =
+        SNS_DIAG_BATCH_SAMPLE_TYPE_LAST;
+    }
+  }
+
+  log_raw_info->diag->api->submit_log(
+        log_raw_info->diag,
+        log_raw_info->instance,
+        log_raw_info->sensor_uid,
+        log_raw_info->bytes_written,
+        log_raw_info->log,
+        SNS_DIAG_SENSOR_STATE_LOG_RAW,
+        log_raw_info->log_sample_cnt * log_raw_info->encoded_sample_size,
+        lsm6ds3_encode_log_sensor_state_raw);
+
+  log_raw_info->log = NULL;
+}
+
+/**
+ *
  * Add raw uncalibrated sensor data to Sensor State Raw log
  * packet
  *
@@ -216,86 +331,93 @@ sns_rc lsm6ds3_log_sensor_state_raw_add(
 {
   sns_rc rc = SNS_RC_SUCCESS;
 
-  if(NULL == log_raw_info->log ||
-     ((log_raw_info->bytes_written + sizeof(sns_diag_batch_sample)) >
-     log_raw_info->log_size))
+  if(NULL == log_raw_info || NULL == log_raw_info->diag ||
+     NULL == log_raw_info->instance || NULL == log_raw_info->sensor_uid ||
+     NULL == raw_data || NULL == log_raw_info->log)
   {
-    rc = SNS_RC_NOT_SUPPORTED;
+    return SNS_RC_FAILED;
+  }
+
+  if( (log_raw_info->bytes_written + sizeof(lsm6ds3_batch_sample)) >
+     log_raw_info->log_size)
+  {
+    // no more space in log packet
+    // submit and allocate a new one
+    lsm6ds3_log_sensor_state_raw_submit(log_raw_info, false);
+    lsm6ds3_log_sensor_state_raw_alloc(log_raw_info, 0);
+  }
+
+  if(NULL == log_raw_info->log)
+  {
+    rc = SNS_RC_FAILED;
   }
   else
   {
-    sns_diag_batch_sample *sample =
-        (sns_diag_batch_sample *)log_raw_info->log;
+    lsm6ds3_batch_sample *sample =
+        (lsm6ds3_batch_sample *)log_raw_info->log;
 
-    if(0 == log_raw_info->sample_cnt)
+    if(0 == log_raw_info->batch_sample_cnt)
     {
-      sample[log_raw_info->sample_cnt].sample_type =
+      sample[log_raw_info->log_sample_cnt].sample_type =
         SNS_DIAG_BATCH_SAMPLE_TYPE_FIRST;
     }
     else
     {
-      sample[log_raw_info->sample_cnt].sample_type =
+      sample[log_raw_info->log_sample_cnt].sample_type =
         SNS_DIAG_BATCH_SAMPLE_TYPE_INTERMEDIATE;
     }
 
-    sample[log_raw_info->sample_cnt].timestamp = timestamp;
-    sample[log_raw_info->sample_cnt].sample_count = 3;
+    sample[log_raw_info->log_sample_cnt].timestamp = timestamp;
 
-    sns_memscpy(sample[log_raw_info->sample_cnt].sample,
-                sizeof(sample[log_raw_info->sample_cnt].sample),
+    sns_memscpy(sample[log_raw_info->log_sample_cnt].sample,
+                sizeof(sample[log_raw_info->log_sample_cnt].sample),
                 raw_data,
-                sizeof(sample[log_raw_info->sample_cnt].sample));
+                sizeof(sample[log_raw_info->log_sample_cnt].sample));
 
-    sample[log_raw_info->sample_cnt].status = status;
+    sample[log_raw_info->log_sample_cnt].status = status;
 
-    log_raw_info->bytes_written += sizeof(sns_diag_batch_sample);
+    log_raw_info->bytes_written += sizeof(lsm6ds3_batch_sample);
 
-    log_raw_info->sample_cnt++;
+    log_raw_info->log_sample_cnt++;
+    log_raw_info->batch_sample_cnt++;
   }
 
   return rc;
 }
 
-/**
- * Submit the Sensor State Raw Log Packet
- *
- * @param[i] diag       Pointer to diag service
- * @param[i] instance   Pointer to sensor instance
- * @param[i] sensor_uid SUID of the sensor
- * @param[i] log_raw_info   Pointer to logging information
- *                      pertaining to the sensor
- */
-void lsm6ds3_log_sensor_state_raw_submit(
-  sns_diag_service *diag,
-  sns_sensor_instance *const instance,
-  struct sns_sensor_uid const *sensor_uid,
-  log_sensor_state_raw_info *log_raw_info)
+/** See sns_lsm6ds3_hal.h */
+void lsm6ds3_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin)
 {
-  sns_diag_batch_sample *sample =
-      (sns_diag_batch_sample *)log_raw_info->log;
+  sns_service_manager *smgr = instance->cb->get_service_manager(instance);
+  sns_gpio_service *gpio_svc = (sns_gpio_service*)smgr->get_service(smgr, SNS_GPIO_SERVICE);
+  sns_gpio_state val;
+  sns_rc rc = SNS_RC_SUCCESS;
 
-  // overwriting previously sample_type for last sample
-  if(1 == log_raw_info->sample_cnt)
-  {
-    sample[0].sample_type =
-      SNS_DIAG_BATCH_SAMPLE_TYPE_ONLY;
-  }
-  else if(1 < log_raw_info->sample_cnt)
-  {
-    sample[log_raw_info->sample_cnt - 1].sample_type =
-      SNS_DIAG_BATCH_SAMPLE_TYPE_LAST;
-  }
+  rc = gpio_svc->api->read_gpio(gpio, is_chip_pin, &val);
 
-  diag->api->submit_log(
-        diag,
-        instance,
-        sensor_uid,
-        log_raw_info->bytes_written,
-        log_raw_info->log,
-        SNS_DIAG_SENSOR_STATE_LOG_RAW,
-        log_raw_info->sample_cnt * log_raw_info->encoded_sample_size,
-        lsm6ds3_encode_log_sensor_state_raw);
+  SNS_INST_PRINTF(LOW, instance, "gpio_val = %d  rc = %d", val, rc);
 }
+
+/** See sns_lsm6ds3_hal.h */
+#ifndef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
+void lsm6ds3_write_gpio(sns_sensor_instance *instance, uint32_t gpio,
+                        bool is_chip_pin,
+                        sns_gpio_drive_strength drive_strength,
+                        sns_gpio_pull_type pull,
+                        sns_gpio_state gpio_state)
+{
+  sns_service_manager *smgr = instance->cb->get_service_manager(instance);
+  sns_gpio_service *gpio_svc = (sns_gpio_service*)smgr->get_service(smgr, SNS_GPIO_SERVICE);
+  sns_rc rc = SNS_RC_SUCCESS;
+
+  rc = gpio_svc->api->write_gpio(gpio, is_chip_pin, drive_strength, pull, gpio_state);
+
+  if(rc != SNS_RC_SUCCESS)
+  {
+   SNS_INST_PRINTF(ERROR, instance, "rc = %d", rc);
+  }
+}
+#endif
 
 /**
  * Read wrapper for Synch Com Port Service.
@@ -323,10 +445,10 @@ static sns_rc lsm6ds3_com_read_wrapper(
   port_vec.reg_addr = reg_addr;
 
   return scp_service->api->sns_scp_register_rw(port_handle,
-                                                        &port_vec,
-                                                        1,
-                                                        false,
-                                                        xfer_bytes);
+                                               &port_vec,
+                                               1,
+                                               false,
+                                               xfer_bytes);
 }
 
 /**
@@ -357,10 +479,10 @@ static sns_rc lsm6ds3_com_write_wrapper(
   port_vec.reg_addr = reg_addr;
 
   return scp_service->api->sns_scp_register_rw(port_handle,
-                                                        &port_vec,
-                                                        1,
-                                                        save_write_time,
-                                                        xfer_bytes);
+                                               &port_vec,
+                                               1,
+                                               save_write_time,
+                                               xfer_bytes);
 }
 
 /**
@@ -1190,15 +1312,28 @@ static void lsm6ds3_handle_gyro_sample(const uint8_t fifo_sample[6],
                                 log_sensor_state_raw_info *log_gyro_state_raw_info)
 {
   UNUSED_VAR(event_service);
+  float ipdata[TRIAXIS_NUM] = {0}, opdata_raw[TRIAXIS_NUM] = {0};
+  uint8_t i = 0;
 
-  float data[3];
-
-  data[0] =
+  ipdata[TRIAXIS_X] =
      (int16_t)(((fifo_sample[1] << 8) & 0xFF00) | fifo_sample[0]) * state->gyro_info.sstvt / 1000 ;
-  data[1] =
+  ipdata[TRIAXIS_Y] =
      (int16_t)(((fifo_sample[3] << 8) & 0xFF00) | fifo_sample[2]) * state->gyro_info.sstvt / 1000 ;
-  data[2] =
+  ipdata[TRIAXIS_Z] =
      (int16_t)(((fifo_sample[5] << 8) & 0xFF00) | fifo_sample[4]) * state->gyro_info.sstvt / 1000 ;
+
+  // axis conversion
+  for(i = 0; i < TRIAXIS_NUM; i++)
+  {
+    opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
+      ipdata[state->axis_map[i].ipaxis];
+  }
+
+  // factory calibration
+  vector3 opdata_cal = sns_apply_calibration_correction_3(
+      make_vector3_from_array(opdata_raw),
+      make_vector3_from_array(state->gyro_registry_cfg.fac_cal_bias),
+      state->gyro_registry_cfg.fac_cal_corr_mat);
 
   if(state->fifo_info.publish_sensors & LSM6DS3_GYRO)
   {
@@ -1214,14 +1349,14 @@ static void lsm6ds3_handle_gyro_sample(const uint8_t fifo_sample[6],
                                 timestamp,
                                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_EVENT,
                                 status,
-                                data,
-                                ARR_SIZE(data),
+                                opdata_cal.data,
+                                ARR_SIZE(opdata_cal.data),
                                 state->encoded_imu_event_len);
 
     // Log raw uncalibrated sensor data
     lsm6ds3_log_sensor_state_raw_add(
       log_gyro_state_raw_info,
-      data,
+      opdata_raw,
       timestamp,
       status);
   }
@@ -1245,13 +1380,29 @@ static void lsm6ds3_handle_accel_sample(const uint8_t fifo_sample[6],
                                 log_sensor_state_raw_info *log_accel_state_raw_info)
 {
   UNUSED_VAR(event_service);
-  float data[3];
-  data[0] =
+  float ipdata[TRIAXIS_NUM] = {0}, opdata_raw[TRIAXIS_NUM] = {0};
+  uint8_t i = 0;
+
+
+  ipdata[TRIAXIS_X] =
      (int16_t)(((fifo_sample[1] << 8) & 0xFF00) | fifo_sample[0]) *state->accel_info.sstvt * G/1000000;
-  data[1] =
+  ipdata[TRIAXIS_Y] =
      (int16_t)(((fifo_sample[3] << 8) & 0xFF00) | fifo_sample[2]) *state->accel_info.sstvt * G/1000000;
-  data[2] =
+  ipdata[TRIAXIS_Z] =
      (int16_t)(((fifo_sample[5] << 8) & 0xFF00) | fifo_sample[4]) *state->accel_info.sstvt * G/1000000;
+
+  // axis conversion
+  for(i = 0; i < TRIAXIS_NUM; i++)
+  {
+    opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
+      ipdata[state->axis_map[i].ipaxis];
+  }
+
+  // factory calibration
+  vector3 opdata_cal = sns_apply_calibration_correction_3(
+      make_vector3_from_array(opdata_raw),
+      make_vector3_from_array(state->accel_registry_cfg.fac_cal_bias),
+      state->accel_registry_cfg.fac_cal_corr_mat);
 
   if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL
      || (state->accel_info.gated_client_present && !state->md_info.enable_md_int))
@@ -1268,18 +1419,18 @@ static void lsm6ds3_handle_accel_sample(const uint8_t fifo_sample[6],
                                 timestamp,
                                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_EVENT,
                                 status,
-                                data,
-                                ARR_SIZE(data),
+                                opdata_cal.data,
+                                ARR_SIZE(opdata_cal.data),
                                 state->encoded_imu_event_len);
 
     // Log raw uncalibrated sensor data
     lsm6ds3_log_sensor_state_raw_add(
       log_accel_state_raw_info,
-      data,
+      opdata_raw,
       timestamp,
       status);
   }
-    }
+}
 
 void lsm6ds3_process_fifo_data_buffer(
   sns_sensor_instance *instance,
@@ -1302,15 +1453,19 @@ void lsm6ds3_process_fifo_data_buffer(
   // Allocate Sensor State Raw log packets for accel and gyro
   sns_memzero(&log_accel_state_raw_info, sizeof(log_accel_state_raw_info));
   log_accel_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
-  lsm6ds3_log_sensor_state_raw_alloc(diag, instance, &state->accel_info.suid,
-    &log_accel_state_raw_info);
+  log_accel_state_raw_info.diag = diag;
+  log_accel_state_raw_info.instance = instance;
+  log_accel_state_raw_info.sensor_uid = &state->accel_info.suid;
+  lsm6ds3_log_sensor_state_raw_alloc(&log_accel_state_raw_info, 0);
 
   if(gyro_enabled)
   {
     sns_memzero(&log_gyro_state_raw_info, sizeof(log_gyro_state_raw_info));
     log_gyro_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
-    lsm6ds3_log_sensor_state_raw_alloc(diag, instance, &state->gyro_info.suid,
-    &log_gyro_state_raw_info);
+    log_gyro_state_raw_info.diag = diag;
+    log_gyro_state_raw_info.instance = instance;
+    log_gyro_state_raw_info.sensor_uid = &state->gyro_info.suid;
+    lsm6ds3_log_sensor_state_raw_alloc(&log_gyro_state_raw_info, 0);
   }
 
   for(i = 0; i < num_bytes; i += 6)
@@ -1335,17 +1490,11 @@ void lsm6ds3_process_fifo_data_buffer(
                                 &log_accel_state_raw_info);
   }
 
-  lsm6ds3_log_sensor_state_raw_submit(diag,
-                                      instance,
-                                      &state->accel_info.suid,
-                                      &log_accel_state_raw_info);
+  lsm6ds3_log_sensor_state_raw_submit(&log_accel_state_raw_info, true);
 
   if(gyro_enabled)
   {
-    lsm6ds3_log_sensor_state_raw_submit(diag,
-                                        instance,
-                                        &state->gyro_info.suid,
-                                        &log_gyro_state_raw_info);
+    lsm6ds3_log_sensor_state_raw_submit(&log_gyro_state_raw_info, true);
   }
 }
 
@@ -1505,10 +1654,26 @@ void lsm6ds3_set_gated_accel_config(lsm6ds3_instance_state *state,
 void lsm6ds3_set_md_config(lsm6ds3_instance_state *state, bool enable)
 {
   uint8_t rw_buffer = 0;
-  uint8_t dur_set = LSM6DS3_MD_DUR;
-  uint8_t thresh_set = enable ? LSM6DS3_MD_THRESH : 0x3F;
+  uint8_t dur_set = 0x60; // wake up duration bits 5,6 set to 1
+  uint8_t thresh_set = 0x3F; // thresh bits 0 to 5 set to 1
   uint32_t xfer_bytes;
   lsm6ds3_accel_odr accel_odr = enable ? LSM6DS3_MD_ODR : LSM6DS3_ACCEL_ODR_OFF;
+
+  if(enable && state->md_info.md_config.thresh <= LSM6DS3_MD_THRESH_MAX &&
+     state->md_info.md_config.thresh >= 0.0)
+  {
+    // Threshold - bits 0 to 5 of STM_LSM6DS3_REG_WAKE_THS
+    thresh_set &= ((uint8_t)((roundf)(state->md_info.md_config.thresh /
+                                    LSM6DS3_REG_WAKE_THS_RES)) | 0xC0);
+  }
+
+  if(state->md_info.md_config.win <= 0x3 / LSM6DS3_MD_ODR_VAL
+     && state->md_info.md_config.win >= 0.0)
+  {
+    // Wake Up Duration - bits 5,6 of STM_LSM6DS3_REG_WAKE_DUR
+    dur_set &= (((uint8_t)((roundf)(state->md_info.md_config.win *
+                                    LSM6DS3_MD_ODR_VAL)) << 5) | 0x9F);
+  }
 
   rw_buffer = thresh_set;
   lsm6ds3_read_modify_write(state->scp_service,
@@ -1545,7 +1710,6 @@ void lsm6ds3_update_md_intr(sns_sensor_instance *const instance,
   uint8_t rw_buffer = 0;
   uint32_t xfer_bytes;
   lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)instance->state->state;
-  sns_diag_service* diag = state->diag_service;
 
   if(enable)
   {
@@ -1580,10 +1744,7 @@ void lsm6ds3_update_md_intr(sns_sensor_instance *const instance,
 
   if(enable || md_not_armed_event)
   {
-    diag->api->sensor_inst_printf(diag, instance,
-                                  &state->md_info.suid,
-                                  SNS_LOW, __FILENAME__, __LINE__,
-                                  "lsm6ds3_update_md_intr md_is_armed=%d",
+    SNS_INST_PRINTF(LOW, instance, "lsm6ds3_update_md_intr md_is_armed=%d",
                                   state->md_info.md_state.motion_detect_event_type);
     pb_send_event(instance,
                   sns_motion_detect_event_fields,
@@ -1605,6 +1766,7 @@ static void lsm6ds3_convert_accel_gated_req_to_non_gated(
    sns_sensor_instance *const instance)
 {
   sns_request *request;
+  bool req_converted_to_non_gated = false;
 
   /** Parse through existing requests and change gated accel
    *  requests to non-gated accel requests. */
@@ -1615,7 +1777,26 @@ static void lsm6ds3_convert_accel_gated_req_to_non_gated(
     if(request->message_id == SNS_STD_EVENT_GATED_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
       request->message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
+      req_converted_to_non_gated = true;
     }
+  }
+
+  /** Send an event to gated stream clients that the request is
+   *  now treated as non-gated */
+  if(req_converted_to_non_gated)
+  {
+    sns_service_manager *mgr = instance->cb->get_service_manager(instance);
+    sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr, SNS_EVENT_SERVICE);
+    sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
+    lsm6ds3_instance_state *state = (lsm6ds3_instance_state *)instance->state->state;
+
+    if(NULL != event)
+    {
+      event->message_id = SNS_STD_EVENT_GATED_SENSOR_MSGID_GATED_REQ_CONVERTED_TO_NON_GATED;
+      event->event_len = 0;
+      event->timestamp = sns_get_system_time();
+      e_service->api->publish_event(e_service, instance, event, &state->accel_info.suid);
+}
   }
 }
 
@@ -1648,10 +1829,7 @@ void lsm6ds3_handle_md_interrupt(sns_sensor_instance *const instance,
 
     lsm6ds3_convert_accel_gated_req_to_non_gated(instance);
 
-    diag->api->sensor_inst_printf(diag, instance,
-                                  &state->md_info.suid,
-                                  SNS_LOW, __FILENAME__, __LINE__,
-                                  "MD fired");
+    SNS_INST_PRINTF(LOW, instance, "MD fired");
 
     // Sensor State HW Interrupt Log
     sns_diag_sensor_state_interrupt *log =
@@ -1692,6 +1870,13 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
   char operating_mode[] = "NORMAL";
 
   pb_buffer_arg op_mode_args;
+
+  /** If no sensors are enabled for streaming then don't send
+   *  config event */
+  if(!state->fifo_info.fifo_enabled)
+  {
+    return;
+  }
 
   op_mode_args.buf = &operating_mode[0];
   op_mode_args.buf_len = sizeof(operating_mode);
@@ -1795,6 +1980,16 @@ void lsm6ds3_convert_and_send_temp_sample(
   int16_t temp_val = (int16_t)(temp_data[1] << 8 | temp_data[0]);
   float float_temp_val = (temp_val / 16.0) + 25.0;
 
+  // factory calibration
+  // Sc = C * (Sr - B)
+  // Where,
+  // *Sc = Calibrated sample
+  // *Sr = Raw sample
+  // *C = Scale
+  // *B = Bias
+  float_temp_val = state->sensor_temp_registry_cfg.fac_cal_corr_mat.e00 * (float_temp_val -
+    state->sensor_temp_registry_cfg.fac_cal_bias[0]);
+
   pb_send_sensor_stream_event(instance,
                               &state->sensor_temp_info.suid,
                               timestamp,
@@ -1855,11 +2050,6 @@ void lsm6ds3_start_sensor_temp_polling_timer(sns_sensor_instance *this)
     state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
     state->sensor_temp_info.timer_is_active = true;
   }
-  else
-  {
-    //diag->api->sensor_printf(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
-    //                         "LSM timer req encode error");
-  }
 }
 
 void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
@@ -1885,7 +2075,7 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
      }
 
      lsm6ds3_set_md_config(state, true);
-     if (state->irq_info.irq_ready)
+     if(state->irq_info.irq_ready)
      {
        lsm6ds3_update_md_intr(this, true, false);
      }
@@ -1921,7 +2111,7 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
       lsm6ds3_set_polling_config(this);
     }
   }
-  
+
   if(state->fifo_info.publish_sensors != 0)
   {
     lsm6ds3_dae_if_start_streaming(this);
@@ -1929,5 +2119,108 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
   state->config_step = LSM6DS3_CONFIG_IDLE; /* done with reconfig */
 
   lsm6ds3_dump_reg(this, state->fifo_info.fifo_enabled);
+}
+
+/**
+ * Runs a communication test - verfies WHO_AM_I, publishes self
+ * test event.
+ *
+ * @param[i] instance  Instance reference
+ * @param[i] uid       Sensor UID
+ *
+ * @return none
+ */
+static void lsm6ds3_send_com_test_event(sns_sensor_instance *instance,
+                                        sns_sensor_uid *uid, bool test_result)
+{
+  uint8_t data[1] = {0};
+  pb_buffer_arg buff_arg = (pb_buffer_arg)
+      { .buf = &data, .buf_len = sizeof(data) };
+  sns_physical_sensor_test_event test_event =
+     sns_physical_sensor_test_event_init_default;
+
+  test_event.test_passed = test_result;
+  test_event.test_type = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
+  test_event.test_data.funcs.encode = &pb_encode_string_cb;
+  test_event.test_data.arg = &buff_arg;
+
+  pb_send_event(instance,
+                sns_physical_sensor_test_event_fields,
+                &test_event,
+                sns_get_system_time(),
+                SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_EVENT,
+                uid);
+}
+
+/** See sns_lsm6ds3_hal.h */
+void lsm6ds3_run_self_test(sns_sensor_instance *instance)
+{
+  lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)instance->state->state;
+  sns_rc rv = SNS_RC_SUCCESS;
+  uint8_t buffer = 0;
+  bool who_am_i_success = false;
+
+  rv = lsm6ds3_get_who_am_i(state->scp_service,
+                            state->com_port_info.port_handle,
+                            &buffer);
+  if(rv == SNS_RC_SUCCESS
+     &&
+     buffer == LSM6DS3_WHOAMI_VALUE)
+  {
+    who_am_i_success = true;
+  }
+
+  if(state->accel_info.test_info.test_client_present)
+  {
+    if(state->accel_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      lsm6ds3_send_com_test_event(instance, &state->accel_info.suid, who_am_i_success);
+    }
+    else if(state->accel_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test is in progress.
+    }
+    state->accel_info.test_info.test_client_present = false;
+  }
+  if(state->gyro_info.test_info.test_client_present)
+  {
+    if(state->gyro_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      lsm6ds3_send_com_test_event(instance, &state->gyro_info.suid, who_am_i_success);
+    }
+    else if(state->gyro_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test is in progress.
+    }
+    state->gyro_info.test_info.test_client_present = false;
+  }
+  if(state->md_info.test_info.test_client_present)
+  {
+    if(state->md_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      lsm6ds3_send_com_test_event(instance, &state->md_info.suid, who_am_i_success);
+    }
+    else if(state->md_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test is in progress.
+    }
+    state->md_info.test_info.test_client_present = false;
+  }
+  if(state->sensor_temp_info.test_info.test_client_present)
+  {
+    if(state->sensor_temp_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      lsm6ds3_send_com_test_event(instance, &state->sensor_temp_info.suid, who_am_i_success);
+    }
+    else if(state->sensor_temp_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test is in progress.
+    }
+    state->sensor_temp_info.test_info.test_client_present = false;
+  }
 }
 

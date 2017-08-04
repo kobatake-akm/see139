@@ -9,15 +9,17 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
 
-#include "sns_sensor.h"
 #include "sns_data_stream.h"
-#include "sns_sensor_uid.h"
-#include "sns_pwr_rail_service.h"
 #include "sns_lsm6ds3_hal.h"
+#include "sns_pwr_rail_service.h"
+#include "sns_sensor.h"
+#include "sns_sensor_uid.h"
 
+#include "sns_diag_service.h"
 #include "sns_lsm6ds3_sensor_instance.h"
 #include "sns_math_util.h"
-#include "sns_diag_service.h"
+
+#include "sns_registry_util.h"
 
 #define ACCEL_SUID \
   {  \
@@ -54,31 +56,6 @@
         0x92, 0xc3, 0x99, 0x3f, 0x1a, 0xf4, 0x07, 0xaa   \
       }  \
   }
-
-#if LSM6DS3_USE_DEFAULTS
-/** TODO Using 8996 Platform config as defaults. This is for
- *  test purpose only. All platform specific information will
- *  be available to the Sensor driver via Registry. */
-#ifdef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
-#define SPI_BUS_INSTANCE               0x02
-#else
-#define SPI_BUS_INSTANCE               0x01
-#endif
-#define RAIL_1                         "/pmic/client/sensor_vddio"
-#define RAIL_2                         "/pmic/client/sensor_vdd"
-#define I2C_BUS_FREQ                   400
-#define I2C_SLAVE_ADDRESS              0x6B
-#define IRQ_NUM                        117
-#define NUM_OF_RAILS                   2
-#define SPI_BUS_MIN_FREQ_KHZ           0      // 0MHz
-#define SPI_BUS_MAX_FREQ_KHZ           33*100 // 3MHz
-#define SPI_SLAVE_CONTROL              0x0
-
-#define BUS_TYPE                       SNS_BUS_SPI
-#define BUS_INSTANCE                   SPI_BUS_INSTANCE
-#define BUS_FREQ                       SPI_BUS_MAX_FREQ_KHZ
-#define SLAVE_CONTROL                  SPI_SLAVE_CONTROL
-#endif  // LSM6DS3_USE_DEFAULTS
 
 /** Forward Declaration of Accel Sensor API */
 sns_sensor_api lsm6ds3_accel_sensor_api;
@@ -197,13 +174,45 @@ typedef struct lsm6ds3_state
 
   sns_pwr_rail_service    *pwr_rail_service;
   sns_rail_config         rail_config;
-
+  sns_power_rail_state    registry_rail_on_state;
+  
   bool                    hw_is_present;
   bool                    sensor_client_present;
 
   lsm6ds3_power_rail_pending_state    power_rail_pend_state;
 
-  // debug
+  // sensor configuration 
+  bool is_dri;
+  int64_t hardware_id;
+  bool supports_sync_stream;
+  uint8_t resolution_idx;
+  
+  // registry sensor config
+  bool registry_cfg_received;
+  sns_registry_phy_sensor_cfg registry_cfg;
+  
+  // registry sensor platform config
+  bool registry_pf_cfg_received;
+  sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
+
+  // axis conversion
+  bool registry_orient_received;
+  triaxis_conversion axis_map[TRIAXIS_NUM];
+
+  // factory calibration
+  bool                    registry_fac_cal_received;
+  matrix3                 fac_cal_corr_mat;
+  float                   fac_cal_bias[TRIAXIS_NUM];
+  float                   fac_cal_scale[TRIAXIS_NUM];
+
+  // placement 
+  bool                    registry_placement_received;
+  float                   placement[12];
+
+  // md config
+  bool                    registry_md_config_received;
+  sns_registry_md_cfg     md_config;
+
   uint16_t                who_am_i;
   sns_diag_service        *diag_service;
   sns_sync_com_port_service *scp_service;
