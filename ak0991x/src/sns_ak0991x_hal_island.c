@@ -1409,6 +1409,20 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
   }
 }
 
+
+bool ak0991x_is_drdy(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint8_t st1_buf;
+
+  ak0991x_read_st1(state,state->com_port_info.port_handle,
+                   &st1_buf);
+
+  if( st1_buf & 0x01 ) return true;
+	return false;
+}
+
+
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;

@@ -406,6 +406,15 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                      void *user_arg);
 
 /**
+ * Check the drdy bit
+ *
+ * @param instance                 Sensor Instance
+*
+ * @return false: no data ready, true: data is ready
+ */
+bool ak0991x_is_drdy(sns_sensor_instance *const instance);
+
+/**
  * Flush mag samples from the buffer
  * and generates event.
  *

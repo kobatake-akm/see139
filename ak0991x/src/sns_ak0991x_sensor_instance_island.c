@@ -111,11 +111,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           state->interrupt_timestamp = irq_event.timestamp;
 
-          if(state->pre_timestamp >= state->interrupt_timestamp)
-          {
-						SNS_INST_PRINTF(ERROR, this, "duplicate timestamp. ignored.");
-          }
-          else
+          if( ak0991x_is_drdy(this) )
           {
 						// Add setting for timestamp in case of flush event caused by irq trigger
 						state->irq_info.detect_irq_event = true;
@@ -132,6 +128,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 						}
 
 						state->irq_info.detect_irq_event = false;
+          }
+          else
+          {
+						SNS_INST_PRINTF(ERROR, this, "ST1:DRDY bit is not 1. Wrong event detected.");
           }
         }
       }
