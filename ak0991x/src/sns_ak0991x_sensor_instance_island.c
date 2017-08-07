@@ -109,10 +109,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          state->interrupt_timestamp = irq_event.timestamp;
-
           if( ak0991x_is_drdy(this) )
           {
+            state->interrupt_timestamp = irq_event.timestamp;
+
 						// Add setting for timestamp in case of flush event caused by irq trigger
 						state->irq_info.detect_irq_event = true;
 
