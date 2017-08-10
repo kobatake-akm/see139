@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 08/10/17     010010     AKM              Modify for prevention of duplicate interrupts using DRDY bit status and timestamp.
  * 08/07/17     010009     AKM              Modify for prevention of duplicate interrupts using DRDY bit status.
  * 08/04/17     010008     AKM              Modify for prevention of duplicate interrupts.
  * 07/10/17     010007     AKM              Modify for self-test which cares streaming.
@@ -43,4 +44,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10009  // major:01 minor:00 revision:08
+#define AK0991X_DRIVER_VERSION 10010  // major:01 minor:00 revision:10
