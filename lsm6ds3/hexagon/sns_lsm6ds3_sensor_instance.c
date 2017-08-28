@@ -12,6 +12,7 @@
 #include "sns_rc.h"
 #include "sns_request.h"
 #include "sns_sensor_instance.h"
+#include "sns_sensor_util.h"
 #include "sns_service_manager.h"
 #include "sns_stream_service.h"
 #include "sns_types.h"
@@ -30,29 +31,21 @@
 #include "sns_pb_util.h"
 #include "sns_sync_com_port_service.h"
 
-static void inst_cleanup(lsm6ds3_instance_state *state, sns_stream_service *stream_mgr)
+static void inst_cleanup(sns_sensor_instance *const this, sns_stream_service *stream_mgr)
 {
+  lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
+
   lsm6ds3_dae_if_deinit(state, stream_mgr);
 
-  if(NULL != state->interrupt_data_stream)
-  {
-    stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
-    state->interrupt_data_stream = NULL;
-  }
-  if(NULL != state->async_com_port_data_stream)
-  {
-    stream_mgr->api->remove_stream(stream_mgr, state->async_com_port_data_stream);
-    state->async_com_port_data_stream = NULL;
-  }
-  if(NULL != state->timer_data_stream)
-  {
-    stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-    state->timer_data_stream = NULL;
-  }
+  sns_sensor_util_remove_sensor_instance_stream(this, &state->interrupt_data_stream);
+  sns_sensor_util_remove_sensor_instance_stream(this, &state->async_com_port_data_stream);
+  sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+  sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+
   if(NULL != state->scp_service)
   {
-	state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
-    state->scp_service->api->sns_scp_deregister_com_port(state->com_port_info.port_handle);
+    state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
+    state->scp_service->api->sns_scp_deregister_com_port(&state->com_port_info.port_handle);
     state->scp_service = NULL;
   }
 }
@@ -82,39 +75,35 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
 
   state->scp_service = (sns_sync_com_port_service*)
               service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
+  state->island_service = (sns_island_service*)
+              service_mgr->get_service(service_mgr, SNS_ISLAND_SERVICE);
 
   /**---------Setup stream connections with dependent Sensors---------*/
 
   stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                  this,
-                                                 sensor_state->irq_suid,
+                                                 sensor_state->common.irq_suid,
                                                  &state->interrupt_data_stream);
 
   stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                  this,
-                                                 sensor_state->acp_suid,
+                                                 sensor_state->common.acp_suid,
                                                  &state->async_com_port_data_stream);
-
-  stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                 this,
-                                                 sensor_state->timer_suid,
-                                                 &state->timer_data_stream);
 
   /** Initialize COM port to be used by the Instance */
   sns_memscpy(&state->com_port_info.com_config,
               sizeof(state->com_port_info.com_config),
-              &sensor_state->com_port_info.com_config,
-              sizeof(sensor_state->com_port_info.com_config));
+              &sensor_state->common.com_port_info.com_config,
+              sizeof(sensor_state->common.com_port_info.com_config));
 
   state->scp_service->api->sns_scp_register_com_port(&state->com_port_info.com_config,
                                               &state->com_port_info.port_handle);
 
   if(NULL == state->interrupt_data_stream ||
      NULL == state->async_com_port_data_stream ||
-     NULL == state->timer_data_stream ||
      NULL == state->com_port_info.port_handle)
   {
-    inst_cleanup(state, stream_mgr);
+    inst_cleanup(this, stream_mgr);
     return SNS_RC_FAILED;
   }
 
@@ -135,6 +124,10 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
               sizeof(state->sensor_temp_info.suid),
               &((sns_sensor_uid)SENSOR_TEMPERATURE_SUID),
               sizeof(state->sensor_temp_info.suid));
+  sns_memscpy(&state->timer_suid,
+              sizeof(state->timer_suid),
+              &sensor_state->common.timer_suid,
+              sizeof(sensor_state->common.timer_suid));
 
   /**-------------------------Init FIFO State-------------------------*/
   state->fifo_info.fifo_enabled = 0;
@@ -172,34 +165,13 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
                                                                            false);
 
   /** Initialize IRQ info to be used by the Instance */
-  state->irq_info.irq_config = sensor_state->irq_config;
+  state->irq_info.irq_config = sensor_state->common.irq_config;
   state->irq_info.irq_ready = false;
-
-  {
-    sns_data_stream* data_stream = state->interrupt_data_stream;
-    uint8_t buffer[20];
-    sns_request irq_req =
-    {
-      .message_id = SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REQ,
-      .request    = buffer
-    };
-
-    sns_memset(buffer, 0, sizeof(buffer));
-    irq_req.request_len = pb_encode_request(buffer,
-                                            sizeof(buffer),
-                                            &state->irq_info.irq_config,
-                                            sns_interrupt_req_fields,
-                                            NULL);
-    if(irq_req.request_len > 0)
-    {
-      data_stream->api->send_request(data_stream, &irq_req);
-    }
-  }
 
   /** Configure the Async Com Port */
   {
     sns_data_stream* data_stream = state->async_com_port_data_stream;
-    sns_com_port_config* com_config = &sensor_state->com_port_info.com_config;
+    sns_com_port_config* com_config = &sensor_state->common.com_port_info.com_config;
     uint8_t pb_encode_buffer[100];
     sns_request async_com_port_request =
     {
@@ -225,8 +197,8 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
   }
 
   /** Copy down axis conversion settings */
-  sns_memscpy(state->axis_map,  sizeof(sensor_state->axis_map),
-              sensor_state->axis_map, sizeof(sensor_state->axis_map));
+  sns_memscpy(state->axis_map,  sizeof(sensor_state->common.axis_map),
+              sensor_state->common.axis_map, sizeof(sensor_state->common.axis_map));
 
   /** Initialize factory calibration */
   state->accel_registry_cfg.fac_cal_corr_mat.e00 = 1.0;
@@ -266,22 +238,136 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
     }
   }
 
-  lsm6ds3_dae_if_init(this, stream_mgr, &sensor_state->dae_suid);
+  lsm6ds3_dae_if_init(this, stream_mgr, &sensor_state->common.dae_suid, &sensor_state->my_suid);
 
   return SNS_RC_SUCCESS;
 }
 
-// QC: Removed sensor_state parameter
 sns_rc lsm6ds3_inst_deinit(sns_sensor_instance *const this)
 {
-  lsm6ds3_instance_state *state =
-                  (lsm6ds3_instance_state*)this->state->state;
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
   sns_stream_service *stream_mgr =
       (sns_stream_service*)service_mgr->get_service(service_mgr,
                                                     SNS_STREAM_SERVICE);
-  inst_cleanup(state, stream_mgr);
+  inst_cleanup(this, stream_mgr);
 
   return SNS_RC_SUCCESS;
+}
+
+/**
+ * Sends a self-test completion event.
+ *
+ * @param[i] instance  Instance reference
+ * @param[i] uid       Sensor UID
+ *
+ * @return none
+ */
+static void lsm6ds3_send_self_test_event(sns_sensor_instance *instance,
+                                        sns_sensor_uid *uid, bool test_result,
+                                        sns_physical_sensor_test_type type)
+{
+  uint8_t data[1] = {0};
+  pb_buffer_arg buff_arg = (pb_buffer_arg)
+      { .buf = &data, .buf_len = sizeof(data) };
+  sns_physical_sensor_test_event test_event =
+     sns_physical_sensor_test_event_init_default;
+
+  test_event.test_passed = test_result;
+  test_event.test_type = type;
+  test_event.test_data.funcs.encode = &pb_encode_string_cb;
+  test_event.test_data.arg = &buff_arg;
+
+  pb_send_event(instance,
+                sns_physical_sensor_test_event_fields,
+                &test_event,
+                sns_get_system_time(),
+                SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_EVENT,
+                uid);
+}
+
+/** See sns_lsm6ds3_hal.h */
+void lsm6ds3_run_self_test(sns_sensor_instance *instance)
+{
+  lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)instance->state->state;
+  sns_rc rv = SNS_RC_SUCCESS;
+  uint8_t buffer = 0;
+  bool who_am_i_success = false;
+
+  rv = lsm6ds3_get_who_am_i(state->scp_service,
+                            state->com_port_info.port_handle,
+                            &buffer);
+  if(rv == SNS_RC_SUCCESS
+     &&
+     buffer == LSM6DS3_WHOAMI_VALUE)
+  {
+    who_am_i_success = true;
+  }
+
+  if(state->accel_info.test_info.test_client_present)
+  {
+    if(state->accel_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      lsm6ds3_send_self_test_event(instance, &state->accel_info.suid,
+                                   who_am_i_success, SNS_PHYSICAL_SENSOR_TEST_TYPE_COM);
+    }
+    else if(state->accel_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test is in progress.
+
+      /** update_fac_cal_in_registry is used to demonstrate a registry write operation.*/
+      state->update_fac_cal_in_registry = true;
+      /** Using dummy data for registry write demonstration. */
+      state->accel_registry_cfg.fac_cal_bias[0] = 0.01;
+      state->accel_registry_cfg.fac_cal_bias[1] = 0.01;
+      state->accel_registry_cfg.fac_cal_bias[2] = 0.01;
+      state->accel_registry_cfg.version ++;
+      lsm6ds3_send_self_test_event(instance, &state->accel_info.suid,
+                                   true, SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY);
+    }
+    state->accel_info.test_info.test_client_present = false;
+  }
+  if(state->gyro_info.test_info.test_client_present)
+  {
+    if(state->gyro_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      lsm6ds3_send_self_test_event(instance, &state->gyro_info.suid,
+                                   who_am_i_success, SNS_PHYSICAL_SENSOR_TEST_TYPE_COM);
+    }
+    else if(state->gyro_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test is in progress.
+    }
+    state->gyro_info.test_info.test_client_present = false;
+  }
+  if(state->md_info.test_info.test_client_present)
+  {
+    if(state->md_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      lsm6ds3_send_self_test_event(instance, &state->md_info.suid,
+                                   who_am_i_success, SNS_PHYSICAL_SENSOR_TEST_TYPE_COM);
+    }
+    else if(state->md_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test is in progress.
+    }
+    state->md_info.test_info.test_client_present = false;
+  }
+  if(state->sensor_temp_info.test_info.test_client_present)
+  {
+    if(state->sensor_temp_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    {
+      lsm6ds3_send_self_test_event(instance, &state->sensor_temp_info.suid,
+                                   who_am_i_success, SNS_PHYSICAL_SENSOR_TEST_TYPE_COM);
+    }
+    else if(state->sensor_temp_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
+    {
+      // Handle factory test. The driver may choose to reject any new
+      // streaming/self-test requests when factory test is in progress.
+    }
+    state->sensor_temp_info.test_info.test_client_present = false;
+  }
 }
 

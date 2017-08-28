@@ -7,9 +7,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_06_11/sensors/test/src/sns_test_sensor.c#1 $
- * $DateTime: 2017/06/11 12:38:13 $
- * $Change: 13546828 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor.c#60 $
+ * $DateTime: 2017/08/21 09:37:15 $
+ * $Change: 14141743 $
  *
  **/
 
@@ -65,6 +65,22 @@ typedef struct sns_test_implementation
   sns_test_std_sensor_create_request,
   sns_test_std_sensor_process_event
 };
+#elif defined(SNS_TEST_CMC)
+#include "sns_test_cmc.h"
+ const sns_test_implementation test_sensor_impl = {
+  "cmc",
+  sizeof("cmc"),
+  sns_test_create_cmc_request,
+  sns_test_cmc_process_event
+};
+#elif defined(SNS_TEST_DISTANCE_BOUND)
+#include "sns_test_distance_bound.h"
+ const sns_test_implementation test_sensor_impl = {
+  "distance_bound",
+  sizeof("distance_bound"),
+  sns_test_create_distance_bound_request,
+  sns_test_distance_bound_process_event
+};
 #elif defined(SNS_TEST_AMD)
 #include "sns_test_amd.h"
  const sns_test_implementation test_sensor_impl = {
@@ -80,6 +96,46 @@ typedef struct sns_test_implementation
   sizeof("rmd"),
   sns_test_create_amd_request,
   sns_test_amd_process_event
+};
+#elif defined(SNS_TEST_FACING)
+#include "sns_test_amd.h"
+ const sns_test_implementation test_sensor_impl = {
+  "facing",
+  sizeof("facing"),
+  sns_test_create_amd_request,
+  sns_test_amd_process_event
+};
+#elif defined(SNS_TEST_SMD)
+#include "sns_test_amd.h"
+ const sns_test_implementation test_sensor_impl = {
+  "smd",
+  sizeof("smd"),
+  sns_test_create_amd_request,
+  sns_test_amd_process_event
+};
+#elif defined(SNS_TEST_FMV)
+#include "sns_test_fmv.h"
+ const sns_test_implementation test_sensor_impl = {
+  "fmv",
+  sizeof("fmv"),
+  sns_test_create_fmv_request,
+  sns_test_fmv_process_event
+};
+#elif defined(SNS_TEST_GEOMAG_RV)
+#include "sns_test_geomag_rv.h"
+ const sns_test_implementation test_sensor_impl = {
+  "geomag_rv",
+  sizeof("geomag_rv"),
+  sns_test_create_geomag_rv_request,
+  sns_test_geomag_rv_process_event
+};
+#elif defined(SNS_TEST_ROTV)
+#include "sns_test_rotv.h"
+ const sns_test_implementation test_sensor_impl = {
+  "rotv",
+  sizeof("rotv"),
+  sns_test_create_rotv_request,
+  sns_test_rotv_process_event
 };
 #elif defined(SNS_TEST_WALK)
 #include "sns_test_walk.h"
@@ -108,8 +164,8 @@ typedef struct sns_test_implementation
 #elif defined(SNS_TEST_GYRO_CAL)
 #include "sns_test_gyro_cal.h"
  const sns_test_implementation test_sensor_impl = {
-  "gyro_calibration",
-  sizeof("gyro_calibration"),
+  "gyro_cal",
+  sizeof("gyro_cal"),
   sns_test_on_change_sensor_create_request,
   sns_test_gyro_cal_process_event
 };
@@ -209,6 +265,15 @@ typedef struct sns_test_implementation
   sns_test_on_change_sensor_create_request,
   sns_test_std_sensor_process_event
 };
+#elif defined(SNS_TEST_DEVICE_ORIENT)
+#include "sns_test_device_orient.h"
+ const sns_test_implementation test_sensor_impl = {
+  "device_orient",
+  sizeof("device_orient"),
+  sns_test_create_device_orient_request,
+  sns_test_device_orient_process_event
+};
+
 #elif defined(SNS_TEST_GAME_RV)
 #include "sns_test_std_sensor.h"
  const sns_test_implementation test_sensor_impl = {
@@ -249,6 +314,47 @@ const sns_test_implementation test_sensor_impl = {
   sns_test_create_oem1_request,
   sns_test_oem1_process_event
 };
+#elif defined(SNS_TEST_PEDOMETER)
+#include "sns_test_pedometer.h"
+ const sns_test_implementation test_sensor_impl = {
+  "pedometer",
+  sizeof("pedometer"),
+  sns_test_create_pedometer_request,
+  sns_test_pedometer_process_event
+};
+#elif defined(SNS_TEST_BASIC_GESTURES)
+#include "sns_test_basic_gestures.h"
+ const sns_test_implementation test_sensor_impl = {
+  "basic_gestures",
+  sizeof("basic_gestures"),
+  sns_test_create_basic_gestures_request,
+  sns_test_basic_gestures_process_event
+};
+#elif defined(SNS_TEST_MAG_CAL)
+#include "sns_test_mag_cal.h"
+ const sns_test_implementation test_sensor_impl = {
+  "mag_cal",
+  sizeof("mag_cal"),
+  sns_test_on_change_sensor_create_request,
+  sns_test_mag_cal_process_event
+};
+#elif defined(SNS_TEST_ACCEL_CAL)
+#include "sns_test_gyro_cal.h"
+ const sns_test_implementation test_sensor_impl = {
+  "accel_cal",
+  sizeof("accel_cal"),
+  sns_test_on_change_sensor_create_request,
+  //reuse gyro_cal function to test accel_cal
+  sns_test_gyro_cal_process_event
+};
+#elif defined(SNS_TEST_ASYNC_UART)
+#include "sns_test_async_uart.h"
+ const sns_test_implementation test_sensor_impl = {
+  "async_uart",
+  sizeof("async_uart"),
+  sns_test_create_async_uart_request,
+  sns_test_async_uart_process_event
+};
 #else
  const sns_test_implementation test_sensor_impl = {
   NULL, 0, NULL, NULL
@@ -280,7 +386,7 @@ publish_attributes(sns_sensor* const this)
         this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
   }
   {
-    char const vendor[] = "template";
+    char const vendor[] = "qualcomm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)

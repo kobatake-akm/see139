@@ -12,6 +12,7 @@
 #include "sns_mem_util.h"
 #include "sns_rc.h"
 #include "sns_sensor_event.h"
+#include "sns_sensor_util.h"
 #include "sns_service_manager.h"
 #include "sns_sync_com_port_service.h"
 #include "sns_time.h"
@@ -1232,7 +1233,7 @@ static void lsm6ds3_read_fifo_status(lsm6ds3_instance_state *state,
  *
  * @return sampling interval time in ticks
  */
-static void lsm6ds3_set_polling_config(sns_sensor_instance *const this)
+void lsm6ds3_set_polling_config(sns_sensor_instance *const this)
 {
   lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
 
@@ -1246,6 +1247,7 @@ static void lsm6ds3_set_polling_config(sns_sensor_instance *const this)
   else if(state->sensor_temp_info.timer_is_active)
   {
     state->sensor_temp_info.timer_is_active = false;
+    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
   }
 }
 
@@ -1499,12 +1501,12 @@ void lsm6ds3_process_fifo_data_buffer(
 }
 
 /** See lsm6ds3_hal.h */
-void lsm6ds3_send_fifo_flush_done(sns_sensor_instance *const instance)
+void lsm6ds3_send_fifo_flush_done(sns_sensor_instance *const instance,
+                                  sns_sensor_uid *suid)
 {
   sns_service_manager *mgr = instance->cb->get_service_manager(instance);
   sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr, SNS_EVENT_SERVICE);
   sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
-  lsm6ds3_instance_state *state = (lsm6ds3_instance_state *)instance->state->state;
 
   if(NULL != event)
   {
@@ -1512,15 +1514,7 @@ void lsm6ds3_send_fifo_flush_done(sns_sensor_instance *const instance)
     event->event_len = 0;
     event->timestamp = sns_get_system_time();
 
-    if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL)
-    {
-      e_service->api->publish_event(e_service, instance, event, &state->accel_info.suid);
-    }
-
-    if(state->fifo_info.publish_sensors & LSM6DS3_GYRO)
-    {
-      e_service->api->publish_event(e_service, instance, event, &state->gyro_info.suid);
-    }
+    e_service->api->publish_event(e_service, instance, event, suid);
   }
 }
 
@@ -1570,7 +1564,14 @@ void lsm6ds3_handle_interrupt_event(sns_sensor_instance *const instance)
     if(state->fifo_flush_in_progress)
     {
       state->fifo_flush_in_progress = false;
-      lsm6ds3_send_fifo_flush_done(instance);
+      if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL)
+      {
+        lsm6ds3_send_fifo_flush_done(instance, &state->accel_info.suid);
+      }
+      if(state->fifo_info.publish_sensors & LSM6DS3_GYRO)
+      {
+        lsm6ds3_send_fifo_flush_done(instance, &state->gyro_info.suid);
+      }
     }
   }
 }
@@ -1622,11 +1623,8 @@ void lsm6ds3_dump_reg(sns_sensor_instance *this,
                          &state->reg_status[i],
                          1,
                          &xfer_bytes);
-    //diag->api->sensor_inst_printf(diag, this,
-    //                              &state->accel_info.suid,
-    //                              SNS_LOW, __FILENAME__, __LINE__,
-    //                              "reg[0x%X] = 0x%X",
-    //                              reg_map[i], state->reg_status[i]);
+    SNS_INST_PRINTF(MED, this, "reg[0x%X] = 0x%X",
+                    reg_map[i], state->reg_status[i]);
   }
 }
 
@@ -1902,9 +1900,12 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
   phy_sensor_config.has_dri_enabled = true;
   phy_sensor_config.dri_enabled = true;
   /* For sensors that route data through the SDC/DAE sensor, the DAE watermark
-     should be set to the number of samples stored in SDC before waking up Q6. */
+     should be set to max requested watermark. */
   phy_sensor_config.has_DAE_watermark = true;
-  phy_sensor_config.DAE_watermark = 0;
+  phy_sensor_config.DAE_watermark =
+     (state->fifo_info.max_requested_flush_ticks == 0) ?
+       UINT32_MAX :
+       state->fifo_info.max_requested_wmk;
 
   if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL
      ||
@@ -1931,9 +1932,12 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_dri_enabled = true;
     phy_sensor_config.dri_enabled = true;
   /* For sensors that route data through the SDC/DAE sensor, the DAE watermark
-     should be set to the number of samples stored in SDC before waking up Q6. */
+     should be set to max requested watermark. */
     phy_sensor_config.has_DAE_watermark = true;
-    phy_sensor_config.DAE_watermark = 0;
+    phy_sensor_config.DAE_watermark =
+       (state->fifo_info.max_requested_flush_ticks == 0) ?
+         UINT32_MAX :
+         state->fifo_info.max_requested_wmk;
 
     pb_send_event(instance,
                   sns_std_sensor_physical_config_event_fields,
@@ -1960,7 +1964,11 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[1] = LSM6DS3_SENSOR_TEMPERATURE_RANGE_MAX;
     phy_sensor_config.has_dri_enabled = true;
     phy_sensor_config.dri_enabled = false;
-    phy_sensor_config.has_DAE_watermark = false;
+    phy_sensor_config.has_DAE_watermark = true;
+    phy_sensor_config.DAE_watermark =
+       (state->sensor_temp_info.max_requested_flush_ticks == 0) ?
+       UINT32_MAX :
+       (state->sensor_temp_info.sampling_rate_hz / state->sensor_temp_info.report_rate_hz);
 
     pb_send_event(instance,
                   sns_std_sensor_physical_config_event_fields,
@@ -2001,7 +2009,7 @@ void lsm6ds3_convert_and_send_temp_sample(
 }
 
 /** See sns_lsm6ds3_hal.h */
-void lsm6ds3_handle_sensor_temp_sample(sns_sensor_instance *const instance)
+void lsm6ds3_handle_sensor_temp_sample(sns_sensor_instance *const instance, uint64_t timeout_ticks)
 {
   lsm6ds3_instance_state *state =
      (lsm6ds3_instance_state*)instance->state->state;
@@ -2024,7 +2032,7 @@ void lsm6ds3_handle_sensor_temp_sample(sns_sensor_instance *const instance)
                    &xfer_bytes);
 
   lsm6ds3_convert_and_send_temp_sample(instance,
-                   sns_get_system_time(),
+                   (sns_time)timeout_ticks,
                    temp_data);
 }
 
@@ -2037,9 +2045,25 @@ void lsm6ds3_start_sensor_temp_polling_timer(sns_sensor_instance *this)
     .message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG,
     .request    = buffer
   };
+  sns_rc rc = SNS_RC_SUCCESS;
 
-  sns_memset(buffer, 0, sizeof(buffer));
-  req_payload.is_periodic = false;
+  if(NULL == state->timer_data_stream)
+  {
+    sns_service_manager *smgr = this->cb->get_service_manager(this);
+    sns_stream_service *strm_svc =
+       (sns_stream_service*)smgr->get_service(smgr, SNS_STREAM_SERVICE);
+    rc = strm_svc->api->create_sensor_instance_stream(strm_svc, this,
+        state->timer_suid, &state->timer_data_stream);
+  }
+
+  if(rc != SNS_RC_SUCCESS
+     || NULL == state->timer_data_stream)
+  {
+    SNS_INST_PRINTF(ERROR, this, "error creating stream %d", rc);
+    return;
+  }
+
+  req_payload.is_periodic = true;
   req_payload.start_time = sns_get_system_time();
   req_payload.timeout_period = state->sensor_temp_info.sampling_intvl;
 
@@ -2071,9 +2095,8 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
        lsm6ds3_stop_fifo_streaming(state);
        lsm6ds3_set_fifo_wmk(state);
        lsm6ds3_disable_fifo_intr(state);
+    }
        enable_fifo_stream = false;
-     }
-
      lsm6ds3_set_md_config(state, true);
      if(state->irq_info.irq_ready)
      {
@@ -2121,106 +2144,28 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
   lsm6ds3_dump_reg(this, state->fifo_info.fifo_enabled);
 }
 
-/**
- * Runs a communication test - verfies WHO_AM_I, publishes self
- * test event.
- *
- * @param[i] instance  Instance reference
- * @param[i] uid       Sensor UID
- *
- * @return none
- */
-static void lsm6ds3_send_com_test_event(sns_sensor_instance *instance,
-                                        sns_sensor_uid *uid, bool test_result)
+void lsm6ds3_register_interrupt(sns_sensor_instance *this)
 {
-  uint8_t data[1] = {0};
-  pb_buffer_arg buff_arg = (pb_buffer_arg)
-      { .buf = &data, .buf_len = sizeof(data) };
-  sns_physical_sensor_test_event test_event =
-     sns_physical_sensor_test_event_init_default;
-
-  test_event.test_passed = test_result;
-  test_event.test_type = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
-  test_event.test_data.funcs.encode = &pb_encode_string_cb;
-  test_event.test_data.arg = &buff_arg;
-
-  pb_send_event(instance,
-                sns_physical_sensor_test_event_fields,
-                &test_event,
-                sns_get_system_time(),
-                SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_EVENT,
-                uid);
-}
-
-/** See sns_lsm6ds3_hal.h */
-void lsm6ds3_run_self_test(sns_sensor_instance *instance)
-{
-  lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)instance->state->state;
-  sns_rc rv = SNS_RC_SUCCESS;
-  uint8_t buffer = 0;
-  bool who_am_i_success = false;
-
-  rv = lsm6ds3_get_who_am_i(state->scp_service,
-                            state->com_port_info.port_handle,
-                            &buffer);
-  if(rv == SNS_RC_SUCCESS
-     &&
-     buffer == LSM6DS3_WHOAMI_VALUE)
+  lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
+  if(!state->irq_info.irq_registered)
   {
-    who_am_i_success = true;
-  }
+    sns_data_stream* data_stream = state->interrupt_data_stream;
+    uint8_t buffer[20];
+    sns_request irq_req =
+    {
+      .message_id = SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REQ,
+      .request    = buffer
+    };
 
-  if(state->accel_info.test_info.test_client_present)
-  {
-    if(state->accel_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
+    irq_req.request_len = pb_encode_request(buffer,
+                                            sizeof(buffer),
+                                            &state->irq_info.irq_config,
+                                            sns_interrupt_req_fields,
+                                            NULL);
+    if(irq_req.request_len > 0)
     {
-      lsm6ds3_send_com_test_event(instance, &state->accel_info.suid, who_am_i_success);
+      data_stream->api->send_request(data_stream, &irq_req);
+      state->irq_info.irq_registered = true;
     }
-    else if(state->accel_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
-    {
-      // Handle factory test. The driver may choose to reject any new
-      // streaming/self-test requests when factory test is in progress.
-    }
-    state->accel_info.test_info.test_client_present = false;
-  }
-  if(state->gyro_info.test_info.test_client_present)
-  {
-    if(state->gyro_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
-    {
-      lsm6ds3_send_com_test_event(instance, &state->gyro_info.suid, who_am_i_success);
-    }
-    else if(state->gyro_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
-    {
-      // Handle factory test. The driver may choose to reject any new
-      // streaming/self-test requests when factory test is in progress.
-    }
-    state->gyro_info.test_info.test_client_present = false;
-  }
-  if(state->md_info.test_info.test_client_present)
-  {
-    if(state->md_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
-    {
-      lsm6ds3_send_com_test_event(instance, &state->md_info.suid, who_am_i_success);
-    }
-    else if(state->md_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
-    {
-      // Handle factory test. The driver may choose to reject any new
-      // streaming/self-test requests when factory test is in progress.
-    }
-    state->md_info.test_info.test_client_present = false;
-  }
-  if(state->sensor_temp_info.test_info.test_client_present)
-  {
-    if(state->sensor_temp_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
-    {
-      lsm6ds3_send_com_test_event(instance, &state->sensor_temp_info.suid, who_am_i_success);
-    }
-    else if(state->sensor_temp_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
-    {
-      // Handle factory test. The driver may choose to reject any new
-      // streaming/self-test requests when factory test is in progress.
-    }
-    state->sensor_temp_info.test_info.test_client_present = false;
   }
 }
-

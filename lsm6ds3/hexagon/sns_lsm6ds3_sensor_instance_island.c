@@ -9,6 +9,7 @@
  * Technologies, Inc.
  **/
 
+#include "sns_island_service.h"
 #include "sns_mem_util.h"
 #include "sns_rc.h"
 #include "sns_request.h"
@@ -354,7 +355,14 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
         if(state->fifo_flush_in_progress)
         {
           state->fifo_flush_in_progress = false;
-          lsm6ds3_send_fifo_flush_done(this);
+          if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL)
+          {
+            lsm6ds3_send_fifo_flush_done(this, &state->accel_info.suid);
+          }
+          if(state->fifo_info.publish_sensors & LSM6DS3_GYRO)
+          {
+            lsm6ds3_send_fifo_flush_done(this, &state->gyro_info.suid);
+          }
         }
 
        /** lsm6ds3_read_gpio() and lsm6ds3_write_gpio() is example only
@@ -386,10 +394,10 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
     {
       pb_istream_t stream = pb_istream_from_buffer((pb_byte_t*)event->event,
                                                      event->event_len);
-      sns_timer_sensor_event timer_event;
-      if(pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
+      if(event->message_id == SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT)
       {
-        if(event->message_id == SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT)
+        sns_timer_sensor_event timer_event;
+        if(pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
           if(state->fifo_info.publish_sensors & LSM6DS3_SENSOR_TEMP
              &&
@@ -397,14 +405,18 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
              &&
              state->sensor_temp_info.sampling_intvl > 0)
           {
-            state->sensor_temp_info.timer_is_active = false;
-            lsm6ds3_handle_sensor_temp_sample(this);
-            lsm6ds3_start_sensor_temp_polling_timer(this);
+            lsm6ds3_handle_sensor_temp_sample(this, timer_event.timeout_time);
           }
         }
       }
+      else if(event->message_id == SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT)
+      {
+        /** TODO: decode and qse timer_reg_event*/
+        SNS_INST_PRINTF(LOW, this, "TIMER_SENSOR_REG_EVENT");
+      }
       else
       {
+        SNS_INST_PRINTF(MED, this, "unknown message_id %d", event->message_id);
       }
       event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
     }
@@ -434,10 +446,18 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
   sns_lsm6ds3_req *payload = (sns_lsm6ds3_req*)client_request->request;
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
+  uint32_t flush_period_buffer_usec = 0;
+
+  SNS_INST_PRINTF(LOW, this, "set_client_cfg msg_id %d", client_request->message_id);
 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle,
                                                                            true);
+
+  if(!lsm6ds3_dae_if_available(this))
+  {
+    lsm6ds3_register_interrupt(this);
+  }
 
   if(client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
@@ -448,6 +468,8 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
     // 5. Save the current config information like type, sample_rate, report_rate, etc.
     desired_sample_rate = payload->desired_sample_rate;
     desired_report_rate = payload->desired_report_rate;
+
+    SNS_INST_PRINTF(LOW, this, "rr %d  sr %d", (uint32_t)desired_report_rate, (uint32_t)desired_sample_rate);
 
     if(desired_report_rate > desired_sample_rate)
     {
@@ -508,16 +530,21 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
     {
       desired_wmk = (uint16_t)(accel_chosen_sample_rate / desired_report_rate);
     }
+    else
+    {
+      desired_wmk = 1;
+    }
 
     if(LSM6DS3_MAX_FIFO <= desired_wmk)
     {
       desired_wmk = LSM6DS3_MAX_FIFO;
     }
 
+    SNS_INST_PRINTF(LOW, this, "desired_wmk %u", desired_wmk);
+
     if(state->md_info.enable_md_int)
     {
-      lsm6ds3_set_gated_accel_config(state,
-                                     desired_wmk,
+      lsm6ds3_set_gated_accel_config(state, desired_wmk,
                                      accel_chosen_sample_rate_reg_value,
                                      state->fifo_info.fifo_enabled);
     }
@@ -528,6 +555,11 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
                             gyro_chosen_sample_rate_reg_value,
                             state->fifo_info.fifo_enabled);
 
+    // 2 sample periods of flush period buffer
+    flush_period_buffer_usec = (2000000/accel_chosen_sample_rate);
+    state->fifo_info.max_requested_flush_ticks = payload->desired_flush_ticks +
+       sns_convert_ns_to_ticks(flush_period_buffer_usec * 1000);
+
     if(LSM6DS3_CONFIG_IDLE == state->config_step &&
        lsm6ds3_dae_if_stop_streaming(this))
     {
@@ -537,21 +569,25 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
     if(state->config_step == LSM6DS3_CONFIG_IDLE)
     {
       lsm6ds3_reconfig_hw(this);
-      lsm6ds3_send_config_event(this);
     }
 
+    lsm6ds3_send_config_event(this);
+
     // update registry configuration
-    if(LSM6DS3_ACCEL == payload->registry_cfg.sensor_type)
+    if(LSM6DS3_ACCEL == payload->registry_cfg.sensor_type
+       && payload->registry_cfg.version >= state->accel_registry_cfg.version)
     {
       fac_cal_bias = state->accel_registry_cfg.fac_cal_bias;
       fac_cal_corr_mat = &state->accel_registry_cfg.fac_cal_corr_mat;
     }
-    else if(LSM6DS3_GYRO == payload->registry_cfg.sensor_type)
+    else if(LSM6DS3_GYRO == payload->registry_cfg.sensor_type
+            && payload->registry_cfg.version >= state->gyro_registry_cfg.version)
     {
       fac_cal_bias = state->gyro_registry_cfg.fac_cal_bias;
       fac_cal_corr_mat = &state->gyro_registry_cfg.fac_cal_corr_mat;
     }
-    else if(LSM6DS3_SENSOR_TEMP == payload->registry_cfg.sensor_type)
+    else if(LSM6DS3_SENSOR_TEMP == payload->registry_cfg.sensor_type
+            && payload->registry_cfg.version >= state->sensor_temp_registry_cfg.version)
     {
       fac_cal_bias = state->sensor_temp_registry_cfg.fac_cal_bias;
       fac_cal_corr_mat = &state->sensor_temp_registry_cfg.fac_cal_corr_mat;
@@ -560,18 +596,18 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
     if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat)
     {
       sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
-                  payload->registry_cfg.fac_cal_bias, 
+                  payload->registry_cfg.fac_cal_bias,
                   sizeof(payload->registry_cfg.fac_cal_bias));
 
       sns_memscpy(fac_cal_corr_mat, sizeof(payload->registry_cfg.fac_cal_corr_mat),
-                  &payload->registry_cfg.fac_cal_corr_mat, 
+                  &payload->registry_cfg.fac_cal_corr_mat,
                   sizeof(payload->registry_cfg.fac_cal_corr_mat));
     }
   }
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->fifo_flush_in_progress = true;
-    if (!lsm6ds3_dae_if_flush_samples(this))
+    if(!lsm6ds3_dae_if_flush_samples(this))
     {
       lsm6ds3_handle_interrupt_event(this);
     }
@@ -579,6 +615,8 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
   else if(client_request->message_id ==
           SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
+    /** All self-tests can be handled in normal mode. */
+    state->island_service->api->sensor_instance_island_exit(state->island_service, this);
     lsm6ds3_run_self_test(this);
     state->new_self_test_request = false;
   }

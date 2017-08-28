@@ -30,8 +30,10 @@ typedef enum
 typedef struct
 {
   struct sns_data_stream *stream;
+  const sns_sensor_uid   *suid; /* for diag print purpose */
   const char             *nano_hal_vtable_name;
   lsm6ds3_dae_if_state   state;
+  bool                   stream_usable;
   bool                   flushing_hw;
   bool                   flushing_data;
 } lsm6ds3_dae_stream;
@@ -45,9 +47,10 @@ typedef struct lsm6ds3_dae_if_info
 bool lsm6ds3_dae_if_available(sns_sensor_instance *this);
 
 sns_rc lsm6ds3_dae_if_init(
-  sns_sensor_instance        *const this,
-  struct sns_stream_service  *stream_mgr,
-  sns_sensor_uid             *dae_suid);
+  sns_sensor_instance  *const this,
+  sns_stream_service   *stream_mgr,
+  sns_sensor_uid       *dae_suid,
+  sns_sensor_uid const *parent_suid);
 
 void lsm6ds3_dae_if_deinit(
   struct lsm6ds3_instance_state *state,

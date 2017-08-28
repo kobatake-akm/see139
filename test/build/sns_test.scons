@@ -11,9 +11,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_06_11/sensors/test/build/sns_test.scons#1 $
-#  $DateTime: 2017/06/11 12:38:13 $
-#  $Change: 13546828 $
+#  $Id: //components/rel/ssc.slpi/3.0/sensors/test/build/sns_test.scons#29 $
+#  $DateTime: 2017/08/21 09:37:15 $
+#  $Change: 14141743 $
 #
 #===============================================================================
 Import('env')
@@ -26,21 +26,26 @@ test_sensor_island_enable = False
 
 if 'SNS_ISLAND_INCLUDE_TEST_SENSOR' in env:
   test_sensor_island_enable = True
-  
+
 #-------------------------------------------------------------------------------
 # Adds self
 #-------------------------------------------------------------------------------
-env.AddSSCSU(ME, 
-             register_func_name = "sns_test_register", 
-             binary_lib = False, 
-             add_island_files = test_sensor_island_enable)
+if 'USES_SSC_STATIC_LIB_BUILDER' in env:
+  env.AddSSCSU(ME,
+               register_func_name = "sns_test_register",
+               binary_lib = False,
+               add_island_files = test_sensor_island_enable)
 
 #-------------------------------------------------------------------------------
 # test sensor configurations
 #-------------------------------------------------------------------------------
 test_sensors = [
   'SNS_TEST_ACCEL',
+  'SNS_TEST_CMC',
+  'SNS_TEST_DISTANCE_BOUND',
   'SNS_TEST_AMD',
+  'SNS_TEST_FACING',
+  'SNS_TEST_BASIC_GESTURES',
   'SNS_TEST_TILT',
   'SNS_TEST_WALK',
   'SNS_TEST_GYRO_CAL',
@@ -61,9 +66,16 @@ test_sensors = [
   'SNS_TEST_GAME_RV',
   'SNS_TEST_HALL',
   'SNS_TEST_RMD',
+  'SNS_TEST_SMD',
   'SNS_TEST_PSMD',
+  'SNS_TEST_FMV',
+  'SNS_TEST_GEOMAG_RV',
+  'SNS_TEST_ROTV',
   'SNS_TEST_REMOTE_PROC_STATE',
-  'SNS_TEST_OEM1',   
+  'SNS_TEST_OEM1',
+  'SNS_TEST_DEVICE_ORIENT',
+  'SNS_TEST_PEDOMETER',
+  'SNS_TEST_ASYNC_UART'
 ]
 
 for s in test_sensors:
@@ -79,6 +91,15 @@ files_to_remove = [
   'sns_test_amd.h',
   'sns_test_amd.c',
   'sns_test_amd_island.c',
+  'sns_test_cmc.h',
+  'sns_test_cmc.c',
+  'sns_test_cmc_island.c',
+  'sns_test_distance_bound.h',
+  'sns_test_distance_bound.c',
+  'sns_test_distance_bound_island.c',
+  'sns_test_device_orient.h',
+  'sns_test_device_orient.c',
+  'sns_test_device_orient_island.c',
   'sns_test_gyro_cal.h',
   'sns_test_gyro_cal.c',
   'sns_test_gyro_cal_island.c',
@@ -102,9 +123,31 @@ files_to_remove = [
   'sns_test_walk_island.c',
   'sns_test_remote_proc_state.h',
   'sns_test_remote_proc_state.c',
-  'sns_test_oem1.h',
-  'sns_test_oem1.c',  
+  'sns_test_pedometer.h',
+  'sns_test_pedometer.c',
+  'sns_test_rotv.h',
+  'sns_test_rotv.c',
+  'sns_test_rotv_island.c',
+  'sns_test_fmv.h',
+  'sns_test_fmv.c',
+  'sns_test_fmv_island.c',
+  'sns_test_geomag_rv.h',
+  'sns_test_geomag_rv.c',
+  'sns_test_geomag_rv_island.c',
+  'sns_test_basic_gestures.h',
+  'sns_test_basic_gestures.c',
+  'sns_test_basic_gestures_island.c',
+  'sns_test_mag_cal.h',
+  'sns_test_mag_cal.c',
+  'sns_test_async_uart.h',
+  'sns_test_async_uart.c'
 ]
+
+if "SENSORS_DD_DEV_FLAG" in env:
+  files_to_remove += [
+    'sns_test_oem1.h',
+    'sns_test_oem1.c',
+  ]
 
 REMOVE_FILES =  env.FindFiles(files_to_remove, MY_ROOT)
 

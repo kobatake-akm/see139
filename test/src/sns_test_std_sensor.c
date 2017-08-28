@@ -13,8 +13,8 @@
 #include "sns_test_std_sensor.h"
 #include "sns_types.h"
 
-static const float TEST_SAMPLE_RATE = 10.0f;
-static const float TEST_BATCH_PERIOD = 100000.0f;
+static const float TEST_SAMPLE_RATE = 1.0f;
+static const float TEST_BATCH_PERIOD = 1000000.0f;
 
 /** See sns_test_std_sensor.h */
 void sns_test_std_sensor_create_request(const sns_sensor *sensor,

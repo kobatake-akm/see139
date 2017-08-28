@@ -106,31 +106,10 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
   }
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_boolean = true;
-    value.boolean = true;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_boolean = true;
-    value.boolean = false;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
     value.sint = 0x0100;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
-    value.sint = 0;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_HW_ID, &value, 1, false);
   }
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -156,7 +135,21 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
     value.has_sint = true;
     value.sint = state->encoded_event_len;
     sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, true);
+        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = true;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR};
+    values[0].has_sint = true;
+    values[0].sint = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR_TESTS,
+        values, ARR_SIZE(values), true);
   }
 }
 
@@ -166,13 +159,6 @@ sns_rc lsm6ds3_motion_detect_init(sns_sensor *const this)
   lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
 
   state->sensor = LSM6DS3_MOTION_DETECT;
-  state->sensor_client_present = false;
-  sns_service_manager *smgr= this->cb->get_service_manager(this);
-  state->diag_service = (sns_diag_service *)
-    smgr->get_service(smgr, SNS_DIAG_SERVICE);
-  state->scp_service = (sns_sync_com_port_service*)
-		smgr->get_service(smgr, SNS_SYNC_COM_PORT_SERVICE);
-
   sns_memscpy(&state->my_suid,
               sizeof(state->my_suid),
               &((sns_sensor_uid)MOTION_DETECT_SUID),
@@ -182,12 +168,8 @@ sns_rc lsm6ds3_motion_detect_init(sns_sensor *const this)
   state->md_config.thresh = LSM6DS3_MD_THRESH;
   state->md_config.win = LSM6DS3_MD_DUR;
 
+  lsm6ds3_common_init(this);
   lsm6ds3_publish_attributes(this);
-
-  lsm6ds3_send_suid_req(this, "interrupt", 10);
-  lsm6ds3_send_suid_req(this, "async_com_port", 15);
-  lsm6ds3_send_suid_req(this, "timer", 6);
-  lsm6ds3_send_suid_req(this, "registry", 9);
 
   return SNS_RC_SUCCESS;
 }

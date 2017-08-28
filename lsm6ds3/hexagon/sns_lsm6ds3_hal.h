@@ -16,11 +16,6 @@
 
 #include "sns_lsm6ds3_sensor_instance.h"
 
-// Enable for test code
-#ifndef LSM6DS3_ENABLE_TEST_CODE
-#define LSM6DS3_ENABLE_TEST_CODE      1
-#endif
-
 /**
  *  Address registers
  */
@@ -406,15 +401,19 @@ void lsm6ds3_convert_and_send_temp_sample(
  * Sends sensor temperature event.
  *
  * @param[i] instance   Sensor Instance
+ * @param[i] timeout_time timestamp in ticks
  */
-void lsm6ds3_handle_sensor_temp_sample(sns_sensor_instance *const instance);
+void lsm6ds3_handle_sensor_temp_sample(sns_sensor_instance *const instance,
+                                       uint64_t timeout_ticks);
 
 /**
  * Sends a FIFO complete event.
  *
- * @param instance   Instance reference
+ * @param[i] instance   Instance reference 
+ * @param[i] suid       sensor uid 
  */
-void lsm6ds3_send_fifo_flush_done(sns_sensor_instance *const instance);
+void lsm6ds3_send_fifo_flush_done(sns_sensor_instance *const instance,
+                                  sns_sensor_uid *suid);
 
 /**
  * Starts/restarts polling timer
@@ -438,7 +437,7 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this);
  * @param[i] instance     instance reference
  * @param[i] gpio         gpio pin to read
  * @param[i] is_chip_pin  true if this is a chip level TLMM pin
- *  	 else false.
+ *       else false.
  *
  * @return none
  */
@@ -452,7 +451,7 @@ void lsm6ds3_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chi
  * @param[i] instance        instance reference
  * @param[i] gpio            gpio pin to write to
  * @param[i] is_chip_pin     true if this is a chip level TLMM
- *  	 pin
+ *       pin
  * @param[i] drive_strength  gpio pin drive strength
  * @param[i] pull            pull type config
  * @param[i] state           output state to write
@@ -467,12 +466,6 @@ void lsm6ds3_write_gpio(sns_sensor_instance *instance, uint32_t gpio,
                         sns_gpio_state state);
 #endif
 
-/**
- * Executes requested self-tests.
- *
- * @param instance   reference to the instace
- *
- * @return none
- */
-void lsm6ds3_run_self_test(sns_sensor_instance *instance);
+void lsm6ds3_register_interrupt(sns_sensor_instance *this);
 
+void lsm6ds3_set_polling_config(sns_sensor_instance *const this);

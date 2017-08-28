@@ -7,7 +7,7 @@
  *
  * $Id:
  * //components/dev/ssc.slpi/3.0/kaushiks.ssc.slpi.3.0.napali_8996_19/sensors/test/src/sns_test_hall.c#1
- * $ $DateTime: 2017/06/11 12:38:13 $ $Change: 13546828 $
+ * $ $DateTime: 2017/07/24 07:13:15 $ $Change: 13914774 $
  *
  **/
 #include "pb_decode.h"
@@ -100,8 +100,9 @@ void sns_test_hall_process_event(const sns_sensor *sensor,
       else
       {
 
-        SNS_PRINTF(MED, sensor, "min_range = %0.4f max_range = %0.4f active_current = %d",
-                                 phy_sensor_config.range[0], phy_sensor_config.range[1],
+         SNS_PRINTF(MED, sensor, "min_range = [%d/1000] max_range = [%d/1000] active_current = %d",
+                                 (int32_t)(phy_sensor_config.range[0]*1000), 
+				 (int32_t)(phy_sensor_config.range[1]*1000),
                                  phy_sensor_config.active_current);
       }
     }

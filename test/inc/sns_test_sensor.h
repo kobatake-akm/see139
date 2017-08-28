@@ -8,9 +8,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_06_11/sensors/test/inc/sns_test_sensor.h#1 $
- * $DateTime: 2017/06/11 12:38:13 $
- * $Change: 13546828 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/inc/sns_test_sensor.h#13 $
+ * $DateTime: 2017/05/16 15:59:42 $
+ * $Change: 13327771 $
  *
  **/
 
@@ -35,7 +35,7 @@
 #define NUM_TEST_ITERATIONS 20
 #else
 /* for on-target test */
-#define NUM_EVENTS_TO_PROCESS 100
+#define NUM_EVENTS_TO_PROCESS 10000
 #define NUM_TEST_ITERATIONS 1
 #endif
 

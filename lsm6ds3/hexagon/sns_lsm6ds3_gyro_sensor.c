@@ -192,31 +192,10 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
   }
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_boolean = true;
-    value.boolean = true;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_boolean = true;
-    value.boolean = false;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
     value.sint = 0x0100;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
-    value.sint = 0;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_HW_ID, &value, 1, false);
   }
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -240,7 +219,21 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
     value.has_sint = true;
     value.sint = state->encoded_event_len;
     sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, true);
+        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = true;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR};
+    values[0].has_sint = true;
+    values[0].sint = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR_TESTS,
+        values, ARR_SIZE(values), true);
   }
 }
 
@@ -248,41 +241,14 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
 sns_rc lsm6ds3_gyro_init(sns_sensor *const this)
 {
   lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
-  uint8_t i = 0;
 
   state->sensor = LSM6DS3_GYRO;
-  state->sensor_client_present = false;
-  struct sns_service_manager *smgr= this->cb->get_service_manager(this);
-  state->diag_service = (sns_diag_service *)
-    smgr->get_service(smgr, SNS_DIAG_SERVICE);
-  state->scp_service = (sns_sync_com_port_service*)
-		smgr->get_service(smgr, SNS_SYNC_COM_PORT_SERVICE);
-
   sns_memscpy(&state->my_suid,
               sizeof(state->my_suid),
               &((sns_sensor_uid)GYRO_SUID),
               sizeof(sns_sensor_uid));
-
-  // initialize axis conversion settings
-  for(i = 0; i < TRIAXIS_NUM; i++)
-  {
-    state->axis_map[i].opaxis = i;
-    state->axis_map[i].ipaxis = i;
-    state->axis_map[i].invert = false;
-  }
-
-  // initialize fac cal correction matrix to identity
-  state->fac_cal_corr_mat.e00 = 1.0;
-  state->fac_cal_corr_mat.e11 = 1.0;
-  state->fac_cal_corr_mat.e22 = 1.0;
-
+  lsm6ds3_common_init(this);
   lsm6ds3_publish_attributes(this);
-
-  lsm6ds3_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
-  lsm6ds3_send_suid_req(this, "interrupt", 10);
-  lsm6ds3_send_suid_req(this, "async_com_port", 15);
-  lsm6ds3_send_suid_req(this, "timer", 6);
-  lsm6ds3_send_suid_req(this, "registry", 9);
 
   return SNS_RC_SUCCESS;
 }

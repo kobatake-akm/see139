@@ -7,9 +7,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_06_11/sensors/test/src/sns_test_sensor_island.c#1 $
- * $DateTime: 2017/06/11 12:38:13 $
- * $Change: 13546828 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor_island.c#3 $
+ * $DateTime: 2017/06/09 11:09:54 $
+ * $Change: 13540340 $
  *
  **/
 
@@ -34,10 +34,6 @@
 #include "sns_test_sensor_instance.h"
 #include "sns_types.h"
 #include "sns_printf.h"
-#include "sns_physical_sensor_test.pb.h"
-
-#define SNS_SELF_TEST_AKM 1
-#define SNS_SELF_TEST_TYPE 1
 
 void
 sns_test_send_sensor_request(sns_sensor* const this,
@@ -84,44 +80,6 @@ sns_test_send_sensor_request(sns_sensor* const this,
     {
       SNS_PRINTF(ERROR, this, "Failed to send sensor request, stream=%p", state->sensor_stream);
     }
-  }
-}
-
-void sns_self_test_start_sensor_stream(sns_sensor* const this)
-{
-  sns_test_state* state = (sns_test_state*)this->state->state;
-  //sns_service_manager* service_mgr = this->cb->get_service_manager(this);
-  //sns_stream_service* stream_mgr =
-  //  (sns_stream_service*)service_mgr->get_service(service_mgr,SNS_STREAM_SERVICE);
-
-  size_t encoded_len;
-  uint8_t buffer[100];
-  sns_memset(buffer, 0, sizeof(buffer));
-  sns_physical_sensor_test_config self_test_req = sns_physical_sensor_test_config_init_default;
-  if (SNS_SELF_TEST_TYPE == 1)
-  {
-    self_test_req.test_type = SNS_PHYSICAL_SENSOR_TEST_TYPE_HW;
-  }
-  else
-  {
-    self_test_req.test_type = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
-  }
-
-  SNS_PRINTF(ERROR, this, "sns_self_test_start_sensor_stream");
- 
-  encoded_len = pb_encode_request(buffer, sizeof(buffer),
-                    &self_test_req, sns_physical_sensor_test_config_fields, NULL);
-
-  if (0 < encoded_len && NULL != state->sensor_stream)
-  {
-    sns_request request =
-      (sns_request){ .message_id = SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG,
-        .request_len = encoded_len, .request = buffer };
-    state->sensor_stream->api->send_request(state->sensor_stream, &request);
-  }
-  else
-  {
-    SNS_PRINTF(ERROR, this, "Failed to send sensor request");
   }
 }
 
@@ -177,7 +135,6 @@ sns_test_handle_sensor_event(sns_sensor* const this)
        s->remaining_events > 0;
        s->sensor_stream->api->get_next_input(s->sensor_stream))
   {
-    SNS_PRINTF(ERROR, this, "sns_test_handle_sensor_event:before peek_input");
     sns_sensor_event* e = s->sensor_stream->api->peek_input(s->sensor_stream);
     if (e == NULL)
     {
@@ -194,27 +151,7 @@ sns_test_handle_sensor_event(sns_sensor* const this)
   if (s->remaining_events <= 0)
   {
     s->remaining_iterations--;
-    if (SNS_SELF_TEST_AKM == 1)
-    {
-      static int i;
-      if (i == 0)
-      {
-        SNS_PRINTF(ERROR, this, "sns_self_test_start_sensor_stream");
-        sns_self_test_start_sensor_stream(this);
-
-        s->remaining_events = NUM_EVENTS_TO_PROCESS;
-        i++;
-      }
-      else
-      {
-         sns_test_stop_sensor_stream(this);
-         SNS_PRINTF(ERROR, this, "sns_test_stop_sensor_stream");
-      }
-    }
-    else
-    {
-      sns_test_stop_sensor_stream(this);
-    }
+    sns_test_stop_sensor_stream(this);
     SNS_PRINTF(HIGH, this, "test iteration finished, remaining=%d",
                              s->remaining_iterations);
     if (s->remaining_iterations > 0)
@@ -253,13 +190,10 @@ sns_test_handle_suid_event(sns_sensor* const this)
 
   if(NULL != state->suid_stream)
   {
-    SNS_PRINTF(ERROR, this, "sns_test_handle_suid_event1");
     for(; state->suid_stream->api->get_input_cnt(state->suid_stream) != 0 &&
         state->remaining_events > 0;
         state->suid_stream->api->get_next_input(state->suid_stream))
     {
-      SNS_PRINTF(ERROR, this, "sns_test_handle_suid_event2");
- 
       sns_sensor_event* e = state->suid_stream->api->peek_input(state->suid_stream);
       pb_istream_t stream = pb_istream_from_buffer((void*)e->event, e->event_len);
       sns_suid_event suid_event = sns_suid_event_init_default;
@@ -307,7 +241,7 @@ sns_test_handle_suid_event(sns_sensor* const this)
 
       if(ready && !state->test_in_progress)
       {
-        SNS_PRINTF(ERROR, this, "Sensor streaming starts");
+        SNS_PRINTF(MED, this, "Sensor streaming starts");
         sns_test_start_sensor_stream(this);
         break;
       }
@@ -321,23 +255,16 @@ sns_test_handle_suid_event(sns_sensor* const this)
 sns_rc
 sns_test_notify_event(sns_sensor* const this)
 {
-
-  SNS_PRINTF(ERROR, this, "sns_test_notify_event");
- 
   sns_test_state* s = (sns_test_state*)this->state->state;
 
   if(s->suid_stream)
   {
-    SNS_PRINTF(ERROR, this, "sns_test_notify_event:suid_event");
- 
     /* process events from SUID sensor */
     sns_test_handle_suid_event(this);
   }
 
   if(s->sensor_stream)
   {
-    SNS_PRINTF(ERROR, this, "sns_test_notify_event:sensor_event");
- 
     /* event from tested sensor */
     sns_test_handle_sensor_event(this);
   }

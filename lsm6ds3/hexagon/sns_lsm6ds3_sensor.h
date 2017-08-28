@@ -11,6 +11,7 @@
 
 #include "sns_data_stream.h"
 #include "sns_lsm6ds3_hal.h"
+#include "sns_island_service.h"
 #include "sns_pwr_rail_service.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
@@ -157,40 +158,27 @@ typedef enum
 
 /** Interrupt Sensor State. */
 
-typedef struct lsm6ds3_state
+typedef struct lsm6ds3_common_state
 {
-  sns_data_stream         *reg_data_stream;
-  sns_data_stream         *fw_stream;
-  sns_data_stream         *timer_stream;
   sns_sensor_uid          reg_suid;
   sns_sensor_uid          irq_suid;
   sns_sensor_uid          timer_suid;
   sns_sensor_uid          acp_suid; // Asynchronous COM Port
   sns_sensor_uid          dae_suid; // Data Acquisition Engine
-  lsm6ds3_sensor_type     sensor;
-  sns_sensor_uid          my_suid;
+
   lsm6ds3_com_port_info   com_port_info;
   sns_interrupt_req       irq_config;
 
-  sns_pwr_rail_service    *pwr_rail_service;
   sns_rail_config         rail_config;
   sns_power_rail_state    registry_rail_on_state;
-  
+
   bool                    hw_is_present;
-  bool                    sensor_client_present;
+  uint16_t                who_am_i;
 
-  lsm6ds3_power_rail_pending_state    power_rail_pend_state;
-
-  // sensor configuration 
-  bool is_dri;
-  int64_t hardware_id;
-  bool supports_sync_stream;
-  uint8_t resolution_idx;
-  
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
-  
+
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
@@ -199,23 +187,46 @@ typedef struct lsm6ds3_state
   bool registry_orient_received;
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
+  // placement
+  bool                    registry_placement_received;
+  float                   placement[12];
+
+} lsm6ds3_common_state;
+
+typedef struct lsm6ds3_state
+{
+  lsm6ds3_common_state    common;
+  sns_data_stream         *reg_data_stream;
+  sns_data_stream         *fw_stream;
+  sns_data_stream         *timer_stream;
+  sns_pwr_rail_service    *pwr_rail_service;
+  sns_diag_service        *diag_service;
+  sns_island_service      *island_service;
+  sns_sync_com_port_service *scp_service;
+
+  lsm6ds3_sensor_type     sensor;
+  sns_sensor_uid          my_suid;
+
+  bool                    sensor_client_present;
+
+  lsm6ds3_power_rail_pending_state    power_rail_pend_state;
+
+  // sensor configuration
+  bool is_dri;
+  int64_t hardware_id;
+  bool supports_sync_stream;
+  uint8_t resolution_idx;
+
   // factory calibration
   bool                    registry_fac_cal_received;
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
 
-  // placement 
-  bool                    registry_placement_received;
-  float                   placement[12];
-
   // md config
   bool                    registry_md_config_received;
   sns_registry_md_cfg     md_config;
 
-  uint16_t                who_am_i;
-  sns_diag_service        *diag_service;
-  sns_sync_com_port_service *scp_service;
   size_t                  encoded_event_len;
 
 } lsm6ds3_state;
@@ -287,3 +298,20 @@ sns_rc lsm6ds3_accel_deinit(sns_sensor *const this);
 sns_rc lsm6ds3_gyro_deinit(sns_sensor *const this);
 sns_rc lsm6ds3_motion_detect_deinit(sns_sensor *const this);
 sns_rc lsm6ds3_sensor_temp_deinit(sns_sensor *const this);
+void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
+                                           sns_sensor_event *event);
+void lsm6ds3_request_registry(sns_sensor *const this);
+void lsm6ds3_update_registry(sns_sensor *const this,
+        sns_sensor_instance *const instance, lsm6ds3_sensor_type sensor);
+void lsm6ds3_update_sensor_state(sns_sensor *const this,
+        sns_sensor_instance *const instance);
+bool lsm6ds3_discover_hw(sns_sensor *const this);
+void lsm6ds3_publish_available(sns_sensor *const this);
+void lsm6ds3_update_sibling_sensors(sns_sensor *const this);
+void lsm6ds3_start_hw_detect_sequence(sns_sensor *const this);
+void lsm6ds3_start_power_rail_timer(sns_sensor *const this,
+                    sns_time timeout_ticks,
+                    lsm6ds3_power_rail_pending_state pwr_rail_pend_state);
+void lsm6ds3_common_init(sns_sensor *const this);
+
+

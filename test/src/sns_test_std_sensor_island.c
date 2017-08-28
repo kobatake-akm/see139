@@ -47,14 +47,14 @@ void sns_test_std_sensor_process_event(const sns_sensor *sensor,
       }
       else
       {
-        SNS_PRINTF(MED, sensor, "has_sample_rate = %d sample_rate = %d",
-                                 phy_sensor_config.has_sample_rate, (int)phy_sensor_config.sample_rate);
-        SNS_PRINTF(MED, sensor, "wm = %d  resolution = %d  is_synch = %d",
-                                 phy_sensor_config.water_mark, (int)phy_sensor_config.resolution,
+        SNS_PRINTF(MED, sensor, "has_sample_rate = %d sample_rate = [%d/100]",
+                                 phy_sensor_config.has_sample_rate, (int32_t)(phy_sensor_config.sample_rate*100));
+        SNS_PRINTF(MED, sensor, "wm = %d  resolution = [%d/1000]  is_synch = %d",
+                                 phy_sensor_config.water_mark, (int32_t)(phy_sensor_config.resolution*1000),
                                  phy_sensor_config.stream_is_synchronous);
-        //SNS_PRINTF(MED, sensor, "min_range = %0.4f max_range = %0.4f active_current = %d",
-        //                         phy_sensor_config.range[0], phy_sensor_config.range[1],
-        //                         phy_sensor_config.active_current);
+        SNS_PRINTF(MED, sensor, "min_range = [%d/1000] max_range = [%d/1000] active_current = %d",
+                                 (int32_t)(phy_sensor_config.range[0]*1000), (int32_t)(phy_sensor_config.range[1]*1000),
+                                 phy_sensor_config.active_current);
       }
     }
     break;
@@ -99,7 +99,7 @@ void sns_test_std_sensor_process_event(const sns_sensor *sensor,
                                (uint32_t)tdata->avg_delta);
       for(i = 0; i < arr_index; i++)
       {
-        SNS_PRINTF(LOW, sensor, "value[%d] = [%d]", i, (int)data[i]);
+        SNS_PRINTF(LOW, sensor, "value[%d] = [%d/1000]", i, (int32_t)(data[i]*1000));
       }
 
     }
