@@ -1,5 +1,5 @@
 /**
- * @file sns_ak0991x_hal.c
+ * @file sns_ak0991x_hal_island.c
  *
  * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * All Rights Reserved.
@@ -482,8 +482,8 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   }
   if( i < ARR_SIZE( odr_debug_string_map ) )
   {
-    AK0991X_INST_PRINT(LOW, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
-                                  odr_debug_string_map[i].name, device_select,
+    AK0991X_INST_PRINT(LOW, this, "set_mag_config: Mode:%d, desire_ODR:%d dev:%d wmk:%d",
+                                  odr_debug_string_map[i].odr, desired_odr, device_select,
                                   cur_wmk );
   }
   else
@@ -1210,10 +1210,12 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   UNUSED_VAR(event_service);
 
   float ipdata[TRIAXIS_NUM] = {0}, opdata_raw[TRIAXIS_NUM] = {0};
-  //float data[3];
+  int16_t lsbdata[TRIAXIS_NUM] = {0};
+
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
 
+  /*
   AK0991X_INST_PRINT(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e00,
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e11,
@@ -1221,33 +1223,32 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
         (uint32_t)state->mag_registry_cfg.fac_cal_bias[0],
         (uint32_t)state->mag_registry_cfg.fac_cal_bias[1],
         (uint32_t)state->mag_registry_cfg.fac_cal_bias[2]);
+   */
 
-
+  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d",
+  		(uint32_t)timestamp);
 
   if (state->mag_info.device_select == AK09917)
   {
-    ipdata[TRIAXIS_X] =
-      (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]) * state->mag_info.sstvt_adj[0] *
-      state->mag_info.resolution;
-    ipdata[TRIAXIS_Y] =
-      (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]) * state->mag_info.sstvt_adj[1] *
-      state->mag_info.resolution;
-    ipdata[TRIAXIS_Z] =
-      (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]) * state->mag_info.sstvt_adj[2] *
-      state->mag_info.resolution;
+  	lsbdata[TRIAXIS_X] = (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]);
+  	lsbdata[TRIAXIS_Y] = (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]);
+  	lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]);
   }
   else
   {
-    ipdata[TRIAXIS_X] =
-      (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]) * state->mag_info.sstvt_adj[0] *
-      state->mag_info.resolution;
-    ipdata[TRIAXIS_Y] =
-      (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]) * state->mag_info.sstvt_adj[1] *
-      state->mag_info.resolution;
-    ipdata[TRIAXIS_Z] =
-      (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]) * state->mag_info.sstvt_adj[2] *
-      state->mag_info.resolution;
+  	lsbdata[TRIAXIS_X] = (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]);
+  	lsbdata[TRIAXIS_Y] = (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]);
+  	lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]);
   }
+
+  SNS_INST_PRINTF(ERROR, instance, "Mag[LSB] %d,%d,%d",
+  		(int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]),
+			(int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]),
+			(int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]));
+
+  ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.sstvt_adj[0] * state->mag_info.resolution;
+  ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.sstvt_adj[1] * state->mag_info.resolution;
+  ipdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z] * state->mag_info.sstvt_adj[2] * state->mag_info.resolution;
 
   // Check magnetic sensor overflow
   if ((mag_sample[7] & AK0991X_HOFL_BIT) != 0)
@@ -1276,7 +1277,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
       state->mag_registry_cfg.fac_cal_corr_mat);
 
-
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,
                               timestamp,
@@ -1290,7 +1290,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   state->m_stream_event[1] = opdata_raw[TRIAXIS_Y];
   state->m_stream_event[2] = opdata_raw[TRIAXIS_Z];
 
-
   // Log raw uncalibrated sensor data
   ak0991x_log_sensor_state_raw_add(
     log_mag_state_raw_info,
@@ -1298,6 +1297,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     opdata_raw,
     timestamp,
     status);
+
 }
 
 void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
@@ -1394,6 +1394,10 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
         timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
       }
 
+//      sns_time sys_time = sns_get_system_time();
+//      SNS_INST_PRINTF(ERROR, instance, "sys_time %d",
+//      		(uint32_t)sys_time);
+
       ak0991x_handle_mag_sample(&vector->buffer[i],
                                 timestamp,
                                 instance,
@@ -1409,6 +1413,20 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
 
   }
 }
+
+
+bool ak0991x_is_drdy(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint8_t st1_buf;
+
+  ak0991x_read_st1(state,state->com_port_info.port_handle,
+                   &st1_buf);
+
+  if( st1_buf & 0x01 ) return true;
+	return false;
+}
+
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
@@ -1916,12 +1934,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   default:
     return SNS_RC_FAILED;
   }
-
   pb_buffer_arg op_mode_args;
-
   op_mode_args.buf = operating_mode;
   op_mode_args.buf_len = sizeof(operating_mode);
-
+  phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
+  phy_sensor_config.operation_mode.arg = &op_mode_args;
   phy_sensor_config.has_sample_rate = true;
   phy_sensor_config.sample_rate = state->mag_req.sample_rate;
 

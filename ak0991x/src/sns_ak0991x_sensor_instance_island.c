@@ -96,8 +96,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     {
       if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
-        state->irq_info.is_ready = true;
-        ak0991x_start_mag_streaming(this);
+      	state->irq_info.is_ready = true;
+				ak0991x_start_mag_streaming(this);
       }
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT == event->message_id)
       {
@@ -106,23 +106,29 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          state->interrupt_timestamp = irq_event.timestamp;
           // Add setting for timestamp in case of flush event caused by irq trigger
-          state->irq_info.detect_irq_event = true;
-
-          if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
+          state->irq_info.detect_irq_event = ak0991x_is_drdy(this);
+          if(state->irq_info.detect_irq_event && (state->interrupt_timestamp != irq_event.timestamp) )
           {
-            AK0991X_INST_PRINT(LOW, this, "handle interrupt event for fifo wmk<2");
-            ak0991x_flush_fifo(this);
+            state->interrupt_timestamp = irq_event.timestamp;
+            SNS_INST_PRINTF(ERROR, this, "ts_now %d", (uint32_t)state->interrupt_timestamp);
+
+            if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
+            {
+              SNS_INST_PRINTF(ERROR, this, "handle interrupt event for fifo wmk<2");
+              ak0991x_flush_fifo(this);
+            }
+            else
+            {
+              SNS_INST_PRINTF(ERROR, this, "handle interrupt event");
+              ak0991x_handle_interrupt_event(this);
+            }
+            state->irq_info.detect_irq_event = false;
           }
           else
           {
-            AK0991X_INST_PRINT(LOW, this, "handle interrupt event");
-            ak0991x_handle_interrupt_event(this);
+            SNS_INST_PRINTF(ERROR, this, "Interrupt event detected. But ST1:DRDY bit is 0. Wrong detection.");
           }
-
-          state->irq_info.detect_irq_event = false;
-        }
       }
       else
       {
