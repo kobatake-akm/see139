@@ -38,7 +38,6 @@
 
 #include "sns_diag_service.h"
 #include "sns_diag.pb.h"
-#include "sns_printf.h"
 
 #include "sns_cal_util.h"
 
@@ -373,7 +372,7 @@ static sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
     sns_diag_service *diag = state->diag_service;
     if( diag )
     {
-      SNS_INST_PRINTF(ERROR, this,
+      AK0991X_INST_PRINT(LOW, this,
                       "ak0991x write reg:0x%x val:0x%x, bytes %d",
                       reg_addr, (uint32_t) buffer[0], bytes);
     }
@@ -483,19 +482,19 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   }
   if( i < ARR_SIZE( odr_debug_string_map ) )
   {
-    SNS_INST_PRINTF(ERROR, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
+    AK0991X_INST_PRINT(LOW, this, "set_mag_config: ODR: %s dev:%d wmk:%d",
                                   odr_debug_string_map[i].name, device_select,
                                   cur_wmk );
   }
   else
   {
-    SNS_INST_PRINTF(ERROR, this, "set_mag_config: INVALID ODR!: 0x%x dev:%d wmk:%d",
+    AK0991X_INST_PRINT(LOW, this, "set_mag_config: INVALID ODR!: 0x%x dev:%d wmk:%d",
                                   desired_odr, device_select,
                                   cur_wmk );
 
   }
 #else
-  SNS_INST_PRINTF(ERROR, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
+  AK0991X_INST_PRINT(LOW, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
                                 desired_odr, device_select,
                                 cur_wmk );
 #endif
@@ -776,7 +775,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
   sns_time usec_time_for_measure;
-  uint8_t asa[AK0991X_NUM_SENSITIVITY];
+  uint8_t  asa[AK0991X_NUM_SENSITIVITY];
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
   uint8_t  sdr = 0;
@@ -877,12 +876,18 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   if (state->mag_info.device_select == AK09917)
   {
     // raw data in 16 bits
+	
+	// TODO: Here buffer data type is 8 bit. Left shifting buffer[i]<<8 results '0'. 
+	// Here, We will loose MSB data
     data[0] = (int16_t)(((buffer[1] << 8) & 0xFF00) | buffer[2]);
     data[1] = (int16_t)(((buffer[3] << 8) & 0xFF00) | buffer[4]);
     data[2] = (int16_t)(((buffer[5] << 8) & 0xFF00) | buffer[6]);
   }
   else
   {
+	// TODO: Here buffer data type is 8 bit. Left shifting buffer[i]<<8 results '0'. 
+	// Here, We will loose MSB data
+	
     // raw data in 16 bits
     data[0] = (int16_t)(((buffer[2] << 8) & 0xFF00) | buffer[1]);
     data[1] = (int16_t)(((buffer[4] << 8) & 0xFF00) | buffer[3]);
@@ -1209,7 +1214,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
 
-  SNS_INST_PRINTF(ERROR, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
+  AK0991X_INST_PRINT(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e00,
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e11,
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e22,
@@ -1259,7 +1264,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   {
     opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
       ipdata[state->axis_map[i].ipaxis];
-    /*SNS_INST_PRINTF(ERROR, instance, "ip=%d op=%d invert=%d",
+    /*AK0991X_INST_PRINT(LOW, instance, "ip=%d op=%d invert=%d",
         (uint32_t)state->axis_map[i].ipaxis,
         (uint32_t)state->axis_map[i].opaxis,
         (uint32_t)state->axis_map[i].invert);*/
@@ -1439,7 +1444,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                      &st1_buf);
 
     num_samples = st1_buf >> 2;
-    SNS_INST_PRINTF(ERROR, instance, "num=%d st1=%x",num_samples,st1_buf );
+    AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
 
 
     if(num_samples > 0)
@@ -1601,7 +1606,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    SNS_INST_PRINTF(ERROR, instance, "handle timer event for FIFO");
+    AK0991X_INST_PRINT(LOW, instance, "handle timer event for FIFO");
 
     if (state->mag_info.device_select == AK09917)
     {
@@ -1612,11 +1617,12 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
                        &st1_buf);
 
       num_samples = st1_buf >> 2;
-      SNS_INST_PRINTF(ERROR, instance, "num=%d st1=%x",num_samples,st1_buf );
+      AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
 
       if(num_samples > 0)
       {
         //Read continuously all data in FIFO at one time.
+		//TODO: FIFO read should happen through async_com_port
         ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
                                   num_samples, &buffer[0]);
       }
@@ -1624,6 +1630,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
     else
     {
       //Continue reading until fifo buffer is clear
+	  //TODO: Check FIFO length and read fifo data at one go
       for (i = 0; i < state->mag_info.max_fifo_size; i++)
       {
         ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
@@ -1658,7 +1665,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
       {
         if (num_samples < i + 1)
         {
-           SNS_INST_PRINTF(ERROR, instance, "num_samples < cur_wmk + 1");
+           AK0991X_INST_PRINT(LOW, instance, "num_samples < cur_wmk + 1");
 
            //Set the previous data to avoid publishing invalid data.
            //In case of FIFO, The data are fixed 7FFFh when the buffer is empty.
@@ -1697,32 +1704,32 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   }
   else
   {
-    // Read register ST1->ST2
-    rv = ak0991x_com_read_wrapper(state->scp_service,
-                                  state->com_port_info.port_handle,
-                                  AKM_AK0991X_REG_ST1,
-                                  &buffer[0],
-                                  AK0991X_NUM_DATA_ST1_TO_ST2,
-                                  &xfer_bytes);
+  // Read register ST1->ST2
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_ST1,
+                                &buffer[0],
+                                AK0991X_NUM_DATA_ST1_TO_ST2,
+                                &xfer_bytes);
 
-    if (xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
-    {
-      rv = SNS_RC_FAILED;
-    }
+  if (xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+  {
+    rv = SNS_RC_FAILED;
+  }
 
-    if (rv != SNS_RC_SUCCESS)
-    {
-      return rv;
-    }
+  if (rv != SNS_RC_SUCCESS)
+  {
+    return rv;
+  }
 
-    SNS_INST_PRINTF(ERROR, instance, "handle timer event");
+  AK0991X_INST_PRINT(LOW, instance, "handle timer event");
 
-    ak0991x_handle_mag_sample(&buffer[1],
-                              timestamp,
-                              instance,
-                              event_service,
-                              state,
-                              &log_mag_state_raw_info);
+  ak0991x_handle_mag_sample(&buffer[1],
+                            timestamp,
+                            instance,
+                            event_service,
+                            state,
+                            &log_mag_state_raw_info);
   }
 
   ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
@@ -1986,11 +1993,11 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     }
     else
     {
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
-          1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+    req_payload.timeout_period = sns_convert_ns_to_ticks(
+        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
     }
 
-    SNS_INST_PRINTF(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(LOW, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
@@ -2083,7 +2090,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  SNS_INST_PRINTF(ERROR, this, "ak0991x_reconfig_hw");
+  AK0991X_INST_PRINT(LOW, this, "ak0991x_reconfig_hw");
 
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
@@ -2091,13 +2098,13 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
          (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
         (!state->mag_info.use_dri))
     {
-      SNS_INST_PRINTF(ERROR, this, "start_mag_streaming");
+      AK0991X_INST_PRINT(LOW, this, "start_mag_streaming");
       ak0991x_start_mag_streaming(this);
     }
   }
   else
   {
-    SNS_INST_PRINTF(ERROR, this, "ak0991x_stop_mag_streaming");
+    AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
     rv = ak0991x_stop_mag_streaming(this);
 
     if (rv != SNS_RC_SUCCESS)
@@ -2164,11 +2171,7 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
          buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
       {
         who_am_i_success = true;
-        SNS_INST_PRINTF(ERROR, instance, "COM self-test success!!");
-      }
-      else
-      {
-        SNS_INST_PRINTF(ERROR, instance, "COM self-test error!!");
+        AK0991X_INST_PRINT(LOW, instance, "COM self-test success!!");
       }
       ak0991x_send_com_test_event(instance, &state->mag_info.suid, who_am_i_success,
                                   SNS_PHYSICAL_SENSOR_TEST_TYPE_COM);
@@ -2181,7 +2184,7 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
     else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_HW)
     {
       bool hw_success = false;
-      uint32_t err; 
+      uint32_t err;
 
       rv = ak0991x_hw_self_test(instance, &err);
 
@@ -2190,11 +2193,7 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
          err == 0)
       {
         hw_success = true;
-        SNS_INST_PRINTF(ERROR, instance, "hw self-test success!!");
-      }
-      else
-      {
-        SNS_INST_PRINTF(ERROR, instance, "hw self-test error!! err=%d",err);
+        AK0991X_INST_PRINT(LOW, instance, "hw self-test success!!");
       }
       ak0991x_send_com_test_event(instance, &state->mag_info.suid, hw_success,
                                   SNS_PHYSICAL_SENSOR_TEST_TYPE_HW);

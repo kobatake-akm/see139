@@ -14,9 +14,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_04_13/sensors/ak0991x/build/sns_ak0991x.scons#1 $
-#  $DateTime: 2017/04/13 13:57:31 $
-#  $Change: 13014165 $
+#  $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_08_24/sensors/ak0991x/build/sns_ak0991x.scons#1 $
+#  $DateTime: 2017/08/24 10:52:47 $
+#  $Change: 14178374 $
 #
 #===============================================================================
 Import('env')
@@ -27,8 +27,10 @@ ak0991x_island_enable = False
 if 'SNS_ISLAND_INCLUDE_AK0991X' in env:
   ak0991x_island_enable = True
 
-if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):
-  env.AddSSCSU(inspect.getfile(inspect.currentframe()),
+if 'USES_SSC_STATIC_LIB_BUILDER' in env:
+  if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']) and ('SENSORS_DD_DEV_FLAG' not in env):
+    env.AddSSCSU(inspect.getfile(inspect.currentframe()),
                register_func_name = "sns_register_ak0991x",
                binary_lib = False,
+               cflags = ['-Wno-sign-compare'],
                add_island_files = ak0991x_island_enable)

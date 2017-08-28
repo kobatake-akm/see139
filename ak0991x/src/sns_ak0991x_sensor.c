@@ -228,8 +228,6 @@ static void ak0991x_get_mag_config(sns_sensor *this,
     sns_std_request decoded_request;
     sns_std_sensor_config decoded_payload;
 
-    SNS_PRINTF(ERROR, this, "ak0991x_reval_instance_config: message_id=%d",request->message_id);
-
     if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
       if(ak0991x_get_decoded_mag_request(this, request, &decoded_request, &decoded_payload))
@@ -290,8 +288,6 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   config.request_len = sizeof(sns_ak0991x_mag_req);
   config.request = &new_client_config;
 
-  SNS_PRINTF(ERROR, this, "ak0991x_set_mag_inst_config:rep_rate = %d samp_rate = %d",(int)chosen_report_rate,(int)chosen_sample_rate);
-
   this->instance_api->set_client_config(instance, &config);
 }
 
@@ -319,7 +315,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   sns_ak0991x_registry_cfg registry_cfg;
 
-  SNS_PRINTF(ERROR, this, "ak0991x_reval_instance_config");
+  AK0991X_PRINT(LOW, this, "ak0991x_reval_instance_config");
 
   ak0991x_get_mag_config(this,
                          instance,
@@ -613,7 +609,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
       event->event_len);
 
-  SNS_PRINTF(ERROR, this, "ak0991x_sensor_process_registry_event");
+  AK0991X_PRINT(LOW, this, "ak0991x_sensor_process_registry_event");
 
   if(SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_EVENT == event->message_id)
   {
@@ -657,11 +653,11 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->resolution_idx = state->registry_cfg.res_idx;
           state->supports_sync_stream = state->registry_cfg.sync_stream;
 
-          SNS_PRINTF(ERROR, this, "is_dri:%d, hardware_id:%lld ",
+          AK0991X_PRINT(LOW, this, "is_dri:%d, hardware_id:%lld ",
                                    state->is_dri,
                                    state->hardware_id);
 
-          SNS_PRINTF(ERROR, this, "resolution_idx:%d, supports_sync_stream:%d ",
+          AK0991X_PRINT(LOW, this, "resolution_idx:%d, supports_sync_stream:%d ",
                                    state->resolution_idx,
                                    state->supports_sync_stream);
        }
@@ -693,7 +689,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->sdr = state->registry_reg_cfg.sdr;
 
 
-          SNS_PRINTF(ERROR, this, "use_fifo:%d, nsf:%d ,sdr:%d",
+          AK0991X_PRINT(LOW, this, "use_fifo:%d, nsf:%d ,sdr:%d",
                                    state->use_fifo,
                                    state->nsf,
                                    state->sdr);
@@ -742,28 +738,28 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                       state->registry_pf_cfg.vdd_rail,
                       sizeof(state->rail_config.rails[1].name));
 
-          SNS_PRINTF(ERROR, this, "bus_type:%d bus_instance:%d slave_control:%d",
+          AK0991X_PRINT(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
                      state->com_port_info.com_config.bus_type,
                      state->com_port_info.com_config.bus_instance,
                      state->com_port_info.com_config.slave_control);
 
-          SNS_PRINTF(ERROR, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
+          AK0991X_PRINT(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
                      state->com_port_info.com_config.min_bus_speed_KHz,
                      state->com_port_info.com_config.max_bus_speed_KHz,
                      state->com_port_info.com_config.reg_addr_type);
 
-          SNS_PRINTF(ERROR, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d",
+          AK0991X_PRINT(LOW, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d",
                      state->irq_config.interrupt_num,
                      state->irq_config.interrupt_pull_type,
                      state->irq_config.is_chip_pin);
 
-          SNS_PRINTF(ERROR, this, "interrupt_drive_strength:%d interrupt_trigger_type:%d"
+          AK0991X_PRINT(LOW, this, "interrupt_drive_strength:%d interrupt_trigger_type:%d"
                      " rigid body type:%d",
                      state->irq_config.interrupt_drive_strength,
                      state->irq_config.interrupt_trigger_type,
                      state->registry_pf_cfg.rigid_body_type);
 
-          SNS_PRINTF(ERROR, this, "num_rail:%d, rail_on_state:%d",
+          AK0991X_PRINT(LOW, this, "num_rail:%d, rail_on_state:%d",
                      state->rail_config.num_of_rails,
                      state->registry_rail_on_state);
 
@@ -824,7 +820,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         if(rv)
         {
           state->registry_placement_received = true;
-          SNS_PRINTF(ERROR, this, "p[0]:%d p[6]:%d p[11]:%d",
+          AK0991X_PRINT(LOW, this, "p[0]:%d p[6]:%d p[11]:%d",
               (int)state->placement[0],(int)state->placement[6],
               (int)state->placement[11]);
         }
@@ -853,15 +849,15 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         {
           state->registry_orient_received = true;
 
-          SNS_PRINTF(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          AK0991X_PRINT(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[0].ipaxis,
                  state->axis_map[0].opaxis, state->axis_map[0].invert);
 
-          SNS_PRINTF(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          AK0991X_PRINT(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[1].ipaxis, state->axis_map[1].opaxis,
                  state->axis_map[1].invert);
 
-          SNS_PRINTF(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          AK0991X_PRINT(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[2].ipaxis, state->axis_map[2].opaxis,
                  state->axis_map[2].invert);
         }
@@ -920,13 +916,13 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
             state->fac_cal_corr_mat.e22 = state->fac_cal_scale[2];
           }
 
-          //SNS_PRINTF(ERROR, this, "Fac Cal Corr Matrix e00:%f e01:%f e02:%f", state->fac_cal_corr_mat.e00,state->fac_cal_corr_mat.e01,
+          //AK0991X_PRINT(ERROR, this, "Fac Cal Corr Matrix e00:%f e01:%f e02:%f", state->fac_cal_corr_mat.e00,state->fac_cal_corr_mat.e01,
           //       state->fac_cal_corr_mat.e02);
-          //SNS_PRINTF(ERROR, this, "Fac Cal Corr Matrix e10:%f e11:%f e12:%f", state->fac_cal_corr_mat.e10,state->fac_cal_corr_mat.e11,
+          //AK0991X_PRINT(ERROR, this, "Fac Cal Corr Matrix e10:%f e11:%f e12:%f", state->fac_cal_corr_mat.e10,state->fac_cal_corr_mat.e11,
           //       state->fac_cal_corr_mat.e12);
-          //SNS_PRINTF(ERROR, this, "Fac Cal Corr Matrix e20:%f e21:%f e22:%f", state->fac_cal_corr_mat.e20,state->fac_cal_corr_mat.e21,
+          //AK0991X_PRINT(ERROR, this, "Fac Cal Corr Matrix e20:%f e21:%f e22:%f", state->fac_cal_corr_mat.e20,state->fac_cal_corr_mat.e21,
           //       state->fac_cal_corr_mat.e22);
-          //SNS_PRINTF(ERROR, this, "Fac Cal Bias x:%f y:%f z:%f", state->fac_cal_bias[0], state->fac_cal_bias[1],
+          //AK0991X_PRINT(ERROR, this, "Fac Cal Bias x:%f y:%f z:%f", state->fac_cal_bias[0], state->fac_cal_bias[1],
           //       state->fac_cal_bias[2]);
         }
       }
@@ -1057,7 +1053,7 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
   {
     if( state->hw_is_present )
     {
-      SNS_PRINTF(ERROR, this, "AK0991x HW Present. Publishing available");
+      AK0991X_PRINT(MED, this, "AK0991x HW Present. Publishing available");
       sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
       value.has_boolean = true;
       value.boolean = true;
@@ -1077,24 +1073,24 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
   {
     if( SUID_IS_NULL(&state->irq_suid) )
     {
-      SNS_PRINTF(ERROR, this, "AK0991x waiting for IRQ SUID" );
+      AK0991X_PRINT(LOW, this, "AK0991x waiting for IRQ SUID" );
     }
     if( SUID_IS_NULL(&state->acp_suid) )
     {
-      SNS_PRINTF(ERROR, this, "AK0991x waiting for ACP SUID" );
+      AK0991X_PRINT(LOW, this, "AK0991x waiting for ACP SUID" );
     }
     if( SUID_IS_NULL(&state->timer_suid) )
     {
-      SNS_PRINTF(ERROR, this, "AK0991x waiting for Timer SUID" );
+      AK0991X_PRINT(LOW, this, "AK0991x waiting for Timer SUID" );
     }
     if( SUID_IS_NULL(&state->dae_suid) )
     {
-      SNS_PRINTF(ERROR, this, "AK0991x waiting for DAE SUID" );
+      AK0991X_PRINT(LOW, this, "AK0991x waiting for DAE SUID" );
     }
 
     if( SUID_IS_NULL(&state->reg_suid) )
     {
-      SNS_PRINTF(ERROR, this, "AK0991x waiting for Reg SUID" );
+      AK0991X_PRINT(LOW, this, "AK0991x waiting for Reg SUID" );
     }
 
   }
@@ -1323,7 +1319,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   sns_sensor_event *event;
   sns_diag_service *diag = state->diag_service;
 
-  SNS_PRINTF(ERROR, this, "ak0991x_process_timer_events");
+  AK0991X_PRINT(LOW, this, "ak0991x_process_timer_events");
 
   if(NULL != state->timer_stream)
 
@@ -1348,80 +1344,81 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
             if (rv != SNS_RC_SUCCESS)
             {
-              SNS_PRINTF(ERROR, this, "Read WHO-AM-I error");
-              return rv;
+              AK0991X_PRINT(LOW, this, "Read WHO-AM-I error");
+              rv = SNS_RC_INVALID_LIBRARY_STATE;
             }
-
-            state->who_am_i = buffer[1] << 8 | buffer[0];
-
-            //Check AKM device ID
-            if (buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
+            else
             {
-              if (buffer[1] == AK09911_WHOAMI_DEV_ID)
+              state->who_am_i = buffer[1] << 8 | buffer[0];
+
+              //Check AKM device ID
+              if (buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
               {
-                state->device_select = AK09911;
-              }
-              else if (buffer[1] == AK09912_WHOAMI_DEV_ID)
-              {
-                state->device_select = AK09912;
-              }
-              else if (buffer[1] == AK09913_WHOAMI_DEV_ID)
-              {
-                state->device_select = AK09913;
-              }
-              else if ((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915C_SUB_ID))
-              {
-                state->device_select = AK09915C;
-              }
-              else if ((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915D_SUB_ID))
-              {
-                state->device_select = AK09915D;
-              }
-              else if (buffer[1] == AK09916C_WHOAMI_DEV_ID)
-              {
-                state->device_select = AK09916C;
-              }
-              else if (buffer[1] == AK09917_WHOAMI_DEV_ID)
-              {
-                state->device_select = AK09917;
-              }
-              else if (buffer[1] == AK09916D_WHOAMI_DEV_ID)
-              {
-                state->device_select = AK09916D;
-              }
-              else if (buffer[1] == AK09918_WHOAMI_DEV_ID)
-              {
-                state->device_select = AK09918;
+                if (buffer[1] == AK09911_WHOAMI_DEV_ID)
+                {
+                  state->device_select = AK09911;
+                }
+                else if (buffer[1] == AK09912_WHOAMI_DEV_ID)
+                {
+                  state->device_select = AK09912;
+                }
+                else if (buffer[1] == AK09913_WHOAMI_DEV_ID)
+                {
+                  state->device_select = AK09913;
+                }
+                else if ((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915C_SUB_ID))
+                {
+                  state->device_select = AK09915C;
+                }
+                else if ((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915D_SUB_ID))
+                {
+                  state->device_select = AK09915D;
+                }
+                else if (buffer[1] == AK09916C_WHOAMI_DEV_ID)
+                {
+                  state->device_select = AK09916C;
+                }
+                else if (buffer[1] == AK09917_WHOAMI_DEV_ID)
+                {
+                  state->device_select = AK09917;
+                }
+                else if (buffer[1] == AK09916D_WHOAMI_DEV_ID)
+                {
+                  state->device_select = AK09916D;
+                }
+                else if (buffer[1] == AK09918_WHOAMI_DEV_ID)
+                {
+                  state->device_select = AK09918;
+                }
+                else
+                {
+                  SNS_PRINTF(ERROR, this, "Unsupported Sensor");
+                  rv = SNS_RC_INVALID_STATE;
+                }
               }
               else
               {
                 SNS_PRINTF(ERROR, this, "Unsupported Sensor");
-                return SNS_RC_FAILED;
+                rv = SNS_RC_INVALID_STATE;
               }
             }
-            else
-            {
-              SNS_PRINTF(ERROR, this, "Unsupported Sensor");
-              return SNS_RC_FAILED;
-            }
-
-            // Set sensitivity adjustment data
-            rv = ak0991x_set_sstvt_adj(state->scp_service,
-                                       state->com_port_info.port_handle,
-                                       diag,
-                                       state->device_select,
-                                       &state->sstvt_adj[0]);
-
-            if (rv != SNS_RC_SUCCESS)
-            {
-              return rv;
-            }
-
-            // Reset Sensor
-            rv = ak0991x_device_sw_reset(NULL,
-                                         state->scp_service,
+            if (rv == SNS_RC_SUCCESS)
+            {               
+              // Set sensitivity adjustment data
+              rv = ak0991x_set_sstvt_adj(state->scp_service,
                                          state->com_port_info.port_handle,
-                                         diag);
+                                         diag,
+                                         state->device_select,
+                                         &state->sstvt_adj[0]);
+            }
+            if (rv == SNS_RC_SUCCESS)
+            {
+              // Reset Sensor
+              rv = ak0991x_device_sw_reset(NULL,
+                                           state->scp_service,
+                                           state->com_port_info.port_handle,
+                                           diag);
+            }
 
             if (rv == SNS_RC_SUCCESS)
             {
@@ -1435,7 +1432,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             state->scp_service->api->
               sns_scp_close(state->com_port_info.port_handle);
             state->scp_service->api->
-              sns_scp_deregister_com_port(state->com_port_info.port_handle);
+              sns_scp_deregister_com_port(&state->com_port_info.port_handle);
 
             /**----------------------Turn Power Rail OFF--------------------------*/
             state->rail_config.rail_vote = SNS_RAIL_OFF;
@@ -1447,13 +1444,12 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             {
               ak0991x_publish_hw_attributes(this,state->device_select);
               ak0991x_sensor_publish_available(this);
-              SNS_PRINTF(ERROR, this, "AK0991X HW present. device_select: %u",
+              AK0991X_PRINT(HIGH, this, "AK0991X HW present. device_select: %u",
                                        state->device_select);
             }
             else
             {
-              rv = SNS_RC_INVALID_STATE;
-              SNS_PRINTF(ERROR, this, "AK0991X HW absent");
+              AK0991X_PRINT(MED, this, "AK0991X HW absent");
             }
 
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
@@ -1463,17 +1459,17 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           {
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
 
-            SNS_PRINTF(ERROR, this, "state = SET_CLINET_REQ");
+            AK0991X_PRINT(LOW, this, "state = SET_CLINET_REQ");
 
             if (NULL != instance)
             {
-              SNS_PRINTF(ERROR, this, "state = SET_CLINET_REQ && instance is Not NULL");
+              AK0991X_PRINT(LOW, this, "state = SET_CLINET_REQ && instance is Not NULL");
               ak0991x_instance_state *inst_state =
                 (ak0991x_instance_state*) instance->state->state;
               ak0991x_reval_instance_config(this, instance);
               if(inst_state->new_self_test_request)
               {
-                SNS_PRINTF(ERROR, this, "new_self_test_request = true");
+                AK0991X_PRINT(LOW, this, "new_self_test_request = true");
                 ak0991x_set_self_test_inst_config(this, instance);
               }
             }
@@ -1485,11 +1481,12 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
         else
         {
           SNS_PRINTF(ERROR, this, "pb_decode error");
+          rv = SNS_RC_INVALID_STATE;
         }
       }
       else if( event->message_id != SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT )
       {
-        SNS_PRINTF(ERROR, this, "unexpected timer message");
+        AK0991X_PRINT(HIGH, this, "unexpected timer message");
       }
 
       event = state->timer_stream->api->get_next_input(state->timer_stream);
@@ -1549,7 +1546,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_time delta;
   bool reval_config = false;
 
-  SNS_PRINTF(ERROR, this, "ak0991x_set_client_request");
+  AK0991X_PRINT(HIGH, this, "ak0991x_set_client_request");
 
   if (remove)
   {
@@ -1607,11 +1604,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       else
       {
         // rail is already ON
-        SNS_PRINTF(ERROR, this, "rail is already ON");
+        AK0991X_PRINT(LOW, this, "rail is already ON");
         reval_config = true;
       }
 
-      SNS_PRINTF(ERROR, this, "Creating instance");
+      AK0991X_PRINT(LOW, this, "Creating instance");
 
       /** create_instance() calls init() for the Sensor Instance */
       instance = this->cb->create_instance(this,
@@ -1619,8 +1616,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     }
     else
     {
-      SNS_PRINTF(ERROR, this, "instance is NOT NULL");
-
       ak0991x_instance_state *inst_state =
         (ak0991x_instance_state *)instance->state->state;
 
@@ -1630,6 +1625,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           &&
           new_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
       {
+        ak0991x_instance_state *inst_state =
+          (ak0991x_instance_state *)instance->state->state;
 
         if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
         {
@@ -1647,7 +1644,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         // Keep the exist_request and Reject the incoming stream request.
         if (inst_state->new_self_test_request)
         {
-          SNS_PRINTF(ERROR, this, "self-test is still running. Keep the exist_request.");
+          AK0991X_PRINT(LOW, this, "self-test is still running. Keep the exist_request.");
+		  return NULL;
         }
         else
         {
@@ -1656,7 +1654,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           /** An existing client is changing request*/
           if ((NULL != exist_request) && (NULL != new_request))
           {
-            SNS_PRINTF(ERROR, this, "remove client request for changing request");
             instance->cb->remove_client_request(instance, exist_request);
           }
           /** A new client sent new_request*/
@@ -1672,32 +1669,27 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     if (NULL != instance)
     {
       ak0991x_instance_state *inst_state =
-       (ak0991x_instance_state *)instance->state->state;
+        (ak0991x_instance_state *)instance->state->state;
 
       // if the self-test is running,
       // Keep the exist_request and Reject the incoming stream request.
       if (inst_state->new_self_test_request)
       {
-        SNS_PRINTF(ERROR, this, "self-test is still running. Reject the incoming stream request.");
+        AK0991X_PRINT(LOW, this, "self-test is still running. Reject the incoming stream request.");
       }
       else
       {
-        SNS_PRINTF(ERROR, this, "Add the new request to list");
+        AK0991X_PRINT(LOW, this, "Add the new request to list");
 
         if (NULL != new_request)
         {
           instance->cb->add_client_request(instance, new_request);
-
-          SNS_PRINTF(ERROR, this, "message_id=%d",new_request->message_id);
-
-
           if(new_request->message_id ==
-              SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
+             SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
           {
             if(ak0991x_extract_self_test_info(this, instance, new_request))
             {
-              SNS_PRINTF(ERROR, this, "new_self_test_request = true");
-
+              AK0991X_PRINT(LOW, this, "new_self_test_request = true");
               inst_state->new_self_test_request = true;
               // if the sensor is streaming and there is a client request to run self-test,
               // avoid to reconfigure the settings by self-test.
@@ -1706,22 +1698,21 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                 ak0991x_set_self_test_inst_config(this, instance);
                 reval_config = false;
               }
-            }
-          }
-        }
-
-        if (reval_config)
-        {
-          SNS_PRINTF(ERROR, this, "reval_config = true");
-          ak0991x_reval_instance_config(this, instance);
-
-          if(inst_state->new_self_test_request)
-          {
-            ak0991x_set_self_test_inst_config(this, instance);
           }
         }
       }
+
+      if (reval_config)
+      {
+        ak0991x_reval_instance_config(this, instance);
+
+        if(inst_state->new_self_test_request)
+        {
+          ak0991x_set_self_test_inst_config(this, instance);
+        }
+      }
     }
+  }
   }
 
   // QC: Sensors are required to call remove_instance when clientless
@@ -1729,10 +1720,12 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
      NULL == instance->cb->
      get_client_request(instance, &(sns_sensor_uid)MAG_SUID, true))
   {
-    sns_sensor *sensor;
-    SNS_PRINTF(ERROR, this, "Removing instance");
+    //sns_sensor *sensor;
+    AK0991X_PRINT(LOW, this, "Removing instance");
     this->cb->remove_instance(instance);
 
+#if 0
+TODO: Causing QUP HW to go invalid state. Refer CR.
     for (sensor = this->cb->get_library_sensor(this, true);
          NULL != sensor;
          sensor = this->cb->get_library_sensor(this, false))
@@ -1749,6 +1742,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           NULL);
       }
     }
+#endif
   }
 
   return instance;
@@ -1760,7 +1754,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
   sns_rc           rv = SNS_RC_SUCCESS;
 
-  SNS_PRINTF(ERROR, this, "notify: remove_timer_stream=%d",state->remove_timer_stream);
+  AK0991X_PRINT(LOW, this, "notify: remove_timer_stream=%d",state->remove_timer_stream);
 
   ak0991x_process_suid_events(this);
   rv = ak0991x_process_registry_events(this);
@@ -1800,7 +1794,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
     stream_mgr->api->remove_stream(stream_mgr, state->timer_stream);
     state->timer_stream = NULL;
-    SNS_PRINTF(ERROR, this, "remove timer_stream");
+    AK0991X_PRINT(LOW, this, "remove timer_stream");
   }
 
   return rv;

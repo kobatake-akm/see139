@@ -32,7 +32,6 @@
 #include "pb_decode.h"
 #include "sns_pb_util.h"
 #include "sns_diag_service.h"
-#include "sns_printf.h"
 
 #ifndef SNS_MAX
 #define SNS_MAX(a,b) ({ __auto_type _a = (a);    \
@@ -209,7 +208,7 @@ static void process_response(
     switch(resp.msg_id)
     {
     case SNS_DAE_MSGID_SNS_DAE_SET_STATIC_CONFIG:
-      SNS_INST_PRINTF(LOW, this,"DAE_SET_STATIC_CONFIG");
+      AK0991X_INST_PRINT(LOW, this,"DAE_SET_STATIC_CONFIG");
       if(SNS_STD_ERROR_NO_ERROR != resp.err)
       {
         /* DAE sensor does not have support for this driver */
@@ -219,7 +218,7 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
       break;
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
-      SNS_INST_PRINTF(LOW, this,"DAE_SET_STREAMING_CONFIG");
+      AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG");
       if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
       {
         if(SNS_STD_ERROR_NO_ERROR == resp.err)
@@ -234,7 +233,7 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
-      SNS_INST_PRINTF(LOW, this,"DAE_FLUSH_HW");
+      AK0991X_INST_PRINT(LOW, this,"DAE_FLUSH_HW");
       dae_stream->flushing_hw = false;
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
@@ -250,7 +249,7 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
-      SNS_INST_PRINTF(LOW, this,"DAE_PAUSE_SAMPLING");
+      AK0991X_INST_PRINT(LOW, this,"DAE_PAUSE_SAMPLING");
       if(dae_stream->state == STREAM_STOPPING)
       {
         dae_stream->state = (SNS_STD_ERROR_NO_ERROR != resp.err) ? STREAMING : IDLE;
@@ -298,13 +297,13 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       }
       else if(SNS_DAE_MSGID_SNS_DAE_RESP == event->message_id)
       {
-        SNS_INST_PRINTF(LOW, this,"SNS_DAE_RESP");
+        AK0991X_INST_PRINT(LOW, this,"SNS_DAE_RESP");
         process_response(this, dae_stream, &pbstream);
       }
       else if(SNS_STD_MSGID_SNS_STD_ERROR_EVENT == event->message_id)
       {
         dae_stream->stream_usable = false;
-        SNS_INST_PRINTF(LOW, this,"SNS_STD_ERROR_EVENT");
+        AK0991X_INST_PRINT(LOW, this,"SNS_STD_ERROR_EVENT");
       }
       else
       {
@@ -352,7 +351,7 @@ sns_rc ak0991x_dae_if_init(
   sns_sensor_uid       *dae_suid,
   sns_sensor_uid const *parent_suid)
 {
-  SNS_INST_PRINTF(LOW, this,"line=%d dae_if_init",__LINE__);
+  AK0991X_INST_PRINT(LOW, this,"line=%d dae_if_init",__LINE__);
   sns_rc rc = SNS_RC_NOT_AVAILABLE;
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info* dae_if = &state->dae_if;
@@ -455,7 +454,7 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
   if(stream_usable(&state->dae_if.mag) &&
      (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
   {
-    SNS_INST_PRINTF(LOW, this,"Mag stream=0x%x", &dae_if->mag.stream);
+    AK0991X_INST_PRINT(LOW, this,"Mag stream=0x%x", &dae_if->mag.stream);
     cmd_sent |= stop_streaming(&dae_if->mag);
   }
 

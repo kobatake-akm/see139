@@ -94,15 +94,15 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     value.has_sint = true;
     value.sint = state->encoded_event_len;
     sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, true);
+        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, false);
   }
-//  {
-//    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-//    value.has_boolean = true;
-//    value.boolean = true;
-//    sns_publish_attribute(
-//        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, true);
-//  }
+  {
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.has_boolean = true;
+    value.boolean = true;
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, true);
+  }
 }
 
 
@@ -122,6 +122,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 
   SNS_PRINTF(LOW, this, "ak0991x: init");
 
+  state->hw_is_present = false;
   state->sensor_client_present = false;
 
   sns_memscpy(&state->my_suid,

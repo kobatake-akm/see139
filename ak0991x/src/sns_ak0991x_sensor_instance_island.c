@@ -37,7 +37,6 @@
 #include "sns_diag_service.h"
 #include "sns_sync_com_port_service.h"
 #include "sns_diag.pb.h"
-#include "sns_printf.h"
 
 extern log_sensor_state_raw_info log_mag_state_raw_info;
 
@@ -81,8 +80,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event    *event;
   sns_diag_service    *diag = state->diag_service;
 
-  SNS_INST_PRINTF(ERROR, this, "ak0991x_inst_notify_event");
-
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
@@ -115,12 +112,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
           if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
           {
-            SNS_INST_PRINTF(ERROR, this, "handle interrupt event for fifo wmk<2");
+            AK0991X_INST_PRINT(LOW, this, "handle interrupt event for fifo wmk<2");
             ak0991x_flush_fifo(this);
           }
           else
           {
-            SNS_INST_PRINTF(ERROR, this, "handle interrupt event");
+            AK0991X_INST_PRINT(LOW, this, "handle interrupt event");
             ak0991x_handle_interrupt_event(this);
           }
 
@@ -145,7 +142,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     {
       if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)
       {
-        SNS_INST_PRINTF(ERROR, this, "Received ASCP error event id=%d",
+        AK0991X_INST_PRINT(LOW, this, "Received ASCP error event id=%d",
                                       event->message_id);
       }
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
@@ -158,7 +155,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 
-        SNS_INST_PRINTF(ERROR, this, "handle ASCP event");
+        AK0991X_INST_PRINT(LOW, this, "handle ASCP event");
 
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
 
@@ -185,12 +182,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
         {
-          SNS_INST_PRINTF(ERROR, this, "Received config id=%d",
+          AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
                                         event->message_id);
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
-          SNS_INST_PRINTF(ERROR, this, "Execute handle timer event");
+         //SNS_INST_PRINTF(ERROR, this, "Execute handle timer event");
           ak0991x_handle_timer_event(this);
         }
       }

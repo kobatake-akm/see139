@@ -21,6 +21,7 @@
 #include "sns_sync_com_port_service.h"
 #include "sns_time.h"
 #include <stdint.h>
+#include "sns_printf.h"
 
 #include "sns_diag_service.h"
 #include "sns_interrupt.pb.h"
@@ -43,6 +44,22 @@ sns_sensor_instance_api ak0991x_sensor_instance_api;
 #define AK0991X_MAX_NUM_REP_MODE    3
 #define AK0991X_MAX_NUM_OPE_MODE    3
 #define AK0991X_MAX_NUM_ODR         6
+
+// Enable below macro to enable debug messages
+//#define AK0991X_ENABLE_DEBUG_MSG
+
+#ifdef AK0991X_ENABLE_DEBUG_MSG
+#define AK0991X_PRINT(prio, sensor, ...) do { \
+  SNS_PRINTF(prio, sensor, __VA_ARGS__); \
+} while (0)
+
+#define AK0991X_INST_PRINT(prio, inst, ...) do { \
+  SNS_INST_PRINTF(prio, inst , __VA_ARGS__); \
+} while (0)
+#else // AK0991X_ENABLE_DEBUG_MSG
+#define AK0991X_PRINT(prio,...)
+#define AK0991X_INST_PRINT(prio,...)
+#endif // AK0991X_ENABLE_DEBUG_MSG
 
 /** Supported AKM Devices */
 typedef enum
