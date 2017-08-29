@@ -28,7 +28,7 @@ if 'SNS_ISLAND_INCLUDE_AK0991X' in env:
   ak0991x_island_enable = True
 
 if 'USES_SSC_STATIC_LIB_BUILDER' in env:
-  if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']) and ('SENSORS_DD_DEV_FLAG' not in env):
+  if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):
     env.AddSSCSU(inspect.getfile(inspect.currentframe()),
                register_func_name = "sns_register_ak0991x",
                binary_lib = False,

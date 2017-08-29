@@ -129,6 +129,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           {
             SNS_INST_PRINTF(ERROR, this, "Interrupt event detected. But ST1:DRDY bit is 0. Wrong detection.");
           }
+        }
       }
       else
       {
