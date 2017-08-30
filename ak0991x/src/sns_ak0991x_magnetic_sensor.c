@@ -120,7 +120,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 
   ak0991x_publish_default_attributes(this);
 
-  SNS_PRINTF(LOW, this, "ak0991x: init");
+  AK0991X_PRINT(LOW, this, "ak0991x: init");
 
   state->hw_is_present = false;
   state->sensor_client_present = false;

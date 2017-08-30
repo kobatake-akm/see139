@@ -307,7 +307,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       }
       else
       {
-        SNS_INST_PRINTF(ERROR, this,"Unexpected message id %u", event->message_id);
+        AK0991X_INST_PRINT(ERROR, this,"Unexpected message id %u", event->message_id);
       }
     }
     event = dae_stream->stream->api->get_next_input(dae_stream->stream);

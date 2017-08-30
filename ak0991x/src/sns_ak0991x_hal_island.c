@@ -1241,7 +1241,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   	lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]);
   }
 
-  SNS_INST_PRINTF(ERROR, instance, "Mag[LSB] %d,%d,%d",
+  AK0991X_INST_PRINT(ERROR, instance, "Mag[LSB] %d,%d,%d",
   		(int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]),
 			(int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]),
 			(int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]));
@@ -1395,7 +1395,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
       }
 
 //      sns_time sys_time = sns_get_system_time();
-//      SNS_INST_PRINTF(ERROR, instance, "sys_time %d",
+//      AK0991X_INST_PRINT(ERROR, instance, "sys_time %d",
 //      		(uint32_t)sys_time);
 
       ak0991x_handle_mag_sample(&vector->buffer[i],
@@ -2033,7 +2033,7 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     }
     else
     {
-      SNS_INST_PRINTF(ERROR, this, "Fail to send request to Timer Sensor");
+      AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
     }
   }
   else

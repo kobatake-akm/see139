@@ -111,29 +111,29 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           if(state->irq_info.detect_irq_event && (state->interrupt_timestamp != irq_event.timestamp) )
           {
             state->interrupt_timestamp = irq_event.timestamp;
-            SNS_INST_PRINTF(ERROR, this, "ts_now %d", (uint32_t)state->interrupt_timestamp);
+            AK0991X_INST_PRINT(ERROR, this, "ts_now %d", (uint32_t)state->interrupt_timestamp);
 
             if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
             {
-              SNS_INST_PRINTF(ERROR, this, "handle interrupt event for fifo wmk<2");
+              AK0991X_INST_PRINT(ERROR, this, "handle interrupt event for fifo wmk<2");
               ak0991x_flush_fifo(this);
             }
             else
             {
-              SNS_INST_PRINTF(ERROR, this, "handle interrupt event");
+              AK0991X_INST_PRINT(ERROR, this, "handle interrupt event");
               ak0991x_handle_interrupt_event(this);
             }
             state->irq_info.detect_irq_event = false;
           }
           else
           {
-            SNS_INST_PRINTF(ERROR, this, "Interrupt event detected. But ST1:DRDY bit is 0. Wrong detection.");
+            AK0991X_INST_PRINT(ERROR, this, "Interrupt event detected. But ST1:DRDY bit is 0. Wrong detection.");
           }
         }
       }
       else
       {
-        SNS_INST_PRINTF(ERROR, this, "Received invalid event id=%d",
+        AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d",
                                       event->message_id);
       }
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
@@ -194,13 +194,13 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
-         //SNS_INST_PRINTF(ERROR, this, "Execute handle timer event");
+         //AK0991X_INST_PRINT(ERROR, this, "Execute handle timer event");
           ak0991x_handle_timer_event(this);
         }
       }
       else
       {
-        SNS_INST_PRINTF(ERROR, this, "Received invalid event id=%d",
+        AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d",
                                       event->message_id);
       }
 
