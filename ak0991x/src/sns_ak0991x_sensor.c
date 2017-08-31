@@ -197,7 +197,7 @@ static bool ak0991x_get_decoded_mag_request(sns_sensor const *this,
 
   if (!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-    AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+  	SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
 
@@ -1253,7 +1253,7 @@ static bool ak0991x_get_decoded_self_test_request(sns_sensor const *this,
                                   request->request_len);
   if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-    AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+  	SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
   return true;

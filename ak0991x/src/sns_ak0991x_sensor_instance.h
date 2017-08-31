@@ -46,7 +46,7 @@ sns_sensor_instance_api ak0991x_sensor_instance_api;
 #define AK0991X_MAX_NUM_ODR         6
 
 // Enable below macro to enable debug messages
-#define AK0991X_ENABLE_DEBUG_MSG
+//#define AK0991X_ENABLE_DEBUG_MSG
 
 #ifdef AK0991X_ENABLE_DEBUG_MSG
 #define AK0991X_PRINT(prio, sensor, ...) do { \
