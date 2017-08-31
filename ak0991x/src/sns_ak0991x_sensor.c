@@ -197,7 +197,7 @@ static bool ak0991x_get_decoded_mag_request(sns_sensor const *this,
 
   if (!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-    SNS_PRINTF(ERROR, this, "AK0991X decode error");
+  	SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
 
@@ -402,7 +402,7 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   }
   else
   {
-    SNS_PRINTF(ERROR, this, "AK0991x timer req encode error");
+    AK0991X_PRINT(ERROR, this, "AK0991x timer req encode error");
   }
 }
 
@@ -489,7 +489,7 @@ static void ak0991x_process_suid_events(sns_sensor *const this)
       suid_event.suid.arg = &suid_search;
 
       if(!pb_decode(&stream, sns_suid_event_fields, &suid_event)) {
-         SNS_PRINTF(ERROR, this, "SUID Decode failed");
+         AK0991X_PRINT(ERROR, this, "SUID Decode failed");
          continue;
        }
 
@@ -518,7 +518,7 @@ static void ak0991x_process_suid_events(sns_sensor *const this)
           state->remove_timer_stream = false;
           if(NULL == state->timer_stream)
           {
-            SNS_PRINTF(ERROR, this, __FILENAME__, __LINE__,
+            AK0991X_PRINT(ERROR, this, __FILENAME__, __LINE__,
                       "Failed to create timer stream");
           }
         }
@@ -541,13 +541,13 @@ static void ak0991x_process_suid_events(sns_sensor *const this)
           }
           else
           {
-            SNS_PRINTF(ERROR, this, "Failed to create registry stream");
+            AK0991X_PRINT(ERROR, this, "Failed to create registry stream");
           }
         }
       }
       else
       {
-        SNS_PRINTF(ERROR, this, "unexpected datatype_name");
+        AK0991X_PRINT(ERROR, this, "unexpected datatype_name");
       }
     }
   }
@@ -620,7 +620,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
     if(!pb_decode(&stream, sns_registry_read_event_fields, &read_event))
     {
-      SNS_PRINTF(ERROR, this, "Error decoding registry event");
+      AK0991X_PRINT(ERROR, this, "Error decoding registry event");
     }
     else
     {
@@ -779,7 +779,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
             }
             else
             {
-              SNS_PRINTF(ERROR, this, "sns_scp_register_com_port fail rc:%u",rc);
+              AK0991X_PRINT(ERROR, this, "sns_scp_register_com_port fail rc:%u",rc);
             }
           }
 
@@ -939,7 +939,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   }
   else
   {
-    SNS_PRINTF(ERROR, this, "Received unsupported registry event msg id %u",
+    AK0991X_PRINT(ERROR, this, "Received unsupported registry event msg id %u",
                              event->message_id);
   }
 }
@@ -1253,7 +1253,7 @@ static bool ak0991x_get_decoded_self_test_request(sns_sensor const *this,
                                   request->request_len);
   if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-    SNS_PRINTF(ERROR, this, "AK0991X decode error");
+  	SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
   return true;
@@ -1392,13 +1392,13 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 }
                 else
                 {
-                  SNS_PRINTF(ERROR, this, "Unsupported Sensor");
+                  AK0991X_PRINT(ERROR, this, "Unsupported Sensor");
                   rv = SNS_RC_INVALID_STATE;
                 }
               }
               else
               {
-                SNS_PRINTF(ERROR, this, "Unsupported Sensor");
+                AK0991X_PRINT(ERROR, this, "Unsupported Sensor");
                 rv = SNS_RC_INVALID_STATE;
               }
             }
@@ -1480,7 +1480,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
         }
         else
         {
-          SNS_PRINTF(ERROR, this, "pb_decode error");
+          AK0991X_PRINT(ERROR, this, "pb_decode error");
           rv = SNS_RC_INVALID_STATE;
         }
       }
