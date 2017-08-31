@@ -143,6 +143,10 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &sensor_state->device_select,
               sizeof(sensor_state->device_select));
   state->mag_info.cur_wmk = 0;
+  state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+  state->mag_info.s4s_t_ph       = 0;
+  state->mag_info.s4s_rr         = 0;
+  state->mag_info.s4s_dt_abort   = false;
 
   switch (state->mag_info.device_select)
   {
@@ -153,6 +157,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = false;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.use_sync_stream = false;
     break;
 
   case AK09912:
@@ -162,6 +167,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = 0;
+    state->mag_info.use_sync_stream = false;
     break;
 
   case AK09913:
@@ -171,6 +177,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = false;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.use_sync_stream = false;
     break;
 
   case AK09915C:
@@ -181,6 +188,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.use_sync_stream = sensor_state->supports_sync_stream;
     break;
 
   case AK09916C:
@@ -190,6 +198,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = false;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.use_sync_stream = false;
     break;
 
   case AK09916D:
@@ -199,6 +208,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.use_sync_stream = false;
     break;
 
   case AK09917:
@@ -208,6 +218,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.use_sync_stream = sensor_state->supports_sync_stream;
     break;
 
   case AK09918:
@@ -217,6 +228,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = false;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.use_sync_stream = false;
     break;
 
   default:
@@ -429,7 +441,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       ak0991x_register_interrupt(this);
     }
-
+    // TODO
+    else if(state->mag_info.use_sync_stream)
+    {
+      ak0991x_register_interrupt(this);
+    }
 
     if (desired_report_rate > desired_sample_rate)
     {
@@ -537,7 +553,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this);
-        AK0991X_INST_PRINT(LOW, this, "done register_timer");
+        AK0991X_INST_PRINT(ERROR, this, "done register_timer");
+        //if (state->mag_info.use_sync_stream)
+        //{
+        //  ak0991x_register_s4s_timer(this);
+        //  AK0991X_INST_PRINT(ERROR, this, "done register_s4s_timer");
+        //}
       }
 
       //ak0991x_dae_if_start_streaming(this);

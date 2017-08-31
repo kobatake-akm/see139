@@ -184,8 +184,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
                                                    event->event_len);
       sns_timer_sensor_event timer_event;
+      //sns_timer_sensor_reg_event timer_reg_event;
 
       if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
+      //if (pb_decode(&stream, sns_timer_sensor_reg_event_fields, &timer_reg_event))
       {
         if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
         {
@@ -194,8 +196,16 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
-         //AK0991X_INST_PRINT(ERROR, this, "Execute handle timer event");
+          AK0991X_INST_PRINT(ERROR, this, "Execute handle timer event");
           ak0991x_handle_timer_event(this);
+        }
+        else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
+        {
+          if(state->mag_info.use_sync_stream)
+          {
+            AK0991X_INST_PRINT(ERROR, this, "Execute handle tiemr s4s reg event");
+            ak0991x_handle_s4s_timer_event(this);
+          }
         }
       }
       else

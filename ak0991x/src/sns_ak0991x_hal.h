@@ -74,6 +74,11 @@ typedef enum
 #define AKM_AK0991X_FUSE_ASAY                       (0x61)
 #define AKM_AK0991X_FUSE_ASAZ                       (0x62)
 
+#define AKM_AK0991X_REG_TPH1                        (0xC0)
+#define AKM_AK0991X_REG_TPH2                        (0xC1)
+#define AKM_AK0991X_REG_RR                          (0xC2)
+#define AKM_AK0991X_REG_SYT                         (0xC3)
+#define AKM_AK0991X_REG_DT                          (0xC4)
 /** AK0991X number of data types*/
 #define AK0991X_NUM_READ_DEV_ID                     4
 #define AK0991X_NUM_SENSITIVITY                     3
@@ -130,6 +135,8 @@ typedef enum
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us
 #define AK09918_TIME_FOR_MEASURE_US                 8200 //us
 
+/** s4s interval time */
+#define AK0991X_S4S_INTERVAL_MS                     1000 //ms
 /** Limit of factory shipment test */
 #define TLIMIT_NO_READ_ID                           0x001
 #define TLIMIT_NO_INVALID_ID                        0x002
@@ -431,6 +438,16 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance);
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
 
 /**
+ * Handle a timer for s4s to synchronize by SYT and DT command.
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ * @param instance                 Sensor Instance
+ */
+sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance);
+
+/**
  * Handle an timer by reading the register and sending out
  * appropriate requests to the asynchronous com port sensor to read the data.
  *
@@ -526,6 +543,12 @@ void ak0991x_register_interrupt(sns_sensor_instance *this);
  *
  */
 void ak0991x_register_timer(sns_sensor_instance *this);
+
+/**
+ * Enable timer for s4s
+ *
+ */
+void ak0991x_register_s4s_timer(sns_sensor_instance *this);
 
 
 /**

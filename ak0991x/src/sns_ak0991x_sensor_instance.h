@@ -46,7 +46,7 @@ sns_sensor_instance_api ak0991x_sensor_instance_api;
 #define AK0991X_MAX_NUM_ODR         6
 
 // Enable below macro to enable debug messages
-//#define AK0991X_ENABLE_DEBUG_MSG
+#define AK0991X_ENABLE_DEBUG_MSG
 
 #ifdef AK0991X_ENABLE_DEBUG_MSG
 #define AK0991X_PRINT(prio, sensor, ...) do { \
@@ -120,6 +120,13 @@ typedef enum
   AK0991X_CONFIG_UPDATING_HW        /** updating sensor HW, when done goes back to IDLE */
 } ak0991x_config_step;
 
+typedef enum
+{
+  AK0991X_S4S_NOT_SYNCED,
+  AK0991X_S4S_SYNCING,
+  AK0991X_S4S_1ST_SYNCED,
+  AK0991X_S4S_SYNCED
+} ak0991x_s4s_state;
 typedef struct ak0991x_self_test_info
 {
   sns_physical_sensor_test_type test_type;
@@ -143,6 +150,11 @@ typedef struct ak0991x_mag_info
   uint8_t        sdr;
   sns_sensor_uid suid;
   ak0991x_self_test_info test_info;
+  bool                   use_sync_stream;
+  ak0991x_s4s_state      s4s_sync_state;
+  uint16_t               s4s_t_ph;
+  uint8_t                s4s_rr;
+  bool                   s4s_dt_abort;
 } ak0991x_mag_info;
 
 typedef struct ak0991x_irq_info
