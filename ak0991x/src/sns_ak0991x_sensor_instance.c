@@ -442,10 +442,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       ak0991x_register_interrupt(this);
     }
     // TODO
-    else if(state->mag_info.use_sync_stream)
-    {
-      ak0991x_register_interrupt(this);
-    }
+    //else if(state->mag_info.use_sync_stream)
+    //{
+    //  ak0991x_register_interrupt(this);
+    //}
 
     if (desired_report_rate > desired_sample_rate)
     {

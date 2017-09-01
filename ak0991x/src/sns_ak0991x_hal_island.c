@@ -1648,15 +1648,13 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
 
   AK0991X_INST_PRINT(ERROR, instance, "handle s4s_timer event");
 
+  //TODO
   sns_time t_ph_time = sns_get_system_time();
   sns_time i2c_start_time;
   uint8_t  buffer;
   uint16_t dt_count;
   sns_rc rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
-
-  // TODO wait 3ms
-  //sns_busy_wait(sns_convert_ns_to_ticks(3 * 1000 * 1000));
 
   buffer = 0;
   // Send a ST command
@@ -1751,6 +1749,11 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
     // TODO?: if ODR by S4S is changed, report current ODR to client?
 
   }
+  else if (state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED)
+  {
+    state->mag_info.s4s_sync_state = AK0991X_S4S_2ND_SYNCED;
+    AK0991X_INST_PRINT(ERROR, instance, "S4S 2nd synced");
+  } 
   else
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCED;
@@ -1759,6 +1762,7 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
 
   return rv;
 }
+
 sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state =
@@ -2173,15 +2177,16 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     req_payload.is_periodic = true;
     req_payload.start_time = sns_get_system_time();
     req_payload.has_is_dry_run = true;
-    req_payload.is_dry_run = true;//false;//state->mag_info.use_sync_stream ? true : false;
+    req_payload.is_dry_run = false;//state->mag_info.use_sync_stream ? true : false;
     req_payload.has_priority = true;
 
-    if (state->mag_info.use_sync_stream)
-    {
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
-          AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
-    }
+//    if (state->mag_info.use_sync_stream)
+//    {
+//      req_payload.timeout_period = sns_convert_ns_to_ticks(
+//          AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+//      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
+//    }
+//    else if (state->mag_info.use_fifo)
     if (state->mag_info.use_fifo)
     {
       req_payload.timeout_period = sns_convert_ns_to_ticks(
@@ -2249,30 +2254,53 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
     }
 
     sns_request             timer_req;
+    //sns_timer_sensor_reg_event req_payload = sns_timer_sensor_reg_event_init_default;
     sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
     size_t                  req_len;
     uint8_t                 buffer[20] = {0};
-    req_payload.is_periodic = true;
     req_payload.start_time = sns_get_system_time();
     req_payload.has_is_dry_run = true;
-    req_payload.is_dry_run = true;
     req_payload.has_priority = true;
-    req_payload.priority = SNS_TIMER_PRIORITY_S4S;
 
-    req_payload.timeout_period = sns_convert_ns_to_ticks(
+    if((state->mag_info.s4s_sync_state == AK0991X_S4S_2ND_SYNCED)
+     || (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED))
+    {
+      req_payload.is_periodic = true;
+      req_payload.is_dry_run = false;
+      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      if (state->mag_info.use_fifo)
+      {
+        //TODO
+        req_payload.timeout_period = sns_convert_ns_to_ticks(
+            1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
+      }
+      else
+      {
+        req_payload.timeout_period = sns_convert_ns_to_ticks(
+           ((AK0991X_S4S_INTERVAL_MS / 1000.f) / (float)state->mag_info.s4s_t_ph) * 1000 * 1000 * 1000);
+      }
+    }
+    else
+    {
+      req_payload.is_periodic = true;
+      req_payload.is_dry_run = false;
+      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
+      req_payload.timeout_period = sns_convert_ns_to_ticks(
         AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-
+    }
+ 
     AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
                                 &req_payload,
+                                //sns_timer_sensor_reg_event_fields,
                                 sns_timer_sensor_config_fields,
                                 NULL);
 
     if (req_len > 0)
     {
-      timer_req.message_id =  SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT;
+      timer_req.message_id =  SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
       timer_req.request_len = req_len;
       timer_req.request = buffer;
 

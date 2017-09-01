@@ -198,6 +198,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           AK0991X_INST_PRINT(ERROR, this, "Execute handle timer event");
           ak0991x_handle_timer_event(this);
+          if(state->mag_info.s4s_sync_state != AK0991X_S4S_SYNCED)
+          {
+            ak0991x_register_s4s_timer(this);
+          }
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
         {
@@ -205,7 +209,15 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           {
             AK0991X_INST_PRINT(ERROR, this, "Execute handle tiemr s4s reg event");
             ak0991x_handle_s4s_timer_event(this);
+            //if(state->mag_info.s4s_sync_state != AK0991X_S4S_SYNCED)
+            //{
+            //  ak0991x_register_s4s_timer(this);
+            //}
           }
+        }
+        else
+        {
+          AK0991X_INST_PRINT(ERROR, this, "handle timer ERROR s4s");
         }
       }
       else
