@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/01/17     010012     AKM              1st Support S4S.
+ * 08/25/17     010011     Qualcomm         Work on OpenSSC v5.0.5.
  * 08/10/17     010010     AKM              Modify for prevention of duplicate interrupts using DRDY bit status and timestamp.
  * 08/07/17     010009     AKM              Modify for prevention of duplicate interrupts using DRDY bit status.
  * 08/04/17     010008     AKM              Modify for prevention of duplicate interrupts.
@@ -44,4 +46,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10010  // major:01 minor:00 revision:10
+#define AK0991X_DRIVER_VERSION 10012  // major:01 minor:00 revision:12
