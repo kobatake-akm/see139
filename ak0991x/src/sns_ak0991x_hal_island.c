@@ -504,7 +504,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   {
     uint8_t buf_s4s[3];
 
-    //TODO
+    //TODO: How does the driver know T_PH and RR?
     state->mag_info.s4s_t_ph = 40;//40Hz
     state->mag_info.s4s_rr = 1;// 0=1/2048,1=1/4096
 
@@ -1648,7 +1648,7 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
 
   AK0991X_INST_PRINT(ERROR, instance, "handle s4s_timer event");
 
-  //TODO
+  //TODO: How does the driver know every timestamp of T_ph start controlled by client?
   sns_time t_ph_time = sns_get_system_time();
   sns_time i2c_start_time;
   uint8_t  buffer;
@@ -2006,6 +2006,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config.stream_is_synchronous = 
       (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
+    //TODO: What value should be set?
+    phy_sensor_config.sync_ts_anchor = sns_get_system_time();
     break;
 
   case AK09915D:
@@ -2031,6 +2033,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config.stream_is_synchronous =
       (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
+    //TODO: What value should be set?
+    phy_sensor_config.sync_ts_anchor = sns_get_system_time();
     break;
 
   case AK09916C:
@@ -2086,7 +2090,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config.stream_is_synchronous =
       (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    //TODO
+    //TODO: What value should be set?
     phy_sensor_config.sync_ts_anchor = sns_get_system_time();
     break;
 
@@ -2270,7 +2274,7 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
       req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
       if (state->mag_info.use_fifo)
       {
-        //TODO
+        //TODO : finally, need to change the period based on T_PH 
         req_payload.timeout_period = sns_convert_ns_to_ticks(
             1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
       }
