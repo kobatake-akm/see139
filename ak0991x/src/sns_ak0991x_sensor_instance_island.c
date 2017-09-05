@@ -107,12 +107,16 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         if (pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
           // Add setting for timestamp in case of flush event caused by irq trigger
-          state->irq_info.detect_irq_event = ak0991x_is_drdy(this);
-          if(state->irq_info.detect_irq_event && (state->interrupt_timestamp != irq_event.timestamp) )
-          {
-            state->interrupt_timestamp = irq_event.timestamp;
-            AK0991X_INST_PRINT(ERROR, this, "ts_now %d", (uint32_t)state->interrupt_timestamp);
+//          state->irq_info.detect_irq_event = ak0991x_is_drdy(this);
+//          if(state->irq_info.detect_irq_event && (state->interrupt_timestamp != irq_event.timestamp) )
+//          {
+          AK0991X_INST_PRINT(ERROR, this, "irq_event_time %d", (uint32_t)irq_event.timestamp);
+          AK0991X_INST_PRINT(ERROR, this, "use_dri=%d, cur_wmk=%d", state->mag_info.use_dri, state->mag_info.cur_wmk);
+          AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
 
+            // check and set timestamp
+            ak0991x_validate_timestamp(this, irq_event.timestamp);
+            //            if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk > 1))	// should be this???
             if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
             {
               AK0991X_INST_PRINT(ERROR, this, "handle interrupt event for fifo wmk<2");
@@ -124,11 +128,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               ak0991x_handle_interrupt_event(this);
             }
             state->irq_info.detect_irq_event = false;
-          }
-          else
-          {
-            AK0991X_INST_PRINT(ERROR, this, "Interrupt event detected. But ST1:DRDY bit is 0. Wrong detection.");
-          }
+//          }
+//          else
+//          {
+//            AK0991X_INST_PRINT(ERROR, this, "Interrupt event detected. But ST1:DRDY bit is 0. Wrong detection.");
+//          }
         }
       }
       else
@@ -137,6 +141,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                                       event->message_id);
       }
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
+      while (NULL != event){
+      	event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
+        AK0991X_INST_PRINT(ERROR, this, "more event on %d", (uint32_t)state->interrupt_timestamp);
+      }
     }
   }
 
@@ -197,6 +205,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
           AK0991X_INST_PRINT(ERROR, this, "Execute handle timer event");
+          AK0991X_INST_PRINT(ERROR, this, "use_dri=%d, cur_wmk=%d", state->mag_info.use_dri, state->mag_info.cur_wmk);
+          AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
           ak0991x_handle_timer_event(this);
           if(state->mag_info.s4s_sync_state != AK0991X_S4S_SYNCED)
           {

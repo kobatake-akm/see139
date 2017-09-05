@@ -188,6 +188,7 @@ typedef struct ak0991x_instance_state
   uint8_t  num_samples;
   sns_time pre_timestamp;
   bool     this_is_first_data;
+  sns_time averaged_interval;
 
   /** Timer info */
   sns_sensor_uid timer_suid;

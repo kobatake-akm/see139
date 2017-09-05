@@ -413,10 +413,18 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                      void *user_arg);
 
 /**
+ * Validate timestamp
+ *
+ * @param instance                 Sensor Instance
+ * @param irq_time                 interrupt timestamp passed by the framework
+ */
+void ak0991x_validate_timestamp(sns_sensor_instance *instance, sns_time irq_time);
+
+/**
  * Check the drdy bit
  *
  * @param instance                 Sensor Instance
-*
+ *
  * @return false: no data ready, true: data is ready
  */
 bool ak0991x_is_drdy(sns_sensor_instance *const instance);
