@@ -92,6 +92,36 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
       dae_stream->state = STREAM_STARTING;
     }
   }
+ 
+  sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
+  uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
+  sns_request s4s_req = {
+    .message_id  = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
+    .request     = s4s_encoded_msg,
+    .request_len = 0
+  };
+
+  //TODO: Is this T_Ph start moment at the first time? or for each T_Ph start moment(<-how can the driver get?)?
+  s4s_config_req.ideal_sync_offset = sns_get_system_time();
+  s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+  //TODO: Who set this value?
+  s4s_config_req.resolution_ratio = 1; //1 = 1/4096, 0 = 1/2048
+  //TODO: Is this minimum time between T_PH start and ST/DT? or I2C communication time during ST/DT?
+  s4s_config_req.st_delay = 0;
+
+  if((s4s_req.request_len =
+      pb_encode_request(s4s_encoded_msg,
+                        sizeof(s4s_encoded_msg),
+                        &s4s_config_req,
+                        sns_dae_s4s_dynamic_config_fields,
+                        NULL)) > 0)
+  {
+    //TODO: How can the driver send the request for syncronization periodically?
+    if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
+    {
+    }
+  }
+
   return cmd_sent;
 }
 
@@ -216,6 +246,11 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
+      //Send ST/DT command
+      ak0991x_handle_s4s_timer_event(this);
+
+      //Update the config about the stream_is_synchronous = true or false
+      ak0991x_send_config_event(this);
       break;
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
       AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG");
@@ -266,6 +301,9 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED:
+      state->mag_info.s4s_dt_abort = true;
+      ak0991x_handle_s4s_timer_event(this);
+      state->mag_info.s4s_dt_abort = false;
       break;
 
     case SNS_DAE_MSGID_SNS_DAE_RESP:
@@ -397,7 +435,10 @@ sns_rc ak0991x_dae_if_init(
     config_req.has_irq_config         = false;
 #endif /* AK0991X_DAE_FORCE_POLLING */
     config_req.irq_config             = state->irq_info.irq_config;
-    config_req.has_s4s_config         = false;
+    config_req.has_s4s_config         = state->mag_info.use_sync_stream;
+    config_req.s4s_config.st_reg_addr = AKM_AK0991X_REG_SYT;
+    config_req.s4s_config.st_reg_data = 0;
+    config_req.s4s_config.dt_reg_addr = AKM_AK0991X_REG_DT;
     config_req.ascp_config            = state->ascp_config;
     config_req.has_accel_info         = false;
 
