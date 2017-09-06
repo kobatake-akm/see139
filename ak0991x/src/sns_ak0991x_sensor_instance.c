@@ -535,6 +535,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       // care the FIFO buffer if enabled FIFO
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
+        AK0991X_INST_PRINT(ERROR, this, "flush_fifo called.");
         ak0991x_flush_fifo(this);
         if (state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
         {
@@ -588,6 +589,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->fifo_flush_in_progress = true;
     if(!ak0991x_dae_if_flush_samples(this))
     {
+      AK0991X_INST_PRINT(ERROR, this, "flush_fifo called.");
       ak0991x_flush_fifo(this);
       state->this_is_first_data = true;
       ak0991x_send_fifo_flush_done(this);
@@ -615,6 +617,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         // care the FIFO buffer if enabled FIFO
         if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
         {
+          AK0991X_INST_PRINT(ERROR, this, "flush_fifo called.");
           ak0991x_flush_fifo(this);
           state->this_is_first_data = true;
         }

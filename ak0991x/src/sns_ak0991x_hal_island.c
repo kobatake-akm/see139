@@ -1462,9 +1462,14 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
 }
 
 
-void ak0991x_validate_timestamp(sns_sensor_instance *instance, sns_time irq_time){
+void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time irq_time){
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+  uint16_t data_count = 1;
+
+  // FIFO Mode
+	if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk > 0)) data_count = state->mag_info.cur_wmk + 1;
+
+	sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr) * data_count;
 
   if(state->this_is_first_data){
   	state->interrupt_timestamp = irq_time;
@@ -1484,18 +1489,18 @@ void ak0991x_validate_timestamp(sns_sensor_instance *instance, sns_time irq_time
 #endif
 
 // case2: averaging filter
-#if 0
-    float averageing_weight = 0.9;
+#if 1
+    float averageing_weight = 0.95;
   	state->averaged_interval = state->averaged_interval * averageing_weight + (irq_time - state->pre_timestamp) * (1.0 - averageing_weight);
   	state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
 #endif
 
 // case3: use both threshold and averaging filter
-#if 1
+#if 0
     float threshold = 0.05;	// 5%
-		float averageing_weight = 0.9;
-  	if(irq_time - state->pre_timestamp > ideal_interval * (1.0 + threshold) ||
-  		 irq_time - state->pre_timestamp < ideal_interval * (1.0 - threshold)){
+		float averageing_weight = 0.95;
+  	if(irq_time - state->pre_timestamp > state->averaged_interval * (1.0 + threshold) ||
+  		 irq_time - state->pre_timestamp < state->averaged_interval * (1.0 - threshold)){
 			// too big jitter. ignore data
   	}else{
   		state->averaged_interval = state->averaged_interval * averageing_weight + (irq_time - state->pre_timestamp) * (1.0 - averageing_weight);
@@ -1506,7 +1511,7 @@ void ak0991x_validate_timestamp(sns_sensor_instance *instance, sns_time irq_time
   }
 }
 
-
+/*
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1518,7 +1523,7 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   if( st1_buf & 0x01 ) return true;
 	return false;
 }
-
+*/
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
@@ -1835,6 +1840,8 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 
   sns_time timestamp;
   timestamp = sns_get_system_time();
+
+  state->irq_info.detect_irq_event = false;
 
   if (state->mag_info.use_fifo)
   {

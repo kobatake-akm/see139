@@ -80,6 +80,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event    *event;
   sns_diag_service    *diag = state->diag_service;
 
+  AK0991X_INST_PRINT(ERROR, this, "ak0991x_inst_notify_event called.");
+
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
@@ -106,6 +108,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
+        	state->irq_info.detect_irq_event = true; // detect interrupt
+
           // Add setting for timestamp in case of flush event caused by irq trigger
 //          state->irq_info.detect_irq_event = ak0991x_is_drdy(this);
 //          if(state->irq_info.detect_irq_event && (state->interrupt_timestamp != irq_event.timestamp) )
@@ -115,11 +119,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
 
             // check and set timestamp
-            ak0991x_validate_timestamp(this, irq_event.timestamp);
-            //            if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk > 1))	// should be this???
-            if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 2))
+//          state->interrupt_timestamp = irq_event.timestamp;
+          ak0991x_validate_timestamp(this, irq_event.timestamp);
+
+            if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
             {
-              AK0991X_INST_PRINT(ERROR, this, "handle interrupt event for fifo wmk<2");
+              AK0991X_INST_PRINT(ERROR, this, "handle interrupt event for fifo wmk<1");
               ak0991x_flush_fifo(this);
             }
             else
@@ -127,7 +132,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               AK0991X_INST_PRINT(ERROR, this, "handle interrupt event");
               ak0991x_handle_interrupt_event(this);
             }
-            state->irq_info.detect_irq_event = false;
+//            state->irq_info.detect_irq_event = false;
 //          }
 //          else
 //          {
@@ -143,7 +148,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
       while (NULL != event){
       	event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
-        AK0991X_INST_PRINT(ERROR, this, "more event on %d", (uint32_t)state->interrupt_timestamp);
+        AK0991X_INST_PRINT(ERROR, this, "more event on %d", (uint32_t)irq_event.timestamp);
       }
     }
   }

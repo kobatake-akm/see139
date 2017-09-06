@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/05/17     010015     AKM              Modified filter for DRI/FIFO mode.
  * 09/05/17     010014     AKM              Added filter for DRI mode(won't work with FIFO/Polling modes)
  * 09/05/17     010013     AKM              2nd Support S4S.
  * 09/01/17     010012     AKM              1st Support S4S.
@@ -48,4 +49,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10014  // major:01 minor:00 revision:14
+#define AK0991X_DRIVER_VERSION 10015  // major:01 minor:00 revision:15
