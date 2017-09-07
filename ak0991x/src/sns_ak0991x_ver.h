@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/07/17     010014     AKM              Update S4S in non-DAE and DAE.
  * 09/05/17     010013     AKM              2nd Support S4S.
  * 09/01/17     010012     AKM              1st Support S4S.
  * 08/25/17     010011     Qualcomm         Work on OpenSSC v5.0.5.
@@ -47,4 +48,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10013  // major:01 minor:00 revision:13
+#define AK0991X_DRIVER_VERSION 10014  // major:01 minor:00 revision:14
