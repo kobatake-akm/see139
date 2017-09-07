@@ -125,7 +125,6 @@ typedef enum
   AK0991X_S4S_NOT_SYNCED,
   AK0991X_S4S_SYNCING,
   AK0991X_S4S_1ST_SYNCED,
-  AK0991X_S4S_2ND_SYNCED,
   AK0991X_S4S_SYNCED
 } ak0991x_s4s_state;
 typedef struct ak0991x_self_test_info
@@ -212,6 +211,7 @@ typedef struct ak0991x_instance_state
   /** Data streams from dependentcies. */
   sns_data_stream       *interrupt_data_stream;
   sns_data_stream       *timer_data_stream;
+  sns_data_stream       *s4s_timer_data_stream;
   sns_data_stream       *async_com_port_data_stream;
 
   uint32_t              client_req_id;

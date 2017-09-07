@@ -504,10 +504,6 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   {
     uint8_t buf_s4s[3];
 
-    //TODO: How does the driver know T_PH and RR?
-    state->mag_info.s4s_t_ph = 40;//40Hz
-    state->mag_info.s4s_rr = 1;// 0=1/2048,1=1/4096
-
     buf_s4s[0] = 0x0
       | (1 << 7)                                   // TPH
       | ((state->mag_info.s4s_t_ph >> 1) & 0x7F);  // TPH1
@@ -1698,7 +1694,6 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
 
   AK0991X_INST_PRINT(ERROR, instance, "handle s4s_timer event");
 
-  //TODO: How does the driver know every timestamp of T_ph start controlled by client?
   sns_time t_ph_time = sns_get_system_time();
   sns_time i2c_start_time;
   uint8_t  buffer;
@@ -1737,7 +1732,7 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
   }
 
   dt_count = (i2c_start_time - t_ph_time) * (1 << state->mag_info.s4s_rr) * 2048
-             / sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+             / (float)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
 
   AK0991X_INST_PRINT(ERROR, instance, "i2c_start_time=%d", (uint32_t)i2c_start_time);
   AK0991X_INST_PRINT(ERROR, instance, "t_ph_time=%d", (uint32_t)t_ph_time);
@@ -1777,12 +1772,8 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
   /* Processes DT abort */
   if (dt_count >= 0x80)
   {
-    //TODO?:report DT abort to client?
-
-    if (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCING)
-    {
-      state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-    }
+    state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+    ak0991x_send_config_event(instance);
     return SNS_RC_FAILED;
   }
 
@@ -1796,17 +1787,11 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_1ST_SYNCED;
     AK0991X_INST_PRINT(ERROR, instance, "S4S 1st synced");
-    // TODO?: if ODR by S4S is changed, report current ODR to client?
-
   }
   else if (state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED)
   {
-    state->mag_info.s4s_sync_state = AK0991X_S4S_2ND_SYNCED;
-    AK0991X_INST_PRINT(ERROR, instance, "S4S 2nd synced");
-  } 
-  else
-  {
     state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCED;
+    ak0991x_send_config_event(instance);
     AK0991X_INST_PRINT(ERROR, instance, "S4S synced");
   }
 
@@ -2057,7 +2042,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
     phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config.stream_is_synchronous = 
-      (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
+       (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
     //TODO: What value should be set?
     phy_sensor_config.sync_ts_anchor = sns_get_system_time();
     break;
@@ -2084,7 +2069,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
     phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config.stream_is_synchronous =
-      (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
+        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
     //TODO: What value should be set?
     phy_sensor_config.sync_ts_anchor = sns_get_system_time();
     break;
@@ -2141,7 +2126,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[1] = AK09917_MAX_RANGE;
     phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config.stream_is_synchronous =
-      (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
+        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
     //TODO: What value should be set?
     phy_sensor_config.sync_ts_anchor = sns_get_system_time();
     break;
@@ -2231,32 +2216,48 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     size_t                  req_len;
     uint8_t                 buffer[20] = {0};
     req_payload.is_periodic = true;
-    req_payload.start_time = sns_get_system_time();
-    req_payload.has_is_dry_run = true;
-    req_payload.is_dry_run = false;//state->mag_info.use_sync_stream ? true : false;
     req_payload.has_priority = true;
+    req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
 
-//    if (state->mag_info.use_sync_stream)
-//    {
-//      req_payload.timeout_period = sns_convert_ns_to_ticks(
-//          AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-//      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
-//    }
-//    else if (state->mag_info.use_fifo)
-    if (state->mag_info.use_fifo)
+    if (state->mag_info.use_sync_stream)
     {
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
-          1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      req_payload.start_time = sns_get_system_time() - sns_convert_ns_to_ticks(
+          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
+      req_payload.start_config.early_start_delta = 0;
+      req_payload.start_config.late_start_delta = sns_convert_ns_to_ticks(
+          2 * AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
+      if (state->mag_info.use_fifo)
+      {
+        req_payload.timeout_period = sns_convert_ns_to_ticks(
+          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * (state->mag_info.cur_wmk + 1) * 1000 * 1000);
+      }
+      else
+      {
+        req_payload.timeout_period = sns_convert_ns_to_ticks(
+          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
+      }
     }
     else
     {
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
-        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      if (state->mag_info.use_fifo)
+      {
+        req_payload.timeout_period = sns_convert_ns_to_ticks(
+          1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
+      }
+      else
+      {
+        req_payload.timeout_period = sns_convert_ns_to_ticks(
+          1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+      }
+
+      req_payload.start_time = sns_get_system_time();
     }
 
     AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(ERROR, this, "start_time=%d", (uint32_t)req_payload.start_time);
+    AK0991X_INST_PRINT(ERROR, this, "late_start_delta=%d", (uint32_t)req_payload.start_config.late_start_delta);
+
+
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
@@ -2266,8 +2267,6 @@ void ak0991x_register_timer(sns_sensor_instance *this)
 
     if (req_len > 0)
     {
-//      timer_req.message_id = state->mag_info.use_sync_stream ? 
-//        SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT: SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
       timer_req.message_id =  SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
       timer_req.request_len = req_len;
       timer_req.request = buffer;
@@ -2301,56 +2300,33 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
   {
-    if (NULL == state->timer_data_stream)
+    if (NULL == state->s4s_timer_data_stream)
     {
       stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                      this,
                                                      state->timer_suid,
-                                                     &state->timer_data_stream);
+                                                     &state->s4s_timer_data_stream);
     }
 
     sns_request             timer_req;
-    //sns_timer_sensor_reg_event req_payload = sns_timer_sensor_reg_event_init_default;
     sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
     size_t                  req_len;
     uint8_t                 buffer[20] = {0};
-    req_payload.start_time = sns_get_system_time();
-    req_payload.has_is_dry_run = true;
-    req_payload.has_priority = true;
-
-    if((state->mag_info.s4s_sync_state == AK0991X_S4S_2ND_SYNCED)
-     || (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED))
-    {
-      req_payload.is_periodic = true;
-      req_payload.is_dry_run = false;
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-      if (state->mag_info.use_fifo)
-      {
-        //TODO : finally, need to change the period based on T_PH 
-        req_payload.timeout_period = sns_convert_ns_to_ticks(
-            1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
-      }
-      else
-      {
-        req_payload.timeout_period = sns_convert_ns_to_ticks(
-           ((AK0991X_S4S_INTERVAL_MS / 1000.f) / (float)state->mag_info.s4s_t_ph) * 1000 * 1000 * 1000);
-      }
-    }
-    else
-    {
-      req_payload.is_periodic = true;
-      req_payload.is_dry_run = false;
-      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
+    sns_time                t_ph_period = sns_convert_ns_to_ticks(
         AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-    }
+    req_payload.start_time = sns_get_system_time() - t_ph_period;
+    req_payload.start_config.early_start_delta = 0;
+    req_payload.start_config.late_start_delta = t_ph_period;
+    req_payload.is_periodic = true;
+    req_payload.has_priority = true;
+    req_payload.priority = SNS_TIMER_PRIORITY_S4S;
+    req_payload.timeout_period = t_ph_period;
  
     AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
                                 &req_payload,
-                                //sns_timer_sensor_reg_event_fields,
                                 sns_timer_sensor_config_fields,
                                 NULL);
 
@@ -2361,7 +2337,7 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
       timer_req.request = buffer;
 
       /** Send encoded request to Timer Sensor */
-      state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+      state->s4s_timer_data_stream->api->send_request(state->s4s_timer_data_stream, &timer_req);
     }
     else
     {
@@ -2370,10 +2346,11 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
   }
   else
   {
-    if (state->timer_data_stream != NULL)
+    state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+    if (state->s4s_timer_data_stream != NULL)
     {
-      stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-      state->timer_data_stream = NULL;
+      stream_mgr->api->remove_stream(stream_mgr, state->s4s_timer_data_stream);
+      state->s4s_timer_data_stream = NULL;
     }
   }
 

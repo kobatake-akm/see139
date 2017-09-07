@@ -22,8 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 09/05/17     010015     AKM              Modified filter for DRI/FIFO mode.
- * 09/05/17     010014     AKM              Added filter for DRI mode(won't work with FIFO/Polling modes)
+ * 09/07/17     010016     AKM(M)           Merged 010014 and 010015
+ * 09/07/17     010014     AKM              Update S4S in non-DAE and DAE.
+ * 09/05/17     010015     AKM(M)           Modified filter for DRI/FIFO mode.
+ * 09/05/17     010014     AKM(M)           Added filter for DRI mode(won't work with FIFO/Polling modes)
  * 09/05/17     010013     AKM              2nd Support S4S.
  * 09/01/17     010012     AKM              1st Support S4S.
  * 08/25/17     010011     Qualcomm         Work on OpenSSC v5.0.5.
@@ -49,4 +51,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10015  // major:01 minor:00 revision:15
+#define AK0991X_DRIVER_VERSION 10016  // major:01 minor:00 revision:16

@@ -71,9 +71,18 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
   {
     sns_time meas_usec;
     ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
-    config_req.polling_config.polling_interval_ticks =
-      sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)mag_info->cur_wmk
-                               / (uint64_t) mag_info->curr_odr );
+    if (mag_info->use_sync_stream)
+    {
+      config_req.polling_config.polling_interval_ticks =
+        sns_convert_ns_to_ticks( 1000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
+                                 * AK0991X_S4S_INTERVAL_MS / (uint64_t) mag_info->s4s_t_ph );
+    }
+    else
+    {
+      config_req.polling_config.polling_interval_ticks =
+        sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
+                                 / (uint64_t) mag_info->curr_odr );
+    }
     config_req.polling_config.polling_offset =
       sns_get_system_time() + sns_convert_ns_to_ticks( meas_usec * 1000ULL );
   }
@@ -101,11 +110,10 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
     .request_len = 0
   };
 
-  //TODO: Is this T_Ph start moment at the first time? or for each T_Ph start moment(<-how can the driver get?)?
+  //TODO: Is this T_Ph start moment at the first time?
   s4s_config_req.ideal_sync_offset = sns_get_system_time();
   s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-  //TODO: Who set this value?
-  s4s_config_req.resolution_ratio = 1; //1 = 1/4096, 0 = 1/2048
+  s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
   //TODO: Is this minimum time between T_PH start and ST/DT? or I2C communication time during ST/DT?
   s4s_config_req.st_delay = 0;
 
@@ -116,7 +124,7 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
                         sns_dae_s4s_dynamic_config_fields,
                         NULL)) > 0)
   {
-    //TODO: How can the driver send the request for syncronization periodically?
+    //TODO: Can the driver receive SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG periodically?
     if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
     {
     }
@@ -248,9 +256,6 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
       //Send ST/DT command
       ak0991x_handle_s4s_timer_event(this);
-
-      //Update the config about the stream_is_synchronous = true or false
-      ak0991x_send_config_event(this);
       break;
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
       AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG");

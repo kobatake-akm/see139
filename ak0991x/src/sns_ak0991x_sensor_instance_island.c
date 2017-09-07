@@ -197,10 +197,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
                                                    event->event_len);
       sns_timer_sensor_event timer_event;
-      //sns_timer_sensor_reg_event timer_reg_event;
 
       if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
-      //if (pb_decode(&stream, sns_timer_sensor_reg_event_fields, &timer_reg_event))
       {
         if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
         {
@@ -213,22 +211,48 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           AK0991X_INST_PRINT(ERROR, this, "use_dri=%d, cur_wmk=%d", state->mag_info.use_dri, state->mag_info.cur_wmk);
           AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
           ak0991x_handle_timer_event(this);
-          if(state->mag_info.s4s_sync_state != AK0991X_S4S_SYNCED)
-          {
-            ak0991x_register_s4s_timer(this);
-          }
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
         {
-          if(state->mag_info.use_sync_stream)
-          {
-            AK0991X_INST_PRINT(ERROR, this, "Execute handle tiemr s4s reg event");
-            ak0991x_handle_s4s_timer_event(this);
-            //if(state->mag_info.s4s_sync_state != AK0991X_S4S_SYNCED)
-            //{
-            //  ak0991x_register_s4s_timer(this);
-            //}
-          }
+            AK0991X_INST_PRINT(ERROR, this, "Execute handle tiemr reg event");
+        }
+      }
+      else
+      {
+        AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d",
+                                      event->message_id);
+      }
+
+      event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
+    }
+  }
+
+  // Handle timer event for s4s
+  if (NULL != state->s4s_timer_data_stream)
+  {
+    event = state->s4s_timer_data_stream->api->peek_input(state->s4s_timer_data_stream);
+
+    while (NULL != event)
+    {
+      pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
+                                                   event->event_len);
+      sns_timer_sensor_event timer_event;
+
+      if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
+      {
+        if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
+        {
+          AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
+                                        event->message_id);
+        }
+        else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
+        {
+          ak0991x_handle_s4s_timer_event(this);
+          AK0991X_INST_PRINT(ERROR, this, "Execute handle s4s timer event");
+        }
+        else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
+        {
+          AK0991X_INST_PRINT(ERROR, this, "Execute handle tiemr s4s reg event");
         }
         else
         {
@@ -241,7 +265,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                                       event->message_id);
       }
 
-      event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
+      event = state->s4s_timer_data_stream->api->get_next_input(state->s4s_timer_data_stream);
     }
   }
 
