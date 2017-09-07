@@ -110,7 +110,7 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
     .request_len = 0
   };
 
-  //TODO: Is this T_Ph start moment at the first time? or for each T_Ph start moment(<-how can the driver get?)?
+  //TODO: Is this T_Ph start moment at the first time?
   s4s_config_req.ideal_sync_offset = sns_get_system_time();
   s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
   s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
