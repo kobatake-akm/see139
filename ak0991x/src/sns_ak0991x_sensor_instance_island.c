@@ -196,12 +196,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           AK0991X_INST_PRINT(ERROR, this, "Execute handle timer event");
           ak0991x_handle_timer_event(this);
-          if (state->mag_info.s4s_sync_state == AK0991X_S4S_2ND_SYNCED)
-          {
-            AK0991X_INST_PRINT(ERROR, this, "Adjust polling timer for s4s");
-            //ak0991x_handle_timer_event(this);
-          }
-       }
+        }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
         {
             AK0991X_INST_PRINT(ERROR, this, "Execute handle tiemr reg event");

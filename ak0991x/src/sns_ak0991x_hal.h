@@ -135,8 +135,11 @@ typedef enum
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us
 #define AK09918_TIME_FOR_MEASURE_US                 8200 //us
 
-/** s4s interval time */
+/** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
+#define AK0991X_S4S_T_PH                            40
+#define AK0991X_S4S_RR                              1
+
 /** Limit of factory shipment test */
 #define TLIMIT_NO_READ_ID                           0x001
 #define TLIMIT_NO_INVALID_ID                        0x002

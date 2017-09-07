@@ -125,7 +125,6 @@ typedef enum
   AK0991X_S4S_NOT_SYNCED,
   AK0991X_S4S_SYNCING,
   AK0991X_S4S_1ST_SYNCED,
-  AK0991X_S4S_2ND_SYNCED,
   AK0991X_S4S_SYNCED
 } ak0991x_s4s_state;
 typedef struct ak0991x_self_test_info
