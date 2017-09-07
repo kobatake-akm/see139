@@ -2179,32 +2179,66 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     size_t                  req_len;
     uint8_t                 buffer[20] = {0};
     req_payload.is_periodic = true;
-    req_payload.start_time = sns_get_system_time();
-    req_payload.has_is_dry_run = true;
-    req_payload.is_dry_run = false;//state->mag_info.use_sync_stream ? true : false;
     req_payload.has_priority = true;
+    req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
 
-//    if (state->mag_info.use_sync_stream)
-//    {
-//      req_payload.timeout_period = sns_convert_ns_to_ticks(
-//          AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-//      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
-//    }
-//    else if (state->mag_info.use_fifo)
-    if (state->mag_info.use_fifo)
+    if (state->mag_info.use_sync_stream)
     {
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
-          1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      if (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)
+      {
+        if (state->mag_info.use_fifo)
+        {
+          req_payload.timeout_period = sns_convert_ns_to_ticks(
+            1 / state->mag_info.s4s_t_ph * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
+        }
+        else
+        {
+          req_payload.timeout_period = sns_convert_ns_to_ticks(
+            1 / state->mag_info.s4s_t_ph * 1000 * 1000 * 1000);
+        }
+
+        req_payload.start_time = sns_get_system_time() - (1 / state->mag_info.s4s_t_ph);
+        req_payload.start_config.early_start_delta = 0;
+        req_payload.start_config.late_start_delta = 2 * (1 / state->mag_info.s4s_t_ph);
+      }
+      else
+      {
+        if (state->mag_info.use_fifo)
+        {
+          req_payload.timeout_period = sns_convert_ns_to_ticks(
+            1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
+        }
+        else
+        {
+          req_payload.timeout_period = sns_convert_ns_to_ticks(
+            1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+        }
+        req_payload.start_time = sns_get_system_time() - (1.f / state->mag_req.sample_rate);
+        req_payload.start_config.early_start_delta = 0;
+        req_payload.start_config.late_start_delta = 2 * (1.f / state->mag_req.sample_rate);
+      }
     }
     else
     {
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
-        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      if (state->mag_info.use_fifo)
+      {
+        req_payload.timeout_period = sns_convert_ns_to_ticks(
+          1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
+      }
+      else
+      {
+        req_payload.timeout_period = sns_convert_ns_to_ticks(
+          1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+      }
+
+      req_payload.start_time = sns_get_system_time();
     }
 
     AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(ERROR, this, "start_time=%d", (uint32_t)req_payload.start_time);
+    AK0991X_INST_PRINT(ERROR, this, "late_start_delta=%d", (uint32_t)req_payload.start_config.late_start_delta);
+
+
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
@@ -2214,8 +2248,6 @@ void ak0991x_register_timer(sns_sensor_instance *this)
 
     if (req_len > 0)
     {
-//      timer_req.message_id = state->mag_info.use_sync_stream ? 
-//        SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT: SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
       timer_req.message_id =  SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
       timer_req.request_len = req_len;
       timer_req.request = buffer;
@@ -2249,56 +2281,33 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
   {
-    if (NULL == state->timer_data_stream)
+    if (NULL == state->s4s_timer_data_stream)
     {
       stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                      this,
                                                      state->timer_suid,
-                                                     &state->timer_data_stream);
+                                                     &state->s4s_timer_data_stream);
     }
 
     sns_request             timer_req;
-    //sns_timer_sensor_reg_event req_payload = sns_timer_sensor_reg_event_init_default;
     sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
     size_t                  req_len;
     uint8_t                 buffer[20] = {0};
-    req_payload.start_time = sns_get_system_time();
-    req_payload.has_is_dry_run = true;
-    req_payload.has_priority = true;
-
-    if((state->mag_info.s4s_sync_state == AK0991X_S4S_2ND_SYNCED)
-     || (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED))
-    {
-      req_payload.is_periodic = true;
-      req_payload.is_dry_run = false;
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-      if (state->mag_info.use_fifo)
-      {
-        //TODO : finally, need to change the period based on T_PH 
-        req_payload.timeout_period = sns_convert_ns_to_ticks(
-            1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
-      }
-      else
-      {
-        req_payload.timeout_period = sns_convert_ns_to_ticks(
-           ((AK0991X_S4S_INTERVAL_MS / 1000.f) / (float)state->mag_info.s4s_t_ph) * 1000 * 1000 * 1000);
-      }
-    }
-    else
-    {
-      req_payload.is_periodic = true;
-      req_payload.is_dry_run = false;
-      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
+    sns_time                t_ph_period = sns_convert_ns_to_ticks(
         AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-    }
+    req_payload.start_time = sns_get_system_time() - t_ph_period;
+    req_payload.start_config.early_start_delta = 0;
+    req_payload.start_config.late_start_delta = t_ph_period;
+    req_payload.is_periodic = true;
+    req_payload.has_priority = true;
+    req_payload.priority = SNS_TIMER_PRIORITY_S4S;
+    req_payload.timeout_period = t_ph_period;
  
     AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
                                 &req_payload,
-                                //sns_timer_sensor_reg_event_fields,
                                 sns_timer_sensor_config_fields,
                                 NULL);
 
@@ -2309,7 +2318,7 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
       timer_req.request = buffer;
 
       /** Send encoded request to Timer Sensor */
-      state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+      state->s4s_timer_data_stream->api->send_request(state->s4s_timer_data_stream, &timer_req);
     }
     else
     {
@@ -2318,10 +2327,10 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
   }
   else
   {
-    if (state->timer_data_stream != NULL)
+    if (state->s4s_timer_data_stream != NULL)
     {
-      stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-      state->timer_data_stream = NULL;
+      stream_mgr->api->remove_stream(stream_mgr, state->s4s_timer_data_stream);
+      state->s4s_timer_data_stream = NULL;
     }
   }
 

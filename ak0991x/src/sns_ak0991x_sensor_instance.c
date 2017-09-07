@@ -274,6 +274,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &sensor_state->timer_suid,
               sizeof(sensor_state->timer_suid));
   state->timer_data_stream = NULL;
+  state->s4s_timer_data_stream = NULL;
 
   /** Initialize COM port to be used by the Instance */
   sns_memscpy(&state->com_port_info.com_config,
@@ -385,6 +386,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_dae_if_deinit(state, stream_mgr);
 
   sns_sensor_util_remove_sensor_instance_stream(this,&state->timer_data_stream);
+  sns_sensor_util_remove_sensor_instance_stream(this,&state->s4s_timer_data_stream);
   sns_sensor_util_remove_sensor_instance_stream(this,&state->interrupt_data_stream);
   sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
   if(NULL != state->scp_service)
@@ -441,11 +443,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       ak0991x_register_interrupt(this);
     }
-    // TODO
-    //else if(state->mag_info.use_sync_stream)
-    //{
-    //  ak0991x_register_interrupt(this);
-    //}
 
     if (desired_report_rate > desired_sample_rate)
     {
@@ -554,11 +551,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this);
         AK0991X_INST_PRINT(ERROR, this, "done register_timer");
-        //if (state->mag_info.use_sync_stream)
-        //{
-        //  ak0991x_register_s4s_timer(this);
-        //  AK0991X_INST_PRINT(ERROR, this, "done register_s4s_timer");
-        //}
+        if (state->mag_info.use_sync_stream)
+        {
+          ak0991x_register_s4s_timer(this);
+          AK0991X_INST_PRINT(ERROR, this, "done register_s4s_timer");
+        }
       }
 
       //ak0991x_dae_if_start_streaming(this);
