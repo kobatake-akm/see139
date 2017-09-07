@@ -144,8 +144,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               sizeof(sensor_state->device_select));
   state->mag_info.cur_wmk = 0;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->mag_info.s4s_t_ph       = 0;
-  state->mag_info.s4s_rr         = 0;
+  state->mag_info.s4s_t_ph       = AK0991X_S4S_T_PH;
+  state->mag_info.s4s_rr         = AK0991X_S4S_RR;
   state->mag_info.s4s_dt_abort   = false;
 
   switch (state->mag_info.device_select)

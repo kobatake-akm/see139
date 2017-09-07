@@ -504,9 +504,6 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   {
     uint8_t buf_s4s[3];
 
-    state->mag_info.s4s_t_ph = AK0991X_S4S_T_PH;
-    state->mag_info.s4s_rr = AK0991X_S4S_RR;
-
     buf_s4s[0] = 0x0
       | (1 << 7)                                   // TPH
       | ((state->mag_info.s4s_t_ph >> 1) & 0x7F);  // TPH1
