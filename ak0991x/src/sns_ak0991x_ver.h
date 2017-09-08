@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/07/17     010017     AKM(M)           enabled AK0991X_DAE_FORCE_NOT_AVAILABLE for second test run
  * 09/07/17     010016     AKM(M)           Merged 010014 and 010015
  * 09/07/17     010014     AKM              Update S4S in non-DAE and DAE.
  * 09/05/17     010015     AKM(M)           Modified filter for DRI/FIFO mode.
@@ -51,4 +52,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10016  // major:01 minor:00 revision:16
+#define AK0991X_DRIVER_VERSION 10017  // major:01 minor:00 revision:17

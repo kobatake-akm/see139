@@ -39,7 +39,7 @@
                         _a > _b ? _a : _b; })
 #endif /* SNS_MAX */
 
-//#define AK0991X_DAE_FORCE_NOT_AVAILABLE
+#define AK0991X_DAE_FORCE_NOT_AVAILABLE
 
 /*======================================================================================
   Helper Functions

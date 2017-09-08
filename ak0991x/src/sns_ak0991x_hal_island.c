@@ -1437,10 +1437,6 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
         timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
       }
 
-//      sns_time sys_time = sns_get_system_time();
-//      AK0991X_INST_PRINT(ERROR, instance, "sys_time %d",
-//      		(uint32_t)sys_time);
-
       ak0991x_handle_mag_sample(&vector->buffer[i],
                                 timestamp,
                                 instance,
@@ -1462,12 +1458,15 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint16_t data_count = 1;
 
+  AK0991X_INST_PRINT(ERROR, instance, "start ak0991x_validate_time");
+
   // FIFO Mode
 	if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk > 0)) data_count = state->mag_info.cur_wmk + 1;
 
 	sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr) * data_count;
 
   if(state->this_is_first_data){
+    AK0991X_INST_PRINT(ERROR, instance, "this_is_first_data in ak0991x_validate");
   	state->interrupt_timestamp = irq_time;
   	state->averaged_interval = ideal_interval;
   }else{
@@ -1503,7 +1502,6 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
   	}
 		state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
 #endif
-
   }
 }
 
