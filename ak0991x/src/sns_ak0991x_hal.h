@@ -17,6 +17,7 @@
 #include <stdint.h>
 
 #include "sns_ak0991x_sensor_instance.h"
+#include "sns_ak0991x_lite.h"
 #include "sns_diag.pb.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
@@ -37,18 +38,9 @@
  */
 
 // Enable for test code
-#ifndef AK0991X_ENABLE_TEST_CODE
-#define AK0991X_ENABLE_TEST_CODE         1
-#endif
-
-// Define to enable extra debugging
-#define AK0991X_VERBOSE_DEBUG            1
-
-typedef enum
-{
-  AK0991X_I2C = SNS_BUS_I2C,
-  AK0991X_SPI = SNS_BUS_SPI,
-} ak0991x_bus_type;
+//#ifndef AK0991X_ENABLE_TEST_CODE
+//#define AK0991X_ENABLE_TEST_CODE         1
+//#endif
 
 /**
  *  Address registers
@@ -135,10 +127,12 @@ typedef enum
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us
 #define AK09918_TIME_FOR_MEASURE_US                 8200 //us
 
+#ifdef AK0991X_ENABLE_S4S
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
 #define AK0991X_S4S_T_PH                            40
 #define AK0991X_S4S_RR                              1
+#endif // AK0991X_ENABLE_S4S
 
 /** Limit of factory shipment test */
 #define TLIMIT_NO_READ_ID                           0x001
@@ -448,6 +442,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance);
  */
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
 
+#ifdef AK0991X_ENABLE_S4S
 /**
  * Handle a timer for s4s to synchronize by SYT and DT command.
  *
@@ -457,6 +452,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
  * @param instance                 Sensor Instance
  */
 sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance);
+#endif // AK0991X_ENABLE_S4S
 
 /**
  * Handle an timer by reading the register and sending out
@@ -555,11 +551,13 @@ void ak0991x_register_interrupt(sns_sensor_instance *this);
  */
 void ak0991x_register_timer(sns_sensor_instance *this);
 
+#ifdef AK0991X_ENABLE_S4S
 /**
  * Enable timer for s4s
  *
  */
 void ak0991x_register_s4s_timer(sns_sensor_instance *this);
+#endif // AK0991X_ENABLE_S4S
 
 
 /**

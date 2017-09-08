@@ -181,7 +181,10 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
  *
  * @return bool true if decode is successful else false
  */
-static bool ak0991x_get_decoded_mag_request(sns_sensor const *this,
+static bool ak0991x_get_decoded_mag_request(
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+                                            sns_sensor const *this,
+#endif
                                             sns_request const *in_request,
                                             sns_std_request *decoded_request,
                                             sns_std_sensor_config *decoded_payload)
@@ -204,8 +207,11 @@ static bool ak0991x_get_decoded_mag_request(sns_sensor const *this,
   return true;
 }
 
-static void ak0991x_get_mag_config(sns_sensor *this,
-                                   sns_sensor_instance *instance,
+static void ak0991x_get_mag_config(
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+                                   sns_sensor const *this,
+#endif
+																	 sns_sensor_instance *instance,
                                    float *chosen_sample_rate,
                                    float *chosen_report_rate,
                                    uint32_t *chosen_flush_period,
@@ -230,7 +236,11 @@ static void ak0991x_get_mag_config(sns_sensor *this,
 
     if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
-      if(ak0991x_get_decoded_mag_request(this, request, &decoded_request, &decoded_payload))
+      if(ak0991x_get_decoded_mag_request(
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+          this,
+#endif
+					request, &decoded_request, &decoded_payload))
       {
         float report_rate;
         uint32_t flush_period;
@@ -317,7 +327,10 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
 
   AK0991X_PRINT(LOW, this, "ak0991x_reval_instance_config");
 
-  ak0991x_get_mag_config(this,
+  ak0991x_get_mag_config(
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+                         this,
+#endif
                          instance,
                          &chosen_sample_rate,
                          &chosen_report_rate,
@@ -1231,14 +1244,16 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
 /**
  * Decodes self test requests.
  *
- * @param[i] this            Sensor reference
  * @param[i] request         Encoded input request
  * @param[o] decoded_request Decoded standard request
  * @param[o] test_config     Decoded self test request
  *
  * @return bool True if decoding is successful else false.
  */
-static bool ak0991x_get_decoded_self_test_request(sns_sensor const *this,
+static bool ak0991x_get_decoded_self_test_request(
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+                                                  sns_sensor const *this,
+#endif
                                                   sns_request const *request,
                                                   sns_std_request *decoded_request,
                                                   sns_physical_sensor_test_config *test_config)
@@ -1268,9 +1283,12 @@ static bool ak0991x_get_decoded_self_test_request(sns_sensor const *this,
  *
  * @return Ture if request is valid else false
  */
-static bool ak0991x_extract_self_test_info(sns_sensor *this,
-                                           sns_sensor_instance *instance,
-                                           struct sns_request const *new_request)
+static bool ak0991x_extract_self_test_info(
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+                                   sns_sensor const *this,
+#endif
+                                   sns_sensor_instance *instance,
+                                   struct sns_request const *new_request)
 {
   sns_std_request decoded_request;
   sns_physical_sensor_test_config test_config = sns_physical_sensor_test_config_init_default;
@@ -1279,7 +1297,11 @@ static bool ak0991x_extract_self_test_info(sns_sensor *this,
 
   self_test_info = &inst_state->mag_info.test_info;
 
-  if(ak0991x_get_decoded_self_test_request(this, new_request, &decoded_request, &test_config))
+  if(ak0991x_get_decoded_self_test_request(
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+      this,
+#endif
+  		new_request, &decoded_request, &test_config))
   {
     self_test_info->test_type = test_config.test_type;
     self_test_info->test_client_present = true;
@@ -1687,7 +1709,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           if(new_request->message_id ==
              SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
           {
-            if(ak0991x_extract_self_test_info(this, instance, new_request))
+            if(ak0991x_extract_self_test_info(
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+                this,
+#endif
+            		instance, new_request))
             {
               AK0991X_PRINT(LOW, this, "new_self_test_request = true");
               inst_state->new_self_test_request = true;

@@ -19,6 +19,7 @@
 #include "sns_sensor_uid.h"
 #include "sns_pwr_rail_service.h"
 #include "sns_ak0991x_hal.h"
+#include "sns_ak0991x_lite.h"
 
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_math_util.h"
@@ -281,4 +282,6 @@ void ak0991x_mag_init_attributes(sns_sensor *const this,
 
 
 sns_rc ak0991x_mag_init(sns_sensor *const this);
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
 sns_rc ak0991x_mag_deinit(sns_sensor *const this);
+#endif

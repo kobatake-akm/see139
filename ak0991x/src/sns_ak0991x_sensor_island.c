@@ -50,8 +50,10 @@ sns_sensor_api ak0991x_mag_sensor_api =
 {
   .struct_len         = sizeof(sns_sensor_api),
   .init               = &ak0991x_mag_init,
-  .deinit             = &ak0991x_mag_deinit,
-  .get_sensor_uid     = &ak0991x_mag_get_sensor_uid,
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+	.deinit             = &ak0991x_mag_deinit,
+#endif
+	.get_sensor_uid     = &ak0991x_mag_get_sensor_uid,
   .set_client_request = &ak0991x_set_client_request,
   .notify_event       = &ak0991x_sensor_notify_event,
 };

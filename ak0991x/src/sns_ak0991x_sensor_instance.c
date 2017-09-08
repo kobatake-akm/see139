@@ -143,10 +143,12 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &sensor_state->device_select,
               sizeof(sensor_state->device_select));
   state->mag_info.cur_wmk = 0;
+#ifdef AK0991X_ENABLE_S4S
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
   state->mag_info.s4s_t_ph       = AK0991X_S4S_T_PH;
   state->mag_info.s4s_rr         = AK0991X_S4S_RR;
   state->mag_info.s4s_dt_abort   = false;
+#endif // AK0991X_ENABLE_S4S
 
   switch (state->mag_info.device_select)
   {
@@ -274,7 +276,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &sensor_state->timer_suid,
               sizeof(sensor_state->timer_suid));
   state->timer_data_stream = NULL;
+#ifdef AK0991X_ENABLE_S4S
   state->s4s_timer_data_stream = NULL;
+#endif // AK0991X_ENABLE_S4S
 
   /** Initialize COM port to be used by the Instance */
   sns_memscpy(&state->com_port_info.com_config,
@@ -371,10 +375,6 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
-  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service  *stream_mgr =
-    (sns_stream_service *)service_mgr->get_service(service_mgr,
-                                                   SNS_STREAM_SERVICE);
 
   if(NULL != state->com_port_info.port_handle)
   {
@@ -383,10 +383,16 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, false);
   }
 
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service  *stream_mgr =
+    (sns_stream_service *)service_mgr->get_service(service_mgr,
+                                                   SNS_STREAM_SERVICE);
   ak0991x_dae_if_deinit(state, stream_mgr);
 
   sns_sensor_util_remove_sensor_instance_stream(this,&state->timer_data_stream);
+#ifdef AK0991X_ENABLE_S4S
   sns_sensor_util_remove_sensor_instance_stream(this,&state->s4s_timer_data_stream);
+#endif // AK0991X_ENABLE_S4S
   sns_sensor_util_remove_sensor_instance_stream(this,&state->interrupt_data_stream);
   sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
   if(NULL != state->scp_service)
@@ -520,8 +526,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                     (int)mag_chosen_sample_rate,(int)mag_chosen_sample_rate_reg_value,
                     (int)state->config_step);
 
-    if (AK0991X_CONFIG_IDLE == state->config_step &&
-        ak0991x_dae_if_stop_streaming(this))
+    if (AK0991X_CONFIG_IDLE == state->config_step
+    		&&  ak0991x_dae_if_stop_streaming(this))
     {
       AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
       state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
@@ -552,11 +558,13 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this);
         AK0991X_INST_PRINT(ERROR, this, "done register_timer");
+#ifdef AK0991X_ENABLE_S4S
         if (state->mag_info.use_sync_stream)
         {
           ak0991x_register_s4s_timer(this);
           AK0991X_INST_PRINT(ERROR, this, "done register_s4s_timer");
         }
+#endif // AK0991X_ENABLE_S4S
       }
 
       //ak0991x_dae_if_start_streaming(this);

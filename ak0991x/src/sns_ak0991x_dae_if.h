@@ -17,6 +17,7 @@
 #include "sns_sensor_instance.h"
 #include "sns_data_stream.h"
 #include "sns_stream_service.h"
+#include "sns_ak0991x_lite.h"
 
 struct sns_stream_service;
 struct sns_data_stream;

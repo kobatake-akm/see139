@@ -153,9 +153,11 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   return SNS_RC_SUCCESS;
 }
 
+#ifndef AK0991X_ENABLE_SEE_LITE_MODE
 /** See sns_sensor.h */
 sns_rc ak0991x_mag_deinit(sns_sensor *const this)
 {
   UNUSED_VAR(this);
   return SNS_RC_SUCCESS;
 }
+#endif

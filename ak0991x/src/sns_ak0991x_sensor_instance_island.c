@@ -224,6 +224,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     }
   }
 
+#ifdef AK0991X_ENABLE_S4S
   // Handle timer event for s4s
   if (NULL != state->s4s_timer_data_stream)
   {
@@ -265,6 +266,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       event = state->s4s_timer_data_stream->api->get_next_input(state->s4s_timer_data_stream);
     }
   }
+#endif // AK0991X_ENABLE_S4S
 
   // Turn COM port OFF
   state->scp_service->api->sns_scp_update_bus_power(

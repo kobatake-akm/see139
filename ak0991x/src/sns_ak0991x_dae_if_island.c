@@ -39,7 +39,6 @@
                         _a > _b ? _a : _b; })
 #endif /* SNS_MAX */
 
-#define AK0991X_DAE_FORCE_NOT_AVAILABLE
 
 /*======================================================================================
   Helper Functions
@@ -71,6 +70,7 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
   {
     sns_time meas_usec;
     ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
+#ifdef AK0991X_ENABLE_S4S
     if (mag_info->use_sync_stream)
     {
       config_req.polling_config.polling_interval_ticks =
@@ -79,10 +79,13 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
     }
     else
     {
+#endif // AK0991X_ENABLE_S4S
       config_req.polling_config.polling_interval_ticks =
         sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
                                  / (uint64_t) mag_info->curr_odr );
+#ifdef AK0991X_ENABLE_S4S
     }
+#endif // AK0991X_ENABLE_S4S
     config_req.polling_config.polling_offset =
       sns_get_system_time() + sns_convert_ns_to_ticks( meas_usec * 1000ULL );
   }
@@ -102,6 +105,7 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
     }
   }
  
+#ifdef AK0991X_ENABLE_S4S
   sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
   uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
   sns_request s4s_req = {
@@ -129,6 +133,7 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
     {
     }
   }
+#endif // AK0991X_ENABLE_S4S
 
   return cmd_sent;
 }
@@ -253,10 +258,12 @@ static void process_response(
         dae_stream->stream_usable = false;
       }
       break;
+#ifdef AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
       //Send ST/DT command
       ak0991x_handle_s4s_timer_event(this);
       break;
+#endif // AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
       AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG");
       if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
@@ -305,11 +312,13 @@ static void process_response(
         }
       }
       break;
+#ifdef AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED:
       state->mag_info.s4s_dt_abort = true;
       ak0991x_handle_s4s_timer_event(this);
       state->mag_info.s4s_dt_abort = false;
       break;
+#endif // AK0991X_ENABLE_S4S
 
     case SNS_DAE_MSGID_SNS_DAE_RESP:
     case SNS_DAE_MSGID_SNS_DAE_DATA_EVENT:
@@ -440,10 +449,12 @@ sns_rc ak0991x_dae_if_init(
     config_req.has_irq_config         = false;
 #endif /* AK0991X_DAE_FORCE_POLLING */
     config_req.irq_config             = state->irq_info.irq_config;
+#ifdef AK0991X_ENABLE_S4S
     config_req.has_s4s_config         = state->mag_info.use_sync_stream;
     config_req.s4s_config.st_reg_addr = AKM_AK0991X_REG_SYT;
     config_req.s4s_config.st_reg_data = 0;
     config_req.s4s_config.dt_reg_addr = AKM_AK0991X_REG_DT;
+#endif // AK0991X_ENABLE_S4S
     config_req.ascp_config            = state->ascp_config;
     config_req.has_accel_info         = false;
 
@@ -568,6 +579,7 @@ void ak0991x_dae_if_process_events(sns_sensor_instance *this)
     sns_service_manager *service_mgr = this->cb->get_service_manager(this);
     sns_stream_service *stream_mgr =
       (sns_stream_service*)service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
     ak0991x_dae_if_deinit(state, stream_mgr);
   }
 }
