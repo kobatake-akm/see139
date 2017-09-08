@@ -1505,7 +1505,6 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
   }
 }
 
-/*
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1517,7 +1516,6 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   if( st1_buf & 0x01 ) return true;
 	return false;
 }
-*/
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {

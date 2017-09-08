@@ -430,7 +430,7 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
  *
  * @return false: no data ready, true: data is ready
  */
-//bool ak0991x_is_drdy(sns_sensor_instance *const instance);
+bool ak0991x_is_drdy(sns_sensor_instance *const instance);
 
 /**
  * Flush mag samples from the buffer

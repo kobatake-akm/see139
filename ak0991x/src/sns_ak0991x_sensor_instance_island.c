@@ -110,34 +110,31 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
         	state->irq_info.detect_irq_event = true; // detect interrupt
 
-          // Add setting for timestamp in case of flush event caused by irq trigger
-//          state->irq_info.detect_irq_event = ak0991x_is_drdy(this);
-//          if(state->irq_info.detect_irq_event && (state->interrupt_timestamp != irq_event.timestamp) )
-//          {
           AK0991X_INST_PRINT(ERROR, this, "irq_event_time %d", (uint32_t)irq_event.timestamp);
           AK0991X_INST_PRINT(ERROR, this, "use_dri=%d, cur_wmk=%d", state->mag_info.use_dri, state->mag_info.cur_wmk);
           AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
 
-            // check and set timestamp
-//          state->interrupt_timestamp = irq_event.timestamp;
-          ak0991x_validate_timestamp(this, irq_event.timestamp);
+          // check DRDY bit to ignore wrong interrupt call by FW
+          if( ak0991x_is_drdy(this) )
+          {
+          	// adjust timestamp for jitter issues
+            ak0991x_validate_timestamp(this, irq_event.timestamp);
 
-            if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
-            {
-              AK0991X_INST_PRINT(ERROR, this, "handle interrupt event for fifo wmk<1");
-              ak0991x_flush_fifo(this);
-            }
-            else
-            {
-              AK0991X_INST_PRINT(ERROR, this, "handle interrupt event");
-              ak0991x_handle_interrupt_event(this);
-            }
-//            state->irq_info.detect_irq_event = false;
-//          }
-//          else
-//          {
-//            AK0991X_INST_PRINT(ERROR, this, "Interrupt event detected. But ST1:DRDY bit is 0. Wrong detection.");
-//          }
+  					if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
+  					{
+  						AK0991X_INST_PRINT(ERROR, this, "handle interrupt event for fifo wmk<1");
+  						ak0991x_flush_fifo(this);
+  					}
+  					else
+  					{
+  						AK0991X_INST_PRINT(ERROR, this, "handle interrupt event");
+  						ak0991x_handle_interrupt_event(this);
+  					}
+          }
+          else{
+            AK0991X_INST_PRINT(ERROR, this, "Data is NOT ready. Wrong intterupt. Ignored. %d", (uint32_t)irq_event.timestamp);
+          }
+					state->irq_info.detect_irq_event = false; // clear interrupt
         }
       }
       else
