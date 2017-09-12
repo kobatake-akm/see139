@@ -29,6 +29,7 @@
  */
 static void ak0991x_publish_default_attributes(sns_sensor *const this)
 {
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   {
     sns_std_attr_value_data values[] = {SNS_ATTR};
@@ -55,6 +56,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
   }
+#endif
   {
     char const type[] = "mag";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -64,6 +66,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
   }
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   {
     char const vendor[] = "akm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -103,6 +106,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, true);
   }
+#endif
 }
 
 
@@ -153,7 +157,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   return SNS_RC_SUCCESS;
 }
 
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEINIT
 /** See sns_sensor.h */
 sns_rc ak0991x_mag_deinit(sns_sensor *const this)
 {

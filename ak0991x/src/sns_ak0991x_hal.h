@@ -16,8 +16,8 @@
 
 #include <stdint.h>
 
-#include "sns_ak0991x_sensor_instance.h"
 #include "sns_ak0991x_lite.h"
+#include "sns_ak0991x_sensor_instance.h"
 #include "sns_diag.pb.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
@@ -237,6 +237,7 @@
  */
 #define AK0991X_NUM_AXES                            TRIAXIS_NUM
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************
  * Log structure definition
  */
@@ -262,6 +263,7 @@ typedef struct log_sensor_state_raw_info
   /* Number of log samples written*/
   uint32_t log_sample_cnt;
 } log_sensor_state_raw_info;
+#endif
 
 /*******************************
  * Unencoded batch sample
@@ -475,6 +477,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance);
  */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance);
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 /**
  * Submit the Sensor State Raw Log Packet
  *
@@ -538,6 +541,7 @@ void ak0991x_log_sensor_state_raw_alloc(
 sns_rc ak0991x_encode_log_sensor_state_raw(
   void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
   size_t *bytes_written);
+#endif
 
 /**
  * Enable interrupt if not already enabled

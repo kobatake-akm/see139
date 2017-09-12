@@ -14,12 +14,16 @@
  *
  **/
 
+#include "sns_ak0991x_lite.h"
 #include "sns_sensor.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
+
+#ifdef AK0991X_ENABLE_POWER_RAIL
 #include "sns_pwr_rail_service.h"
+#endif
+
 #include "sns_ak0991x_hal.h"
-#include "sns_ak0991x_lite.h"
 
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_math_util.h"
@@ -173,9 +177,11 @@ typedef struct ak0991x_state
   //  ak0991x_irq_info      irq_info;
   sns_interrupt_req      irq_config;
 
+#ifdef AK0991X_ENABLE_POWER_RAIL
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
   sns_power_rail_state  registry_rail_on_state;
+#endif
 
   bool hw_is_present;
   bool sensor_client_present;
@@ -282,6 +288,6 @@ void ak0991x_mag_init_attributes(sns_sensor *const this,
 
 
 sns_rc ak0991x_mag_init(sns_sensor *const this);
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEINIT
 sns_rc ak0991x_mag_deinit(sns_sensor *const this);
 #endif

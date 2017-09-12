@@ -182,7 +182,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
  * @return bool true if decode is successful else false
  */
 static bool ak0991x_get_decoded_mag_request(
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEBUG_MSG
                                             sns_sensor const *this,
 #endif
                                             sns_request const *in_request,
@@ -208,7 +208,7 @@ static bool ak0991x_get_decoded_mag_request(
 }
 
 static void ak0991x_get_mag_config(
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEBUG_MSG
                                    sns_sensor const *this,
 #endif
 																	 sns_sensor_instance *instance,
@@ -237,7 +237,7 @@ static void ak0991x_get_mag_config(
     if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
       if(ak0991x_get_decoded_mag_request(
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEBUG_MSG
           this,
 #endif
 					request, &decoded_request, &decoded_payload))
@@ -328,7 +328,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   AK0991X_PRINT(LOW, this, "ak0991x_reval_instance_config");
 
   ak0991x_get_mag_config(
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEBUG_MSG
                          this,
 #endif
                          instance,
@@ -351,6 +351,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                               chosen_flush_period);
 }
 
+#ifdef AK0991X_ENABLE_POWER_RAIL
 static void ak0991x_register_power_rails(sns_sensor *const this)
 {
    ak0991x_state *state = (ak0991x_state *)this->state->state;
@@ -365,6 +366,7 @@ static void ak0991x_register_power_rails(sns_sensor *const this)
    state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
                                                           &state->rail_config);
 }
+#endif
 
 static void ak0991x_send_flush_config(sns_sensor *const this,
                                       sns_sensor_instance *instance)
@@ -378,6 +380,7 @@ static void ak0991x_send_flush_config(sns_sensor *const this,
   this->instance_api->set_client_config(instance, &config);
 }
 
+#ifdef AK0991X_ENABLE_POWER_RAIL
 static void ak0991x_start_power_rail_timer(sns_sensor *const this,
                                            sns_time timeout_ticks,
                                            ak0991x_power_rail_pending_state pwr_rail_pend_state)
@@ -418,7 +421,7 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
     AK0991X_PRINT(ERROR, this, "AK0991x timer req encode error");
   }
 }
-
+#endif
 
 static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
                                                  char *reg_group_name)
@@ -742,6 +745,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->irq_config.is_chip_pin = state->registry_pf_cfg.irq_is_chip_pin;
           state->irq_config.interrupt_drive_strength = state->registry_pf_cfg.irq_drive_strength;
           state->irq_config.interrupt_trigger_type = state->registry_pf_cfg.irq_trigger_type;
+#ifdef AK0991X_ENABLE_POWER_RAIL
           state->rail_config.num_of_rails = state->registry_pf_cfg.num_rail;
           state->registry_rail_on_state = state->registry_pf_cfg.rail_on_state;
           sns_strlcpy(state->rail_config.rails[0].name,
@@ -750,7 +754,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           sns_strlcpy(state->rail_config.rails[1].name,
                       state->registry_pf_cfg.vdd_rail,
                       sizeof(state->rail_config.rails[1].name));
-
+#endif
           AK0991X_PRINT(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
                      state->com_port_info.com_config.bus_type,
                      state->com_port_info.com_config.bus_instance,
@@ -772,10 +776,11 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                      state->irq_config.interrupt_trigger_type,
                      state->registry_pf_cfg.rigid_body_type);
 
+#ifdef AK0991X_ENABLE_POWER_RAIL
           AK0991X_PRINT(LOW, this, "num_rail:%d, rail_on_state:%d",
                      state->rail_config.num_of_rails,
                      state->registry_rail_on_state);
-
+#endif
           /**-----------------Register and Open COM Port-------------------------*/
           if (NULL == state->com_port_info.port_handle)
           {
@@ -796,11 +801,13 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
             }
           }
 
+#ifdef AK0991X_ENABLE_POWER_RAIL
           /**---------------------Register Power Rails --------------------------*/
           if(NULL == state->pwr_rail_service && rc == SNS_RC_SUCCESS)
           {
             ak0991x_register_power_rails(this);
           }
+#endif
         }
       }
       else if(0 == strncmp((char*)group_name.buf, "ak0991x_0_platform.placement",
@@ -957,6 +964,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   }
 }
 
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
 /**
  * Publish attributes read from registry
  *
@@ -1008,6 +1016,7 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
         this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
   }
 }
+#endif
 
 static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 {
@@ -1022,10 +1031,12 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
     {
       ak0991x_sensor_process_registry_event(this, event);
 
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
       if(state->registry_cfg_received && state->registry_placement_received)
       {
         ak0991x_publish_registry_attributes(this);
       }
+#endif
 
       event = state->reg_data_stream->api->get_next_input(state->reg_data_stream);
     }
@@ -1109,6 +1120,7 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
   }
 }
 
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
 /**
  * Initialize attributes to their default state.  They may/will be updated
  * within notify_event.
@@ -1240,6 +1252,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
        this, SNS_STD_SENSOR_ATTRID_SLEEP_CURRENT, &value, 1, false);
  }
 }
+#endif
 
 /**
  * Decodes self test requests.
@@ -1251,7 +1264,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  * @return bool True if decoding is successful else false.
  */
 static bool ak0991x_get_decoded_self_test_request(
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEBUG_MSG
                                                   sns_sensor const *this,
 #endif
                                                   sns_request const *request,
@@ -1284,7 +1297,7 @@ static bool ak0991x_get_decoded_self_test_request(
  * @return Ture if request is valid else false
  */
 static bool ak0991x_extract_self_test_info(
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEBUG_MSG
                                    sns_sensor const *this,
 #endif
                                    sns_sensor_instance *instance,
@@ -1298,7 +1311,7 @@ static bool ak0991x_extract_self_test_info(
   self_test_info = &inst_state->mag_info.test_info;
 
   if(ak0991x_get_decoded_self_test_request(
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEBUG_MSG
       this,
 #endif
   		new_request, &decoded_request, &test_config))
@@ -1456,15 +1469,21 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             state->scp_service->api->
               sns_scp_deregister_com_port(&state->com_port_info.port_handle);
 
+#ifdef AK0991X_ENABLE_POWER_RAIL
             /**----------------------Turn Power Rail OFF--------------------------*/
             state->rail_config.rail_vote = SNS_RAIL_OFF;
             state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
                                          &state->rail_config,     NULL);
+#endif
 
             if (state->hw_is_present)
             {
-              ak0991x_publish_hw_attributes(this,state->device_select);
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
+            	ak0991x_publish_hw_attributes(this,state->device_select);
+#else
+
+#endif
               ak0991x_sensor_publish_available(this);
               AK0991X_PRINT(HIGH, this, "AK0991X HW present. device_select: %u",
                                        state->device_select);
@@ -1564,8 +1583,10 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 {
   sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
   ak0991x_state *state = (ak0991x_state *)this->state->state;
+#ifdef AK0991X_ENABLE_POWER_RAIL
   sns_time on_timestamp;
   sns_time delta;
+#endif
   bool reval_config = false;
 
   AK0991X_PRINT(HIGH, this, "ak0991x_set_client_request");
@@ -1606,6 +1627,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 
     if (NULL == instance)
     {
+#ifdef AK0991X_ENABLE_POWER_RAIL
       state->rail_config.rail_vote = SNS_RAIL_ON_NPM;
       state->pwr_rail_service->api->sns_vote_power_rail_update(
         state->pwr_rail_service,
@@ -1629,7 +1651,12 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         AK0991X_PRINT(LOW, this, "rail is already ON");
         reval_config = true;
       }
-
+#else
+      state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ;
+      // rail is already ON
+      AK0991X_PRINT(LOW, this, "rail is already ON");
+      reval_config = true;
+#endif
       AK0991X_PRINT(LOW, this, "Creating instance");
 
       /** create_instance() calls init() for the Sensor Instance */
@@ -1710,7 +1737,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
              SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
           {
             if(ak0991x_extract_self_test_info(
-#ifndef AK0991X_ENABLE_SEE_LITE_MODE
+#ifdef AK0991X_ENABLE_DEBUG_MSG
                 this,
 #endif
             		instance, new_request))
@@ -1792,12 +1819,14 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
   if(rv == SNS_RC_SUCCESS &&
      !state->hw_is_present &&
+#ifdef AK0991X_ENABLE_POWER_RAIL
      NULL != state->pwr_rail_service &&
-     NULL != state->timer_stream &&
+#endif
+		 NULL != state->timer_stream &&
      state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
   {
+#ifdef AK0991X_ENABLE_POWER_RAIL
     sns_time timeticks;
-
     state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
     state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                              this,
@@ -1807,6 +1836,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                    sns_convert_ns_to_ticks(
                                    AK0991X_OFF_TO_IDLE_MS * 1000000LL),
                                    AK0991X_POWER_RAIL_PENDING_INIT);
+#else
+    state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_INIT;
+#endif
   }
 
   if(rv == SNS_RC_SUCCESS &&

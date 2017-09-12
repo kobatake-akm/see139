@@ -38,7 +38,9 @@
 #include "sns_sync_com_port_service.h"
 #include "sns_diag.pb.h"
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 extern log_sensor_state_raw_info log_mag_state_raw_info;
+#endif
 
 const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   {
@@ -78,8 +80,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     (ak0991x_instance_state *)this->state->state;
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
   sns_sensor_event    *event;
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
   sns_diag_service    *diag = state->diag_service;
-
+#endif
   AK0991X_INST_PRINT(ERROR, this, "ak0991x_inst_notify_event called.");
 
   // Turn COM port ON
@@ -87,7 +90,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     state->com_port_info.port_handle,
     true);
 
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_dae_if_process_events(this);
+#endif
 
   // Handle interrupts
   if (NULL != state->interrupt_data_stream)
@@ -165,18 +170,22 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
+
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
         sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
         log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
         log_mag_state_raw_info.diag = diag;
         log_mag_state_raw_info.instance = this;
         log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
-
+#endif
         AK0991X_INST_PRINT(LOW, this, "handle ASCP event");
 
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
+#endif
       }
 
       event = state->async_com_port_data_stream->api->get_next_input(

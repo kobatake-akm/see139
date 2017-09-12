@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/09/17     010020     AKM(M)           Cont. Modified for SEE-Lite mode. Not finished yet.
  * 09/08/17     010019     AKM(M)           Modified for SEE-Lite mode. Not finished yet.
  * 09/08/17     010018     AKM(M)           Added to check DRDY bit to ignore wrong notify_event call
  * 09/07/17     010017     AKM(M)           enabled AK0991X_DAE_FORCE_NOT_AVAILABLE for second test run
@@ -54,4 +55,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10019  // major:01 minor:00 revision:19
+#define AK0991X_DRIVER_VERSION 10020  // major:01 minor:00 revision:20

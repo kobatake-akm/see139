@@ -28,7 +28,12 @@
 #include "sns_physical_sensor_test.pb.h"
 #include "sns_std_sensor.pb.h"
 #include "sns_ak0991x_lite.h"
+
+#ifdef AK0991X_ENABLE_DAE
 #include "sns_ak0991x_dae_if.h"
+#else
+#include "sns_stream_service.h"
+#endif
 
 #include "sns_async_com_port.pb.h"
 #include "sns_physical_sensor_test.pb.h"
@@ -209,9 +214,11 @@ typedef struct ak0991x_instance_state
 
   sns_async_com_port_config ascp_config;
 
+#ifdef AK0991X_ENABLE_DAE
   /**--------DAE interface---------*/
   ak0991x_dae_if_info       dae_if;
   ak0991x_config_step       config_step;
+#endif
 
   /** Data streams from dependentcies. */
   sns_data_stream       *interrupt_data_stream;
@@ -241,8 +248,9 @@ typedef struct ak0991x_instance_state
 
   bool fifo_flush_in_progress;
   bool new_self_test_request;
-
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
   size_t           log_raw_encoded_size;
+#endif
 } ak0991x_instance_state;
 
 typedef struct odr_reg_map
