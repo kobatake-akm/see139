@@ -220,9 +220,13 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->supports_sync_stream = false;
 #endif
 
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
+#endif
+#ifdef AK0991X_ENABLE_DRI
   ak0991x_send_suid_req(this, "interrupt", sizeof("interrupt"));
   ak0991x_send_suid_req(this, "async_com_port", sizeof("async_com_port"));
+#endif
   ak0991x_send_suid_req(this, "timer", sizeof("timer"));
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   ak0991x_send_suid_req(this, "registry", sizeof("registry"));
