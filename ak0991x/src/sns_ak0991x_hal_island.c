@@ -1281,8 +1281,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
         (uint32_t)state->mag_registry_cfg.fac_cal_bias[2]);
    */
 
-  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d",
-  		(uint32_t)timestamp);
+//  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d",
+//  		(uint32_t)timestamp);
 
   if (state->mag_info.device_select == AK09917)
   {
@@ -1297,10 +1297,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   	lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]);
   }
 
-  AK0991X_INST_PRINT(ERROR, instance, "Mag[LSB] %d,%d,%d",
-  		(int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]),
-			(int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]),
-			(int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]));
+  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d Mag[LSB] %d,%d,%d",
+      (uint32_t)timestamp,
+      (int16_t)(lsbdata[TRIAXIS_X]),
+			(int16_t)(lsbdata[TRIAXIS_Y]),
+			(int16_t)(lsbdata[TRIAXIS_Z]));
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.sstvt_adj[0] * state->mag_info.resolution;
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.sstvt_adj[1] * state->mag_info.resolution;
@@ -1540,36 +1541,8 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
   	}
 		state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
 #endif
-
-//	  AK0991X_INST_PRINT(ERROR, instance, "start ak0991x_validate_time done.");
   }
 }
-
-/*
-bool ak0991x_is_drdy(sns_sensor_instance *const instance)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t st1_buf;
-
-  ak0991x_read_st1(state,state->com_port_info.port_handle,
-                   &st1_buf);
-
-  if( st1_buf & AK0991X_DRDY_BIT ) return true;
-  return false;
-}
-
-
-uint8_t ak0991x_get_status1(sns_sensor_instance *const instance)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t st1_buf;
-
-  ak0991x_read_st1(state,state->com_port_info.port_handle,
-                   &st1_buf);
-
-  return st1_buf;
-}
-*/
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {

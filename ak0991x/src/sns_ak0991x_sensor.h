@@ -205,7 +205,6 @@ typedef struct ak0991x_state
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
-
   // registry sensor reg config
   bool registry_reg_cfg_received;
   ak0991x_registry_phy_sensor_cfg registry_reg_cfg;

@@ -150,7 +150,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 
 
 #ifndef AK0991X_ENABLE_REGISTRY_ACCESS
-  AK0991X_PRINT(ERROR, this, "Read Hardcode for AK09916C");
+  AK0991X_PRINT(ERROR, this, "Set status for AK09916C");
   state->com_port_info.com_config.bus_type = 0;
   state->com_port_info.com_config.bus_instance = 3;
   state->com_port_info.com_config.slave_control = 12;

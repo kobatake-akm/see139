@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/14/17     010023     AKM(N+M)         Added compile switches for FIFO/DRI/FUSE and modified for issue#5/#23
  * 09/13/17     010022     AKM(M)           Modified check DRDY bit to ignore wrong notify event call
  * 09/13/17     010021     AKM(M)           Cont. Modified for SEE-Lite mode. Disabled registry. Not finished yet.
  * 09/09/17     010020     AKM(M)           Cont. Modified for SEE-Lite mode. Not finished yet.
@@ -57,4 +58,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10022  // major:01 minor:00 revision:22
+#define AK0991X_DRIVER_VERSION 10023  // major:01 minor:00 revision:23
