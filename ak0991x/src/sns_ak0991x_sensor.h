@@ -14,10 +14,12 @@
  *
  **/
 
+#include "sns_ak0991x_lite.h"
 #include "sns_sensor.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
 #include "sns_pwr_rail_service.h"
+
 #include "sns_ak0991x_hal.h"
 
 #include "sns_ak0991x_sensor_instance.h"
@@ -38,12 +40,14 @@
                                              &(sns_sensor_uid){{0}},    \
                                              sizeof(sns_sensor_uid) ) == 0 )
 
+//#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 #define AK0991X_REGISTRY_PF_CONFIG   "ak0991x_0_platform.config"
 #define AK0991X_REGISTRY_PLACE       "ak0991x_0_platform.placement"
 #define AK0991X_REGISTRY_ORIENT      "ak0991x_0_platform.orient"
 #define AK0991X_REGISTRY_FACCAL      "ak0991x_0_platform.mag.fac_cal"
 #define AK0991X_REGISTRY_MAG_CONFIG  "ak0991x_0.mag.config"
 #define AK0991X_REGISTRY_REG_CONFIG  "ak0991x_0.mag.config_2"
+//#endif
 
 #if 0
 /** TODO Using 8996 Platform config as defaults. This is for
@@ -145,6 +149,7 @@ typedef enum
   AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ,
 } ak0991x_power_rail_pending_state;
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 /** Registry items supported as part of physical sensor
  *  configuraton registry group
  */
@@ -154,6 +159,7 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
+#endif
 
 /** Interrupt Sensor State. */
 
@@ -195,6 +201,7 @@ typedef struct ak0991x_state
   uint8_t resolution_idx;
   int64_t hardware_id;
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
@@ -205,10 +212,12 @@ typedef struct ak0991x_state
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
-
   // axis conversion
   bool registry_orient_received;
+#endif
+
   triaxis_conversion axis_map[TRIAXIS_NUM];
+
 
   // factory calibration
   bool                    registry_fac_cal_received;
@@ -279,6 +288,7 @@ void ak0991x_mag_init_attributes(sns_sensor *const this,
 );
 
 
-
 sns_rc ak0991x_mag_init(sns_sensor *const this);
+#ifdef AK0991X_ENABLE_DEINIT
 sns_rc ak0991x_mag_deinit(sns_sensor *const this);
+#endif

@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 
+#include "sns_ak0991x_lite.h"
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_diag.pb.h"
 #include "sns_sensor.h"
@@ -37,18 +38,9 @@
  */
 
 // Enable for test code
-#ifndef AK0991X_ENABLE_TEST_CODE
-#define AK0991X_ENABLE_TEST_CODE         1
-#endif
-
-// Define to enable extra debugging
-#define AK0991X_VERBOSE_DEBUG            1
-
-typedef enum
-{
-  AK0991X_I2C = SNS_BUS_I2C,
-  AK0991X_SPI = SNS_BUS_SPI,
-} ak0991x_bus_type;
+//#ifndef AK0991X_ENABLE_TEST_CODE
+//#define AK0991X_ENABLE_TEST_CODE         1
+//#endif
 
 /**
  *  Address registers
@@ -101,6 +93,12 @@ typedef enum
 #define AK09915C_SUB_ID                             0x0
 #define AK09915D_SUB_ID                             0x2
 
+/** Data ready bit */
+#define AK0991X_DRDY_BIT                            0x1
+
+/** Data over run bit */
+#define AK0991X_DOR_BIT                             0x2
+
 /** Magnetic sensor overflow bit */
 #define AK0991X_HOFL_BIT                            0x8
 
@@ -135,10 +133,12 @@ typedef enum
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us
 #define AK09918_TIME_FOR_MEASURE_US                 8200 //us
 
+#ifdef AK0991X_ENABLE_S4S
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
 #define AK0991X_S4S_T_PH                            40
 #define AK0991X_S4S_RR                              1
+#endif // AK0991X_ENABLE_S4S
 
 /** Limit of factory shipment test */
 #define TLIMIT_NO_READ_ID                           0x001
@@ -243,6 +243,7 @@ typedef enum
  */
 #define AK0991X_NUM_AXES                            TRIAXIS_NUM
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************
  * Log structure definition
  */
@@ -268,6 +269,7 @@ typedef struct log_sensor_state_raw_info
   /* Number of log samples written*/
   uint32_t log_sample_cnt;
 } log_sensor_state_raw_info;
+#endif
 
 /*******************************
  * Unencoded batch sample
@@ -416,13 +418,30 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                      void *user_arg);
 
 /**
+ * Validate timestamp
+ *
+ * @param instance                 Sensor Instance
+ * @param irq_time                 interrupt timestamp passed by the framework
+ */
+void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time irq_time);
+
+/**
  * Check the drdy bit
  *
  * @param instance                 Sensor Instance
-*
+ *
  * @return false: no data ready, true: data is ready
  */
-bool ak0991x_is_drdy(sns_sensor_instance *const instance);
+//bool ak0991x_is_drdy(sns_sensor_instance *const instance);
+
+/**
+ * Get ST1 bit status
+ *
+ * @param instance                 Sensor Instance
+ *
+ * @return ST1 bit status
+ */
+//uint8_t ak0991x_get_status1(sns_sensor_instance *const instance);
 
 /**
  * Flush mag samples from the buffer
@@ -440,6 +459,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance);
  */
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
 
+#ifdef AK0991X_ENABLE_S4S
 /**
  * Handle a timer for s4s to synchronize by SYT and DT command.
  *
@@ -449,6 +469,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
  * @param instance                 Sensor Instance
  */
 sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance);
+#endif // AK0991X_ENABLE_S4S
 
 /**
  * Handle an timer by reading the register and sending out
@@ -471,6 +492,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance);
  */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance);
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 /**
  * Submit the Sensor State Raw Log Packet
  *
@@ -534,6 +556,7 @@ void ak0991x_log_sensor_state_raw_alloc(
 sns_rc ak0991x_encode_log_sensor_state_raw(
   void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
   size_t *bytes_written);
+#endif
 
 /**
  * Enable interrupt if not already enabled
@@ -547,11 +570,13 @@ void ak0991x_register_interrupt(sns_sensor_instance *this);
  */
 void ak0991x_register_timer(sns_sensor_instance *this);
 
+#ifdef AK0991X_ENABLE_S4S
 /**
  * Enable timer for s4s
  *
  */
 void ak0991x_register_s4s_timer(sns_sensor_instance *this);
+#endif // AK0991X_ENABLE_S4S
 
 
 /**

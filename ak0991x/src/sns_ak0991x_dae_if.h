@@ -13,10 +13,15 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
 
+#include "sns_ak0991x_lite.h"
+
+#ifdef AK0991X_ENABLE_DAE
+
 #include <stdint.h>
 #include "sns_sensor_instance.h"
 #include "sns_data_stream.h"
 #include "sns_stream_service.h"
+
 
 struct sns_stream_service;
 struct sns_data_stream;
@@ -69,3 +74,4 @@ bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this);
 
 void ak0991x_dae_if_process_events(sns_sensor_instance *this);
 
+#endif // AK0991X_ENABLE_DAE

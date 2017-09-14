@@ -27,9 +27,17 @@
 #include "sns_interrupt.pb.h"
 #include "sns_physical_sensor_test.pb.h"
 #include "sns_std_sensor.pb.h"
+#include "sns_ak0991x_lite.h"
+
+#ifdef AK0991X_ENABLE_DAE
 #include "sns_ak0991x_dae_if.h"
+#else
+#include "sns_stream_service.h"
+#endif
+
 #include "sns_async_com_port.pb.h"
 #include "sns_physical_sensor_test.pb.h"
+
 
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
@@ -44,9 +52,6 @@ sns_sensor_instance_api ak0991x_sensor_instance_api;
 #define AK0991X_MAX_NUM_REP_MODE    3
 #define AK0991X_MAX_NUM_OPE_MODE    3
 #define AK0991X_MAX_NUM_ODR         6
-
-// Enable below macro to enable debug messages
-#define AK0991X_ENABLE_DEBUG_MSG
 
 #ifdef AK0991X_ENABLE_DEBUG_MSG
 #define AK0991X_PRINT(prio, sensor, ...) do { \
@@ -120,6 +125,7 @@ typedef enum
   AK0991X_CONFIG_UPDATING_HW        /** updating sensor HW, when done goes back to IDLE */
 } ak0991x_config_step;
 
+#ifdef AK0991X_ENABLE_S4S
 typedef enum
 {
   AK0991X_S4S_NOT_SYNCED,
@@ -127,6 +133,8 @@ typedef enum
   AK0991X_S4S_1ST_SYNCED,
   AK0991X_S4S_SYNCED
 } ak0991x_s4s_state;
+#endif // AK0991X_ENABLE_S4S
+
 typedef struct ak0991x_self_test_info
 {
   sns_physical_sensor_test_type test_type;
@@ -151,10 +159,12 @@ typedef struct ak0991x_mag_info
   sns_sensor_uid suid;
   ak0991x_self_test_info test_info;
   bool                   use_sync_stream;
+#ifdef AK0991X_ENABLE_S4S
   ak0991x_s4s_state      s4s_sync_state;
   uint16_t               s4s_t_ph;
   uint8_t                s4s_rr;
   bool                   s4s_dt_abort;
+#endif // AK0991X_ENABLE_S4S
 } ak0991x_mag_info;
 
 typedef struct ak0991x_irq_info
@@ -187,6 +197,7 @@ typedef struct ak0991x_instance_state
   uint8_t  num_samples;
   sns_time pre_timestamp;
   bool     this_is_first_data;
+  sns_time averaged_interval;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
@@ -203,14 +214,18 @@ typedef struct ak0991x_instance_state
 
   sns_async_com_port_config ascp_config;
 
+#ifdef AK0991X_ENABLE_DAE
   /**--------DAE interface---------*/
   ak0991x_dae_if_info       dae_if;
   ak0991x_config_step       config_step;
+#endif
 
   /** Data streams from dependentcies. */
   sns_data_stream       *interrupt_data_stream;
   sns_data_stream       *timer_data_stream;
+#ifdef AK0991X_ENABLE_S4S
   sns_data_stream       *s4s_timer_data_stream;
+#endif // AK0991X_ENABLE_S4S
   sns_data_stream       *async_com_port_data_stream;
 
   uint32_t              client_req_id;
@@ -233,8 +248,9 @@ typedef struct ak0991x_instance_state
 
   bool fifo_flush_in_progress;
   bool new_self_test_request;
-
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
   size_t           log_raw_encoded_size;
+#endif
 } ak0991x_instance_state;
 
 typedef struct odr_reg_map

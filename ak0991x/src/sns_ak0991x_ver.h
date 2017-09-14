@@ -22,7 +22,16 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/13/17     010022     AKM(M)           Modified check DRDY bit to ignore wrong notify event call
+ * 09/13/17     010021     AKM(M)           Cont. Modified for SEE-Lite mode. Disabled registry. Not finished yet.
+ * 09/09/17     010020     AKM(M)           Cont. Modified for SEE-Lite mode. Not finished yet.
+ * 09/08/17     010019     AKM(M)           Modified for SEE-Lite mode. Not finished yet.
+ * 09/08/17     010018     AKM(M)           Added to check DRDY bit to ignore wrong notify_event call
+ * 09/07/17     010017     AKM(M)           enabled AK0991X_DAE_FORCE_NOT_AVAILABLE for second test run
+ * 09/07/17     010016     AKM(M)           Merged 010014 and 010015
  * 09/07/17     010014     AKM              Update S4S in non-DAE and DAE.
+ * 09/05/17     010015     AKM(M)           Modified filter for DRI/FIFO mode.
+ * 09/05/17     010014     AKM(M)           Added filter for DRI mode(won't work with FIFO/Polling modes)
  * 09/05/17     010013     AKM              2nd Support S4S.
  * 09/01/17     010012     AKM              1st Support S4S.
  * 08/25/17     010011     Qualcomm         Work on OpenSSC v5.0.5.
@@ -48,4 +57,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10014  // major:01 minor:00 revision:14
+#define AK0991X_DRIVER_VERSION 10022  // major:01 minor:00 revision:22
