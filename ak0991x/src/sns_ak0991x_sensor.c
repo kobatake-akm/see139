@@ -575,17 +575,7 @@ static void ak0991x_process_suid_events(sns_sensor *const this)
       }
 
       /* save suid based on incoming data type name */
-      if(0 == strncmp(data_type_arg.buf, "data_acquisition_engine", data_type_arg.buf_len))
-      {
-        state->dae_suid = uid_list;
-        AK0991X_PRINT(ERROR, this, "SUID:data_acquisition_engine");
-      }
-      else if(0 == strncmp(data_type_arg.buf, "interrupt", data_type_arg.buf_len))
-      {
-        state->irq_suid = uid_list;
-        AK0991X_PRINT(ERROR, this, "SUID:interrupt");
-      }
-      else if(0 == strncmp(data_type_arg.buf, "timer", data_type_arg.buf_len))
+      if(0 == strncmp(data_type_arg.buf, "timer", data_type_arg.buf_len))
       {
         state->timer_suid = uid_list;
         AK0991X_PRINT(ERROR, this, "SUID:timer");
@@ -602,12 +592,26 @@ static void ak0991x_process_suid_events(sns_sensor *const this)
           }
         }
       }
-      else if (0 == strncmp(data_type_arg.buf, "async_com_port",
+#ifdef AK0991X_ENABLE_DAE
+      else if(0 == strncmp(data_type_arg.buf, "data_acquisition_engine", data_type_arg.buf_len))
+      {
+        state->dae_suid = uid_list;
+        AK0991X_PRINT(ERROR, this, "SUID:data_acquisition_engine");
+      }
+#endif //AK0991X_ENABLE_DAE
+#ifdef AK0991X_ENABLE_DRI
+      else if(0 == strncmp(data_type_arg.buf, "interrupt", data_type_arg.buf_len))
+      {
+        state->irq_suid = uid_list;
+        AK0991X_PRINT(ERROR, this, "SUID:interrupt");
+      }
+     else if (0 == strncmp(data_type_arg.buf, "async_com_port",
                             data_type_arg.buf_len))
       {
         state->acp_suid = uid_list;
         AK0991X_PRINT(ERROR, this, "SUID:async_com_port");
       }
+#endif //AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
       else if (0 == strncmp(data_type_arg.buf, "registry", data_type_arg.buf_len))
       {
@@ -1119,13 +1123,18 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
 
-  if( !SUID_IS_NULL(&state->irq_suid) &&
+  if(
+#ifdef AK0991X_ENABLE_DRI
+      !SUID_IS_NULL(&state->irq_suid) &&
       !SUID_IS_NULL(&state->acp_suid) &&
-      !SUID_IS_NULL(&state->timer_suid) &&
+#endif
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
       !SUID_IS_NULL(&state->reg_suid) &&
 #endif
-      !SUID_IS_NULL(&state->dae_suid))
+#ifdef AK0991X_ENABLE_DAE
+      !SUID_IS_NULL(&state->dae_suid) &&
+#endif
+      !SUID_IS_NULL(&state->timer_suid))
   {
     if( state->hw_is_present )
     {
@@ -1147,6 +1156,7 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
   }
   else
   {
+#ifdef AK0991X_ENABLE_DRI
     if( SUID_IS_NULL(&state->irq_suid) )
     {
       AK0991X_PRINT(LOW, this, "AK0991x waiting for IRQ SUID" );
@@ -1155,14 +1165,17 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
     {
       AK0991X_PRINT(LOW, this, "AK0991x waiting for ACP SUID" );
     }
+#endif
     if( SUID_IS_NULL(&state->timer_suid) )
     {
       AK0991X_PRINT(LOW, this, "AK0991x waiting for Timer SUID" );
     }
+#ifdef AK0991X_ENABLE_DAE
     if( SUID_IS_NULL(&state->dae_suid) )
     {
       AK0991X_PRINT(LOW, this, "AK0991x waiting for DAE SUID" );
     }
+#endif
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
     if( SUID_IS_NULL(&state->reg_suid) )
     {

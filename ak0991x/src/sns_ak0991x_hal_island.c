@@ -1360,7 +1360,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 #endif
 }
 
-
+#ifdef AK0991X_ENABLE_DAE
 void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
                                       sns_time            first_timestamp,
                                       sns_time            sample_interval_ticks,
@@ -1406,6 +1406,7 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
 
 
 }
+#endif //AK0991X_ENABLE_DAE
 
 /** See ak0991x_hal.h */
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
@@ -1426,6 +1427,7 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
 }
 
+#ifdef AK0991X_ENABLE_DRI
 void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                      void *user_arg)
 {
@@ -1490,7 +1492,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
     }
   }
 }
-
+#endif //AK0991X_ENABLE_DRI
 
 void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time irq_time){
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1702,6 +1704,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   }
 }
 
+#ifdef AK0991X_ENABLE_DRI
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 {
   uint8_t  buffer[AK0991X_MAX_FIFO_SIZE];
@@ -1745,6 +1748,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
 //  AK0991X_INST_PRINT(ERROR, instance, "handle_interrupt_event done.");
 }
+#endif //AK0991X_ENABLE_DRI
 
 #ifdef AK0991X_ENABLE_S4S
 sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
@@ -2262,6 +2266,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   return SNS_RC_SUCCESS;
 }
 
+#ifdef AK0991X_ENABLE_DRI
 void ak0991x_register_interrupt(sns_sensor_instance *this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
@@ -2287,6 +2292,7 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
     }
   }
 }
+#endif //A0991X_ENABLE_DRI
 
 void ak0991x_register_timer(sns_sensor_instance *this)
 {

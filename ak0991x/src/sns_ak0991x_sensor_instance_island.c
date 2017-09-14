@@ -78,7 +78,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
+#ifdef AK0991X_ENABLE_DRI
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
+#endif
   sns_sensor_event    *event;
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   sns_diag_service    *diag = state->diag_service;
@@ -94,6 +96,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   ak0991x_dae_if_process_events(this);
 #endif
 
+#ifdef AK0991X_ENABLE_DRI
   // Handle interrupts
   if (NULL != state->interrupt_data_stream)
   {
@@ -204,6 +207,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->async_com_port_data_stream);
     }
   }
+#endif
 
   // Handle timer event
   if (NULL != state->timer_data_stream)

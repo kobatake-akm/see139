@@ -105,14 +105,16 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     (ak0991x_state *)sstate->state;
   float               data[3];
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+#ifdef AK0991X_ENABLE_DRI
   sns_stream_service  *stream_mgr = (sns_stream_service *)
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+  sns_rc rv;
+#endif //AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   uint64_t buffer[10];
   pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)buffer, sizeof(buffer));
 #endif
   sns_diag_batch_sample batch_sample = sns_diag_batch_sample_init_default;
-  sns_rc rv;
   uint8_t arr_index = 0;
   float diag_temp[AK0991X_NUM_AXES];
   pb_float_arr_arg arg = {.arr = (float*)diag_temp, .arr_len = AK0991X_NUM_AXES,
@@ -249,7 +251,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
-
+#ifdef AK0991X_ENABLE_DRI
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                       this,
                                                       sensor_state->irq_suid,
@@ -270,7 +272,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
     return rv;
   }
-
+#endif //AK0991X_ENABLE_DRI
 
   /** Initialize Timer info to be used by the Instance */
   sns_memscpy(&state->timer_suid,
@@ -297,6 +299,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->com_port_info.port_handle,
     false);
 
+#ifdef AK0991X_ENABLE_DRI
   /** Initialize IRQ info to be used by the Instance */
   sns_memscpy(&state->irq_info,
               sizeof(state->irq_info),
@@ -338,6 +341,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   };
   state->async_com_port_data_stream->api->send_request(
     state->async_com_port_data_stream, &async_com_port_request);
+#endif //AK0991X_ENABLE_DRI
 
  /** Copy down axis conversion settings */
   sns_memscpy(state->axis_map,  sizeof(sensor_state->axis_map),
@@ -399,8 +403,10 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_S4S
   sns_sensor_util_remove_sensor_instance_stream(this,&state->s4s_timer_data_stream);
 #endif // AK0991X_ENABLE_S4S
+#ifdef AK0991X_ENABLE_DRI
   sns_sensor_util_remove_sensor_instance_stream(this,&state->interrupt_data_stream);
   sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
+#endif //AK0991X_ENABLE_DRI
   if(NULL != state->scp_service)
   {
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
@@ -454,6 +460,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     desired_report_rate = payload->report_rate;
 
     // Register for interrupt
+#ifdef AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_DAE
     if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
 #else
@@ -462,6 +469,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       ak0991x_register_interrupt(this);
     }
+#endif //AK0991X_ENABLE_DRI
 
     if (desired_report_rate > desired_sample_rate)
     {
@@ -564,6 +572,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
 
       // hardware setting for measurement mode
+#ifdef AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_DAE
       if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
 #else
@@ -573,6 +582,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_reconfig_hw(this);
         AK0991X_INST_PRINT(LOW, this, "done ak0991x_reconfig_hw");
       }
+#endif //AK0991X_ENABLE_DRI
+
       // Register for timer
 #ifdef AK0991X_ENABLE_DAE
       if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
@@ -660,7 +671,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
 
         // hardware setting for measurement mode
-#ifdef AK0991X_ENABLE_DEA
+#ifdef AK0991X_ENABLE_DRI
+#ifdef AK0991X_ENABLE_DAE
         if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
 #else
         if (state->mag_info.use_dri)
@@ -669,6 +681,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_reconfig_hw(this);
           AK0991X_INST_PRINT(LOW, this, "done ak0991x_reconfig_hw");
         }
+#endif //AK0991X_ENABLE_DRI
         // Register for timer
 #ifdef AK0991X_ENABLE_DAE
         if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
@@ -702,6 +715,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
       // hardware setting for measurement mode
+#ifdef AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_DAE
       if (state->mag_info.use_dri && !ak0991x_dae_if_available(this))
 #else
@@ -711,6 +725,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_reconfig_hw(this);
         AK0991X_INST_PRINT(LOW, this, "done ak0991x_reconfig_hw");
       }
+#endif //AK0991X_ENABLE_DRI
+
       // Register for timer
 #ifdef AK0991X_ENABLE_DAE
       if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))

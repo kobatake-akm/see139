@@ -383,6 +383,7 @@ float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr);
  */
 sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr);
 
+#ifdef AK0991X_ENABLE_DAE
 /**
  * Process a fifo buffer and extracts mag samples from the buffer
  * and generates event.
@@ -399,6 +400,7 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
                                       sns_time            interval,
                                       uint8_t             *fifo,
                                       size_t              num_bytes);
+#endif //AK0991X_ENABLE_DAE
 
 /**
  * Sends a FIFO complete event.
@@ -407,6 +409,7 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
  */
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
 
+#ifdef AK0991X_ENABLE_DRI
 /**
  * Extracts mag samples from the buffer
  * and generates event.
@@ -416,6 +419,7 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
  */
 void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                      void *user_arg);
+#endif //AK0991X_ENABLE_DRI
 
 /**
  * Validate timestamp
@@ -451,6 +455,7 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
  */
 void ak0991x_flush_fifo(sns_sensor_instance *const instance);
 
+#ifdef AK0991X_ENABLE_DRI
 /**
  * Handle an interrupt by reading the Fifo status register and sending out
  * appropriate requests to the asynchronous com port sensor to read the fifo.
@@ -458,6 +463,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance);
  * @param instance                 Sensor Instance
  */
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
+#endif //AK0991X_ENABLE_DRI
 
 #ifdef AK0991X_ENABLE_S4S
 /**
@@ -558,11 +564,13 @@ sns_rc ak0991x_encode_log_sensor_state_raw(
   size_t *bytes_written);
 #endif
 
+#ifdef AK0991X_ENABLE_DRI
 /**
  * Enable interrupt if not already enabled
  *
  */
 void ak0991x_register_interrupt(sns_sensor_instance *this);
+#endif //AK0991X_ENABLE_DRI
 
 /**
  * Enable timer if not already enabled
