@@ -123,13 +123,13 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
 
           // check DRDY bit to ignore wrong interrupt call by FW
-          uint8_t st1_status = ak0991x_get_status1(this);
-          if( st1_status & AK0991X_DOR_BIT )
-          {
-            AK0991X_INST_PRINT(ERROR, this, "Data Over Run");
-          }
-          if( st1_status & AK0991X_DRDY_BIT )
-          {
+//          uint8_t st1_status = ak0991x_get_status1(this);
+//          if( st1_status & AK0991X_DOR_BIT )
+//          {
+//            AK0991X_INST_PRINT(ERROR, this, "Data Over Run");
+//          }
+//          if( st1_status & AK0991X_DRDY_BIT )
+//          {
           	// adjust timestamp for jitter issues
             ak0991x_validate_timestamp(this, irq_event.timestamp);
 
@@ -144,10 +144,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   						ak0991x_handle_interrupt_event(this);
   					}
   					AK0991X_INST_PRINT(ERROR, this, "interrupt event done.");
-          }
-          else{
-            AK0991X_INST_PRINT(ERROR, this, "Data is NOT ready. Wrong intterupt. Ignored. %d", (uint32_t)irq_event.timestamp);
-          }
+//          }
+//          else{
+//            AK0991X_INST_PRINT(ERROR, this, "Data is NOT ready. Wrong intterupt. Ignored. %d", (uint32_t)irq_event.timestamp);
+//          }
 					state->irq_info.detect_irq_event = false; // clear interrupt
         }
         else

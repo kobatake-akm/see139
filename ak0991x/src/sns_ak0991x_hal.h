@@ -441,7 +441,7 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
  *
  * @return ST1 bit status
  */
-uint8_t ak0991x_get_status1(sns_sensor_instance *const instance);
+//uint8_t ak0991x_get_status1(sns_sensor_instance *const instance);
 
 /**
  * Flush mag samples from the buffer

@@ -1444,41 +1444,50 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
     sns_time                  timestamp;
     uint16_t                  cnt_for_ts = state->mag_info.cur_wmk;
 
-
     sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
     sns_time interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) /
       (state->mag_info.cur_wmk + 1);
 
-    for (i = 1; i < vector->bytes; i += AK0991X_NUM_DATA_HXL_TO_ST2)
+    if( (vector->buffer[0] & AK0991X_DOR_BIT) != 0 )
     {
-      if (state->this_is_first_data)
-      {
-        timestamp = state->interrupt_timestamp - (sample_interval_ticks * cnt_for_ts);
-      }
-      else
-      {
-        timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
-      }
-
-      ak0991x_handle_mag_sample(&vector->buffer[i],
-                                timestamp,
-                                instance,
-                                event_service,
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
-                                state,
-																&log_mag_state_raw_info
-#else
-																state
-#endif
-																);
-      cnt_for_ts--;
+      AK0991X_INST_PRINT(ERROR, instance, "Data over run.");
     }
 
+    // called from interrupt, then DRDY bit should be 1
+    if( (vector->buffer[0] & AK0991X_DRDY_BIT) != 0 )
+    {
+      for (i = 1; i < vector->bytes; i += AK0991X_NUM_DATA_HXL_TO_ST2)
+      {
+        if (state->this_is_first_data)
+        {
+          timestamp = state->interrupt_timestamp - (sample_interval_ticks * cnt_for_ts);
+        }
+        else
+        {
+          timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
+        }
 
-    state->this_is_first_data = false;
-    state->pre_timestamp = state->interrupt_timestamp;
-
+        ak0991x_handle_mag_sample(&vector->buffer[i],
+                                  timestamp,
+                                  instance,
+                                  event_service,
+  #ifdef AK0991X_ENABLE_DIAG_LOGGING
+                                  state,
+                                  &log_mag_state_raw_info
+  #else
+                                  state
+  #endif
+                                  );
+        cnt_for_ts--;
+      }
+      state->this_is_first_data = false;
+      state->pre_timestamp = state->interrupt_timestamp;
+    }
+    else
+    {
+      AK0991X_INST_PRINT(ERROR, instance, "Data is not ready. Wrong Interrupt Detected.");
+    }
   }
 }
 
@@ -1546,7 +1555,7 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   if( st1_buf & AK0991X_DRDY_BIT ) return true;
   return false;
 }
-*/
+
 
 uint8_t ak0991x_get_status1(sns_sensor_instance *const instance)
 {
@@ -1558,6 +1567,7 @@ uint8_t ak0991x_get_status1(sns_sensor_instance *const instance)
 
   return st1_buf;
 }
+*/
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {

@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/13/17     010022     AKM(M)           Modified check DRDY bit to ignore wrong notify event call
  * 09/13/17     010021     AKM(M)           Cont. Modified for SEE-Lite mode. Disabled registry. Not finished yet.
  * 09/09/17     010020     AKM(M)           Cont. Modified for SEE-Lite mode. Not finished yet.
  * 09/08/17     010019     AKM(M)           Modified for SEE-Lite mode. Not finished yet.
@@ -56,4 +57,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10021  // major:01 minor:00 revision:21
+#define AK0991X_DRIVER_VERSION 10022  // major:01 minor:00 revision:22
