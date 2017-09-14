@@ -17,9 +17,19 @@
 // Enable below macro to set SEE Lite mode
 //#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
 
-#ifndef AK0991X_ENABLE_SEE_LITE
+#ifdef AK0991X_ENABLE_SEE_LITE
 
-#define AK0991X_ENABLE_REGISTRY_SENSOR    // (TBD)Enable registry sensor
+//#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
+#define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
+//#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
+//#define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
+#define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
+//#define AK0991X_ENABLE_DEINIT             // Enable deinit call
+#define AK0991X_TARGET_AK09916C           //
+
+#else
+
+#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
 #define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
 #define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 #define AK0991X_ENABLE_DAE                // Enable DAE

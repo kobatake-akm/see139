@@ -36,6 +36,8 @@
 #include "sns_pb_util.h"
 #include "sns_diag_service.h"
 
+#define AK0991X_DAE_FORCE_NOT_AVAILABLE
+
 #ifndef SNS_MAX
 #define SNS_MAX(a,b) ({ __auto_type _a = (a);    \
                         __auto_type _b = (b);    \

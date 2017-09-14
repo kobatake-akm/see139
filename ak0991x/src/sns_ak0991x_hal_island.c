@@ -1309,6 +1309,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   // Check magnetic sensor overflow
   if ((mag_sample[7] & AK0991X_HOFL_BIT) != 0)
   {
+    AK0991X_INST_PRINT(ERROR, instance, "sensor overflow: HOFL_BIT=1");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
   else
@@ -1345,6 +1346,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   state->m_stream_event[0] = opdata_raw[TRIAXIS_X];
   state->m_stream_event[1] = opdata_raw[TRIAXIS_Y];
   state->m_stream_event[2] = opdata_raw[TRIAXIS_Z];
+
+//  AK0991X_INST_PRINT(ERROR, instance, "handle_mag_sample done.");
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   // Log raw uncalibrated sensor data
@@ -1484,8 +1487,6 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint16_t data_count = 1;
 
-  AK0991X_INST_PRINT(ERROR, instance, "start ak0991x_validate_time");
-
   // FIFO Mode
 	if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk > 0)) data_count = state->mag_info.cur_wmk + 1;
 
@@ -1528,9 +1529,12 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
   	}
 		state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
 #endif
+
+//	  AK0991X_INST_PRINT(ERROR, instance, "start ak0991x_validate_time done.");
   }
 }
 
+/*
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1539,8 +1543,20 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   ak0991x_read_st1(state,state->com_port_info.port_handle,
                    &st1_buf);
 
-  if( st1_buf & 0x01 ) return true;
-	return false;
+  if( st1_buf & AK0991X_DRDY_BIT ) return true;
+  return false;
+}
+*/
+
+uint8_t ak0991x_get_status1(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint8_t st1_buf;
+
+  ak0991x_read_st1(state,state->com_port_info.port_handle,
+                   &st1_buf);
+
+  return st1_buf;
 }
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
@@ -1716,6 +1732,8 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
   };
   state->async_com_port_data_stream->api->send_request(
     state->async_com_port_data_stream, &async_com_port_request);
+
+//  AK0991X_INST_PRINT(ERROR, instance, "handle_interrupt_event done.");
 }
 
 #ifdef AK0991X_ENABLE_S4S

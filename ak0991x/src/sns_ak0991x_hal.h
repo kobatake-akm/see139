@@ -93,6 +93,12 @@
 #define AK09915C_SUB_ID                             0x0
 #define AK09915D_SUB_ID                             0x2
 
+/** Data ready bit */
+#define AK0991X_DRDY_BIT                            0x1
+
+/** Data over run bit */
+#define AK0991X_DOR_BIT                             0x2
+
 /** Magnetic sensor overflow bit */
 #define AK0991X_HOFL_BIT                            0x8
 
@@ -426,7 +432,16 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
  *
  * @return false: no data ready, true: data is ready
  */
-bool ak0991x_is_drdy(sns_sensor_instance *const instance);
+//bool ak0991x_is_drdy(sns_sensor_instance *const instance);
+
+/**
+ * Get ST1 bit status
+ *
+ * @param instance                 Sensor Instance
+ *
+ * @return ST1 bit status
+ */
+uint8_t ak0991x_get_status1(sns_sensor_instance *const instance);
 
 /**
  * Flush mag samples from the buffer

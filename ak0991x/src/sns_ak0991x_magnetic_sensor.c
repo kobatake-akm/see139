@@ -147,12 +147,86 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->fac_cal_corr_mat.e11 = 1.0;
   state->fac_cal_corr_mat.e22 = 1.0;
 
+
+
+#ifndef AK0991X_ENABLE_REGISTRY_ACCESS
+  AK0991X_PRINT(ERROR, this, "Read Hardcode for AK09916C");
+  state->com_port_info.com_config.bus_type = 0;
+  state->com_port_info.com_config.bus_instance = 3;
+  state->com_port_info.com_config.slave_control = 12;
+  state->com_port_info.com_config.min_bus_speed_KHz = 400;
+  state->com_port_info.com_config.max_bus_speed_KHz = 400;
+  state->com_port_info.com_config.reg_addr_type = 0;
+  state->irq_config.interrupt_num = 119;
+  state->irq_config.interrupt_pull_type = 3;
+  state->irq_config.is_chip_pin = 1;
+  state->irq_config.interrupt_drive_strength = 0;
+  state->irq_config.interrupt_trigger_type = 1;
+  state->rail_config.num_of_rails = 1;
+  state->registry_rail_on_state = 1;
+  sns_strlcpy(state->rail_config.rails[0].name,
+      "/pmic/client/sensor_vddio",
+              sizeof(state->rail_config.rails[0].name));
+  sns_strlcpy(state->rail_config.rails[1].name,
+      "/pmic/client/sensor_vddio",
+              sizeof(state->rail_config.rails[1].name));
+
+  state->axis_map[0].ipaxis = TRIAXIS_X;
+  state->axis_map[0].opaxis = TRIAXIS_X;
+  state->axis_map[0].invert = false;
+  state->axis_map[1].ipaxis = TRIAXIS_Y;
+  state->axis_map[1].opaxis = TRIAXIS_Y;
+  state->axis_map[1].invert = false;
+  state->axis_map[2].ipaxis = TRIAXIS_Z;
+  state->axis_map[2].opaxis = TRIAXIS_Z;
+  state->axis_map[2].invert = false;
+
+  state->fac_cal_bias[0] = 0.0;
+  state->fac_cal_bias[1] = 0.0;
+  state->fac_cal_bias[2] = 0.0;
+  state->fac_cal_scale[0] = 0.0;
+  state->fac_cal_scale[1] = 0.0;
+  state->fac_cal_scale[2] = 0.0;
+  state->fac_cal_corr_mat.e00 = 1.0;
+  state->fac_cal_corr_mat.e01 = 0.0;
+  state->fac_cal_corr_mat.e02 = 0.0;
+  state->fac_cal_corr_mat.e10 = 0.0;
+  state->fac_cal_corr_mat.e11 = 1.0;
+  state->fac_cal_corr_mat.e12 = 0.0;
+  state->fac_cal_corr_mat.e20 = 0.0;
+  state->fac_cal_corr_mat.e21 = 0.0;
+  state->fac_cal_corr_mat.e22 = 1.0;
+
+  state->placement[0] = 0.0;
+  state->placement[1] = 0.0;
+  state->placement[2] = 0.0;
+  state->placement[3] = 0.0;
+  state->placement[4] = 0.0;
+  state->placement[5] = 0.0;
+  state->placement[6] = 0.0;
+  state->placement[7] = 0.0;
+  state->placement[8] = 0.0;
+  state->placement[9] = 0.0;
+  state->placement[10] = 0.0;
+  state->placement[11] = 0.0;
+
+  state->use_fifo = false;
+  state->nsf = 0;
+  state->sdr = 0;
+
+  state->is_dri = false;
+  state->resolution_idx = 0;
+  state->hardware_id = 0;
+  state->supports_sync_stream = false;
+#endif
+
   ak0991x_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
   ak0991x_send_suid_req(this, "interrupt", sizeof("interrupt"));
   ak0991x_send_suid_req(this, "async_com_port", sizeof("async_com_port"));
   ak0991x_send_suid_req(this, "timer", sizeof("timer"));
-
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   ak0991x_send_suid_req(this, "registry", sizeof("registry"));
+#endif
 
   return SNS_RC_SUCCESS;
 }

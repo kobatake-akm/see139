@@ -18,10 +18,7 @@
 #include "sns_sensor.h"
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
-
-#ifdef AK0991X_ENABLE_POWER_RAIL
 #include "sns_pwr_rail_service.h"
-#endif
 
 #include "sns_ak0991x_hal.h"
 
@@ -43,12 +40,14 @@
                                              &(sns_sensor_uid){{0}},    \
                                              sizeof(sns_sensor_uid) ) == 0 )
 
+//#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 #define AK0991X_REGISTRY_PF_CONFIG   "ak0991x_0_platform.config"
 #define AK0991X_REGISTRY_PLACE       "ak0991x_0_platform.placement"
 #define AK0991X_REGISTRY_ORIENT      "ak0991x_0_platform.orient"
 #define AK0991X_REGISTRY_FACCAL      "ak0991x_0_platform.mag.fac_cal"
 #define AK0991X_REGISTRY_MAG_CONFIG  "ak0991x_0.mag.config"
 #define AK0991X_REGISTRY_REG_CONFIG  "ak0991x_0.mag.config_2"
+//#endif
 
 #if 0
 /** TODO Using 8996 Platform config as defaults. This is for
@@ -150,6 +149,7 @@ typedef enum
   AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ,
 } ak0991x_power_rail_pending_state;
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 /** Registry items supported as part of physical sensor
  *  configuraton registry group
  */
@@ -159,6 +159,7 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
+#endif
 
 /** Interrupt Sensor State. */
 
@@ -177,11 +178,9 @@ typedef struct ak0991x_state
   //  ak0991x_irq_info      irq_info;
   sns_interrupt_req      irq_config;
 
-#ifdef AK0991X_ENABLE_POWER_RAIL
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
   sns_power_rail_state  registry_rail_on_state;
-#endif
 
   bool hw_is_present;
   bool sensor_client_present;
@@ -202,6 +201,7 @@ typedef struct ak0991x_state
   uint8_t resolution_idx;
   int64_t hardware_id;
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
@@ -212,10 +212,12 @@ typedef struct ak0991x_state
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
-
   // axis conversion
   bool registry_orient_received;
+#endif
+
   triaxis_conversion axis_map[TRIAXIS_NUM];
+
 
   // factory calibration
   bool                    registry_fac_cal_received;
@@ -284,7 +286,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 void ak0991x_mag_init_attributes(sns_sensor *const this,
                                  akm_device_type device_select
 );
-
 
 
 sns_rc ak0991x_mag_init(sns_sensor *const this);

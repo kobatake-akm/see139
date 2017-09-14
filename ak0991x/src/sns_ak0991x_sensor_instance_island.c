@@ -98,16 +98,19 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   if (NULL != state->interrupt_data_stream)
   {
     event = state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
+//    AK0991X_INST_PRINT(ERROR, this, "interrupt_data_stream");
 
     while (NULL != event)
     {
       if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
+        AK0991X_INST_PRINT(ERROR, this, "SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT");
       	state->irq_info.is_ready = true;
 				ak0991x_start_mag_streaming(this);
       }
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT == event->message_id)
       {
+        AK0991X_INST_PRINT(ERROR, this, "SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT");
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
                                                      event->event_len);
 
@@ -120,7 +123,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
 
           // check DRDY bit to ignore wrong interrupt call by FW
-          if( ak0991x_is_drdy(this) )
+          uint8_t st1_status = ak0991x_get_status1(this);
+          if( st1_status & AK0991X_DOR_BIT )
+          {
+            AK0991X_INST_PRINT(ERROR, this, "Data Over Run");
+          }
+          if( st1_status & AK0991X_DRDY_BIT )
           {
           	// adjust timestamp for jitter issues
             ak0991x_validate_timestamp(this, irq_event.timestamp);
@@ -135,11 +143,16 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   						AK0991X_INST_PRINT(ERROR, this, "handle interrupt event");
   						ak0991x_handle_interrupt_event(this);
   					}
+  					AK0991X_INST_PRINT(ERROR, this, "interrupt event done.");
           }
           else{
             AK0991X_INST_PRINT(ERROR, this, "Data is NOT ready. Wrong intterupt. Ignored. %d", (uint32_t)irq_event.timestamp);
           }
 					state->irq_info.detect_irq_event = false; // clear interrupt
+        }
+        else
+        {
+          AK0991X_INST_PRINT(ERROR, this, "pb_decode failed.");
         }
       }
       else
@@ -179,13 +192,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
-        AK0991X_INST_PRINT(LOW, this, "handle ASCP event");
-
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
 #endif
+        AK0991X_INST_PRINT(LOW, this, "handle ASCP event done.");
       }
 
       event = state->async_com_port_data_stream->api->get_next_input(
