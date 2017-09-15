@@ -1283,6 +1283,58 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
      value_len = ARR_SIZE(ak09911_odr_table);
    }
 #else
+
+#if defined(AK0991X_TARGET_AK09911)
+   {
+      values[0].has_flt = true;
+      values[0].flt = ak09911_odr_table[0];
+      values[1].has_flt = true;
+      values[1].flt = ak09911_odr_table[1];
+      values[2].has_flt = true;
+      values[2].flt = ak09911_odr_table[2];
+      values[3].has_flt = true;
+      values[3].flt = ak09911_odr_table[3];
+      value_len = ARR_SIZE(ak09911_odr_table);
+    }
+#elif defined(AK0991X_TARGET_AK09912)
+   {
+      values[0].has_flt = true;
+      values[0].flt = ak09912_odr_table[0];
+      values[1].has_flt = true;
+      values[1].flt = ak09912_odr_table[1];
+      values[2].has_flt = true;
+      values[2].flt = ak09912_odr_table[2];
+      values[3].has_flt = true;
+      values[3].flt = ak09912_odr_table[3];
+      value_len = ARR_SIZE(ak09912_odr_table);
+    }
+#elif defined(AK0991X_TARGET_AK09913)
+   {
+      values[0].has_flt = true;
+      values[0].flt = ak09913_odr_table[0];
+      values[1].has_flt = true;
+      values[1].flt = ak09913_odr_table[1];
+      values[2].has_flt = true;
+      values[2].flt = ak09913_odr_table[2];
+      values[3].has_flt = true;
+      values[3].flt = ak09913_odr_table[3];
+      value_len = ARR_SIZE(ak09913_odr_table);
+    }
+#elif defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
+   {
+     values[0].has_flt = true;
+     values[0].flt = ak09915_odr_table[0];
+     values[1].has_flt = true;
+     values[1].flt = ak09915_odr_table[1];
+     values[2].has_flt = true;
+     values[2].flt = ak09915_odr_table[2];
+     values[3].has_flt = true;
+     values[3].flt = ak09915_odr_table[3];
+     values[4].has_flt = true;
+     values[4].flt = ak09915_odr_table[4];
+     value_len = ARR_SIZE(ak09915_odr_table);
+   }
+#elif defined(AK0991X_TARGET_AK09916C) || defined(AK0991X_TARGET_AK09916D)
    {
       values[0].has_flt = true;
       values[0].flt = ak09916_odr_table[0];
@@ -1294,7 +1346,35 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
       values[3].flt = ak09916_odr_table[3];
       value_len = ARR_SIZE(ak09916_odr_table);
     }
+#elif defined(AK0991X_TARGET_AK09917)
+   {
+     values[0].has_flt = true;
+     values[0].flt = ak09917_odr_table[0];
+     values[1].has_flt = true;
+     values[1].flt = ak09917_odr_table[1];
+     values[2].has_flt = true;
+     values[2].flt = ak09917_odr_table[2];
+     values[3].has_flt = true;
+     values[3].flt = ak09917_odr_table[3];
+     values[4].has_flt = true;
+     values[4].flt = ak09917_odr_table[4];
+     value_len = ARR_SIZE(ak09917_odr_table);
+   }
+#elif defined(AK0991X_TARGET_AK09918)
+   {
+      values[0].has_flt = true;
+      values[0].flt = ak09918_odr_table[0];
+      values[1].has_flt = true;
+      values[1].flt = ak09918_odr_table[1];
+      values[2].has_flt = true;
+      values[2].flt = ak09918_odr_table[2];
+      values[3].has_flt = true;
+      values[3].flt = ak09918_odr_table[3];
+      value_len = ARR_SIZE(ak09918_odr_table);
+    }
 #endif
+
+#endif //  AK0991X_ENABLE_ALL_DEVICES
 
    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
        values, value_len, false);

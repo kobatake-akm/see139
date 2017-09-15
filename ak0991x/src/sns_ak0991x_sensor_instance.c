@@ -564,12 +564,13 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
       state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
     }
-#endif
+#endif //  AK0991X_ENABLE_DAE
 
 #ifdef AK0991X_ENABLE_DAE
     if (state->config_step == AK0991X_CONFIG_IDLE)
-#endif
+#endif // AK0991X_ENABLE_DAE
     {
+//#ifdef AK0991X_ENABLE_FIFO
       // care the FIFO buffer if enabled FIFO
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
@@ -580,6 +581,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->this_is_first_data = true;
         }
       }
+//#endif // AK0991X_ENABLE_FIFO
 
       // hardware setting for measurement mode
 #ifdef AK0991X_ENABLE_DRI
@@ -640,7 +642,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->fifo_flush_in_progress = true;
 #ifdef AK0991X_ENABLE_DAE
     if(!ak0991x_dae_if_flush_samples(this))
-#endif
+#endif // AK0991X_ENABLE_DAE
     {
       AK0991X_INST_PRINT(ERROR, this, "flush_fifo called.");
       ak0991x_flush_fifo(this);
@@ -672,6 +674,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if (state->config_step == AK0991X_CONFIG_IDLE)
 #endif
       {
+//#ifdef AK0991X_ENABLE_FIFO
         // care the FIFO buffer if enabled FIFO
         if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
         {
@@ -679,6 +682,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_flush_fifo(this);
           state->this_is_first_data = true;
         }
+//#endif // AK0991X_ENABLE_FIFO
 
         // hardware setting for measurement mode
 #ifdef AK0991X_ENABLE_DRI

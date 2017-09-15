@@ -2057,6 +2057,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   switch (state->mag_info.device_select)
   {
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09911)
   case AK09911:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2071,7 +2072,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = false;
     phy_sensor_config.stream_is_synchronous = false;
     break;
-
+#endif
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
   case AK09912:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2086,7 +2088,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = false;
     phy_sensor_config.stream_is_synchronous = false;
     break;
-
+#endif
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
   case AK09913:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2101,7 +2104,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = false;
     phy_sensor_config.stream_is_synchronous = false;
     break;
-
+#endif
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C)
   case AK09915C:
 
     if (state->mag_info.sdr == 1)
@@ -2132,7 +2136,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.stream_is_synchronous = false;
 #endif // AK0991X_ENABLE_S4S
     break;
-
+#endif
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915D)
   case AK09915D:
 
     if (state->mag_info.sdr == 1)
@@ -2163,7 +2168,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.stream_is_synchronous = false;
 #endif // AK0991X_ENABLE_S4S
     break;
-
+#endif
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
   case AK09916C:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2178,7 +2184,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = false;
     phy_sensor_config.stream_is_synchronous = false;
     break;
-
+#endif
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916D)
   case AK09916D:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2193,7 +2200,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = false;
     phy_sensor_config.stream_is_synchronous = false;
     break;
-
+#endif
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
   case AK09917:
 
     if (state->mag_info.sdr == 0)
@@ -2224,7 +2232,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.stream_is_synchronous = false;
 #endif // AK0991X_ENABLE_S4S
     break;
-
+#endif
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
   case AK09918:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2239,7 +2248,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_stream_is_synchronous = false;
     phy_sensor_config.stream_is_synchronous = false;
     break;
-
+#endif
   default:
     return SNS_RC_FAILED;
   }
