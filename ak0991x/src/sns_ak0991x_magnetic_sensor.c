@@ -114,8 +114,6 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
 sns_rc ak0991x_mag_init(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
-  uint8_t i = 0;
-
   struct sns_service_manager *smgr = this->cb->get_service_manager(this);
   state->diag_service = (sns_diag_service *)
     smgr->get_service(smgr, SNS_DIAG_SERVICE);
@@ -134,6 +132,9 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
               &((sns_sensor_uid)MAG_SUID),
               sizeof(sns_sensor_uid));
 
+#ifdef AK0991X_ENABLE_ALL_DEVICES
+  uint8_t i = 0;
+
   // initialize axis conversion settings
   for(i = 0; i < TRIAXIS_NUM; i++)
   {
@@ -147,21 +148,25 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->fac_cal_corr_mat.e11 = 1.0;
   state->fac_cal_corr_mat.e22 = 1.0;
 
+#else
 
+  AK0991X_PRINT(ERROR, this, "SEE-Lite Mode.");
 
-#ifndef AK0991X_ENABLE_REGISTRY_ACCESS
-  AK0991X_PRINT(ERROR, this, "Set status for AK09916C");
-  state->com_port_info.com_config.bus_type = 0;
-  state->com_port_info.com_config.bus_instance = 3;
-  state->com_port_info.com_config.slave_control = 12;
-  state->com_port_info.com_config.min_bus_speed_KHz = 400;
-  state->com_port_info.com_config.max_bus_speed_KHz = 400;
-  state->com_port_info.com_config.reg_addr_type = 0;
-  state->irq_config.interrupt_num = 119;
-  state->irq_config.interrupt_pull_type = 3;
-  state->irq_config.is_chip_pin = 1;
-  state->irq_config.interrupt_drive_strength = 0;
-  state->irq_config.interrupt_trigger_type = 1;
+  sns_com_port_config com_config = state->com_port_info.com_config;
+  com_config.bus_type = 0;
+  com_config.bus_instance = 3;
+  com_config.slave_control = 12;
+  com_config.min_bus_speed_KHz = 400;
+  com_config.max_bus_speed_KHz = 400;
+  com_config.reg_addr_type = 0;
+
+  sns_interrupt_req irq_config = state->irq_config;
+  irq_config.interrupt_num = 119;
+  irq_config.interrupt_pull_type = 3;
+  irq_config.is_chip_pin = 1;
+  irq_config.interrupt_drive_strength = 0;
+  irq_config.interrupt_trigger_type = 1;
+
   state->rail_config.num_of_rails = 1;
   state->registry_rail_on_state = 1;
   sns_strlcpy(state->rail_config.rails[0].name,
@@ -187,6 +192,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->fac_cal_scale[0] = 0.0;
   state->fac_cal_scale[1] = 0.0;
   state->fac_cal_scale[2] = 0.0;
+
   state->fac_cal_corr_mat.e00 = 1.0;
   state->fac_cal_corr_mat.e01 = 0.0;
   state->fac_cal_corr_mat.e02 = 0.0;
@@ -213,12 +219,11 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->use_fifo = false;
   state->nsf = 0;
   state->sdr = 0;
-
   state->is_dri = false;
   state->resolution_idx = 0;
   state->hardware_id = 0;
   state->supports_sync_stream = false;
-#endif
+#endif // AK0991X_ENABLE_ALL_DEVICES
 
 #ifdef AK0991X_ENABLE_DAE
   ak0991x_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
@@ -226,11 +231,11 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_DRI
   ak0991x_send_suid_req(this, "interrupt", sizeof("interrupt"));
   ak0991x_send_suid_req(this, "async_com_port", sizeof("async_com_port"));
-#endif
+#endif // AK0991X_ENABLE_DAE
   ak0991x_send_suid_req(this, "timer", sizeof("timer"));
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   ak0991x_send_suid_req(this, "registry", sizeof("registry"));
-#endif
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
   return SNS_RC_SUCCESS;
 }

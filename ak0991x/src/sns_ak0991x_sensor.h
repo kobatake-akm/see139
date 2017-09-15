@@ -168,14 +168,22 @@ typedef struct ak0991x_state
   sns_data_stream       *reg_data_stream;
   sns_data_stream       *fw_stream;
   sns_data_stream       *timer_stream;
+
+  // SUID
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   sns_sensor_uid        reg_suid;
+#endif
+#ifdef AK0991X_ENABLE_DRI
   sns_sensor_uid        irq_suid;
-  sns_sensor_uid        timer_suid;
   sns_sensor_uid        acp_suid; // Asynchronous COM Port
+#endif
+  sns_sensor_uid        timer_suid;
+#ifdef AK0991X_ENABLE_DAE
   sns_sensor_uid        dae_suid; // Data Acquisition Engine
+#endif
   sns_sensor_uid        my_suid;
+
   ak0991x_com_port_info com_port_info;
-  //  ak0991x_irq_info      irq_info;
   sns_interrupt_req      irq_config;
 
   sns_pwr_rail_service  *pwr_rail_service;
