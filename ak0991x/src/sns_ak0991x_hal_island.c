@@ -686,6 +686,7 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service *scp_service,
   return rv;
 }
 
+#ifdef AK0991X_ENABLE_FUSE
 /**
  * Read asa value.
  *
@@ -777,6 +778,7 @@ static sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
 
   return rv;
 }
+#endif
 
 /**
  * check threshold.
@@ -826,7 +828,9 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
   sns_time usec_time_for_measure;
+#ifdef AK0991X_ENABLE_FUSE
   uint8_t  asa[AK0991X_NUM_SENSITIVITY];
+#endif
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
   uint8_t  sdr = 0;
@@ -851,9 +855,11 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
+
   /** Step 1
    *   If the device has FUSE ROM, test the sensitivity value
    **/
+#ifdef AK0991X_ENABLE_FUSE
   if ((state->mag_info.device_select == AK09911) || (state->mag_info.device_select == AK09912))
   {
     rv = ak0991x_read_asa(this,
@@ -873,6 +879,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     AKM_FST(TLIMIT_NO_ASAY, asa[1], TLIMIT_LO_ASAY, TLIMIT_HI_ASAY, err);
     AKM_FST(TLIMIT_NO_ASAZ, asa[2], TLIMIT_LO_ASAZ, TLIMIT_HI_ASAZ, err);
   }
+#endif // AK0991X_ENABLE_FUSE
 
   /** Step 2
    *   Start self test
@@ -949,6 +956,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   data[1] = (int16_t)(data[1] * state->mag_info.sstvt_adj[1]);
   data[2] = (int16_t)(data[2] * state->mag_info.sstvt_adj[2]);
 
+#ifdef AK0991X_ENABLE_ALL_DEVICES
   // check read value
   if (state->mag_info.device_select == AK09918)
   {
@@ -1018,6 +1026,11 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     *err = (TLIMIT_NO_INVALID_ID << 16);
     goto TEST_SEQUENCE_FAILED;
   }
+#else
+  AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX, TLIMIT_HI_SLF_RVHX, err);
+  AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY, TLIMIT_HI_SLF_RVHY, err);
+  AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ, TLIMIT_HI_SLF_RVHZ, err);
+#endif // AK0991X_ENABLE_ALL_DEVICES
 
   AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
           TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
@@ -1137,15 +1150,20 @@ static sns_rc ak0991x_get_fifo_data(ak0991x_instance_state *state,
 /**
  * see sns_ak0991x_hal.h
  */
-sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
+sns_rc ak0991x_set_sstvt_adj(
+#ifdef AK0991X_ENABLE_FUSE
+                             sns_sync_com_port_service* scp_service,
                              sns_sync_com_port_handle *port_handle,
                              sns_diag_service *diag,
+#endif
                              akm_device_type device_select,
                              float *sstvt_adj)
 {
   sns_rc  rv = SNS_RC_SUCCESS;
-  uint8_t buffer[AK0991X_NUM_SENSITIVITY];
   uint8_t i;
+#ifdef AK0991X_ENABLE_FUSE
+  uint8_t buffer[AK0991X_NUM_SENSITIVITY];
+#endif
 
   // If the device does not have FUSE ROM, we don't need to access it.
   if ((device_select != AK09911) && (device_select != AK09912))
@@ -1158,6 +1176,7 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
     return rv;
   }
 
+#ifdef AK0991X_ENABLE_FUSE
   rv = ak0991x_read_asa(NULL, scp_service,port_handle, diag, buffer);
 
   if (rv != SNS_RC_SUCCESS)
@@ -1184,6 +1203,7 @@ sns_rc ak0991x_set_sstvt_adj(sns_sync_com_port_service* scp_service,
     // no device
     rv = SNS_RC_FAILED;
   }
+#endif
 
   return rv;
 }
@@ -1281,9 +1301,10 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
         (uint32_t)state->mag_registry_cfg.fac_cal_bias[2]);
    */
 
-  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d",
-  		(uint32_t)timestamp);
+//  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d",
+//  		(uint32_t)timestamp);
 
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
   if (state->mag_info.device_select == AK09917)
   {
   	lsbdata[TRIAXIS_X] = (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]);
@@ -1296,11 +1317,17 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   	lsbdata[TRIAXIS_Y] = (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]);
   	lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]);
   }
+#else
+  lsbdata[TRIAXIS_X] = (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]);
+  lsbdata[TRIAXIS_Y] = (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]);
+  lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]);
+#endif
 
-  AK0991X_INST_PRINT(ERROR, instance, "Mag[LSB] %d,%d,%d",
-  		(int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]),
-			(int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]),
-			(int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]));
+  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d Mag[LSB] %d,%d,%d",
+      (uint32_t)timestamp,
+      (int16_t)(lsbdata[TRIAXIS_X]),
+			(int16_t)(lsbdata[TRIAXIS_Y]),
+			(int16_t)(lsbdata[TRIAXIS_Z]));
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.sstvt_adj[0] * state->mag_info.resolution;
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.sstvt_adj[1] * state->mag_info.resolution;
@@ -1342,10 +1369,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
                               opdata_cal.data,
                               ARR_SIZE(opdata_cal.data),
                               state->encoded_mag_event_len);
-
-  state->m_stream_event[0] = opdata_raw[TRIAXIS_X];
-  state->m_stream_event[1] = opdata_raw[TRIAXIS_Y];
-  state->m_stream_event[2] = opdata_raw[TRIAXIS_Z];
 
 //  AK0991X_INST_PRINT(ERROR, instance, "handle_mag_sample done.");
 
@@ -1540,36 +1563,8 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
   	}
 		state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
 #endif
-
-//	  AK0991X_INST_PRINT(ERROR, instance, "start ak0991x_validate_time done.");
   }
 }
-
-/*
-bool ak0991x_is_drdy(sns_sensor_instance *const instance)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t st1_buf;
-
-  ak0991x_read_st1(state,state->com_port_info.port_handle,
-                   &st1_buf);
-
-  if( st1_buf & AK0991X_DRDY_BIT ) return true;
-  return false;
-}
-
-
-uint8_t ak0991x_get_status1(sns_sensor_instance *const instance)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t st1_buf;
-
-  ak0991x_read_st1(state,state->com_port_info.port_handle,
-                   &st1_buf);
-
-  return st1_buf;
-}
-*/
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {

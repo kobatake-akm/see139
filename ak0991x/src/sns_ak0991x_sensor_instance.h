@@ -240,9 +240,6 @@ typedef struct ak0991x_instance_state
   /**----------Sensor specific registry configuration----------*/
   sns_ak0991x_registry_cfg mag_registry_cfg;
  
-  /**----------debug----------*/
-  float  m_stream_event[3];
-
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
 
