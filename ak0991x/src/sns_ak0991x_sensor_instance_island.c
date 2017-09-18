@@ -78,6 +78,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
+
 #ifdef AK0991X_ENABLE_DRI
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
 #endif
@@ -85,7 +86,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   sns_diag_service    *diag = state->diag_service;
 #endif
-//  AK0991X_INST_PRINT(ERROR, this, "ak0991x_inst_notify_event called.");
+  AK0991X_INST_PRINT(ERROR, this, "ak0991x_inst_notify_event called.");
 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
@@ -100,6 +101,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   // Handle interrupts
   if (NULL != state->interrupt_data_stream)
   {
+    AK0991X_INST_PRINT(ERROR, this, "interrupt_data_stream");
     event = state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
 
     while (NULL != event)
@@ -116,25 +118,38 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-        	state->irq_info.detect_irq_event = true; // detect interrupt
-
-//          AK0991X_INST_PRINT(ERROR, this, "use_dri=%d, cur_wmk=%d", state->mag_info.use_dri, state->mag_info.cur_wmk);
-//          AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
-
-          // adjust timestamp for jitter issues
-          ak0991x_validate_timestamp(this, irq_event.timestamp);
-
-          if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
+          // Check if the ak0991x_inst_notify_event is an actual DRDY event or not.
+          if( ak0991x_is_drdy(this) )
           {
-            AK0991X_INST_PRINT(ERROR, this, "irq_event %d handle interrupt event for fifo wmk<1", (uint32_t)irq_event.timestamp);
-            ak0991x_flush_fifo(this);
+            state->irq_event_time = irq_event.timestamp;
+            state->irq_info.detect_irq_event = true; // detect interrupt
+
+  //          AK0991X_INST_PRINT(ERROR, this, "use_dri=%d, cur_wmk=%d", state->mag_info.use_dri, state->mag_info.cur_wmk);
+  //          AK0991X_INST_PRINT(ERROR, this, "use_fifo=%d, nsf=%d, sdr=%d",state->mag_info.use_fifo, state->mag_info.nsf, state->mag_info.sdr);
+
+#ifdef AK0991X_ENABLE_FIFO
+            if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
+            {
+              AK0991X_INST_PRINT(ERROR, this, "irq_event %d handle interrupt event for fifo wmk<1", (uint32_t)irq_event.timestamp);
+              ak0991x_flush_fifo(this);
+            }
+            else
+            {
+#endif
+              AK0991X_INST_PRINT(ERROR, this, "irq_event %d handle interrupt event", (uint32_t)irq_event.timestamp);
+              ak0991x_handle_interrupt_event(this);
+#ifdef AK0991X_ENABLE_FIFO
+            }
+#endif
+            state->irq_info.detect_irq_event = false; // clear interrupt
           }
           else
           {
-            AK0991X_INST_PRINT(ERROR, this, "irq_event %d handle interrupt event", (uint32_t)irq_event.timestamp);
-            ak0991x_handle_interrupt_event(this);
+            AK0991X_INST_PRINT(ERROR, this, "DRDY is not ready. Wrong interrupt call.");
           }
-					state->irq_info.detect_irq_event = false; // clear interrupt
+
+          // Already got an interrupt event. Ignore additional events.
+          event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
         }
         else
         {
@@ -153,6 +168,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
+    AK0991X_INST_PRINT(ERROR, this, "async_com_port_data_stream");
     event = state->async_com_port_data_stream->api->peek_input(state->async_com_port_data_stream);
 
     while (NULL != event)
@@ -174,6 +190,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
+        AK0991X_INST_PRINT(ERROR, this, "ak0991x_process_mag_data_buffer...");
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
@@ -190,6 +207,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   // Handle timer event
   if (NULL != state->timer_data_stream)
   {
+    AK0991X_INST_PRINT(ERROR, this, "timer_data_stream");
     event = state->timer_data_stream->api->peek_input(state->timer_data_stream);
 
     while (NULL != event)
@@ -231,6 +249,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   // Handle timer event for s4s
   if (NULL != state->s4s_timer_data_stream)
   {
+    AK0991X_INST_PRINT(ERROR, this, "s4s_timer_data_stream");
     event = state->s4s_timer_data_stream->api->peek_input(state->s4s_timer_data_stream);
 
     while (NULL != event)

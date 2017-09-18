@@ -22,7 +22,7 @@
  */
 
 // TODO:1 Enable below macro to set SEE Lite mode
-#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
+//#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
 
 #ifdef AK0991X_ENABLE_SEE_LITE
 // SEE-Lite Mode. Require to select a target device and configure mode setting.
@@ -68,11 +68,11 @@
 
 //TODO:3 Define macros for DRI/FIFO/S4S mode if the target device has the feature.
 #ifdef AK0991X_ENABLE_DRI
-//#define AK0991X_STATE_IS_DRI  // Set for activating DRI mode
+#define AK0991X_STATE_IS_DRI  // Set for activating DRI mode
 #endif //  AK0991X_ENABLE_DRI
 
 #ifdef AK0991X_ENABLE_FIFO
-//#define AK0991X_STATE_USE_FIFO  // Set for activating FIFO mode
+#define AK0991X_STATE_USE_FIFO  // Set for activating FIFO mode
 #endif //  AK0991X_STATE_USE_FIFO
 
 #ifdef AK0991X_ENABLE_S4S

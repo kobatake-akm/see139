@@ -480,12 +480,14 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
                                       size_t              num_bytes);
 #endif //AK0991X_ENABLE_DAE
 
+#ifdef AK0991X_ENABLE_FIFO
 /**
  * Sends a FIFO complete event.
  *
  * @param instance   Instance reference
  */
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
+#endif
 
 #ifdef AK0991X_ENABLE_DRI
 /**
@@ -500,13 +502,16 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
 #endif //AK0991X_ENABLE_DRI
 
 /**
- * Validate timestamp
+ * Check the drdy bit
  *
  * @param instance                 Sensor Instance
- * @param irq_time                 interrupt timestamp passed by the framework
+ *
+ * @return false: no data ready, true: data is ready
  */
-void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time irq_time);
+bool ak0991x_is_drdy(sns_sensor_instance *const instance);
 
+
+#ifdef AK0991X_ENABLE_FIFO
 /**
  * Flush mag samples from the buffer
  * and generates event.
@@ -514,6 +519,7 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
  * @param instance                 Sensor Instance
  */
 void ak0991x_flush_fifo(sns_sensor_instance *const instance);
+#endif
 
 #ifdef AK0991X_ENABLE_DRI
 /**

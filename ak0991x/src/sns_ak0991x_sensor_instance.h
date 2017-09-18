@@ -211,6 +211,7 @@ typedef struct ak0991x_instance_state
   /**--------Async Com Port--------*/
   ak0991x_async_com_port_info async_com_port_info;
   sns_time interrupt_timestamp;
+  sns_time irq_event_time;
 
   sns_async_com_port_config ascp_config;
 
@@ -243,7 +244,9 @@ typedef struct ak0991x_instance_state
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
 
+#ifdef AK0991X_ENABLE_FIFO
   bool fifo_flush_in_progress;
+#endif
   bool new_self_test_request;
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   size_t           log_raw_encoded_size;

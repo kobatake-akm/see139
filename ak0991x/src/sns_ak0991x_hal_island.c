@@ -41,6 +41,7 @@
 
 #include "sns_cal_util.h"
 
+#define AVERAGE_WEIGHT 0.95 // averaging weight. should be from 0 to 1
 //#define AK0991X_VERBOSE_DEBUG           	// Define to enable extra debugging
 
 /** Need to use ODR table. */
@@ -1431,6 +1432,7 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
 }
 #endif //AK0991X_ENABLE_DAE
 
+#ifdef AK0991X_ENABLE_FIFO
 /** See ak0991x_hal.h */
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 {
@@ -1447,8 +1449,8 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
     e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
   }
-
 }
+#endif // AK0991X_ENABLE_FIFO
 
 #ifdef AK0991X_ENABLE_DRI
 void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
@@ -1465,23 +1467,12 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
   if (AKM_AK0991X_REG_ST1 == vector->reg_addr)
   {
     uint32_t i;
-
     sns_time                  timestamp;
     uint16_t                  cnt_for_ts = state->mag_info.cur_wmk;
-
     sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-
     sns_time interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) /
       (state->mag_info.cur_wmk + 1);
 
-    if( (vector->buffer[0] & AK0991X_DOR_BIT) != 0 )
-    {
-      AK0991X_INST_PRINT(ERROR, instance, "Data over run.");
-    }
-
-    // called from interrupt, then DRDY bit should be 1
-    if( (vector->buffer[0] & AK0991X_DRDY_BIT) != 0 )
-    {
       for (i = 1; i < vector->bytes; i += AK0991X_NUM_DATA_HXL_TO_ST2)
       {
         if (state->this_is_first_data)
@@ -1508,63 +1499,40 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
       }
       state->this_is_first_data = false;
       state->pre_timestamp = state->interrupt_timestamp;
-    }
-    else
-    {
-      AK0991X_INST_PRINT(ERROR, instance, "Data is not ready. Wrong Interrupt Detected.");
-    }
   }
 }
 #endif //AK0991X_ENABLE_DRI
 
-void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time irq_time){
+
+static void ak0991x_validate_timestamp(sns_sensor_instance *const instance){
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint16_t data_count = 1;
-
-  // FIFO Mode
-	if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk > 0)) data_count = state->mag_info.cur_wmk + 1;
-
-	sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr) * data_count;
-
+  sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
   if(state->this_is_first_data){
     AK0991X_INST_PRINT(ERROR, instance, "this_is_first_data in ak0991x_validate");
-  	state->interrupt_timestamp = irq_time;
-  	state->averaged_interval = ideal_interval;
+    state->interrupt_timestamp = state->irq_event_time;
+    state->averaged_interval = ideal_interval;
   }else{
-
-// case1: using threshold and ideal interval when the jitter is too big
-#if 0
-    float threshold = 0.05;	// 5%
-  	if(irq_time - state->pre_timestamp > ideal_interval * (1.0 + threshold) ||
-  		 irq_time - state->pre_timestamp < ideal_interval * (1.0 - threshold)){
-    	state->interrupt_timestamp = state->pre_timestamp + ideal_interval;
-    	AK0991X_INST_PRINT(ERROR, instance, "wrong irq_time: interval=%d, ideal=%d", (uint32_t)(irq_time - state->pre_timestamp), (uint32_t)ideal_interval);
-  	}else{
-  		state->interrupt_timestamp = irq_time;
-  	}
-#endif
-
-// case2: averaging filter
-#if 1
-    float averageing_weight = 0.95;
-  	state->averaged_interval = state->averaged_interval * averageing_weight + (irq_time - state->pre_timestamp) * (1.0 - averageing_weight);
-  	state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
-#endif
-
-// case3: use both threshold and averaging filter
-#if 0
-    float threshold = 0.05;	// 5%
-		float averageing_weight = 0.95;
-  	if(irq_time - state->pre_timestamp > state->averaged_interval * (1.0 + threshold) ||
-  		 irq_time - state->pre_timestamp < state->averaged_interval * (1.0 - threshold)){
-			// too big jitter. ignore data
-  	}else{
-  		state->averaged_interval = state->averaged_interval * averageing_weight + (irq_time - state->pre_timestamp) * (1.0 - averageing_weight);
-  	}
-		state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
-#endif
+    if(state->irq_info.detect_irq_event)
+    {
+      state->averaged_interval = state->averaged_interval * AVERAGE_WEIGHT + ((state->irq_event_time - state->pre_timestamp) / state->num_samples) * (1.0 - AVERAGE_WEIGHT);
+      state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * state->num_samples);
+    }
   }
+  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_validate done.");
 }
+
+bool ak0991x_is_drdy(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint8_t st1_buf;
+
+  ak0991x_read_st1(state,state->com_port_info.port_handle,
+                   &st1_buf);
+
+  if( st1_buf & AK0991X_DRDY_BIT ) return true;
+  return false;
+}
+
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
@@ -1604,7 +1572,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     num_samples = st1_buf >> 2;
     AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
 
-
     if(num_samples > 0)
     {
       //Read continuously all data in FIFO at one time.
@@ -1632,6 +1599,13 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     }
   }
 
+  state->num_samples = num_samples;
+
+  if (num_samples != 0)
+  {
+    ak0991x_validate_timestamp(instance);
+  }
+
   sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
   sns_time interrupt_interval_ticks;
 
@@ -1643,7 +1617,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   {
     interrupt_interval_ticks = 0;
   }
-
 
 
   for (i = 0; i < num_samples; i++)
@@ -1664,7 +1637,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     }
     else
     {
-      timestamp = state->pre_timestamp + (sample_interval_ticks * (i + 1));
+//      timestamp = state->pre_timestamp + (sample_interval_ticks * (i + 1));
+      timestamp = state->pre_timestamp + (state->averaged_interval * (i + 1));
     }
 
     ak0991x_handle_mag_sample(&buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * i],
@@ -1713,13 +1687,17 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
+    state->num_samples = state->mag_info.cur_wmk + 1;
     // Water mark level : 0x0 -> 1step, 0x1F ->32step
     num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
   }
   else
   {
+    state->num_samples = 1;
     num_of_bytes = AK0991X_NUM_DATA_ST1_TO_ST2;
   }
+
+  ak0991x_validate_timestamp(instance);
 
   // Compose the async com port message
   async_read_msg.bytes = num_of_bytes;
