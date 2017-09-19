@@ -440,7 +440,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
 
-  AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
+  AK0991X_INST_PRINT(ERROR, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
@@ -564,12 +564,13 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
       state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
     }
-#endif
+#endif //  AK0991X_ENABLE_DAE
 
 #ifdef AK0991X_ENABLE_DAE
     if (state->config_step == AK0991X_CONFIG_IDLE)
-#endif
+#endif // AK0991X_ENABLE_DAE
     {
+#ifdef AK0991X_ENABLE_FIFO
       // care the FIFO buffer if enabled FIFO
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
@@ -580,6 +581,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->this_is_first_data = true;
         }
       }
+#endif // AK0991X_ENABLE_FIFO
 
       // hardware setting for measurement mode
 #ifdef AK0991X_ENABLE_DRI
@@ -635,12 +637,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     }
 
    }
+
+#ifdef AK0991X_ENABLE_FIFO
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->fifo_flush_in_progress = true;
 #ifdef AK0991X_ENABLE_DAE
     if(!ak0991x_dae_if_flush_samples(this))
-#endif
+#endif // AK0991X_ENABLE_DAE
     {
       AK0991X_INST_PRINT(ERROR, this, "flush_fifo called.");
       ak0991x_flush_fifo(this);
@@ -648,6 +652,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       ak0991x_send_fifo_flush_done(this);
     }
   }
+#endif // AK0991X_ENABLE_FIFO
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
     if (state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
@@ -672,6 +677,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if (state->config_step == AK0991X_CONFIG_IDLE)
 #endif
       {
+#ifdef AK0991X_ENABLE_FIFO
         // care the FIFO buffer if enabled FIFO
         if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
         {
@@ -679,6 +685,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_flush_fifo(this);
           state->this_is_first_data = true;
         }
+#endif // AK0991X_ENABLE_FIFO
 
         // hardware setting for measurement mode
 #ifdef AK0991X_ENABLE_DRI

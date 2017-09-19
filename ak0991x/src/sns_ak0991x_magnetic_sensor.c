@@ -22,7 +22,9 @@
 #include "sns_pb_util.h"
 #include "sns_attribute_util.h"
 #include "sns_printf.h"
-
+#ifndef AK0991X_ENABLE_ALL_DEVICES
+#include "sns_interrupt.pb.h"
+#endif
 /**
  * Initialize attributes to their default state.  They may/will be updated
  * within notify_event.
@@ -149,23 +151,48 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->fac_cal_corr_mat.e22 = 1.0;
 
 #else
-
   AK0991X_PRINT(ERROR, this, "SEE-Lite Mode.");
 
-  sns_com_port_config com_config = state->com_port_info.com_config;
-  com_config.bus_type = 0;
-  com_config.bus_instance = 3;
-  com_config.slave_control = 12;
-  com_config.min_bus_speed_KHz = 400;
-  com_config.max_bus_speed_KHz = 400;
-  com_config.reg_addr_type = 0;
+#ifdef AK0991X_STATE_IS_DRI
+  state->is_dri = true;
+#else
+  state->is_dri = false;
+#endif
 
-  sns_interrupt_req irq_config = state->irq_config;
-  irq_config.interrupt_num = 119;
-  irq_config.interrupt_pull_type = 3;
-  irq_config.is_chip_pin = 1;
-  irq_config.interrupt_drive_strength = 0;
-  irq_config.interrupt_trigger_type = 1;
+#ifdef AK0991X_STATE_USE_FIFO
+  state->use_fifo = true;
+#else
+  state->use_fifo = false;
+#endif
+
+#ifdef AK0991X_STATE_SUPPORTS_SYNC_STREAM
+  state->supports_sync_stream = true;
+#else
+  state->supports_sync_stream = false;
+#endif
+
+  state->nsf = 0;
+  state->sdr = 0;
+  state->resolution_idx = 0;
+  state->hardware_id = 0;
+
+  state->com_port_info.com_config.bus_type = 0;           // I2C
+  state->com_port_info.com_config.bus_instance = 3;       // DragonBoard
+  state->com_port_info.com_config.slave_control = 12;     // Slave address:0x0C
+  state->com_port_info.com_config.min_bus_speed_KHz = 400;// I2C speed
+  state->com_port_info.com_config.max_bus_speed_KHz = 400;// I2C speed
+  state->com_port_info.com_config.reg_addr_type = 0;      //
+  state->irq_config.interrupt_num = 119;                  // mag interrupt
+
+  state->irq_config.is_chip_pin = 1;                      //
+  state->irq_config.interrupt_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
+#if defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09916D) || defined(AK0991X_TARGET_AK09917)
+  state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
+  state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
+#else
+  state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
+  state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
+#endif
 
   state->rail_config.num_of_rails = 1;
   state->registry_rail_on_state = 1;
@@ -215,14 +242,6 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->placement[9] = 0.0;
   state->placement[10] = 0.0;
   state->placement[11] = 0.0;
-
-  state->use_fifo = false;
-  state->nsf = 0;
-  state->sdr = 0;
-  state->is_dri = false;
-  state->resolution_idx = 0;
-  state->hardware_id = 0;
-  state->supports_sync_stream = false;
 #endif // AK0991X_ENABLE_ALL_DEVICES
 
 #ifdef AK0991X_ENABLE_DAE

@@ -14,10 +14,18 @@
  *
  **/
 
-// Enable below macro to set SEE Lite mode
+/*
+ * For SEE-Lite Mode, please follow the procedure.
+ * TODO1: define the AK0991X_ENABLE_SEE_LITE.
+ * TODO2: Select a target device.
+ * TODO3: Set a DRI/FIFO/S4S mode if the target device has the feature.
+ */
+
+// TODO:1 Enable below macro to set SEE Lite mode
 //#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
 
 #ifdef AK0991X_ENABLE_SEE_LITE
+// SEE-Lite Mode. Require to select a target device and configure mode setting.
 
 //#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
 #define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
@@ -26,7 +34,7 @@
 #define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 //#define AK0991X_ENABLE_DEINIT             // Enable deinit call
 
-//select a target device for SEE-Lite
+//TODO:2 Please select a target device for SEE-Lite
 //#define AK0991X_TARGET_AK09911
 //#define AK0991X_TARGET_AK09912
 //#define AK0991X_TARGET_AK09913
@@ -37,36 +45,44 @@
 //#define AK0991X_TARGET_AK09917
 //#define AK0991X_TARGET_AK09918
 
-//It depends on the target device,
-//AK09913, AK09916C and AK09918 don't support these settings.
+// AK09913/AK09916C/AK09918 don't have FUSE/DRI/FIFO/S4S, then no need to enable them.
 #if     defined(AK0991X_TARGET_AK09911)
 #define AK0991X_ENABLE_FUSE
-
 #elif   defined(AK0991X_TARGET_AK09912)
 #define AK0991X_ENABLE_FUSE
 #define AK0991X_ENABLE_DRI
-
 #elif   defined(AK0991X_TARGET_AK09915C)
 #define AK0991X_ENABLE_DRI
 #define AK0991X_ENABLE_FIFO
-
 #elif   defined(AK0991X_TARGET_AK09915D)
 #define AK0991X_ENABLE_DRI
 #define AK0991X_ENABLE_FIFO
 #define AK0991X_ENABLE_S4S
-
 #elif   defined(AK0991X_TARGET_AK09916D)
 #define AK0991X_ENABLE_DRI
-
 #elif   defined(AK0991X_TARGET_AK09917)
 #define AK0991X_ENABLE_DRI
 #define AK0991X_ENABLE_FIFO
 #define AK0991X_ENABLE_S4S
+#endif
 
-#endif // AK0991X_TARGET_AK09911
+//TODO:3 Define macros for DRI/FIFO/S4S mode if the target device has the feature.
+#ifdef AK0991X_ENABLE_DRI
+#define AK0991X_STATE_IS_DRI  // Set for activating DRI mode
+#endif //  AK0991X_ENABLE_DRI
+
+#ifdef AK0991X_ENABLE_FIFO
+#define AK0991X_STATE_USE_FIFO  // Set for activating FIFO mode
+#endif //  AK0991X_STATE_USE_FIFO
+
+#ifdef AK0991X_ENABLE_S4S
+//#define AK0991X_STATE_SUPPORTS_SYNC_STREAM  // Set for activating S4S mode
+#endif //  AK0991X_ENABLE_S4S
+
 
 #else // AK0991X_ENABLE_SEE_LITE
 
+// Standard SEE Mode. Enabled all features.
 #define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
 #define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
 #define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
@@ -76,7 +92,6 @@
 #define AK0991X_ENABLE_DEINIT             // Enable deinit call
 #define AK0991X_ENABLE_S4S                // Enable S4S parts
 #define AK0991X_ENABLE_ALL_DEVICES        // Enable AKM all sensors
-
 #define AK0991X_ENABLE_FUSE               // Enable fuse rom
 #define AK0991X_ENABLE_DRI                // Enable DRI
 #define AK0991X_ENABLE_FIFO               // Enable FIFO
