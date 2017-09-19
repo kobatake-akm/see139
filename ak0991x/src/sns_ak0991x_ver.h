@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/18/17     010025     AKM(M)           Added GPIO checking for the DRI interrupt.
  * 09/18/17     010024     AKM(M)           Modified for the timestamp in the FIFO mode
  * 09/14/17     010023     AKM(N+M)         Added compile switches for FIFO/DRI/FUSE and modified for issue#5/#23
  * 09/13/17     010022     AKM(M)           Modified check DRDY bit to ignore wrong notify event call
@@ -59,4 +60,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10024  // major:01 minor:00 revision:24
+#define AK0991X_DRIVER_VERSION 10025  // major:01 minor:00 revision:25

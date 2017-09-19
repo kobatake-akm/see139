@@ -179,6 +179,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->com_port_info.com_config.bus_type = 0;           // I2C
   state->com_port_info.com_config.bus_instance = 3;       // DragonBoard
   state->com_port_info.com_config.slave_control = 12;     // Slave address:0x0C
+//  state->com_port_info.com_config.slave_control = 15;     // Slave address:0x0F
   state->com_port_info.com_config.min_bus_speed_KHz = 400;// I2C speed
   state->com_port_info.com_config.max_bus_speed_KHz = 400;// I2C speed
   state->com_port_info.com_config.reg_addr_type = 0;      //

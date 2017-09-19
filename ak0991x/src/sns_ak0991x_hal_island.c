@@ -1493,7 +1493,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                   &log_mag_state_raw_info
   #else
                                   state
-  #endif
+  #endif //AK0991X_ENABLE_DIAG_LOGGING
                                   );
         cnt_for_ts--;
       }
@@ -1501,6 +1501,23 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
       state->pre_timestamp = state->interrupt_timestamp;
   }
 }
+
+#ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
+sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin)
+{
+  sns_service_manager *smgr = instance->cb->get_service_manager(instance);
+  sns_gpio_service *gpio_svc = (sns_gpio_service*)smgr->get_service(smgr, SNS_GPIO_SERVICE);
+  sns_gpio_state val;
+  sns_rc rc = SNS_RC_SUCCESS;
+
+  rc = gpio_svc->api->read_gpio(gpio, is_chip_pin, &val);
+
+//  AK0991X_INST_PRINT(LOW, instance, "gpio_val = %d  rc = %d", val, rc);
+
+  return val;
+}
+#endif //AK0991X_ENABLE_CHECK_DRI_GPIO
+
 #endif //AK0991X_ENABLE_DRI
 
 
@@ -1518,9 +1535,10 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance){
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * state->num_samples);
     }
   }
-  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_validate done.");
+//  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_validate done.");
 }
 
+#ifdef AK0991X_ENABLE_CHECK_REG_ST1
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1529,10 +1547,11 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   ak0991x_read_st1(state,state->com_port_info.port_handle,
                    &st1_buf);
 
+//  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_is_drdy done. ST1=%d",st1_buf);
   if( st1_buf & AK0991X_DRDY_BIT ) return true;
   return false;
 }
-
+#endif
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
