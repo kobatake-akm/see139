@@ -151,7 +151,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->fac_cal_corr_mat.e22 = 1.0;
 
 #else
-  AK0991X_PRINT(ERROR, this, "SEE-Lite Mode.");
+  AK0991X_PRINT(LOW, this, "SEE-Lite Mode.");
 
 #ifdef AK0991X_STATE_IS_DRI
   state->is_dri = true;

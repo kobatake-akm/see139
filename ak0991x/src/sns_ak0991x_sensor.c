@@ -395,7 +395,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
 
-  AK0991X_PRINT(ERROR, this, "ak0991x_register_com_port");
+  AK0991X_PRINT(LOW, this, "ak0991x_register_com_port");
 
   if (NULL == state->com_port_info.port_handle)
   {
@@ -409,7 +409,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
     if(rv == SNS_RC_SUCCESS)
     {
       rv = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
-      AK0991X_PRINT(ERROR, this, "Open port: %u",rv);
+      AK0991X_PRINT(LOW, this, "Open port: %u",rv);
     }
     else
     {
@@ -422,7 +422,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
 //#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static void ak0991x_register_power_rails(sns_sensor *const this)
 {
-  AK0991X_PRINT(ERROR, this, "ak0991x_register_power_rails");
+  AK0991X_PRINT(LOW, this, "ak0991x_register_power_rails");
 
    ak0991x_state *state = (ak0991x_state *)this->state->state;
    sns_service_manager *service_mgr = this->cb->get_service_manager(this);
@@ -557,7 +557,7 @@ static void ak0991x_process_suid_events(sns_sensor *const this)
     return;
   }
 
-  AK0991X_PRINT(ERROR, this, "ak0991x_process_suid_events");
+  AK0991X_PRINT(LOW, this, "ak0991x_process_suid_events");
 
   for (;
        0 != state->fw_stream->api->get_input_cnt(state->fw_stream);
@@ -596,13 +596,13 @@ static void ak0991x_process_suid_events(sns_sensor *const this)
       if(0 == strncmp(data_type_arg.buf, "timer", data_type_arg.buf_len))
       {
         state->timer_suid = uid_list;
-        AK0991X_PRINT(ERROR, this, "SUID:timer");
+        AK0991X_PRINT(LOW, this, "SUID:timer");
         if(!SUID_IS_NULL(&state->timer_suid))
         {
           stream_svc->api->create_sensor_stream(stream_svc, this, state->timer_suid,
                                                 &state->timer_stream);
           state->remove_timer_stream = false;
-          AK0991X_PRINT(ERROR, this, "create_sensor_stream");
+          AK0991X_PRINT(LOW, this, "create_sensor_stream");
           if(NULL == state->timer_stream)
           {
             AK0991X_PRINT(ERROR, this, __FILENAME__, __LINE__,
@@ -1533,7 +1533,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
   if(NULL != state->timer_stream)
   {
-    AK0991X_PRINT(ERROR, this, "ak0991x_process_timer_events");
+    AK0991X_PRINT(LOW, this, "ak0991x_process_timer_events");
 
     event = state->timer_stream->api->peek_input(state->timer_stream);
 
@@ -1637,7 +1637,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             if (rv == SNS_RC_SUCCESS)
             {
               state->hw_is_present = true;
-              AK0991X_PRINT(ERROR, this, "Find Sensor. state->hw_is_present=%d state->device_select=%d",(int)state->hw_is_present, (int)state->device_select);
+              AK0991X_PRINT(MED, this, "Find Sensor. state->hw_is_present=%d state->device_select=%d",(int)state->hw_is_present, (int)state->device_select);
             }
 
             /**------------------Power Down and Close COM Port--------------------*/
@@ -1663,7 +1663,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             	ak0991x_publish_hw_attributes(this,state->device_select);
 #endif
               ak0991x_sensor_publish_available(this);
-              AK0991X_PRINT(HIGH, this, "AK0991X HW present. device_select: %u",
+              AK0991X_PRINT(MED, this, "AK0991X HW present. device_select: %u",
                                        state->device_select);
             }
             else
@@ -1985,7 +1985,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
   sns_rc           rv = SNS_RC_SUCCESS;
 
-  AK0991X_PRINT(ERROR, this, "ak0991x_sensor_notify_event");
+  AK0991X_PRINT(LOW, this, "ak0991x_sensor_notify_event");
 
   ak0991x_process_suid_events(this);
 

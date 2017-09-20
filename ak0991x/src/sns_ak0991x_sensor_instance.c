@@ -574,7 +574,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       // care the FIFO buffer if enabled FIFO
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
-        AK0991X_INST_PRINT(ERROR, this, "flush_fifo called.");
+        AK0991X_INST_PRINT(LOW, this, "flush_fifo called.");
         ak0991x_flush_fifo(this);
         if (state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
         {
@@ -605,12 +605,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this);
-        AK0991X_INST_PRINT(ERROR, this, "done register_timer");
+        AK0991X_INST_PRINT(LOW, this, "done register_timer");
 #ifdef AK0991X_ENABLE_S4S
         if (state->mag_info.use_sync_stream)
         {
           ak0991x_register_s4s_timer(this);
-          AK0991X_INST_PRINT(ERROR, this, "done register_s4s_timer");
+          AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
         }
 #endif // AK0991X_ENABLE_S4S
       }
@@ -646,7 +646,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(!ak0991x_dae_if_flush_samples(this))
 #endif // AK0991X_ENABLE_DAE
     {
-      AK0991X_INST_PRINT(ERROR, this, "flush_fifo called.");
+      AK0991X_INST_PRINT(LOW, this, "flush_fifo called.");
       ak0991x_flush_fifo(this);
       state->this_is_first_data = true;
       ak0991x_send_fifo_flush_done(this);
@@ -657,7 +657,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   {
     if (state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
     {
-      AK0991X_INST_PRINT(ERROR, this, "pause the stream for self-test.");
+      AK0991X_INST_PRINT(LOW, this, "pause the stream for self-test.");
       mag_chosen_sample_rate = state->mag_req.sample_rate;
       mag_chosen_sample_rate_reg_value = state->mag_info.desired_odr;
       state->mag_req.sample_rate = 0;
@@ -681,7 +681,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         // care the FIFO buffer if enabled FIFO
         if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
         {
-          AK0991X_INST_PRINT(ERROR, this, "flush_fifo called.");
+          AK0991X_INST_PRINT(LOW, this, "flush_fifo called.");
           ak0991x_flush_fifo(this);
           state->this_is_first_data = true;
         }
@@ -727,7 +727,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       ak0991x_run_self_test(this);
       state->new_self_test_request = false;
 
-      AK0991X_INST_PRINT(ERROR, this, "Resume the stream.");
+      AK0991X_INST_PRINT(LOW, this, "Resume the stream.");
       state->mag_req.sample_rate = mag_chosen_sample_rate;
       state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
