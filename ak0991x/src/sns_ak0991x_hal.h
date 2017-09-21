@@ -24,6 +24,7 @@
 #include "sns_std.pb.h"
 #include "sns_std_sensor.pb.h"
 #include "sns_registry_util.h"
+#include "sns_gpio_service.h"
 
 /* Referenced data sheet version
  * AK09911  data sheet version MS1626_E-01
@@ -499,8 +500,26 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
  */
 void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                      void *user_arg);
+
+#ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
+/**
+ * Reads value of a GPIO pin.
+ * Function has been written to demonstrate use of the GPIO
+ * Service to read gpio.
+ *
+ * @param[i] instance     instance reference
+ * @param[i] gpio         gpio pin to read
+ * @param[i] is_chip_pin  true if this is a chip level TLMM pin
+ *       else false.
+ *
+ * @return sns_gpio_state
+ */
+sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin);
+#endif // AK0991X_ENABLE_CHECK_DRI_GPIO
+
 #endif //AK0991X_ENABLE_DRI
 
+#ifdef AK0991X_ENABLE_CHECK_REG_ST1
 /**
  * Check the drdy bit
  *
@@ -509,7 +528,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
  * @return false: no data ready, true: data is ready
  */
 bool ak0991x_is_drdy(sns_sensor_instance *const instance);
-
+#endif // AK0991X_ENABLE_CHECK_REG_ST1
 
 #ifdef AK0991X_ENABLE_FIFO
 /**

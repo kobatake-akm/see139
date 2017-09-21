@@ -526,7 +526,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
         | (state->mag_info.s4s_rr & 0x03);         // RR
     }
 
-    AK0991X_INST_PRINT(ERROR, this, "bf[0]=%d bf[2]=%d",buf_s4s[0], buf_s4s[1]);
+    AK0991X_INST_PRINT(LOW, this, "bf[0]=%d bf[2]=%d",buf_s4s[0], buf_s4s[1]);
  
     rv = ak0991x_com_write_wrapper(this,
                                    scp_service,
@@ -1324,7 +1324,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]);
 #endif
 
-  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d Mag[LSB] %d,%d,%d",
+  AK0991X_INST_PRINT(LOW, instance, "timestamp %u Mag[LSB] %d,%d,%d",
       (uint32_t)timestamp,
       (int16_t)(lsbdata[TRIAXIS_X]),
 			(int16_t)(lsbdata[TRIAXIS_Y]),
@@ -1337,7 +1337,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   // Check magnetic sensor overflow
   if ((mag_sample[7] & AK0991X_HOFL_BIT) != 0)
   {
-    AK0991X_INST_PRINT(ERROR, instance, "sensor overflow: HOFL_BIT=1");
+    AK0991X_INST_PRINT(LOW, instance, "sensor overflow: HOFL_BIT=1");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
   else
@@ -1493,7 +1493,7 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
                                   &log_mag_state_raw_info
   #else
                                   state
-  #endif
+  #endif //AK0991X_ENABLE_DIAG_LOGGING
                                   );
         cnt_for_ts--;
       }
@@ -1501,6 +1501,23 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
       state->pre_timestamp = state->interrupt_timestamp;
   }
 }
+
+#ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
+sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin)
+{
+  sns_service_manager *smgr = instance->cb->get_service_manager(instance);
+  sns_gpio_service *gpio_svc = (sns_gpio_service*)smgr->get_service(smgr, SNS_GPIO_SERVICE);
+  sns_gpio_state val;
+  sns_rc rc = SNS_RC_SUCCESS;
+
+  rc = gpio_svc->api->read_gpio(gpio, is_chip_pin, &val);
+
+//  AK0991X_INST_PRINT(LOW, instance, "gpio_val = %d  rc = %d", val, rc);
+
+  return val;
+}
+#endif //AK0991X_ENABLE_CHECK_DRI_GPIO
+
 #endif //AK0991X_ENABLE_DRI
 
 
@@ -1508,7 +1525,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance){
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
   if(state->this_is_first_data){
-    AK0991X_INST_PRINT(ERROR, instance, "this_is_first_data in ak0991x_validate");
+    AK0991X_INST_PRINT(LOW, instance, "this_is_first_data in ak0991x_validate");
     state->interrupt_timestamp = state->irq_event_time;
     state->averaged_interval = ideal_interval;
   }else{
@@ -1518,9 +1535,10 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance){
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * state->num_samples);
     }
   }
-  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_validate done.");
+//  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_validate done.");
 }
 
+#ifdef AK0991X_ENABLE_CHECK_REG_ST1
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1529,10 +1547,11 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   ak0991x_read_st1(state,state->com_port_info.port_handle,
                    &st1_buf);
 
+//  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_is_drdy done. ST1=%d",st1_buf);
   if( st1_buf & AK0991X_DRDY_BIT ) return true;
   return false;
 }
-
+#endif
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
@@ -1729,7 +1748,7 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
-  AK0991X_INST_PRINT(ERROR, instance, "handle s4s_timer event");
+  AK0991X_INST_PRINT(LOW, instance, "handle s4s_timer event");
 
   sns_time t_ph_time = sns_get_system_time();
   sns_time i2c_start_time;
@@ -1771,10 +1790,10 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
   dt_count = (i2c_start_time - t_ph_time) * (1 << state->mag_info.s4s_rr) * 2048
              / (float)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
 
-  AK0991X_INST_PRINT(ERROR, instance, "i2c_start_time=%d", (uint32_t)i2c_start_time);
-  AK0991X_INST_PRINT(ERROR, instance, "t_ph_time=%d", (uint32_t)t_ph_time);
-  AK0991X_INST_PRINT(ERROR, instance, "dt_count=%d", (uint32_t)dt_count);
-  AK0991X_INST_PRINT(ERROR, instance, "t_ph_interval=%d",(uint32_t)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000));
+  AK0991X_INST_PRINT(LOW, instance, "i2c_start_time=%u", (uint32_t)i2c_start_time);
+  AK0991X_INST_PRINT(LOW, instance, "t_ph_time=%u", (uint32_t)t_ph_time);
+  AK0991X_INST_PRINT(LOW, instance, "dt_count=%d", (uint32_t)dt_count);
+  AK0991X_INST_PRINT(LOW, instance, "t_ph_interval=%u",(uint32_t)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000));
 
 
   if ( dt_count > 127 || state->mag_info.s4s_dt_abort)
@@ -1818,18 +1837,18 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
   if (state->mag_info.s4s_sync_state == AK0991X_S4S_NOT_SYNCED)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCING;
-    AK0991X_INST_PRINT(ERROR, instance, "S4S syncing...");
+    AK0991X_INST_PRINT(LOW, instance, "S4S syncing...");
   }
   else if (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCING)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_1ST_SYNCED;
-    AK0991X_INST_PRINT(ERROR, instance, "S4S 1st synced");
+    AK0991X_INST_PRINT(LOW, instance, "S4S 1st synced");
   }
   else if (state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCED;
     ak0991x_send_config_event(instance);
-    AK0991X_INST_PRINT(ERROR, instance, "S4S synced");
+    AK0991X_INST_PRINT(LOW, instance, "S4S synced");
   }
 
   return rv;
@@ -2336,9 +2355,9 @@ void ak0991x_register_timer(sns_sensor_instance *this)
       req_payload.start_time = sns_get_system_time();
     }
 
-    AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
-    AK0991X_INST_PRINT(ERROR, this, "start_time=%d", (uint32_t)req_payload.start_time);
-    AK0991X_INST_PRINT(ERROR, this, "late_start_delta=%d", (uint32_t)req_payload.start_config.late_start_delta);
+    AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);
+    AK0991X_INST_PRINT(LOW, this, "late_start_delta=%u", (uint32_t)req_payload.start_config.late_start_delta);
 
 
 
@@ -2405,7 +2424,7 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
     req_payload.priority = SNS_TIMER_PRIORITY_S4S;
     req_payload.timeout_period = t_ph_period;
  
-    AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
