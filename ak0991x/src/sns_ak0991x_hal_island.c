@@ -635,6 +635,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   state->pre_timestamp = sns_get_system_time();
+  state->this_is_first_data=true;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
 
   return SNS_RC_SUCCESS;
@@ -1535,7 +1536,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance){
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * state->num_samples);
     }
   }
-//  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_validate done.");
+//  AK0991X_INST_PRINT(LOW, instance, "ak0991x_validate done.");
 }
 
 #ifdef AK0991X_ENABLE_CHECK_REG_ST1
@@ -1547,7 +1548,7 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   ak0991x_read_st1(state,state->com_port_info.port_handle,
                    &st1_buf);
 
-//  AK0991X_INST_PRINT(ERROR, instance, "ak0991x_is_drdy done. ST1=%d",st1_buf);
+//  AK0991X_INST_PRINT(LOW, instance, "ak0991x_is_drdy done. ST1=%d",st1_buf);
   if( st1_buf & AK0991X_DRDY_BIT ) return true;
   return false;
 }
@@ -1792,7 +1793,7 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
 
   AK0991X_INST_PRINT(LOW, instance, "i2c_start_time=%u", (uint32_t)i2c_start_time);
   AK0991X_INST_PRINT(LOW, instance, "t_ph_time=%u", (uint32_t)t_ph_time);
-  AK0991X_INST_PRINT(LOW, instance, "dt_count=%d", (uint32_t)dt_count);
+  AK0991X_INST_PRINT(LOW, instance, "dt_count=%u", (uint32_t)dt_count);
   AK0991X_INST_PRINT(LOW, instance, "t_ph_interval=%u",(uint32_t)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000));
 
 

@@ -440,7 +440,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
 
-  AK0991X_INST_PRINT(ERROR, this, "inst_set_client_config msg_id %d", client_request->message_id);
+  AK0991X_INST_PRINT(LOW, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,

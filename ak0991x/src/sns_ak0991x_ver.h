@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/22/17     010026     Qualcomm/AKM     Added this_is_first_data=true when ak0991x_start_mag_streaming() called.
+ * 09/20/17                AKM(M)           Modified debug messages(ERROR->LOW, uses %u for timestamp).
  * 09/19/17                AKM(M)           Modified debug messages.
  * 09/19/17     010025     AKM(M)           Added GPIO checking for the DRI interrupt.
  * 09/18/17     010024     AKM(M)           Modified for the timestamp in the FIFO mode
@@ -61,4 +63,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10025  // major:01 minor:00 revision:25
+#define AK0991X_DRIVER_VERSION 10026  // major:01 minor:00 revision:26
