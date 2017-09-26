@@ -142,13 +142,13 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_FIFO
               if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
               {
-                AK0991X_INST_PRINT(HIGH, this, "irq_event %u handle interrupt event for fifo wmk<1", (uint32_t)irq_event.timestamp);
+                AK0991X_INST_PRINT(LOW, this, "irq_event %u handle interrupt event for fifo wmk<1", (uint32_t)irq_event.timestamp);
                 ak0991x_flush_fifo(this);
               }
               else
               {
 #endif // AK0991X_ENABLE_FIFO
-                AK0991X_INST_PRINT(HIGH, this, "irq_event %u handle interrupt event", (uint32_t)irq_event.timestamp);
+                AK0991X_INST_PRINT(LOW, this, "irq_event %u handle interrupt event", (uint32_t)irq_event.timestamp);
                 ak0991x_handle_interrupt_event(this);
 #ifdef AK0991X_ENABLE_FIFO
               }
@@ -225,7 +225,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   // Handle timer event
   if (NULL != state->timer_data_stream)
   {
-    AK0991X_INST_PRINT(LOW, this, "timer_data_stream");
+//    AK0991X_INST_PRINT(LOW, this, "timer_data_stream");
     event = state->timer_data_stream->api->peek_input(state->timer_data_stream);
 
     while (NULL != event)
@@ -299,7 +299,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       }
       else
       {
-        AK0991X_INST_PRINT(LOW, this, "Received invalid event id=%d",
+        AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d",
                                       event->message_id);
       }
 
