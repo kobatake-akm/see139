@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/24/17     010020     Qualcomm         Re-enable FIFO, ts fixes.
+ * 09/22/17     010019     Qualcomm         Disable S4S, FIFO temporarily due to ts issues
  * 09/08/17     010018     AKM(M)           Added to check DRDY bit to ignore wrong notify_event call
  * 09/07/17     010017     AKM(M)           enabled AK0991X_DAE_FORCE_NOT_AVAILABLE for second test run
  * 09/07/17     010016     AKM(M)           Merged 010014 and 010015
@@ -53,4 +55,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10018  // major:01 minor:00 revision:18
+#define AK0991X_DRIVER_VERSION 10020  // major:01 minor:00 revision:20

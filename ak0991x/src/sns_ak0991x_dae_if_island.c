@@ -39,7 +39,7 @@
                         _a > _b ? _a : _b; })
 #endif /* SNS_MAX */
 
-#define AK0991X_DAE_FORCE_NOT_AVAILABLE
+//#define AK0991X_DAE_FORCE_NOT_AVAILABLE
 
 /*======================================================================================
   Helper Functions
@@ -81,8 +81,10 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
     {
       config_req.polling_config.polling_interval_ticks =
         sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
-                                 / (uint64_t) mag_info->curr_odr );
+                               / (uint64_t) mag_info->curr_odr );
     }
+    //TODO: it looks like the polling offset will not be adjusted for S4S. 
+    //So it won't be synced with any other sensors
     config_req.polling_config.polling_offset =
       sns_get_system_time() + sns_convert_ns_to_ticks( meas_usec * 1000ULL );
   }
@@ -101,7 +103,9 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
       dae_stream->state = STREAM_STARTING;
     }
   }
- 
+
+  if(mag_info->use_sync_stream)
+  {
   sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
   uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
   sns_request s4s_req = {
@@ -115,6 +119,9 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
   s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
   s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
   //TODO: Is this minimum time between T_PH start and ST/DT? or I2C communication time during ST/DT?
+  //RESP: st_delay is defined in the sns_dae.proto file
+  //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
+  
   s4s_config_req.st_delay = 0;
 
   if((s4s_req.request_len =
@@ -125,9 +132,11 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
                         NULL)) > 0)
   {
     //TODO: Can the driver receive SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG periodically?
+    // Resp: The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
     if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
     {
     }
+  }
   }
 
   return cmd_sent;
@@ -265,6 +274,7 @@ static void process_response(
         {
           dae_stream->state = STREAMING;
           ak0991x_reconfig_hw(this);
+          ak0991x_send_config_event(this);
         }
         else
         {
@@ -289,7 +299,9 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
-      AK0991X_INST_PRINT(LOW, this,"DAE_PAUSE_SAMPLING");
+      AK0991X_INST_PRINT(LOW, this,
+                         "DAE_PAUSE_SAMPLING dae_stream->state:%u,mag.state=%u,config_step=%u",
+                         dae_stream->state, state->dae_if.mag.state, state->config_step);
       if(dae_stream->state == STREAM_STOPPING)
       {
         dae_stream->state = (SNS_STD_ERROR_NO_ERROR != resp.err) ? STREAMING : IDLE;
@@ -306,9 +318,12 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED:
+      if(state->mag_info.use_sync_stream)
+      {
       state->mag_info.s4s_dt_abort = true;
       ak0991x_handle_s4s_timer_event(this);
       state->mag_info.s4s_dt_abort = false;
+      }
       break;
 
     case SNS_DAE_MSGID_SNS_DAE_RESP:
@@ -322,6 +337,8 @@ static void process_response(
 static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_stream)
 {
   sns_sensor_event *event;
+  ak0991x_instance_state *state =
+    (ak0991x_instance_state *)this->state->state;
 
   while(NULL != dae_stream->stream &&
         NULL != (event = dae_stream->stream->api->peek_input(dae_stream->stream)))
@@ -347,6 +364,24 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       {
         dae_stream->stream_usable = false;
         AK0991X_INST_PRINT(LOW, this,"SNS_STD_ERROR_EVENT");
+        ak0991x_reconfig_hw(this);
+
+        if(state->mag_info.use_dri)
+        {
+          ak0991x_register_interrupt(this);
+        }
+        else
+        {
+          if(state->mag_info.use_sync_stream)
+          {
+            ak0991x_register_s4s_timer(this);
+            AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
+          }
+          else
+          {
+            ak0991x_register_timer(this);
+          }
+        }
       }
       else
       {
@@ -358,7 +393,6 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 
   if(!dae_stream->stream_usable)
   {
-    ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 #if 0
   /* TODO - restore this once framework can properly deal with events published between
      the start and end of stream remove process */
@@ -369,11 +403,6 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
     stream_mgr->api->remove_stream(stream_mgr, dae_stream->stream);
     dae_stream->stream = NULL;
 #endif
-    // Register for interrupt
-    if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-    {
-      ak0991x_register_interrupt(this);
-    }
   }
 }
 
@@ -500,7 +529,7 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
   if(stream_usable(&state->dae_if.mag) &&
      (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
   {
-    AK0991X_INST_PRINT(LOW, this,"Mag stream=0x%x", &dae_if->mag.stream);
+    AK0991X_INST_PRINT(LOW, this,"stopping mag stream=0x%x", &dae_if->mag.stream);
     cmd_sent |= stop_streaming(&dae_if->mag);
   }
 

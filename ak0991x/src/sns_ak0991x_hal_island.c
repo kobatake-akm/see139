@@ -373,7 +373,7 @@ static sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
     if( diag )
     {
       AK0991X_INST_PRINT(LOW, this,
-                      "ak0991x write reg:0x%x val:0x%x, bytes %d",
+                         "ak0991x write reg:0x%x val[0]:0x%x, bytes %d",
                       reg_addr, (uint32_t) buffer[0], bytes);
     }
   }
@@ -446,7 +446,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   sns_sync_com_port_handle *port_handle = state->com_port_info.port_handle;
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
-  uint8_t  buffer;
+  uint8_t  buffer[2];
   ak0991x_mag_odr desired_odr = state->mag_info.desired_odr;
   akm_device_type device_select = state->mag_info.device_select;
   uint16_t cur_wmk = state->mag_info.cur_wmk;
@@ -482,9 +482,10 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   }
   if( i < ARR_SIZE( odr_debug_string_map ) )
   {
-    AK0991X_INST_PRINT(LOW, this, "set_mag_config: Mode:%d, desire_ODR:%d dev:%d wmk:%d",
+    AK0991X_INST_PRINT(LOW, this,
+                       "set_mag_config: Mode:%d, desire_ODR:%d dev:%d wmk:%d force_off:%d",
                                   odr_debug_string_map[i].odr, desired_odr, device_select,
-                                  cur_wmk );
+                       cur_wmk, force_off);
   }
   else
   {
@@ -520,8 +521,9 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
         | (state->mag_info.s4s_rr & 0x03);         // RR
     }
 
-    AK0991X_INST_PRINT(ERROR, this, "bf[0]=%d bf[2]=%d",buf_s4s[0], buf_s4s[1]);
- 
+    AK0991X_INST_PRINT(LOW, this, "bf[0]=%d bf[2]=%d",buf_s4s[0], buf_s4s[1]);
+    //TODO: optimize comport write calls
+    //Instead of calling multiple writes, write in a single scp write
     rv = ak0991x_com_write_wrapper(this,
                                    scp_service,
                                    port_handle,
@@ -546,56 +548,37 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   {
     if (device_select == AK09912)
     {
-      buffer = 0x0
+      buffer[0] = 0x0
         | (state->mag_info.nsf << 5); // NSF bit
     }
     else
     {
-      buffer = 0x0
+      buffer[0] = 0x0
         | (state->mag_info.nsf << 5) // NSF bit
         | cur_wmk;                   // WM[4:0] bits
-    }
-
-    rv = ak0991x_com_write_wrapper(this,
-                                   scp_service,
-                                   port_handle,
-                                   AKM_AK0991X_REG_CNTL1,
-                                   &buffer,
-                                   1,
-                                   &xfer_bytes,
-                                   false);
-
-    if (xfer_bytes != 1)
-    {
-      rv = SNS_RC_FAILED;
-    }
-
-    if (rv != SNS_RC_SUCCESS)
-    {
-      return rv;
     }
   }
 
   // Configure control register 2
   if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
-    buffer = 0x0
+    buffer[1] = 0x0
       | ((uint8_t)state->mag_info.use_fifo << 7) // FIFO bit
       | (state->mag_info.sdr << 6)               // SDR bit
       | (uint8_t)desired_odr;                    // MODE[4:0] bits
   }
   else
   {
-    buffer = 0x0
+    buffer[1] = 0x0
       | (uint8_t)desired_odr; // MODE[4:0] bits
   }
 
   return ak0991x_com_write_wrapper(this,
                                    scp_service,
                                    port_handle,
-                                   AKM_AK0991X_REG_CNTL2,
-                                   &buffer,
-                                   1,
+                                   AKM_AK0991X_REG_CNTL1,
+                                   buffer,
+                                   2,
                                    &xfer_bytes,
                                    false);
 }
@@ -608,10 +591,17 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
   sns_rc rv;
 
+  if(state->ascp_xfer_in_progress)
+  {
+    AK0991X_INST_PRINT(HIGH, this, "ascp_xfer_in_progress: %u", state->ascp_xfer_in_progress);
+    state->config_mag_after_ascp_xfer = true;
+    return SNS_RC_SUCCESS;
+  }
+
   // Enable Mag Streaming
 
   //Transit to Power-down mode first and then transit to other modes.
-  rv = ak0991x_set_mag_config(this, true );
+  rv = ak0991x_set_mag_config(this, true);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -626,7 +616,9 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   state->pre_timestamp = sns_get_system_time();
+  state->this_is_first_data = true;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
+  state->irq_info.irq_count = 0;
 
   return SNS_RC_SUCCESS;
 }
@@ -919,18 +911,18 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   if (state->mag_info.device_select == AK09917)
   {
     // raw data in 16 bits
-	
-	// TODO: Here buffer data type is 8 bit. Left shifting buffer[i]<<8 results '0'. 
-	// Here, We will loose MSB data
+
+    // TODO: Here buffer data type is 8 bit. Left shifting buffer[i]<<8 results '0'.
+    // Here, We will loose MSB data
     data[0] = (int16_t)(((buffer[1] << 8) & 0xFF00) | buffer[2]);
     data[1] = (int16_t)(((buffer[3] << 8) & 0xFF00) | buffer[4]);
     data[2] = (int16_t)(((buffer[5] << 8) & 0xFF00) | buffer[6]);
   }
   else
   {
-	// TODO: Here buffer data type is 8 bit. Left shifting buffer[i]<<8 results '0'. 
-	// Here, We will loose MSB data
-	
+    // TODO: Here buffer data type is 8 bit. Left shifting buffer[i]<<8 results '0'.
+    // Here, We will loose MSB data
+
     // raw data in 16 bits
     data[0] = (int16_t)(((buffer[2] << 8) & 0xFF00) | buffer[1]);
     data[1] = (int16_t)(((buffer[4] << 8) & 0xFF00) | buffer[3]);
@@ -1268,26 +1260,30 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
         (uint32_t)state->mag_registry_cfg.fac_cal_bias[2]);
    */
 
-  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d",
-  		(uint32_t)timestamp);
+  AK0991X_INST_PRINT(LOW, instance, "timestamp %u",
+        (uint32_t)timestamp);
 
   if (state->mag_info.device_select == AK09917)
   {
-  	lsbdata[TRIAXIS_X] = (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]);
-  	lsbdata[TRIAXIS_Y] = (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]);
-  	lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]);
+    //TODO: (mag_sample[0] << 8) result is '0'. Because,mag_sample[0] is uint_8 type,
+    // Type cast it to uint16_t before left shifting by #8
+    lsbdata[TRIAXIS_X] = (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]);
+    lsbdata[TRIAXIS_Y] = (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]);
+    lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]);
   }
   else
   {
-  	lsbdata[TRIAXIS_X] = (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]);
-  	lsbdata[TRIAXIS_Y] = (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]);
-  	lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]);
+    //TODO: (mag_sample[1] << 8) result is '0'. Because,mag_sample[0] is uint_8 type,
+    // Type cast it to uint16_t before left shifting by #8
+    lsbdata[TRIAXIS_X] = (int16_t)(((mag_sample[1] << 8) & 0xFF00) | mag_sample[0]);
+    lsbdata[TRIAXIS_Y] = (int16_t)(((mag_sample[3] << 8) & 0xFF00) | mag_sample[2]);
+    lsbdata[TRIAXIS_Z] = (int16_t)(((mag_sample[5] << 8) & 0xFF00) | mag_sample[4]);
   }
 
-  AK0991X_INST_PRINT(ERROR, instance, "Mag[LSB] %d,%d,%d",
-  		(int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]),
-			(int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]),
-			(int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]));
+  AK0991X_INST_PRINT(LOW, instance, "Mag[LSB] %d,%d,%d",
+        (int16_t)(((mag_sample[0] << 8) & 0xFF00) | mag_sample[1]),
+            (int16_t)(((mag_sample[2] << 8) & 0xFF00) | mag_sample[3]),
+            (int16_t)(((mag_sample[4] << 8) & 0xFF00) | mag_sample[5]));
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.sstvt_adj[0] * state->mag_info.resolution;
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.sstvt_adj[1] * state->mag_info.resolution;
@@ -1340,7 +1336,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     opdata_raw,
     timestamp,
     status);
-
 }
 
 void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
@@ -1416,26 +1411,15 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
   if (AKM_AK0991X_REG_ST1 == vector->reg_addr)
   {
     uint32_t i;
-
     sns_time                  timestamp;
     uint16_t                  cnt_for_ts = state->mag_info.cur_wmk;
-
-
-    sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
     sns_time interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) /
       (state->mag_info.cur_wmk + 1);
 
     for (i = 1; i < vector->bytes; i += AK0991X_NUM_DATA_HXL_TO_ST2)
     {
-      if (state->this_is_first_data)
-      {
-        timestamp = state->interrupt_timestamp - (sample_interval_ticks * cnt_for_ts);
-      }
-      else
-      {
-        timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
-      }
+      timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
 
       ak0991x_handle_mag_sample(&vector->buffer[i],
                                 timestamp,
@@ -1446,10 +1430,8 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
       cnt_for_ts--;
     }
 
-
     state->this_is_first_data = false;
     state->pre_timestamp = state->interrupt_timestamp;
-
   }
 }
 
@@ -1458,51 +1440,58 @@ void ak0991x_validate_timestamp(sns_sensor_instance *const instance, sns_time ir
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint16_t data_count = 1;
 
-  AK0991X_INST_PRINT(ERROR, instance, "start ak0991x_validate_time");
+  AK0991X_INST_PRINT(LOW, instance, "start ak0991x_validate_time");
 
   // FIFO Mode
-	if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk > 0)) data_count = state->mag_info.cur_wmk + 1;
-
-	sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr) * data_count;
-
+  if ((state->mag_info.use_fifo) && (state->mag_info.cur_wmk > 0))
+  {
+    data_count = state->mag_info.cur_wmk + 1;
+  }
+  sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr) * data_count;
   if(state->this_is_first_data){
-    AK0991X_INST_PRINT(ERROR, instance, "this_is_first_data in ak0991x_validate");
-  	state->interrupt_timestamp = irq_time;
-  	state->averaged_interval = ideal_interval;
+    state->interrupt_timestamp = irq_time;
+    state->averaged_interval = ideal_interval;
+    AK0991X_INST_PRINT(LOW, instance, "this_is_first_data irq_ts: %u avg_intvl: %u",
+                       state->interrupt_timestamp, state->averaged_interval);
   }else{
 
 // case1: using threshold and ideal interval when the jitter is too big
 #if 0
-    float threshold = 0.05;	// 5%
-  	if(irq_time - state->pre_timestamp > ideal_interval * (1.0 + threshold) ||
-  		 irq_time - state->pre_timestamp < ideal_interval * (1.0 - threshold)){
-    	state->interrupt_timestamp = state->pre_timestamp + ideal_interval;
-    	AK0991X_INST_PRINT(ERROR, instance, "wrong irq_time: interval=%d, ideal=%d", (uint32_t)(irq_time - state->pre_timestamp), (uint32_t)ideal_interval);
-  	}else{
-  		state->interrupt_timestamp = irq_time;
-  	}
+    float threshold = 0.05; // 5%
+    if(irq_time - state->pre_timestamp > ideal_interval * (1.0 + threshold) ||
+         irq_time - state->pre_timestamp < ideal_interval * (1.0 - threshold)){
+        state->interrupt_timestamp = state->pre_timestamp + ideal_interval;
+        AK0991X_INST_PRINT(LOW, instance, "wrong irq_time: interval=%d, ideal=%d", (uint32_t)(irq_time - state->pre_timestamp), (uint32_t)ideal_interval);
+    }else{
+        state->interrupt_timestamp = irq_time;
+    }
 #endif
 
 // case2: averaging filter
 #if 1
-    float averageing_weight = 0.95;
-  	state->averaged_interval = state->averaged_interval * averageing_weight + (irq_time - state->pre_timestamp) * (1.0 - averageing_weight);
-  	state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
+    // More weight to measured interval in initial few samples. Then shift weight
+    // to average interval
+    float averaging_weight = ( state->irq_info.irq_count > 5 ) ? 0.95 : 0.05;
+    state->averaged_interval = state->averaged_interval * averaging_weight +
+       (irq_time - state->pre_timestamp) * (1.0 - averaging_weight);
+    state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
 #endif
 
 // case3: use both threshold and averaging filter
 #if 0
-    float threshold = 0.05;	// 5%
-		float averageing_weight = 0.95;
-  	if(irq_time - state->pre_timestamp > state->averaged_interval * (1.0 + threshold) ||
-  		 irq_time - state->pre_timestamp < state->averaged_interval * (1.0 - threshold)){
-			// too big jitter. ignore data
-  	}else{
-  		state->averaged_interval = state->averaged_interval * averageing_weight + (irq_time - state->pre_timestamp) * (1.0 - averageing_weight);
-  	}
-		state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
+    float threshold = 0.05; // 5%
+        float averageing_weight = 0.95;
+    if(irq_time - state->pre_timestamp > state->averaged_interval * (1.0 + threshold) ||
+         irq_time - state->pre_timestamp < state->averaged_interval * (1.0 - threshold)){
+            // too big jitter. ignore data
+    }else{
+        state->averaged_interval = state->averaged_interval * averageing_weight + (irq_time - state->pre_timestamp) * (1.0 - averageing_weight);
+    }
+        state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval;
 #endif
   }
+
+  state->averaged_sample_period = state->averaged_interval / data_count;
 }
 
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)
@@ -1514,7 +1503,7 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
                    &st1_buf);
 
   if( st1_buf & 0x01 ) return true;
-	return false;
+    return false;
 }
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
@@ -1528,13 +1517,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   sns_diag_service          *diag = state->diag_service;
   log_sensor_state_raw_info log_mag_state_raw_info;
 
-  sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
-  log_mag_state_raw_info.diag = diag;
-  log_mag_state_raw_info.instance = instance;
-  log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
-  ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
-
   uint32_t i;
 
   sns_time timestamp;
@@ -1542,23 +1524,41 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
+  sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
+  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
+  log_mag_state_raw_info.diag = diag;
+  log_mag_state_raw_info.instance = instance;
+  log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
+
   if(state->mag_info.device_select == AK09917)
   {
-    uint8_t st1_buf;
+    uint8_t st1_buf=0;
     //In case of AK09917,
     //Read ST1 register to check FIFO samples
-    ak0991x_read_st1(state,state->com_port_info.port_handle,
-                     &st1_buf);
-
-    num_samples = st1_buf >> 2;
-    AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
-
-
-    if(num_samples > 0)
+    if(SNS_RC_SUCCESS == ak0991x_read_st1(state,
+       state->com_port_info.port_handle,
+       &st1_buf))
     {
-      //Read continuously all data in FIFO at one time.
-      ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
-                                num_samples,&buffer[0]);
+      num_samples = st1_buf >> 2;
+      AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
+      if(num_samples > 0)
+      {
+        /*Number of bytes reading from sync-com-port should be less than AK0991X_MAX_FIFO_SIZE*/
+        if((num_samples*AK0991X_NUM_DATA_HXL_TO_ST2)>AK0991X_MAX_FIFO_SIZE)
+        {
+          SNS_INST_PRINTF(ERROR, instance,
+            "FIFO size should not be greater than AK0991X_MAX_FIFO_SIZE."
+            "So, num_samples to read limiting to max value");
+          num_samples = (AK0991X_MAX_FIFO_SIZE/AK0991X_NUM_DATA_HXL_TO_ST2);
+        }
+        //Read continuously all data in FIFO at one time.
+        ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
+                                  num_samples,&buffer[0]);
+      }
+    }
+    else
+    {
+      SNS_INST_PRINTF(ERROR, instance, "Error in reading length of the FIFO");
     }
   }
   else
@@ -1581,41 +1581,15 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     }
   }
 
-  sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-  sns_time interrupt_interval_ticks;
-
   if (num_samples != 0)
   {
-    interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) / (num_samples);
+    // Allocate log packet memory only if there are samples to flush
+    ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
   }
-  else
-  {
-    interrupt_interval_ticks = 0;
-  }
-
-
 
   for (i = 0; i < num_samples; i++)
   {
-    // flush event trigger is IRQ
-    if (state->irq_info.detect_irq_event)
-    {
-      if (state->this_is_first_data)
-      {
-        timestamp = state->interrupt_timestamp -
-          (sample_interval_ticks * (state->mag_info.cur_wmk - i));
-      }
-      else
-      {
-        timestamp = state->interrupt_timestamp -
-          (interrupt_interval_ticks * (state->mag_info.cur_wmk - i));
-      }
-    }
-    else
-    {
-      timestamp = state->pre_timestamp + (sample_interval_ticks * (i + 1));
-    }
-
+    timestamp = state->pre_timestamp + (state->averaged_sample_period * (i + 1));
     ak0991x_handle_mag_sample(&buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * i],
                               timestamp,
                               instance,
@@ -1626,17 +1600,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   if (num_samples != 0)
   {
-    if (state->irq_info.detect_irq_event)
-    {
-      state->pre_timestamp = state->interrupt_timestamp;
-    }
-    else
-    {
-      state->pre_timestamp = timestamp;
-    }
-
+    state->pre_timestamp = timestamp;
     state->this_is_first_data = false;
-
     ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
   }
 }
@@ -1681,6 +1646,8 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
   };
   state->async_com_port_data_stream->api->send_request(
     state->async_com_port_data_stream, &async_com_port_request);
+
+  state->ascp_xfer_in_progress++;
 }
 
 sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
@@ -1688,7 +1655,7 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
-  AK0991X_INST_PRINT(ERROR, instance, "handle s4s_timer event");
+  AK0991X_INST_PRINT(LOW, instance, "handle s4s_timer event");
 
   sns_time t_ph_time = sns_get_system_time();
   sns_time i2c_start_time;
@@ -1729,7 +1696,7 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
 
   dt_count = (i2c_start_time - t_ph_time) * (1 << state->mag_info.s4s_rr) * 2048
              / (float)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-
+  //TODO: Not an ERROR message, Change it to appropriate priority
   AK0991X_INST_PRINT(ERROR, instance, "i2c_start_time=%d", (uint32_t)i2c_start_time);
   AK0991X_INST_PRINT(ERROR, instance, "t_ph_time=%d", (uint32_t)t_ph_time);
   AK0991X_INST_PRINT(ERROR, instance, "dt_count=%d", (uint32_t)dt_count);
@@ -1768,6 +1735,9 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
   /* Processes DT abort */
   if (dt_count >= 0x80)
   {
+    //TODO: Even after sending a DT Abort command, the hardware will still stay synchronized using the previous ST/DT pairs.
+    //If there are many DT Aborts in a row, the synchronization will slowly drift until it is no longer good.
+    //However, just sending one DT Abort due to missing the timeline will probably not impact the timing significantly
     state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
     ak0991x_send_config_event(instance);
     return SNS_RC_FAILED;
@@ -1842,7 +1812,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
       if(num_samples > 0)
       {
         //Read continuously all data in FIFO at one time.
-		//TODO: FIFO read should happen through async_com_port
+        //TODO: FIFO read should happen through async_com_port
         ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
                                   num_samples, &buffer[0]);
       }
@@ -1850,7 +1820,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
     else
     {
       //Continue reading until fifo buffer is clear
-	  //TODO: Check FIFO length and read fifo data at one go
+      //TODO: Check FIFO length and read fifo data at one go
       for (i = 0; i < state->mag_info.max_fifo_size; i++)
       {
         ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
@@ -1874,7 +1844,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
     {
       for (i = 0; i < AK0991X_NUM_DATA_HXL_TO_ST2; i++)
       {
-        state->pre_data_buffer[i] = 
+        state->pre_data_buffer[i] =
           buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * (num_samples - 1) + i];
       }
     }
@@ -2037,9 +2007,13 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09915_MIN_RANGE;
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
     phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
-    phy_sensor_config.stream_is_synchronous = 
+    phy_sensor_config.stream_is_synchronous =
        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
     //TODO: What value should be set?
+    //RESP: This value should be a timestamp(ideally in the nearby future) of a valid synchronized sample
+    //Example: if running at exactly 100Hz, samples will be 10ms apart.
+    //If the stream is synchronized to time 1234ms -- ,
+    //then valid values to put into here would be "1234ms + (10ms * N)" for any (reasonable) value of N.
     phy_sensor_config.sync_ts_anchor = sns_get_system_time();
     break;
 
@@ -2153,6 +2127,12 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   phy_sensor_config.has_sample_rate = true;
   phy_sensor_config.sample_rate = state->mag_req.sample_rate;
 
+  AK0991X_INST_PRINT(LOW, instance,
+                     "tx phys config evt: op_mode %u rate %u/100 wm %u sync %u",
+                     operating_mode, (uint32_t)(state->mag_req.sample_rate * 100),
+                     phy_sensor_config.has_water_mark ? phy_sensor_config.water_mark : 0,
+                     phy_sensor_config.stream_is_synchronous);
+
   pb_send_event(instance,
                 sns_std_sensor_physical_config_event_fields,
                 &phy_sensor_config,
@@ -2245,13 +2225,17 @@ void ak0991x_register_timer(sns_sensor_instance *this)
         req_payload.timeout_period = sns_convert_ns_to_ticks(
           1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
       }
-
+      //TODO: start time calculation should be similar to above use_sync_stream case
+      //If this sensor is doing polling, it would be good to synchronize the Mag polling timer,
+      //with other polling timers on the system.
+      //For example, that the pressure sensor is polling at 20Hz.
+      //It would be good to make sure the mag polling timer and the pressure polling timer are synchronized if possible.
       req_payload.start_time = sns_get_system_time();
     }
 
-    AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
-    AK0991X_INST_PRINT(ERROR, this, "start_time=%d", (uint32_t)req_payload.start_time);
-    AK0991X_INST_PRINT(ERROR, this, "late_start_delta=%d", (uint32_t)req_payload.start_config.late_start_delta);
+    AK0991X_INST_PRINT(LOW, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(LOW, this, "start_time=%d", (uint32_t)req_payload.start_time);
+    AK0991X_INST_PRINT(LOW, this, "late_start_delta=%d", (uint32_t)req_payload.start_config.late_start_delta);
 
 
 
@@ -2263,7 +2247,7 @@ void ak0991x_register_timer(sns_sensor_instance *this)
 
     if (req_len > 0)
     {
-      timer_req.message_id =  SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
+      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
       timer_req.request_len = req_len;
       timer_req.request = buffer;
 
@@ -2317,7 +2301,7 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_S4S;
     req_payload.timeout_period = t_ph_period;
- 
+
     AK0991X_INST_PRINT(ERROR, this, "timeout_period=%d", (uint32_t)req_payload.timeout_period);
 
     req_len = pb_encode_request(buffer,

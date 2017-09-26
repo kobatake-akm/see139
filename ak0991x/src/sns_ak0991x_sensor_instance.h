@@ -46,7 +46,7 @@ sns_sensor_instance_api ak0991x_sensor_instance_api;
 #define AK0991X_MAX_NUM_ODR         6
 
 // Enable below macro to enable debug messages
-#define AK0991X_ENABLE_DEBUG_MSG
+//#define AK0991X_ENABLE_DEBUG_MSG
 
 #ifdef AK0991X_ENABLE_DEBUG_MSG
 #define AK0991X_PRINT(prio, sensor, ...) do { \
@@ -163,6 +163,7 @@ typedef struct ak0991x_irq_info
   bool is_registered;
   bool is_ready;
   bool detect_irq_event;
+  uint32_t irq_count;
 } ak0991x_irq_info;
 
 
@@ -185,9 +186,14 @@ typedef struct ak0991x_instance_state
 
   /** sampling info. */
   uint8_t  num_samples;
-  sns_time pre_timestamp;
-  bool     this_is_first_data;
+  uint8_t ascp_xfer_in_progress;
+  bool this_is_first_data;
+  bool fifo_flush_in_progress;
+  bool new_self_test_request;
+  bool config_mag_after_ascp_xfer;
+  sns_time averaged_sample_period;
   sns_time averaged_interval;
+  sns_time pre_timestamp;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
@@ -231,9 +237,6 @@ typedef struct ak0991x_instance_state
 
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
-
-  bool fifo_flush_in_progress;
-  bool new_self_test_request;
 
   size_t           log_raw_encoded_size;
 } ak0991x_instance_state;
