@@ -238,7 +238,7 @@ static bool ak0991x_get_decoded_mag_request(
 
   if (!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-  	AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+    SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
 
@@ -1458,7 +1458,7 @@ static bool ak0991x_get_decoded_self_test_request(
                                   request->request_len);
   if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-  	AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+    SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
   return true;
@@ -1872,7 +1872,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         if (inst_state->new_self_test_request)
         {
           AK0991X_PRINT(LOW, this, "self-test is still running. Keep the exist_request.");
-		  return NULL;
+          return NULL;
         }
         else
         {

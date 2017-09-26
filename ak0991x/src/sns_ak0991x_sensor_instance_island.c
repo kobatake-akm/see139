@@ -108,15 +108,15 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     {
       if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
-      	state->irq_info.is_ready = true;
-				ak0991x_start_mag_streaming(this);
+        state->irq_info.is_ready = true;
+        ak0991x_start_mag_streaming(this);
       }
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
                                                      event->event_len);
 
-        if (pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
+        if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
 #ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
           sns_gpio_state gpio_state = ak0991x_read_gpio(this, state->irq_info.irq_config.interrupt_num,
@@ -214,10 +214,18 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
 #endif
+
+        state->ascp_xfer_in_progress--;
       }
 
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
+    }
+
+    if(state->config_mag_after_ascp_xfer)
+    {
+      ak0991x_start_mag_streaming(this);
+      state->config_mag_after_ascp_xfer = false;
     }
   }
 #endif
@@ -236,6 +244,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
       if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
       {
+        //TODO: Timer sensor never sends SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG event
+        // It is a request message ID. Mag senosr sends to timer sensor
         if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
         {
           AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
@@ -250,6 +260,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
         {
+            //TODO:add support for handling SNS_TIMER_SENSOR_REG_EVENT timer event to successfully support S4S
+            // When a range of start times is provided to the timer sensor, the timer sensor will pick a specific time.
+            // That specific time will be returned in the SNS_TIMER_SENSOR_REG_EVENT event -- 
+            // and will be needed by the mag sensor to populate the fields sent to the DAE sensor(so that timers remain synchronized in the DAE environment),
+            // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
             AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr reg event");
         }
       }
