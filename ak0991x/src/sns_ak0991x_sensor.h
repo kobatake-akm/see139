@@ -225,7 +225,6 @@ typedef struct ak0991x_state
 
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
-
   // factory calibration
   bool                    registry_fac_cal_received;
   matrix3                 fac_cal_corr_mat;

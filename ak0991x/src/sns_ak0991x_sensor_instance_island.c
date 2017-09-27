@@ -81,11 +81,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
 #ifdef AK0991X_ENABLE_DRI
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
-#endif
-  sns_sensor_event    *event;
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   sns_diag_service    *diag = state->diag_service;
-#endif
+#endif // AK0991X_ENABLE_DIAG_LOGGING
+#endif // AK0991X_ENABLE_DRI
+  sns_sensor_event    *event;
 //  AK0991X_INST_PRINT(LOW, this, "ak0991x_inst_notify_event called.");
 
   // Turn COM port ON
@@ -133,6 +133,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             if( ak0991x_is_drdy(this) )
             {
 #endif // AK0991X_ENABLE_CHECK_REG_ST1
+              state->irq_info.irq_count++;
               state->irq_event_time = irq_event.timestamp;
               state->irq_info.detect_irq_event = true; // detect interrupt
 
@@ -193,7 +194,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     {
       if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)
       {
-        AK0991X_INST_PRINT(ERROR, this, "Received ASCP error event id=%d",
+        AK0991X_INST_PRINT(LOW, this, "Received ASCP error event id=%d",
                                       event->message_id);
       }
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
@@ -208,13 +209,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
-//        AK0991X_INST_PRINT(LOW, this, "ak0991x_process_mag_data_buffer...");
+//        AK0991X_INST_PRINT(LOW, this, "handle ASCP event");
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
 #endif
-
         state->ascp_xfer_in_progress--;
       }
 

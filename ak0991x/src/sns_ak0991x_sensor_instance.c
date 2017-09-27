@@ -105,11 +105,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     (ak0991x_state *)sstate->state;
   float               data[3];
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-#ifdef AK0991X_ENABLE_DRI
   sns_stream_service  *stream_mgr = (sns_stream_service *)
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-  sns_rc rv;
-#endif //AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   uint64_t buffer[10];
   pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)buffer, sizeof(buffer));
@@ -264,6 +261,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
 #ifdef AK0991X_ENABLE_DRI
+  sns_rc rv;
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                       this,
                                                       sensor_state->irq_suid,
@@ -444,7 +442,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
 
-  AK0991X_INST_PRINT(LOW, this, "inst_set_client_config msg_id %d", client_request->message_id);
+  AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
@@ -575,10 +573,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     AK0991X_INST_PRINT(LOW, this, "sample_rate=%d, reg_value=%d, config_step=%d",
                        (int)mag_chosen_sample_rate,
                        (int)mag_chosen_sample_rate_reg_value,
-                    (int)state->config_step);
+                       (int)state->config_step);
 
-    if (AK0991X_CONFIG_IDLE == state->config_step
-    		&&  ak0991x_dae_if_stop_streaming(this))
+    if (AK0991X_CONFIG_IDLE == state->config_step &&
+        ak0991x_dae_if_stop_streaming(this))
     {
       AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
       state->config_step = AK0991X_CONFIG_STOPPING_STREAM;

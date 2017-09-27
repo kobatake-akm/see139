@@ -22,7 +22,6 @@
 #include "sns_data_stream.h"
 #include "sns_stream_service.h"
 
-
 struct sns_stream_service;
 struct sns_data_stream;
 struct ak0991x_instance_state;

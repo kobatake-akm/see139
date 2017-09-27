@@ -38,7 +38,6 @@
 #include "sns_async_com_port.pb.h"
 #include "sns_physical_sensor_test.pb.h"
 
-
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
 
@@ -198,10 +197,7 @@ typedef struct ak0991x_instance_state
   uint8_t  num_samples;
   uint8_t ascp_xfer_in_progress;
   bool this_is_first_data;
-  bool fifo_flush_in_progress;
-  bool new_self_test_request;
   bool config_mag_after_ascp_xfer;
-  sns_time averaged_sample_period;
   sns_time averaged_interval;
   sns_time pre_timestamp;
 
@@ -247,6 +243,9 @@ typedef struct ak0991x_instance_state
   /**----------Sensor specific registry configuration----------*/
   sns_ak0991x_registry_cfg mag_registry_cfg;
  
+  /**----------debug----------*/
+  float  m_stream_event[3];
+
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
 
