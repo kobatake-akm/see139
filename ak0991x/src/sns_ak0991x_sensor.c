@@ -238,7 +238,7 @@ static bool ak0991x_get_decoded_mag_request(
 
   if (!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-  	AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+    SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
 
@@ -534,9 +534,6 @@ static void ak0991x_request_registry(sns_sensor *const this)
   ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_REG_CONFIG);
 }
 #endif
-
-
-
 
 /**
  * Processes events from SUID Sensor.
@@ -935,15 +932,15 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         {
           state->registry_orient_received = true;
 
-          AK0991X_PRINT(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          AK0991X_PRINT(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[0].ipaxis,
                  state->axis_map[0].opaxis, state->axis_map[0].invert);
 
-          AK0991X_PRINT(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          AK0991X_PRINT(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[1].ipaxis, state->axis_map[1].opaxis,
                  state->axis_map[1].invert);
 
-          AK0991X_PRINT(ERROR, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          AK0991X_PRINT(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->axis_map[2].ipaxis, state->axis_map[2].opaxis,
                  state->axis_map[2].invert);
         }
@@ -1031,8 +1028,6 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 }
 #endif
 
-
-
 /**
  * Publish attributes read from registry
  *
@@ -1092,7 +1087,7 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 {
-  AK0991X_PRINT(ERROR, this, "ak0991x_process_registry_events");
+  AK0991X_PRINT(LOW, this, "ak0991x_process_registry_events");
 
   sns_rc rv = SNS_RC_SUCCESS;
   ak0991x_state *state = (ak0991x_state *)this->state->state;
@@ -1458,7 +1453,7 @@ static bool ak0991x_get_decoded_self_test_request(
                                   request->request_len);
   if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-  	AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+    SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
   return true;
@@ -1872,7 +1867,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         if (inst_state->new_self_test_request)
         {
           AK0991X_PRINT(LOW, this, "self-test is still running. Keep the exist_request.");
-		  return NULL;
+          return NULL;
         }
         else
         {

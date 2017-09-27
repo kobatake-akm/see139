@@ -36,7 +36,7 @@
 #include "sns_pb_util.h"
 #include "sns_diag_service.h"
 
-#define AK0991X_DAE_FORCE_NOT_AVAILABLE
+//#define AK0991X_DAE_FORCE_NOT_AVAILABLE
 
 #ifndef SNS_MAX
 #define SNS_MAX(a,b) ({ __auto_type _a = (a);    \
@@ -69,74 +69,83 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
 	config_req.data_age_limit_ticks =
 	sns_convert_ns_to_ticks((uint64_t)mag_info->flush_period*1000ULL);
 
-	config_req.has_polling_config = !mag_info->use_dri;
-	if( config_req.has_polling_config )
-	{
-		sns_time meas_usec;
-		ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
+  config_req.has_polling_config  = !mag_info->use_dri;
+  if( config_req.has_polling_config )
+  {
+    sns_time meas_usec;
+    ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 #ifdef AK0991X_ENABLE_S4S
-		if (mag_info->use_sync_stream)
-		{
-			config_req.polling_config.polling_interval_ticks =
-			sns_convert_ns_to_ticks( 1000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
-					* AK0991X_S4S_INTERVAL_MS / (uint64_t) mag_info->s4s_t_ph );
-		}
-		else
-		{
+    if (mag_info->use_sync_stream)
+    {
+      config_req.polling_config.polling_interval_ticks =
+        sns_convert_ns_to_ticks( 1000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
+                                 * AK0991X_S4S_INTERVAL_MS / (uint64_t) mag_info->s4s_t_ph );
+    }
+    else
+    {
 #endif // AK0991X_ENABLE_S4S
-			config_req.polling_config.polling_interval_ticks =
-			sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
-					/ (uint64_t) mag_info->curr_odr );
+      config_req.polling_config.polling_interval_ticks =
+        sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
+                               / (uint64_t) mag_info->curr_odr );
 #ifdef AK0991X_ENABLE_S4S
-		}
+    }
 #endif // AK0991X_ENABLE_S4S
-		config_req.polling_config.polling_offset =
-		sns_get_system_time() + sns_convert_ns_to_ticks( meas_usec * 1000ULL );
-	}
-	config_req.has_accel_info = false;
+    //TODO: it looks like the polling offset will not be adjusted for S4S. 
+    //So it won't be synced with any other sensors
+    config_req.polling_config.polling_offset =
+      sns_get_system_time() + sns_convert_ns_to_ticks( meas_usec * 1000ULL );
+  }
+  config_req.has_accel_info      = false;
 
-	if((req.request_len =
-					pb_encode_request(encoded_msg,
-							sizeof(encoded_msg),
-							&config_req,
-							sns_dae_set_streaming_config_fields,
-							NULL)) > 0)
-	{
-		if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &req))
-		{
-			cmd_sent = true;
-			dae_stream->state = STREAM_STARTING;
-		}
-	}
+  if((req.request_len =
+      pb_encode_request(encoded_msg,
+                        sizeof(encoded_msg),
+                        &config_req,
+                        sns_dae_set_streaming_config_fields,
+                        NULL)) > 0)
+  {
+    if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &req))
+    {
+      cmd_sent = true;
+      dae_stream->state = STREAM_STARTING;
+    }
+  }
 
 #ifdef AK0991X_ENABLE_S4S
-	sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
-	uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
-	sns_request s4s_req = {
-		.message_id = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
-		.request = s4s_encoded_msg,
-		.request_len = 0
-	};
+  if(mag_info->use_sync_stream)
+  {
+    sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
+    uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
+    sns_request s4s_req = {
+      .message_id  = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
+      .request     = s4s_encoded_msg,
+      .request_len = 0
+    };
 
-	//TODO: Is this T_Ph start moment at the first time?
-	s4s_config_req.ideal_sync_offset = sns_get_system_time();
-	s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-	s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
-	//TODO: Is this minimum time between T_PH start and ST/DT? or I2C communication time during ST/DT?
-	s4s_config_req.st_delay = 0;
+    //TODO: Is this T_Ph start moment at the first time?
+    s4s_config_req.ideal_sync_offset = sns_get_system_time();
+    s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+    s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
+    //TODO: Is this minimum time between T_PH start and ST/DT? or I2C communication time during ST/DT?
+    //RESP: st_delay is defined in the sns_dae.proto file
+    //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
 
-	if((s4s_req.request_len =
-					pb_encode_request(s4s_encoded_msg,
-							sizeof(s4s_encoded_msg),
-							&s4s_config_req,
-							sns_dae_s4s_dynamic_config_fields,
-							NULL)) > 0)
-	{
-		//TODO: Can the driver receive SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG periodically?
-		if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
-		{
-		}
-	}
+    s4s_config_req.st_delay = 0;
+  
+    if((s4s_req.request_len =
+        pb_encode_request(s4s_encoded_msg,
+                          sizeof(s4s_encoded_msg),
+                          &s4s_config_req,
+                          sns_dae_s4s_dynamic_config_fields,
+                          NULL)) > 0)
+    {
+      //TODO: Can the driver receive SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG periodically?
+      // Resp: The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
+      if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
+      {
+      }
+    }
+  }
 #endif // AK0991X_ENABLE_S4S
 
 	return cmd_sent;
@@ -249,79 +258,87 @@ static void process_response(
 {
 	ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-	sns_dae_resp resp = sns_dae_resp_init_default;
-	if(pb_decode(pbstream, sns_dae_resp_fields, &resp))
-	{
-		switch(resp.msg_id)
-		{
-			case SNS_DAE_MSGID_SNS_DAE_SET_STATIC_CONFIG:
-			AK0991X_INST_PRINT(LOW, this,"DAE_SET_STATIC_CONFIG");
-			if(SNS_STD_ERROR_NO_ERROR != resp.err)
-			{
-				/* DAE sensor does not have support for this driver */
-				dae_stream->stream_usable = false;
-			}
-			break;
+  sns_dae_resp resp = sns_dae_resp_init_default;
+  if(pb_decode(pbstream, sns_dae_resp_fields, &resp))
+  {
+    switch(resp.msg_id)
+    {
+    case SNS_DAE_MSGID_SNS_DAE_SET_STATIC_CONFIG:
+      AK0991X_INST_PRINT(LOW, this,"DAE_SET_STATIC_CONFIG");
+      if(SNS_STD_ERROR_NO_ERROR != resp.err)
+      {
+        /* DAE sensor does not have support for this driver */
+        dae_stream->stream_usable = false;
+      }
+      break;
 #ifdef AK0991X_ENABLE_S4S
-			case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
-			//Send ST/DT command
-			ak0991x_handle_s4s_timer_event(this);
-			break;
+    case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
+      //Send ST/DT command
+      ak0991x_handle_s4s_timer_event(this);
+      break;
 #endif // AK0991X_ENABLE_S4S
-			case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
-			AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG");
-			if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
-			{
-				if(SNS_STD_ERROR_NO_ERROR == resp.err)
-				{
-					dae_stream->state = STREAMING;
-					ak0991x_reconfig_hw(this);
-				}
-				else
-				{
-					dae_stream->state = IDLE;
-				}
-			}
-			break;
-			case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
-			AK0991X_INST_PRINT(LOW, this,"DAE_FLUSH_HW");
-			dae_stream->flushing_hw = false;
-			if(state->config_step != AK0991X_CONFIG_IDLE)
-			{
-				ak0991x_dae_if_start_streaming(this);
-				state->config_step = AK0991X_CONFIG_IDLE;
-			}
-			break;
-			case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
-			if(state->fifo_flush_in_progress)
-			{
-				state->fifo_flush_in_progress = false;
-				ak0991x_send_fifo_flush_done(this);
-			}
-			break;
-			case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
-			AK0991X_INST_PRINT(LOW, this,"DAE_PAUSE_SAMPLING");
-			if(dae_stream->state == STREAM_STOPPING)
-			{
-				dae_stream->state = (SNS_STD_ERROR_NO_ERROR != resp.err) ? STREAMING : IDLE;
-			}
-			if(NULL != state->dae_if.mag.stream &&
-					state->dae_if.mag.state != STREAM_STOPPING)
-			{
-				/* done waiting */
-				if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM
-						&& ak0991x_dae_if_flush_hw(this))
-				{
-					state->config_step = AK0991X_CONFIG_FLUSHING_HW;
-				}
-			}
-			break;
+    case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
+      AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG");
+      if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
+      {
+        if(SNS_STD_ERROR_NO_ERROR == resp.err)
+        {
+          dae_stream->state = STREAMING;
+          ak0991x_reconfig_hw(this);
+          ak0991x_send_config_event(this);
+        }
+        else
+        {
+          dae_stream->state = IDLE;
+        }
+      }
+      break;
+    case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
+      AK0991X_INST_PRINT(LOW, this,"DAE_FLUSH_HW");
+      dae_stream->flushing_hw = false;
+      if(state->config_step != AK0991X_CONFIG_IDLE)
+      {
+        ak0991x_dae_if_start_streaming(this);
+        state->config_step = AK0991X_CONFIG_IDLE;
+      }
+      break;
+#ifdef AK0991X_ENABLE_FIFO
+    case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
+      if(state->fifo_flush_in_progress)
+      {
+        state->fifo_flush_in_progress = false;
+        ak0991x_send_fifo_flush_done(this);
+      }
+      break;
+#endif
+    case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
+      AK0991X_INST_PRINT(LOW, this,
+                         "DAE_PAUSE_SAMPLING dae_stream->state:%u,mag.state=%u,config_step=%u",
+                         dae_stream->state, state->dae_if.mag.state, state->config_step);
+      if(dae_stream->state == STREAM_STOPPING)
+      {
+        dae_stream->state = (SNS_STD_ERROR_NO_ERROR != resp.err) ? STREAMING : IDLE;
+      }
+      if(NULL != state->dae_if.mag.stream &&
+         state->dae_if.mag.state != STREAM_STOPPING)
+      {
+        /* done waiting */
+        if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM
+           && ak0991x_dae_if_flush_hw(this))
+        {
+          state->config_step = AK0991X_CONFIG_FLUSHING_HW;
+        }
+      }
+      break;
 #ifdef AK0991X_ENABLE_S4S
-			case SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED:
-			state->mag_info.s4s_dt_abort = true;
-			ak0991x_handle_s4s_timer_event(this);
-			state->mag_info.s4s_dt_abort = false;
-			break;
+    case SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED:
+      if(state->mag_info.use_sync_stream)
+      {
+        state->mag_info.s4s_dt_abort = true;
+        ak0991x_handle_s4s_timer_event(this);
+        state->mag_info.s4s_dt_abort = false;
+      }
+      break;
 #endif // AK0991X_ENABLE_S4S
 
 			case SNS_DAE_MSGID_SNS_DAE_RESP:
@@ -334,7 +351,9 @@ static void process_response(
 /* ------------------------------------------------------------------------------------ */
 static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_stream)
 {
-	sns_sensor_event *event;
+  sns_sensor_event *event;
+  ak0991x_instance_state *state =
+    (ak0991x_instance_state *)this->state->state;
 
 	while(NULL != dae_stream->stream &&
 			NULL != (event = dae_stream->stream->api->peek_input(dae_stream->stream)))
@@ -344,34 +363,55 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 			pb_istream_t pbstream =
 			pb_istream_from_buffer((pb_byte_t*)event->event, event->event_len);
 
-			if (SNS_DAE_MSGID_SNS_DAE_DATA_EVENT == event->message_id)
-			{
-				process_data_event(this, dae_stream, &pbstream);
-			}
-			else if(SNS_DAE_MSGID_SNS_DAE_INTERRUPT_EVENT == event->message_id)
-			{
-			}
-			else if(SNS_DAE_MSGID_SNS_DAE_RESP == event->message_id)
-			{
-				AK0991X_INST_PRINT(LOW, this,"SNS_DAE_RESP");
-				process_response(this, dae_stream, &pbstream);
-			}
-			else if(SNS_STD_MSGID_SNS_STD_ERROR_EVENT == event->message_id)
-			{
-				dae_stream->stream_usable = false;
-				AK0991X_INST_PRINT(LOW, this,"SNS_STD_ERROR_EVENT");
-			}
-			else
-			{
-				AK0991X_INST_PRINT(ERROR, this,"Unexpected message id %u", event->message_id);
-			}
-		}
-		event = dae_stream->stream->api->get_next_input(dae_stream->stream);
-	}
+      if (SNS_DAE_MSGID_SNS_DAE_DATA_EVENT == event->message_id)
+      {
+        process_data_event(this, dae_stream, &pbstream);
+      }
+      else if(SNS_DAE_MSGID_SNS_DAE_INTERRUPT_EVENT == event->message_id)
+      {
+      }
+      else if(SNS_DAE_MSGID_SNS_DAE_RESP == event->message_id)
+      {
+        AK0991X_INST_PRINT(LOW, this,"SNS_DAE_RESP");
+        process_response(this, dae_stream, &pbstream);
+      }
+      else if(SNS_STD_MSGID_SNS_STD_ERROR_EVENT == event->message_id)
+      {
+        dae_stream->stream_usable = false;
+        AK0991X_INST_PRINT(LOW, this,"SNS_STD_ERROR_EVENT");
+        ak0991x_reconfig_hw(this);
 
-	if(!dae_stream->stream_usable)
-	{
-		ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+        if(state->mag_info.use_dri)
+        {
+#ifdef AK0991X_ENABLE_DRI
+          ak0991x_register_interrupt(this);
+#endif
+        }
+        else
+        {
+          if(state->mag_info.use_sync_stream)
+          {
+#ifdef AK0991X_ENABLE_S4S
+            ak0991x_register_s4s_timer(this);
+            AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
+#endif
+          }
+          else
+          {
+            ak0991x_register_timer(this);
+          }
+        }
+      }
+      else
+      {
+        AK0991X_INST_PRINT(ERROR, this,"Unexpected message id %u", event->message_id);
+      }
+    }
+    event = dae_stream->stream->api->get_next_input(dae_stream->stream);
+  }
+
+  if(!dae_stream->stream_usable)
+  {
 #if 0
 		/* TODO - restore this once framework can properly deal with events published between
 		 the start and end of stream remove process */
@@ -382,12 +422,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 		stream_mgr->api->remove_stream(stream_mgr, dae_stream->stream);
 		dae_stream->stream = NULL;
 #endif
-		// Register for interrupt
-		if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-		{
-			ak0991x_register_interrupt(this);
-		}
-	}
+  }
 }
 
 /*======================================================================================
@@ -512,12 +547,12 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
 	ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 	ak0991x_dae_if_info *dae_if = &state->dae_if;
 
-	if(stream_usable(&state->dae_if.mag) &&
-			(dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
-	{
-		AK0991X_INST_PRINT(LOW, this,"Mag stream=0x%x", &dae_if->mag.stream);
-		cmd_sent |= stop_streaming(&dae_if->mag);
-	}
+  if(stream_usable(&state->dae_if.mag) &&
+     (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
+  {
+    AK0991X_INST_PRINT(LOW, this,"stopping mag stream=0x%x", &dae_if->mag.stream);
+    cmd_sent |= stop_streaming(&dae_if->mag);
+  }
 
 	return cmd_sent;
 }

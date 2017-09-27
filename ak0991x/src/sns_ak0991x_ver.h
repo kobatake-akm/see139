@@ -22,6 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/26/17                Qualcomm/AKM     Merged Qualcomm's 010020 and AKM's 010026.
+ * 09/24/17     010020     Qualcomm         Re-enable FIFO, ts fixes.
+ * 09/22/17     010019     Qualcomm         Disable S4S, FIFO temporarily due to ts issues
  * 09/22/17     010026     Qualcomm/AKM     Added this_is_first_data=true when ak0991x_start_mag_streaming() called.
  * 09/20/17                AKM(M)           Modified debug messages(ERROR->LOW, uses %u for timestamp).
  * 09/19/17                AKM(M)           Modified debug messages.

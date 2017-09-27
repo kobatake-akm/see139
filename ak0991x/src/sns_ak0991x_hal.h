@@ -123,6 +123,9 @@
 /** Off to idle time */
 #define AK0991X_OFF_TO_IDLE_MS                      100 //ms
 
+/** Wait time before mode setting */
+#define AK0991X_TWAIT_USEC                          100 //us
+
 /** masurement time */
 #define AK09911_TIME_FOR_MEASURE_US                 8500 //us
 #define AK09912_TIME_FOR_MEASURE_US                 8500 //us
