@@ -355,13 +355,13 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-	while(NULL != dae_stream->stream &&
-			NULL != (event = dae_stream->stream->api->peek_input(dae_stream->stream)))
-	{
-		if (dae_stream->stream_usable)
-		{
-			pb_istream_t pbstream =
-			pb_istream_from_buffer((pb_byte_t*)event->event, event->event_len);
+  while(NULL != dae_stream->stream &&
+        NULL != (event = dae_stream->stream->api->peek_input(dae_stream->stream)))
+  {
+    if (dae_stream->stream_usable)
+    {
+      pb_istream_t pbstream =
+        pb_istream_from_buffer((pb_byte_t*)event->event, event->event_len);
 
       if (SNS_DAE_MSGID_SNS_DAE_DATA_EVENT == event->message_id)
       {
