@@ -1470,20 +1470,12 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
     uint32_t i;
     sns_time                  timestamp;
     uint16_t                  cnt_for_ts = state->mag_info.cur_wmk;
-    sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
     sns_time interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) /
       (state->mag_info.cur_wmk + 1);
 
       for (i = 1; i < vector->bytes; i += AK0991X_NUM_DATA_HXL_TO_ST2)
       {
-        if (state->this_is_first_data)
-        {
-          timestamp = state->interrupt_timestamp - (sample_interval_ticks * cnt_for_ts);
-        }
-        else
-        {
-          timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
-        }
+        timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
 
         ak0991x_handle_mag_sample(&vector->buffer[i],
                                   timestamp,
@@ -1643,6 +1635,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   {
     interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) / (num_samples);
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
+    // Allocate log packet memory only if there are samples to flush
     ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
   }
@@ -1680,7 +1673,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                               state,
                               &log_mag_state_raw_info
 #else
-															state
+                              state
 #endif
     													);
   }

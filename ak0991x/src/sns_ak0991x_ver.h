@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 09/26/17                Qualcomm/AKM     Merged Qualcomm's 010020 and AKM's 010026.
+ * 09/26/17     010027     Qualcomm/AKM     Merged Qualcomm's 010020 and AKM's 010026.
  * 09/24/17     010020     Qualcomm         Re-enable FIFO, ts fixes.
  * 09/22/17     010019     Qualcomm         Disable S4S, FIFO temporarily due to ts issues
  * 09/22/17     010026     Qualcomm/AKM     Added this_is_first_data=true when ak0991x_start_mag_streaming() called.
@@ -66,4 +66,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10026  // major:01 minor:00 revision:26
+#define AK0991X_DRIVER_VERSION 10027  // major:01 minor:00 revision:27

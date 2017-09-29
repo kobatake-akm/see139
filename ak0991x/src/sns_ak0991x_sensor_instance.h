@@ -197,6 +197,10 @@ typedef struct ak0991x_instance_state
   uint8_t  num_samples;
   uint8_t ascp_xfer_in_progress;
   bool this_is_first_data;
+#ifdef AK0991X_ENABLE_FIFO
+  bool fifo_flush_in_progress;
+#endif
+  bool new_self_test_request;
   bool config_mag_after_ascp_xfer;
   sns_time averaged_interval;
   sns_time pre_timestamp;
@@ -249,10 +253,6 @@ typedef struct ak0991x_instance_state
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
 
-#ifdef AK0991X_ENABLE_FIFO
-  bool fifo_flush_in_progress;
-#endif
-  bool new_self_test_request;
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   size_t           log_raw_encoded_size;
 #endif
