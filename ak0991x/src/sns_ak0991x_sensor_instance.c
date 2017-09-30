@@ -487,7 +487,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       desired_report_rate = desired_sample_rate;
     }
 
-
     AK0991X_INST_PRINT(LOW, this, "desired_sample_rate=%d desired_report_rate=%d",
         (int)desired_sample_rate, (int)desired_report_rate);
 
@@ -587,16 +586,23 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if (state->config_step == AK0991X_CONFIG_IDLE)
 #endif // AK0991X_ENABLE_DAE
     {
+
 #ifdef AK0991X_ENABLE_FIFO
       // care the FIFO buffer if enabled FIFO and already streaming
-      if ((!state->this_is_first_data) && (state->mag_info.use_fifo)
-           && state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+      if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
-        AK0991X_INST_PRINT(LOW, this, "flush_fifo called.");
         ak0991x_flush_fifo(this);
-        if (state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
-        {
-          state->this_is_first_data = true;
+
+        // Reset device
+        sns_diag_service *diag = state->diag_service;
+        rv = ak0991x_device_sw_reset(this,
+                                     state->scp_service,
+                                     state->com_port_info.port_handle,
+                                     diag);
+        if(rv == SNS_RC_SUCCESS){
+          AK0991X_INST_PRINT(LOW, this, "soft reset called.");
+        }else{
+          AK0991X_INST_PRINT(ERROR, this, "soft reset failed.");
         }
       }
 #endif // AK0991X_ENABLE_FIFO
@@ -653,9 +659,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       sns_memscpy(fac_cal_corr_mat, sizeof(payload->registry_cfg.fac_cal_corr_mat),
                   &payload->registry_cfg.fac_cal_corr_mat,
                   sizeof(payload->registry_cfg.fac_cal_corr_mat));
-
     }
-
    }
 
 #ifdef AK0991X_ENABLE_FIFO
@@ -666,10 +670,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(!ak0991x_dae_if_flush_samples(this))
 #endif // AK0991X_ENABLE_DAE
     {
-      AK0991X_INST_PRINT(LOW, this, "flush_fifo called.");
+      AK0991X_INST_PRINT(LOW, this, "flush requested.");
       ak0991x_flush_fifo(this);
-      state->this_is_first_data = true;
       ak0991x_send_fifo_flush_done(this);
+      state->fifo_flush_in_progress = false;
     }
   }
 #endif // AK0991X_ENABLE_FIFO
@@ -692,7 +696,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
 #endif
 
-
 #ifdef AK0991X_ENABLE_DAE
       if (state->config_step == AK0991X_CONFIG_IDLE)
 #endif
@@ -701,9 +704,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         // care the FIFO buffer if enabled FIFO
         if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
         {
-          AK0991X_INST_PRINT(LOW, this, "flush_fifo called.");
           ak0991x_flush_fifo(this);
-          state->this_is_first_data = true;
         }
 #endif // AK0991X_ENABLE_FIFO
 
@@ -730,10 +731,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_register_timer(this);
           AK0991X_INST_PRINT(LOW, this, "done register_timer");
         }
-
         ak0991x_send_config_event(this);
       }
-
 
 #ifdef AK0991X_ENABLE_DAE
       // DAE handles PAUSE_SAMPLING request

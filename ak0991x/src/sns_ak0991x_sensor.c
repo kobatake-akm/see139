@@ -290,7 +290,7 @@ static void ak0991x_get_mag_config(
             &&
             decoded_request.batching.batch_period > 0)
         {
-          report_rate = 1000000.f / (float)decoded_request.batching.batch_period;
+          report_rate = 1000000.0f / (float)decoded_request.batching.batch_period;
           if( decoded_request.batching.has_flush_period )
           {
             flush_period = decoded_request.batching.flush_period;
@@ -1423,6 +1423,27 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_SLEEP_CURRENT, &value, 1, false);
  }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_flt = true;
+   value.flt = ak0991x_dev_info_array[device_select].resolutions;
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_SELECTED_RESOLUTION, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR};
+   sns_std_attr_value_data range1[] = {SNS_ATTR, SNS_ATTR};
+   range1[0].has_flt = true;
+   range1[0].flt = ak0991x_dev_info_array[device_select].ranges.min;
+   range1[1].has_flt = true;
+   range1[1].flt = ak0991x_dev_info_array[device_select].ranges.max;
+   values[0].has_subtype = true;
+   values[0].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
+   values[0].subtype.values.arg =
+     &((pb_buffer_arg){ .buf = range1, .buf_len = ARR_SIZE(range1) });
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_SELECTED_RANGE, &values[0], ARR_SIZE(values), true);
+ }
 }
 #endif
 
@@ -1946,12 +1967,10 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
      NULL == instance->cb->
      get_client_request(instance, &(sns_sensor_uid)MAG_SUID, true))
   {
-    //sns_sensor *sensor;
+    sns_sensor *sensor;
     AK0991X_PRINT(LOW, this, "Removing instance");
     this->cb->remove_instance(instance);
 
-#if 0
-TODO: Causing QUP HW to go invalid state. Refer CR.
     for (sensor = this->cb->get_library_sensor(this, true);
          NULL != sensor;
          sensor = this->cb->get_library_sensor(this, false))
@@ -1968,7 +1987,6 @@ TODO: Causing QUP HW to go invalid state. Refer CR.
           NULL);
       }
     }
-#endif
   }
 
   return instance;
