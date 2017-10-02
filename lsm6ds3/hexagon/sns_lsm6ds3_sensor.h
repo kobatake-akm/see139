@@ -15,6 +15,7 @@
 #include "sns_pwr_rail_service.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
+#include "sns_suid_util.h"
 
 #include "sns_diag_service.h"
 #include "sns_lsm6ds3_sensor_instance.h"
@@ -160,12 +161,6 @@ typedef enum
 
 typedef struct lsm6ds3_common_state
 {
-  sns_sensor_uid          reg_suid;
-  sns_sensor_uid          irq_suid;
-  sns_sensor_uid          timer_suid;
-  sns_sensor_uid          acp_suid; // Asynchronous COM Port
-  sns_sensor_uid          dae_suid; // Data Acquisition Engine
-
   lsm6ds3_com_port_info   com_port_info;
   sns_interrupt_req       irq_config;
 
@@ -174,6 +169,9 @@ typedef struct lsm6ds3_common_state
 
   bool                    hw_is_present;
   uint16_t                who_am_i;
+
+  // Registry, IRQ, Timer, ASCP, DAE
+  SNS_SUID_LOOKUP_DATA(5) suid_lookup_data;
 
   // registry sensor config
   bool registry_cfg_received;
@@ -222,6 +220,7 @@ typedef struct lsm6ds3_state
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
+  uint32_t                fac_cal_version;
 
   // md config
   bool                    registry_md_config_received;
@@ -245,26 +244,6 @@ typedef struct lsm6ds3_state
 void lsm6ds3_reval_instance_config(sns_sensor *this,
                                    sns_sensor_instance *instance,
                                    lsm6ds3_sensor_type sensor_type);
-
-/**
- * Sends a request to the SUID Sensor to get SUID of a dependent
- * Sensor.
- *
- * @param[i] this          Sensor reference
- * @param[i] data_type     data_type of dependent Sensor
- * @param[i] data_type_len Length of the data_type string
- */
-void lsm6ds3_send_suid_req(sns_sensor *this, char *const data_type,
-                           uint32_t data_type_len);
-
-/**
- * Processes events from SUID Sensor.
- *
- * @param[i] this   Sensor reference
- *
- * @return none
- */
-void lsm6ds3_process_suid_events(sns_sensor *const this);
 
 /**
  * notify_event() Sensor API common between all LSM6DS3 Sensors.

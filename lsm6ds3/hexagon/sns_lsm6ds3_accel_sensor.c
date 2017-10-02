@@ -222,9 +222,11 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
         this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, false);
   }
   {
-    sns_std_attr_value_data values[] = {SNS_ATTR};
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
     values[0].has_sint = true;
     values[0].sint = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
+    values[1].has_sint = true;
+    values[1].sint = SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY;
     sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR_TESTS,
         values, ARR_SIZE(values), true);
   }

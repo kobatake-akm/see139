@@ -396,7 +396,7 @@ void lsm6ds3_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chi
 
   rc = gpio_svc->api->read_gpio(gpio, is_chip_pin, &val);
 
-  SNS_INST_PRINTF(LOW, instance, "gpio_val = %d  rc = %d", val, rc);
+  LSM6DS3_INST_PRINTF(LOW, instance, "gpio_val = %d  rc = %d", val, rc);
 }
 
 /** See sns_lsm6ds3_hal.h */
@@ -1331,6 +1331,19 @@ static void lsm6ds3_handle_gyro_sample(const uint8_t fifo_sample[6],
       ipdata[state->axis_map[i].ipaxis];
   }
 
+  if(state->fac_test_in_progress && state->fac_test_sensor == LSM6DS3_GYRO)
+  {
+    state->fac_test_info.num_samples++;
+
+    // Discard first three samples for the 104Hz ODR
+    for(i = 0; state->fac_test_info.num_samples >= 3 && i < TRIAXIS_NUM; i++)
+    {
+      state->fac_test_info.sample_sum[i] += (opdata_raw[i]);
+      state->fac_test_info.sample_square_sum[i] +=
+          ((int64_t)(opdata_raw[i]) * (int64_t)(opdata_raw[i]));
+    }
+  }
+
   // factory calibration
   vector3 opdata_cal = sns_apply_calibration_correction_3(
       make_vector3_from_array(opdata_raw),
@@ -1400,6 +1413,22 @@ static void lsm6ds3_handle_accel_sample(const uint8_t fifo_sample[6],
       ipdata[state->axis_map[i].ipaxis];
   }
 
+  if(state->fac_test_in_progress && state->fac_test_sensor == LSM6DS3_ACCEL)
+  {
+    state->fac_test_info.num_samples++;
+
+    // Discard first three samples for the 104Hz ODR
+    for(i = 0; state->fac_test_info.num_samples >= 3 && i < TRIAXIS_NUM; i++)
+    {
+      if(i == (TRIAXIS_NUM - 1))
+      {
+        opdata_raw[i] -= G;
+      }
+      state->fac_test_info.sample_sum[i] += (opdata_raw[i]);
+      state->fac_test_info.sample_square_sum[i] +=
+          ((int64_t)(opdata_raw[i]) * (int64_t)(opdata_raw[i]));
+    }
+  }
   // factory calibration
   vector3 opdata_cal = sns_apply_calibration_correction_3(
       make_vector3_from_array(opdata_raw),
@@ -1623,7 +1652,7 @@ void lsm6ds3_dump_reg(sns_sensor_instance *this,
                          &state->reg_status[i],
                          1,
                          &xfer_bytes);
-    SNS_INST_PRINTF(MED, this, "reg[0x%X] = 0x%X",
+    LSM6DS3_INST_PRINTF(MED, this, "reg[0x%X] = 0x%X",
                     reg_map[i], state->reg_status[i]);
   }
 }
@@ -1742,7 +1771,7 @@ void lsm6ds3_update_md_intr(sns_sensor_instance *const instance,
 
   if(enable || md_not_armed_event)
   {
-    SNS_INST_PRINTF(LOW, instance, "lsm6ds3_update_md_intr md_is_armed=%d",
+    LSM6DS3_INST_PRINTF(LOW, instance, "lsm6ds3_update_md_intr md_is_armed=%d",
                                   state->md_info.md_state.motion_detect_event_type);
     pb_send_event(instance,
                   sns_motion_detect_event_fields,
@@ -1827,7 +1856,7 @@ void lsm6ds3_handle_md_interrupt(sns_sensor_instance *const instance,
 
     lsm6ds3_convert_accel_gated_req_to_non_gated(instance);
 
-    SNS_INST_PRINTF(LOW, instance, "MD fired");
+    LSM6DS3_INST_PRINTF(LOW, instance, "MD fired");
 
     // Sensor State HW Interrupt Log
     sns_diag_sensor_state_interrupt *log =
@@ -2122,8 +2151,8 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
     lsm6ds3_start_fifo_streaming(state);
 
     // Enable interrupt only for accel, gyro and motion accel clients
-    if(state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO) &&
-       state->irq_info.irq_ready )
+    if(((state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO)) || state->fac_test_in_progress)
+       && state->irq_info.irq_ready )
     {
       lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
     }

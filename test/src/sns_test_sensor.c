@@ -7,9 +7,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor.c#60 $
- * $DateTime: 2017/08/21 09:37:15 $
- * $Change: 14141743 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor.c#64 $
+ * $DateTime: 2017/09/07 16:15:13 $
+ * $Change: 14306243 $
  *
  **/
 
@@ -56,7 +56,6 @@ typedef struct sns_test_implementation
  *    #2 and #3 are optional and can be NULL. In that case a
  *    default implementation for them will be selected.
  */
-
 #if defined(SNS_TEST_ACCEL)
 #include "sns_test_std_sensor.h"
  const sns_test_implementation test_sensor_impl = {
@@ -102,6 +101,14 @@ typedef struct sns_test_implementation
  const sns_test_implementation test_sensor_impl = {
   "facing",
   sizeof("facing"),
+  sns_test_create_amd_request,
+  sns_test_amd_process_event
+};
+#elif defined(SNS_TEST_BTE)
+#include "sns_test_amd.h"
+ const sns_test_implementation test_sensor_impl = {
+  "bring_to_ear",
+  sizeof("bring_to_ear"),
   sns_test_create_amd_request,
   sns_test_amd_process_event
 };
@@ -330,6 +337,14 @@ const sns_test_implementation test_sensor_impl = {
   sns_test_create_basic_gestures_request,
   sns_test_basic_gestures_process_event
 };
+#elif defined(SNS_TEST_MULTISHAKE)
+#include "sns_test_multishake.h"
+ const sns_test_implementation test_sensor_impl = {
+  "multishake",
+  sizeof("multishake"),
+  sns_test_create_multishake_request,
+  sns_test_multishake_process_event
+};
 #elif defined(SNS_TEST_MAG_CAL)
 #include "sns_test_mag_cal.h"
  const sns_test_implementation test_sensor_impl = {
@@ -354,6 +369,14 @@ const sns_test_implementation test_sensor_impl = {
   sizeof("async_uart"),
   sns_test_create_async_uart_request,
   sns_test_async_uart_process_event
+};
+#elif defined(SNS_TEST_DPC)
+#include "sns_test_dpc.h"
+ const sns_test_implementation test_sensor_impl = {
+  "dpc",
+  sizeof("dpc"),
+  sns_test_create_dpc_request,
+  sns_test_dpc_process_event
 };
 #else
  const sns_test_implementation test_sensor_impl = {
@@ -397,7 +420,7 @@ publish_attributes(sns_sensor* const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_boolean = true;
-    value.boolean = true;
+    value.boolean = false;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_AVAILABLE, &value, 1, false);
   }

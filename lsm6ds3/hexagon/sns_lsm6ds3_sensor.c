@@ -16,9 +16,9 @@
 #include "sns_service_manager.h"
 #include "sns_stream_service.h"
 #include "sns_types.h"
-#include "sns_printf.h"
 
 #include "sns_lsm6ds3_sensor.h"
+#include "sns_lsm6ds3_sensor_instance.h"
 
 #include "pb_decode.h"
 #include "pb_encode.h"
@@ -75,40 +75,6 @@ static const float lsm6ds3_gyro_resolutions[] =
   LSM6DS3_GYRO_SSTVT_1000DPS,
   LSM6DS3_GYRO_SSTVT_2000DPS
 };
-
-void lsm6ds3_send_suid_req(sns_sensor *this, char *const data_type,
-    uint32_t data_type_len)
-{
-  uint8_t buffer[50];
-  sns_memset(buffer, 0, sizeof(buffer));
-  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
-  sns_service_manager *manager = this->cb->get_service_manager(this);
-  sns_stream_service *stream_service =
-    (sns_stream_service*)manager->get_service(manager, SNS_STREAM_SERVICE);
-  size_t encoded_len;
-  pb_buffer_arg data = (pb_buffer_arg){ .buf = data_type, .buf_len = data_type_len };
-
-  sns_suid_req suid_req = sns_suid_req_init_default;
-  suid_req.has_register_updates = true;
-  suid_req.register_updates = true;
-  suid_req.data_type.funcs.encode = &pb_encode_string_cb;
-  suid_req.data_type.arg = &data;
-
-  if(state->fw_stream == NULL)
-  {
-     stream_service->api->create_sensor_stream(stream_service,
-         this, sns_get_suid_lookup(), &state->fw_stream);
-  }
-
-  encoded_len = pb_encode_request(buffer, sizeof(buffer),
-      &suid_req, sns_suid_req_fields, NULL);
-  if(0 < encoded_len)
-  {
-    sns_request request = (sns_request){
-      .request_len = encoded_len, .request = buffer, .message_id = SNS_SUID_MSGID_SNS_SUID_REQ };
-    state->fw_stream->api->send_request(state->fw_stream, &request);
-  }
-}
 
 void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
                                            sns_sensor_event *event)
@@ -168,7 +134,7 @@ void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
           state->resolution_idx = state->common.registry_cfg.res_idx;
           state->supports_sync_stream = state->common.registry_cfg.sync_stream;
 
-          SNS_PRINTF(LOW, this, "Registry read event for group registry_cfg received "
+          LSM6DS3_PRINTF(LOW, this, "Registry read event for group registry_cfg received "
                      "is_dri:%d, hardware_id:%d resolution_idx:%d, supports_sync_stream:%d",
                      state->is_dri, state->hardware_id, state->resolution_idx,
                      state->supports_sync_stream);
@@ -218,7 +184,7 @@ void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
                       state->common.registry_pf_cfg.vdd_rail,
                       sizeof(state->common.rail_config.rails[1].name));
 
-          SNS_PRINTF(LOW, this, "Registry read event for group registry_pf_cfg received "
+          LSM6DS3_PRINTF(LOW, this, "Registry read event for group registry_pf_cfg received "
                      "bus_type:%d bus_instance:%d slave_control:%d "
                      "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d ",
                      state->common.com_port_info.com_config.bus_type,
@@ -228,7 +194,7 @@ void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
                      state->common.com_port_info.com_config.max_bus_speed_KHz,
                      state->common.com_port_info.com_config.reg_addr_type);
 
-          SNS_PRINTF(LOW, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d "
+          LSM6DS3_PRINTF(LOW, this, "interrupt_num:%d interrupt_pull_type:%d is_chip_pin:%d "
                      "interrupt_drive_strength:%d interrupt_trigger_type:%d rigid body type:%d",
                      state->common.irq_config.interrupt_num,
                      state->common.irq_config.interrupt_pull_type,
@@ -268,7 +234,7 @@ void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
         if(rv)
         {
           state->common.registry_placement_received = true;
-          SNS_PRINTF(LOW, this, "Registry read event for group registry_placement received "
+          LSM6DS3_PRINTF(LOW, this, "Registry read event for group registry_placement received "
                      "p[0]:%u p[6]:%u p[11]:%u", (uint32_t)state->common.placement[0],
                      (uint32_t)state->common.placement[6], (uint32_t)state->common.placement[11]);
         }
@@ -297,15 +263,15 @@ void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
         {
           state->common.registry_orient_received = true;
 
-          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          LSM6DS3_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->common.axis_map[0].ipaxis,
                  state->common.axis_map[0].opaxis, state->common.axis_map[0].invert);
 
-          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          LSM6DS3_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->common.axis_map[1].ipaxis, state->common.axis_map[1].opaxis,
                  state->common.axis_map[1].invert);
 
-          SNS_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
+          LSM6DS3_PRINTF(LOW, this, "Input Axis:%d maps to Output Axis:%d with inversion %d",
                  state->common.axis_map[2].ipaxis, state->common.axis_map[2].opaxis,
                  state->common.axis_map[2].invert);
         }
@@ -415,75 +381,6 @@ void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
   }
 }
 
-/** See sns_lsm6ds3_sensor.h */
-void lsm6ds3_process_suid_events(sns_sensor *const this)
-{
-  lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
-
-  for(;
-      0 != state->fw_stream->api->get_input_cnt(state->fw_stream);
-      state->fw_stream->api->get_next_input(state->fw_stream))
-  {
-    sns_sensor_event *event =
-      state->fw_stream->api->peek_input(state->fw_stream);
-
-    if(SNS_SUID_MSGID_SNS_SUID_EVENT == event->message_id)
-    {
-      pb_istream_t stream = pb_istream_from_buffer((void*)event->event, event->event_len);
-      sns_suid_event suid_event = sns_suid_event_init_default;
-      pb_buffer_arg data_type_arg = { .buf = NULL, .buf_len = 0 };
-      sns_sensor_uid uid_list;
-      sns_suid_search suid_search;
-      suid_search.suid = &uid_list;
-      suid_search.num_of_suids = 0;
-
-      suid_event.data_type.funcs.decode = &pb_decode_string_cb;
-      suid_event.data_type.arg = &data_type_arg;
-      suid_event.suid.funcs.decode = &pb_decode_suid_event;
-      suid_event.suid.arg = &suid_search;
-
-      if(!pb_decode(&stream, sns_suid_event_fields, &suid_event)) {
-         SNS_PRINTF(ERROR, this, "SUID Decode failed");
-         continue;
-       }
-
-      /* if no suids found, ignore the event */
-      if(suid_search.num_of_suids == 0)
-      {
-        continue;
-      }
-
-      /* save suid based on incoming data type name */
-      if(0 == strncmp(data_type_arg.buf, "data_acquisition_engine", data_type_arg.buf_len))
-      {
-        state->common.dae_suid = uid_list;
-      }
-      else if(0 == strncmp(data_type_arg.buf, "interrupt", data_type_arg.buf_len))
-      {
-        state->common.irq_suid = uid_list;
-      }
-      else if(0 == strncmp(data_type_arg.buf, "timer", data_type_arg.buf_len))
-      {
-        state->common.timer_suid = uid_list;
-      }
-      else if(0 == strncmp(data_type_arg.buf, "async_com_port",
-                            data_type_arg.buf_len))
-      {
-        state->common.acp_suid = uid_list;
-      }
-      else if(0 == strncmp(data_type_arg.buf, "registry", data_type_arg.buf_len))
-      {
-        state->common.reg_suid = uid_list;
-      }
-      else
-      {
-        SNS_PRINTF(MED, this, "invalid datatype_name");
-      }
-    }
-  }
-}
-
-
 static void lsm6ds3_sensor_send_registry_request(sns_sensor *const this,
                                                  char *reg_group_name)
 {
@@ -520,10 +417,14 @@ void lsm6ds3_request_registry(sns_sensor *const this)
 
   // place a request to registry sensor
 
-  if(state->reg_data_stream == NULL)
+  if(state->reg_data_stream == NULL
+     && state->common.who_am_i == 0)
   {
+    sns_sensor_uid suid;
+
+    sns_suid_lookup_get(&state->common.suid_lookup_data, "registry", &suid);
     stream_svc->api->create_sensor_stream(stream_svc,
-        this, state->common.reg_suid , &state->reg_data_stream);
+        this, suid, &state->reg_data_stream);
 
     if(LSM6DS3_ACCEL == state->sensor)
     {
@@ -717,6 +618,7 @@ void lsm6ds3_update_registry(sns_sensor *const this,
   else
   {
     SNS_PRINTF(ERROR, this, "Unsupported sensor %d", sensor);
+    return;
   }
 
   write_req.name.funcs.encode = &pb_encode_string_cb;
@@ -732,7 +634,11 @@ void lsm6ds3_update_registry(sns_sensor *const this,
     {
       sns_service_manager *smgr = this->cb->get_service_manager(this);
       sns_stream_service *stream_svc = (sns_stream_service*)smgr->get_service(smgr, SNS_STREAM_SERVICE);
-      stream_svc->api->create_sensor_stream(stream_svc, this, state->common.reg_suid, &state->reg_data_stream);
+      sns_sensor_uid suid;
+
+      sns_suid_lookup_get(&state->common.suid_lookup_data, "registry", &suid);
+      stream_svc->api->create_sensor_stream(stream_svc, this, suid,
+          &state->reg_data_stream);
     }
 
     sns_request request = (sns_request){
@@ -755,7 +661,8 @@ void lsm6ds3_update_sensor_state(sns_sensor *const this,
   {
     sensor_state = (lsm6ds3_state*)sensor->state->state;
 
-    if(sensor_state->sensor == LSM6DS3_ACCEL)
+    if(sensor_state->sensor == LSM6DS3_ACCEL
+       && sensor_state->fac_cal_version < inst_state->accel_registry_cfg.version)
     {
       sns_memscpy(&sensor_state->fac_cal_bias, sizeof(sensor_state->fac_cal_bias),
                   &inst_state->accel_registry_cfg.fac_cal_bias[0],
@@ -765,7 +672,8 @@ void lsm6ds3_update_sensor_state(sns_sensor *const this,
                   &inst_state->accel_registry_cfg.fac_cal_corr_mat,
                   sizeof(inst_state->accel_registry_cfg.fac_cal_corr_mat));
     }
-    else if(sensor_state->sensor == LSM6DS3_GYRO)
+    else if(sensor_state->sensor == LSM6DS3_GYRO
+            && sensor_state->fac_cal_version < inst_state->gyro_registry_cfg.version)
     {
       sns_memscpy(&sensor_state->fac_cal_bias, sizeof(sensor_state->fac_cal_bias),
                   &inst_state->gyro_registry_cfg.fac_cal_bias[0],
@@ -775,7 +683,8 @@ void lsm6ds3_update_sensor_state(sns_sensor *const this,
                   &inst_state->gyro_registry_cfg.fac_cal_corr_mat,
                   sizeof(inst_state->gyro_registry_cfg.fac_cal_corr_mat));
     }
-    else if(sensor_state->sensor == LSM6DS3_SENSOR_TEMP)
+    else if(sensor_state->sensor == LSM6DS3_SENSOR_TEMP
+            && sensor_state->fac_cal_version < inst_state->sensor_temp_registry_cfg.version)
     {
       sns_memscpy(&sensor_state->fac_cal_bias, sizeof(sensor_state->fac_cal_bias),
                   &inst_state->sensor_temp_registry_cfg.fac_cal_bias[0],
@@ -1007,7 +916,7 @@ void lsm6ds3_start_hw_detect_sequence(sns_sensor *const this)
   }
 
   /**---------------------Register Power Rails --------------------------*/
-  if(!sns_sensor_uid_compare(&state->common.timer_suid, &((sns_sensor_uid){{0}}))
+  if(sns_suid_lookup_get(&state->common.suid_lookup_data, "timer", NULL)
      && NULL == state->pwr_rail_service
      && rv == SNS_RC_SUCCESS)
   {
@@ -1066,13 +975,14 @@ void lsm6ds3_common_init(sns_sensor *const this)
   state->fac_cal_corr_mat.e11 = 1.0;
   state->fac_cal_corr_mat.e22 = 1.0;
 
-  /** Accel sensor fetches all common dependent sensor SUIDs. */
+  SNS_SUID_LOOKUP_INIT(state->common.suid_lookup_data, NULL);
+
   if(state->sensor == LSM6DS3_ACCEL)
   {
-    lsm6ds3_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
-    lsm6ds3_send_suid_req(this, "interrupt", sizeof("interrupt"));
-    lsm6ds3_send_suid_req(this, "async_com_port", sizeof("async_com_port"));
-    lsm6ds3_send_suid_req(this, "timer", sizeof("timer"));
+    sns_suid_lookup_add(this, &state->common.suid_lookup_data, "data_acquisition_engine");
+    sns_suid_lookup_add(this, &state->common.suid_lookup_data, "interrupt");
+    sns_suid_lookup_add(this, &state->common.suid_lookup_data, "async_com_port");
+    sns_suid_lookup_add(this, &state->common.suid_lookup_data, "timer");
   }
-  lsm6ds3_send_suid_req(this, "registry", sizeof("registry"));
+    sns_suid_lookup_add(this, &state->common.suid_lookup_data, "registry");
 }
