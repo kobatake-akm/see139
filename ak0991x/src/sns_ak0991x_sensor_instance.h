@@ -197,6 +197,8 @@ typedef struct ak0991x_instance_state
   uint8_t  num_samples;
   uint8_t ascp_xfer_in_progress;
   bool this_is_first_data;
+  bool data_over_run;
+  bool re_read_data_after_ascp;
 #ifdef AK0991X_ENABLE_FIFO
   bool fifo_flush_in_progress;
 #endif

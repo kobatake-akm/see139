@@ -106,7 +106,16 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     value.has_boolean = true;
     value.boolean = true;
     sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, true);
+        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, false);
+  }
+  {
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
+    values[0].has_sint = true;
+    values[0].sint = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
+    values[1].has_sint = true;
+    values[1].sint = SNS_PHYSICAL_SENSOR_TEST_TYPE_HW;
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR_TESTS,
+        values, ARR_SIZE(values), true);
   }
 #endif
 }

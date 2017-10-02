@@ -41,13 +41,14 @@
 
 #include "sns_cal_util.h"
 
-//#define AK0991X_VERBOSE_DEBUG           	// Define to enable extra debugging
+//#define AK0991X_VERBOSE_DEBUG             // Define to enable extra debugging
 
 /** Need to use ODR table. */
 extern const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE];
 
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
 log_sensor_state_raw_info log_mag_state_raw_info;
+
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 
 /**
  * Encode log sensor state raw packet
@@ -548,7 +549,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
       return rv;
     }
   }
-#endif	// AK0991X_ENABLE_S4S
+#endif  // AK0991X_ENABLE_S4S
 
 
   // Configure control register 1
@@ -601,7 +602,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   if(state->ascp_xfer_in_progress)
   {
-    AK0991X_INST_PRINT(HIGH, this, "ascp_xfer_in_progress: %u", state->ascp_xfer_in_progress);
     state->config_mag_after_ascp_xfer = true;
     return SNS_RC_SUCCESS;
   }
@@ -1270,13 +1270,9 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
                                       sns_time timestamp,
                                       sns_sensor_instance *const instance,
                                       sns_event_service *event_service,
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
                                       ak0991x_instance_state *state,
-																			log_sensor_state_raw_info *log_mag_state_raw_info
-#else
-                                      ak0991x_instance_state *state
-#endif
-																			)
+                                      log_sensor_state_raw_info *log_mag_state_raw_info
+                                      )
 {
   UNUSED_VAR(event_service);
 
@@ -1297,7 +1293,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
    */
 
 //  AK0991X_INST_PRINT(ERROR, instance, "timestamp %d",
-//  		(uint32_t)timestamp);
+//          (uint32_t)timestamp);
 
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
   if (state->mag_info.device_select == AK09917)
@@ -1325,8 +1321,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   AK0991X_INST_PRINT(LOW, instance, "timestamp %u Mag[LSB] %d,%d,%d",
       (uint32_t)timestamp,
       (int16_t)(lsbdata[TRIAXIS_X]),
-			(int16_t)(lsbdata[TRIAXIS_Y]),
-			(int16_t)(lsbdata[TRIAXIS_Z]));
+      (int16_t)(lsbdata[TRIAXIS_Y]),
+      (int16_t)(lsbdata[TRIAXIS_Z]));
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.sstvt_adj[0] * state->mag_info.resolution;
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.sstvt_adj[1] * state->mag_info.resolution;
@@ -1378,10 +1374,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   // Log raw uncalibrated sensor data
   ak0991x_log_sensor_state_raw_add(
     log_mag_state_raw_info,
-//    data,
     opdata_raw,
     timestamp,
     status);
+#else
+  UNUSED_VAR(log_mag_state_raw_info);
 #endif
 }
 
@@ -1420,16 +1417,10 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
                               timestamp,
                               instance,
                               event_service,
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
                               state,
-															&log_mag_state_raw_info
-#else
-															state
-#endif
-															);
+                              &log_mag_state_raw_info
+    );
   }
-
-
 }
 #endif //AK0991X_ENABLE_DAE
 
@@ -1469,24 +1460,18 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
   {
     uint32_t i;
     sns_time                  timestamp;
-    uint16_t                  cnt_for_ts = state->mag_info.cur_wmk;
-    sns_time interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) /
-      (state->mag_info.cur_wmk + 1);
+    uint16_t                  cnt_for_ts = state->num_samples - 1;
 
       for (i = 1; i < vector->bytes; i += AK0991X_NUM_DATA_HXL_TO_ST2)
       {
-        timestamp = state->interrupt_timestamp - (interrupt_interval_ticks * cnt_for_ts);
+        timestamp = state->interrupt_timestamp - (state->averaged_interval * cnt_for_ts);
 
         ak0991x_handle_mag_sample(&vector->buffer[i],
                                   timestamp,
                                   instance,
                                   event_service,
-  #ifdef AK0991X_ENABLE_DIAG_LOGGING
                                   state,
                                   &log_mag_state_raw_info
-  #else
-                                  state
-  #endif //AK0991X_ENABLE_DIAG_LOGGING
                                   );
         cnt_for_ts--;
       }
@@ -1505,8 +1490,6 @@ sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, b
 
   rc = gpio_svc->api->read_gpio(gpio, is_chip_pin, &val);
 
-//  AK0991X_INST_PRINT(LOW, instance, "gpio_val = %d  rc = %d", val, rc);
-
   return val;
 }
 #endif //AK0991X_ENABLE_CHECK_DRI_GPIO
@@ -1515,20 +1498,34 @@ sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, b
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance){
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_time ideal_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+  sns_time time_now = sns_get_system_time();
+
   if(state->this_is_first_data){
-    AK0991X_INST_PRINT(LOW, instance, "this_is_first_data in ak0991x_validate");
     state->interrupt_timestamp = state->irq_event_time;
     state->averaged_interval = ideal_interval;
+  }else if(state->data_over_run){
+    state->interrupt_timestamp = time_now;
+  }else if((state->mag_info.use_fifo) &&
+      (time_now - state->pre_timestamp > state->averaged_interval * state->mag_info.max_fifo_size * 1.2 )){
+    state->interrupt_timestamp = time_now;
   }else{
     if(state->irq_info.detect_irq_event)
     {
-      float averaging_weight = ( state->irq_info.irq_count > 5 ) ? 0.95 : 0.50;
+      float averaging_weight = ( state->irq_info.irq_count > 5 ) ? 0.95 : 0.05;
       state->averaged_interval = state->averaged_interval * averaging_weight +
-          ((state->irq_event_time - state->pre_timestamp) / state->num_samples) * (1.0 - averaging_weight);
+        ((state->irq_event_time - state->pre_timestamp) / state->num_samples) * (1.0 - averaging_weight);
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * state->num_samples);
     }
+    else
+    {
+      state->interrupt_timestamp = time_now;
+      if(state->fifo_flush_in_progress){
+        float averaging_weight = 0.05;
+        state->averaged_interval = state->averaged_interval * averaging_weight +
+          ((state->interrupt_timestamp - state->pre_timestamp) / state->num_samples) * (1.0 - averaging_weight);
+      }
+    }
   }
-//  AK0991X_INST_PRINT(LOW, instance, "ak0991x_validate done.");
 }
 
 #ifdef AK0991X_ENABLE_CHECK_REG_ST1
@@ -1540,9 +1537,23 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   ak0991x_read_st1(state,state->com_port_info.port_handle,
                    &st1_buf);
 
-//  AK0991X_INST_PRINT(LOW, instance, "ak0991x_is_drdy done. ST1=%d",st1_buf);
-  if( st1_buf & AK0991X_DRDY_BIT ) return true;
-  return false;
+  state->num_samples = 1;
+
+  // set num_samples
+  if( state->mag_info.use_fifo ){
+    if(state->mag_info.device_select == AK09917)
+    {
+      state->num_samples = st1_buf>>2;
+    }else{
+      state->num_samples = state->mag_info.cur_wmk + 1;
+    }
+  }
+
+  // check data over run
+  state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;
+
+  // return drdy status
+  return (st1_buf & AK0991X_DRDY_BIT) ? true : false;
 }
 #endif
 
@@ -1559,7 +1570,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   uint16_t num_samples = 0;
   uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
+  #ifdef AK0991X_ENABLE_DIAG_LOGGING
   sns_diag_service          *diag = state->diag_service;
   log_sensor_state_raw_info log_mag_state_raw_info;
 
@@ -1621,28 +1632,22 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     }
   }
 
-  state->num_samples = num_samples;
-
   if (num_samples != 0)
   {
+    state->num_samples = num_samples;
     ak0991x_validate_timestamp(instance);
   }
 
   sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-  sns_time interrupt_interval_ticks;
 
   if (num_samples != 0)
   {
-    interrupt_interval_ticks = (state->interrupt_timestamp - state->pre_timestamp) / (num_samples);
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
     // Allocate log packet memory only if there are samples to flush
     ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
   }
-  else
-  {
-    interrupt_interval_ticks = 0;
-  }
+
 
   for (i = 0; i < num_samples; i++)
   {
@@ -1652,12 +1657,12 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
       if (state->this_is_first_data)
       {
         timestamp = state->interrupt_timestamp -
-          (sample_interval_ticks * (state->mag_info.cur_wmk - i));
+          (sample_interval_ticks * (num_samples - i - 1));
       }
       else
       {
         timestamp = state->interrupt_timestamp -
-          (interrupt_interval_ticks * (state->mag_info.cur_wmk - i));
+          (state->averaged_interval * (num_samples - i - 1));
       }
     }
     else
@@ -1669,13 +1674,9 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                               timestamp,
                               instance,
                               event_service,
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
                               state,
                               &log_mag_state_raw_info
-#else
-                              state
-#endif
-    													);
+                              );
   }
 
   if (num_samples != 0)
@@ -1685,6 +1686,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
     ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
+#else
+    UNUSED_VAR(log_mag_state_raw_info);
 #endif
   }
 }
@@ -1703,9 +1706,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    state->num_samples = state->mag_info.cur_wmk + 1;
-    // Water mark level : 0x0 -> 1step, 0x1F ->32step
-    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * (state->mag_info.cur_wmk + 1) + 1;
+    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples + 1;
   }
   else
   {
@@ -1889,8 +1890,6 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    AK0991X_INST_PRINT(LOW, instance, "handle timer event for FIFO");
-
     if (state->mag_info.device_select == AK09917)
     {
       uint8_t st1_buf;
@@ -1956,13 +1955,9 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
                                     (timestamp - (timer_interval_ticks * (state->mag_info.cur_wmk - i))),
                                     instance,
                                     event_service,
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
                                     state,
                                     &log_mag_state_raw_info
-#else
-																		state
-#endif
-																		);
+                                    );
         }
         else
         {
@@ -1970,13 +1965,9 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
                                     (timestamp - (timer_interval_ticks * (state->mag_info.cur_wmk - i))),
                                     instance,
                                     event_service,
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
                                     state,
                                     &log_mag_state_raw_info
-#else
-																		state
-#endif
-																		);
+                                    );
         }
       }
     }
@@ -1988,13 +1979,9 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
                                   (timestamp - (timer_interval_ticks * (state->mag_info.cur_wmk - i))),
                                   instance,
                                   event_service,
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
                                   state,
                                   &log_mag_state_raw_info
-#else
-																	state
-#endif
-																	);
+                                  );
       }
     }
 
@@ -2020,22 +2007,18 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
     return rv;
   }
 
-  AK0991X_INST_PRINT(LOW, instance, "handle timer event");
-
   ak0991x_handle_mag_sample(&buffer[1],
                             timestamp,
                             instance,
                             event_service,
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
                             state,
                             &log_mag_state_raw_info
-#else
-														state
-#endif
-														);
+                            );
   }
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
+#else
+  UNUSED_VAR(log_mag_state_raw_info);
 #endif
 
   return SNS_RC_SUCCESS;
@@ -2375,8 +2358,6 @@ void ak0991x_register_timer(sns_sensor_instance *this)
     AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);
     AK0991X_INST_PRINT(LOW, this, "late_start_delta=%u", (uint32_t)req_payload.start_config.late_start_delta);
 
-
-
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
                                 &req_payload,
@@ -2535,15 +2516,13 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  AK0991X_INST_PRINT(LOW, this, "ak0991x_reconfig_hw");
-
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
     if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
 #ifdef AK0991X_ENABLE_DAE
-    		(state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
+            (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
 #endif
-				(!state->mag_info.use_dri))
+            (!state->mag_info.use_dri))
     {
       AK0991X_INST_PRINT(LOW, this, "start_mag_streaming");
       ak0991x_start_mag_streaming(this);
@@ -2560,7 +2539,6 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
       return rv;
     }
   }
-
   return rv;
 }
 

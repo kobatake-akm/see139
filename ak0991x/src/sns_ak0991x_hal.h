@@ -364,6 +364,11 @@ typedef struct
   /* Data status.*/
   sns_std_sensor_sample_status status;
 } ak0991x_batch_sample;
+#else
+typedef struct log_sensor_state_raw_info
+{
+  // enmpty
+} log_sensor_state_raw_info;
 #endif
 
 /******************* Function Declarations ***********************************/
