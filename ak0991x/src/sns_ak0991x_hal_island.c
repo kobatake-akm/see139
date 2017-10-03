@@ -2288,7 +2288,8 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
 }
 #endif //A0991X_ENABLE_DRI
 
-void ak0991x_register_timer(sns_sensor_instance *this)
+void ak0991x_register_timer(sns_sensor_instance *this,
+                            bool register_s4s_timer)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
@@ -2296,32 +2297,35 @@ void ak0991x_register_timer(sns_sensor_instance *this)
   sns_stream_service *stream_mgr = (sns_stream_service *)
       service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
 
-  if (state->mag_req.sample_rate != AK0991X_ODR_0)
-  {
-    if (NULL == state->timer_data_stream)
-    {
-      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                     this,
-                                                     state->timer_suid,
-                                                     &state->timer_data_stream);
-    }
-
-    sns_request             timer_req;
-    sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
-    size_t                  req_len;
-    uint8_t                 buffer[20] = {0};
-    req_payload.is_periodic = true;
-    req_payload.has_priority = true;
-    req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+  sns_request             timer_req;
+  sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
+  size_t                  req_len;
+  uint8_t                 buffer[20] = {0};
+  req_payload.is_periodic = true;
+  req_payload.has_priority = true;
 
 #ifdef AK0991X_ENABLE_S4S
-    if (state->mag_info.use_sync_stream)
+  if (state->mag_info.use_sync_stream)
+  {
+    if (register_s4s_timer)
+    {
+      sns_time                t_ph_period = sns_convert_ns_to_ticks(
+          AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+      req_payload.start_time = sns_get_system_time() - t_ph_period;
+      req_payload.start_config.early_start_delta = 0;
+      req_payload.start_config.late_start_delta = t_ph_period;
+      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
+      req_payload.timeout_period = t_ph_period;
+    }
+    else
     {
       req_payload.start_time = sns_get_system_time() - sns_convert_ns_to_ticks(
           AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
       req_payload.start_config.early_start_delta = 0;
       req_payload.start_config.late_start_delta = sns_convert_ns_to_ticks(
           2 * AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
+      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+
       if (state->mag_info.use_fifo)
       {
         req_payload.timeout_period = sns_convert_ns_to_ticks(
@@ -2333,31 +2337,62 @@ void ak0991x_register_timer(sns_sensor_instance *this)
           AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
       }
     }
+  }
+  else
+#endif // AK0991X_ENABLE_S4S
+  {
+    UNUSED_VAR(register_s4s_timer);
+    req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+
+    if (state->mag_info.use_fifo)
+    {
+      req_payload.timeout_period = sns_convert_ns_to_ticks(
+        1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
+    }
+    else
+    {
+      req_payload.timeout_period = sns_convert_ns_to_ticks(
+        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+    }
+    //TODO: start time calculation should be similar to above use_sync_stream case
+    //If this sensor is doing polling, it would be good to synchronize the Mag polling timer,
+    //with other polling timers on the system.
+    //For example, that the pressure sensor is polling at 20Hz.
+    //It would be good to make sure the mag polling timer and the pressure polling timer are synchronized if possible.
+    req_payload.start_time = sns_get_system_time();
+  }
+
+  AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
+  AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);
+  AK0991X_INST_PRINT(LOW, this, "late_start_delta=%u", (uint32_t)req_payload.start_config.late_start_delta);
+
+  if (state->mag_req.sample_rate != AK0991X_ODR_0)
+  {
+#ifdef AK0991X_ENABLE_S4S
+    if (register_s4s_timer)
+    {
+      if (NULL == state->s4s_timer_data_stream)
+      {
+        stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                       this,
+                                                       state->timer_suid,
+                                                       &state->s4s_timer_data_stream
+                                                       );
+      }
+    }
     else
 #endif // AK0991X_ENABLE_S4S
     {
-      if (state->mag_info.use_fifo)
+      if (NULL == state->timer_data_stream)
       {
-        req_payload.timeout_period = sns_convert_ns_to_ticks(
-          1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
+        stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                       this,
+                                                       state->timer_suid,
+                                                       &state->timer_data_stream
+                                                       );
       }
-      else
-      {
-        req_payload.timeout_period = sns_convert_ns_to_ticks(
-          1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
-      }
-      //TODO: start time calculation should be similar to above use_sync_stream case
-      //If this sensor is doing polling, it would be good to synchronize the Mag polling timer,
-      //with other polling timers on the system.
-      //For example, that the pressure sensor is polling at 20Hz.
-      //It would be good to make sure the mag polling timer and the pressure polling timer are synchronized if possible.
-      req_payload.start_time = sns_get_system_time();
     }
-
-    AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
-    AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);
-    AK0991X_INST_PRINT(LOW, this, "late_start_delta=%u", (uint32_t)req_payload.start_config.late_start_delta);
-
+ 
     req_len = pb_encode_request(buffer,
                                 sizeof(buffer),
                                 &req_payload,
@@ -2371,72 +2406,16 @@ void ak0991x_register_timer(sns_sensor_instance *this)
       timer_req.request = buffer;
 
       /** Send encoded request to Timer Sensor */
-      state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
-    }
-    else
-    {
-      AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
-    }
-  }
-  else
-  {
-    if (state->timer_data_stream != NULL)
-    {
-      stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-      state->timer_data_stream = NULL;
-    }
-  }
-
-}
 #ifdef AK0991X_ENABLE_S4S
-void ak0991x_register_s4s_timer(sns_sensor_instance *this)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-
-  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service *stream_mgr = (sns_stream_service *)
-    service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-
-  if (state->mag_req.sample_rate != AK0991X_ODR_0)
-  {
-    if (NULL == state->s4s_timer_data_stream)
-    {
-      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                     this,
-                                                     state->timer_suid,
-                                                     &state->s4s_timer_data_stream);
-    }
-
-    sns_request             timer_req;
-    sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
-    size_t                  req_len;
-    uint8_t                 buffer[20] = {0};
-    sns_time                t_ph_period = sns_convert_ns_to_ticks(
-        AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-    req_payload.start_time = sns_get_system_time() - t_ph_period;
-    req_payload.start_config.early_start_delta = 0;
-    req_payload.start_config.late_start_delta = t_ph_period;
-    req_payload.is_periodic = true;
-    req_payload.has_priority = true;
-    req_payload.priority = SNS_TIMER_PRIORITY_S4S;
-    req_payload.timeout_period = t_ph_period;
- 
-    AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
-
-    req_len = pb_encode_request(buffer,
-                                sizeof(buffer),
-                                &req_payload,
-                                sns_timer_sensor_config_fields,
-                                NULL);
-
-    if (req_len > 0)
-    {
-      timer_req.message_id =  SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
-      timer_req.request_len = req_len;
-      timer_req.request = buffer;
-
-      /** Send encoded request to Timer Sensor */
-      state->s4s_timer_data_stream->api->send_request(state->s4s_timer_data_stream, &timer_req);
+      if (register_s4s_timer)
+      {
+        state->s4s_timer_data_stream->api->send_request(state->s4s_timer_data_stream, &timer_req);
+      }
+      else
+#endif // AK0991X_ENABLE_S4S
+      {
+        state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+      }
     }
     else
     {
@@ -2445,16 +2424,27 @@ void ak0991x_register_s4s_timer(sns_sensor_instance *this)
   }
   else
   {
-    state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-    if (state->s4s_timer_data_stream != NULL)
+#ifdef AK0991X_ENABLE_S4S
+    if (register_s4s_timer)
     {
-      stream_mgr->api->remove_stream(stream_mgr, state->s4s_timer_data_stream);
-      state->s4s_timer_data_stream = NULL;
+      state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+      if (state->s4s_timer_data_stream != NULL)
+      {
+        stream_mgr->api->remove_stream(stream_mgr, s4s_state->timer_data_stream);
+        state->s4s_timer_data_stream = NULL;
+      }
+    }
+    else
+#endif
+    {
+      if (state->timer_data_stream != NULL)
+      {
+        stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
+        state->timer_data_stream = NULL;
+      }
     }
   }
-
 }
-#endif // AK0991X_ENABLE_S4S
 
 sns_rc ak0991x_get_meas_time( akm_device_type device_select,
                               uint8_t sdr,

@@ -669,16 +669,8 @@ void ak0991x_register_interrupt(sns_sensor_instance *this);
  * Enable timer if not already enabled
  *
  */
-void ak0991x_register_timer(sns_sensor_instance *this);
-
-#ifdef AK0991X_ENABLE_S4S
-/**
- * Enable timer for s4s
- *
- */
-void ak0991x_register_s4s_timer(sns_sensor_instance *this);
-#endif // AK0991X_ENABLE_S4S
-
+void ak0991x_register_timer(sns_sensor_instance *this,
+                            bool register_s4s_timer);
 
 /**
  * Get time for measurement

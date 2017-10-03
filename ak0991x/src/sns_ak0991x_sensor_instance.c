@@ -628,12 +628,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 #endif
       {
         ak0991x_reconfig_hw(this);
-        ak0991x_register_timer(this);
+        ak0991x_register_timer(this, false);
         AK0991X_INST_PRINT(LOW, this, "done register_timer");
 #ifdef AK0991X_ENABLE_S4S
         if (state->mag_info.use_sync_stream)
         {
-          ak0991x_register_s4s_timer(this);
+          ak0991x_register_timer(this, true);
           AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
         }
 #endif // AK0991X_ENABLE_S4S
@@ -728,7 +728,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 #endif
         {
           ak0991x_reconfig_hw(this);
-          ak0991x_register_timer(this);
+          ak0991x_register_timer(this, false);
           AK0991X_INST_PRINT(LOW, this, "done register_timer");
         }
         ak0991x_send_config_event(this);
@@ -771,7 +771,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 #endif
       {
         ak0991x_reconfig_hw(this);
-        ak0991x_register_timer(this);
+        ak0991x_register_timer(this, false);
         AK0991X_INST_PRINT(LOW, this, "done register_timer");
       }
 
