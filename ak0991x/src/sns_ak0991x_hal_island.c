@@ -1382,12 +1382,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 #endif
 }
 
-#ifdef AK0991X_ENABLE_DAE
-void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
-                                      sns_time            first_timestamp,
-                                      sns_time            sample_interval_ticks,
-                                      uint8_t             *fifo_start,
-                                      size_t              num_bytes
+void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
+                                     sns_time            first_timestamp,
+                                     sns_time            sample_interval_ticks,
+                                     uint8_t             *fifo_start,
+                                     size_t              num_bytes
 )
 {
   uint16_t num_samples_sets = 0;
@@ -1396,14 +1395,14 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
   sns_service_manager *service_manager = instance->cb->get_service_manager(instance);
   sns_event_service *event_service =
     (sns_event_service*)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
-  log_sensor_state_raw_info log_mag_state_raw_info;
-
-  // Allocate Sensor State Raw log packets for mag
-  sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
-  ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
-#endif
+//#ifdef AK0991X_ENABLE_DIAG_LOGGING
+//  log_sensor_state_raw_info log_mag_state_raw_info;
+//
+//  // Allocate Sensor State Raw log packets for mag
+//  sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
+//  log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
+//  ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
+//#endif
   for(i = 0; i < num_bytes; i += 8)
   {
     // check if there's valid data in FIFO
@@ -1418,11 +1417,9 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
                               instance,
                               event_service,
                               state,
-                              &log_mag_state_raw_info
-    );
+                              &log_mag_state_raw_info);
   }
 }
-#endif //AK0991X_ENABLE_DAE
 
 #ifdef AK0991X_ENABLE_FIFO
 /** See ak0991x_hal.h */
@@ -1444,42 +1441,6 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 }
 #endif // AK0991X_ENABLE_FIFO
 
-#ifdef AK0991X_ENABLE_DRI
-void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
-                                     void *user_arg)
-{
-  sns_sensor_instance *instance = (sns_sensor_instance *)user_arg;
-
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  sns_service_manager    *service_manager =
-    instance->cb->get_service_manager(instance);
-  sns_event_service *event_service =
-    (sns_event_service *)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
-
-  if (AKM_AK0991X_REG_ST1 == vector->reg_addr)
-  {
-    uint32_t i;
-    sns_time                  timestamp;
-    uint16_t                  cnt_for_ts = state->num_samples - 1;
-
-      for (i = 1; i < vector->bytes; i += AK0991X_NUM_DATA_HXL_TO_ST2)
-      {
-        timestamp = state->interrupt_timestamp - (state->averaged_interval * cnt_for_ts);
-
-        ak0991x_handle_mag_sample(&vector->buffer[i],
-                                  timestamp,
-                                  instance,
-                                  event_service,
-                                  state,
-                                  &log_mag_state_raw_info
-                                  );
-        cnt_for_ts--;
-      }
-      state->this_is_first_data = false;
-      state->pre_timestamp = state->interrupt_timestamp;
-  }
-}
-
 #ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
 sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin)
 {
@@ -1493,7 +1454,6 @@ sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, b
   return val;
 }
 #endif //AK0991X_ENABLE_CHECK_DRI_GPIO
-#endif //AK0991X_ENABLE_DRI
 
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance){
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1570,7 +1530,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   uint16_t num_samples = 0;
   uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
-  #ifdef AK0991X_ENABLE_DIAG_LOGGING
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
   sns_diag_service          *diag = state->diag_service;
   log_sensor_state_raw_info log_mag_state_raw_info;
 
@@ -1706,19 +1666,19 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples + 1;
+    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples;
   }
   else
   {
     state->num_samples = 1;
-    num_of_bytes = AK0991X_NUM_DATA_ST1_TO_ST2;
+    num_of_bytes = AK0991X_NUM_DATA_HXL_TO_ST2;
   }
 
   ak0991x_validate_timestamp(instance);
 
   // Compose the async com port message
   async_read_msg.bytes = num_of_bytes;
-  async_read_msg.reg_addr = AKM_AK0991X_REG_ST1;
+  async_read_msg.reg_addr = AKM_AK0991X_REG_HXL;
   async_read_msg.is_write = false;
   async_read_msg.buffer = NULL;
 

@@ -482,11 +482,11 @@ sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr);
  * @param[i] num_bytes             Number of bytes in fifo buffer
  *
  */
-void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
-                                      sns_time            first_ts,
-                                      sns_time            interval,
-                                      uint8_t             *fifo,
-                                      size_t              num_bytes);
+void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
+                                     sns_time            first_ts,
+                                     sns_time            interval,
+                                     uint8_t             *fifo,
+                                     size_t              num_bytes);
 #endif //AK0991X_ENABLE_DAE
 
 #ifdef AK0991X_ENABLE_FIFO
@@ -497,17 +497,6 @@ void ak0991x_process_fifo_data_buffer(sns_sensor_instance *instance,
  */
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
 #endif
-
-#ifdef AK0991X_ENABLE_DRI
-/**
- * Extracts mag samples from the buffer
- * and generates event.
- *
- * @param[i] vector                Com port vector
- * @param[i] user_arg              Pointer to instance passed as user_arg
- */
-void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
-                                     void *user_arg);
 
 #ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
 /**
@@ -524,8 +513,6 @@ void ak0991x_process_mag_data_buffer(sns_port_vector *vector,
  */
 sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin);
 #endif // AK0991X_ENABLE_CHECK_DRI_GPIO
-
-#endif //AK0991X_ENABLE_DRI
 
 #ifdef AK0991X_ENABLE_CHECK_REG_ST1
 /**

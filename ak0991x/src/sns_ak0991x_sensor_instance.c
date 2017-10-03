@@ -660,7 +660,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                   &payload->registry_cfg.fac_cal_corr_mat,
                   sizeof(payload->registry_cfg.fac_cal_corr_mat));
     }
-   }
+  }
 
 #ifdef AK0991X_ENABLE_FIFO
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
