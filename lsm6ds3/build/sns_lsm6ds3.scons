@@ -11,9 +11,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/rel/ssc.slpi/3.0/sensors/lsm6ds3/build/sns_lsm6ds3.scons#13 $
-#  $DateTime: 2017/08/12 05:41:58 $
-#  $Change: 14077164 $
+#  $Id: //components/rel/ssc.slpi/3.0/sensors/lsm6ds3/build/sns_lsm6ds3.scons#14 $
+#  $DateTime: 2017/09/19 11:28:11 $
+#  $Change: 14416919 $
 #
 #===============================================================================
 Import('env')
@@ -31,6 +31,8 @@ import inspect
 # 4. Include the flag in build flag options (-f) to enable island mode for
 #    the driver.
 
+if 'SSC_TARGET_HEXAGON_MDSP' in env['CPPDEFINES']:
+  Return()
 lsm6ds3_island_enable = False
 
 if 'SNS_ISLAND_INCLUDE_LSM6DS3' in env:

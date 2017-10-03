@@ -97,19 +97,19 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
   }
   config_req.has_accel_info      = false;
 
-  config_req.has_expected_get_data_bytes = true;
-  /* DAE driver reads 1 byte state, plus the data */
-  if(mag_info->use_fifo)
-  {
-    if(mag_info->device_select == AK09917)
-      config_req.expected_get_data_bytes = mag_info->cur_wmk * 6 + 1;
-    else
-      config_req.expected_get_data_bytes = mag_info->max_fifo_size * 6 + 1;
-  }
-  else
-  {
-    config_req.expected_get_data_bytes = 6 + 1;
-  }
+//  config_req.has_expected_get_data_bytes = true;
+//  /* DAE driver reads 1 byte state, plus the data */
+//  if(mag_info->use_fifo)
+//  {
+//    if(mag_info->device_select == AK09917)
+//      config_req.expected_get_data_bytes = mag_info->cur_wmk * 6 + 1;
+//    else
+//      config_req.expected_get_data_bytes = mag_info->max_fifo_size * 6 + 1;
+//  }
+//  else
+//  {
+//    config_req.expected_get_data_bytes = 6 + 1;
+//  }
 
   if((req.request_len =
       pb_encode_request(encoded_msg,
@@ -234,11 +234,11 @@ static void process_fifo_samples(
   if(num_sample_sets >= 1 && sampling_intvl > 0)
   {
     sns_time first_timestamp = timestamp - sampling_intvl * (num_sample_sets - 1);
-    ak0991x_process_fifo_data_buffer(this,
-                                     first_timestamp,
-                                     sampling_intvl,
-                                     fifo_start,
-                                     buf_len - 1);
+    ak0991x_process_mag_data_buffer(this,
+                                    first_timestamp,
+                                    sampling_intvl,
+                                    fifo_start,
+                                    buf_len - 1);
   }
 }
 
@@ -405,13 +405,13 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
           if(state->mag_info.use_sync_stream)
           {
 #ifdef AK0991X_ENABLE_S4S
-            ak0991x_register_s4s_timer(this);
+            ak0991x_register_timer(this, true);
             AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
 #endif
           }
           else
           {
-            ak0991x_register_timer(this);
+            ak0991x_register_timer(this, false);
           }
         }
       }

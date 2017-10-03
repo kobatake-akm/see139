@@ -11,9 +11,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/rel/ssc.slpi/3.0/sensors/test/build/sns_test.scons#29 $
-#  $DateTime: 2017/08/21 09:37:15 $
-#  $Change: 14141743 $
+#  $Id: //components/rel/ssc.slpi/3.0/sensors/test/build/sns_test.scons#32 $
+#  $DateTime: 2017/09/13 19:12:37 $
+#  $Change: 14365661 $
 #
 #===============================================================================
 Import('env')
@@ -75,7 +75,9 @@ test_sensors = [
   'SNS_TEST_OEM1',
   'SNS_TEST_DEVICE_ORIENT',
   'SNS_TEST_PEDOMETER',
-  'SNS_TEST_ASYNC_UART'
+  'SNS_TEST_BTE',
+  'SNS_TEST_ASYNC_UART',
+  'SNS_TEST_MULTISHAKE'
 ]
 
 for s in test_sensors:
@@ -140,7 +142,13 @@ files_to_remove = [
   'sns_test_mag_cal.h',
   'sns_test_mag_cal.c',
   'sns_test_async_uart.h',
-  'sns_test_async_uart.c'
+  'sns_test_async_uart.c',
+  'sns_test_multishake.h',
+  'sns_test_multishake.c',
+  'sns_test_dpc.c',
+  'sns_test_dpc.h',
+  'sns_test_hall.c',
+  'sns_test_hall.h'
 ]
 
 if "SENSORS_DD_DEV_FLAG" in env:

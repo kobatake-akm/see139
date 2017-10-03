@@ -365,6 +365,13 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
           }
         }
 
+        if(state->fac_test_in_progress)
+        {
+          /** All self-tests can be handled in normal mode. */
+          state->island_service->api->sensor_instance_island_exit(state->island_service, this);
+          lsm6ds3_process_fac_test(this);
+        }
+
        /** lsm6ds3_read_gpio() and lsm6ds3_write_gpio() is example only
           to demonstrate the gpio service. These functions are not needed
           for the functioning of this driver.*/
@@ -412,11 +419,11 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
       else if(event->message_id == SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT)
       {
         /** TODO: decode and qse timer_reg_event*/
-        SNS_INST_PRINTF(LOW, this, "TIMER_SENSOR_REG_EVENT");
+        LSM6DS3_INST_PRINTF(LOW, this, "TIMER_SENSOR_REG_EVENT");
       }
       else
       {
-        SNS_INST_PRINTF(MED, this, "unknown message_id %d", event->message_id);
+        LSM6DS3_INST_PRINTF(MED, this, "unknown message_id %d", event->message_id);
       }
       event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
     }
@@ -448,7 +455,7 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
   matrix3 *fac_cal_corr_mat = NULL;
   uint32_t flush_period_buffer_usec = 0;
 
-  SNS_INST_PRINTF(LOW, this, "set_client_cfg msg_id %d", client_request->message_id);
+  LSM6DS3_INST_PRINTF(LOW, this, "set_client_cfg msg_id %d", client_request->message_id);
 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle,
@@ -469,7 +476,7 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
     desired_sample_rate = payload->desired_sample_rate;
     desired_report_rate = payload->desired_report_rate;
 
-    SNS_INST_PRINTF(LOW, this, "rr %d  sr %d", (uint32_t)desired_report_rate, (uint32_t)desired_sample_rate);
+    LSM6DS3_INST_PRINTF(LOW, this, "rr %d  sr %d", (uint32_t)desired_report_rate, (uint32_t)desired_sample_rate);
 
     if(desired_report_rate > desired_sample_rate)
     {
@@ -540,7 +547,7 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
       desired_wmk = LSM6DS3_MAX_FIFO;
     }
 
-    SNS_INST_PRINTF(LOW, this, "desired_wmk %u", desired_wmk);
+    LSM6DS3_INST_PRINTF(LOW, this, "desired_wmk %u", desired_wmk);
 
     if(state->md_info.enable_md_int)
     {
@@ -579,18 +586,21 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
     {
       fac_cal_bias = state->accel_registry_cfg.fac_cal_bias;
       fac_cal_corr_mat = &state->accel_registry_cfg.fac_cal_corr_mat;
+      state->accel_registry_cfg.version = payload->registry_cfg.version;
     }
     else if(LSM6DS3_GYRO == payload->registry_cfg.sensor_type
             && payload->registry_cfg.version >= state->gyro_registry_cfg.version)
     {
       fac_cal_bias = state->gyro_registry_cfg.fac_cal_bias;
       fac_cal_corr_mat = &state->gyro_registry_cfg.fac_cal_corr_mat;
+      state->gyro_registry_cfg.version = payload->registry_cfg.version;
     }
     else if(LSM6DS3_SENSOR_TEMP == payload->registry_cfg.sensor_type
             && payload->registry_cfg.version >= state->sensor_temp_registry_cfg.version)
     {
       fac_cal_bias = state->sensor_temp_registry_cfg.fac_cal_bias;
       fac_cal_corr_mat = &state->sensor_temp_registry_cfg.fac_cal_corr_mat;
+      state->sensor_temp_registry_cfg.version = payload->registry_cfg.version;
     }
 
     if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat)

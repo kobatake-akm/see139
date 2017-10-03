@@ -249,7 +249,7 @@ static void ak0991x_get_mag_config(
 #ifdef AK0991X_ENABLE_DEBUG_MSG
                                    sns_sensor const *this,
 #endif
-																	 sns_sensor_instance *instance,
+                                   sns_sensor_instance *instance,
                                    float *chosen_sample_rate,
                                    float *chosen_report_rate,
                                    uint32_t *chosen_flush_period,
@@ -278,7 +278,7 @@ static void ak0991x_get_mag_config(
 #ifdef AK0991X_ENABLE_DEBUG_MSG
           this,
 #endif
-					request, &decoded_request, &decoded_payload))
+          request, &decoded_request, &decoded_payload))
       {
         float report_rate;
         uint32_t flush_period;
@@ -1676,7 +1676,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             if (state->hw_is_present)
             {
 #ifdef AK0991X_ENABLE_ALL_ATTRIBUTES
-            	ak0991x_publish_hw_attributes(this,state->device_select);
+              ak0991x_publish_hw_attributes(this,state->device_select);
 #endif
               ak0991x_sensor_publish_available(this);
               AK0991X_PRINT(MED, this, "AK0991X HW present. device_select: %u",

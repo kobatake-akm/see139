@@ -14,6 +14,7 @@
 #include "sns_data_stream.h"
 #include "sns_sensor_instance.h"
 #include "sns_time.h"
+#include "sns_printf.h"
 
 #include "sns_sensor_uid.h"
 
@@ -32,6 +33,22 @@
 
 /** Forward Declaration of Instance API */
 sns_sensor_instance_api lsm6ds3_sensor_instance_api;
+
+// Enable below macro to enable driver debug messages
+//#define LSM6DS3_ENABLE_DEBUG_MSG
+
+#ifdef LSM6DS3_ENABLE_DEBUG_MSG
+/** TODO: consider removing unsed parameters from these macros like diag, file, line. */
+#define LSM6DS3_PRINTF(prio, sensor, ...) do { \
+  SNS_PRINTF(prio, sensor, __VA_ARGS__); \
+} while (0)
+#define LSM6DS3_INST_PRINTF(prio, inst, ...) do { \
+  SNS_INST_PRINTF(prio, inst , __VA_ARGS__); \
+} while (0)
+#else  //LSM6DS3_ENABLE_DEBUG_MSG
+#define LSM6DS3_PRINTF(sensor,...)
+#define LSM6DS3_INST_PRINTF(inst,...)
+#endif  //LSM6DS3_ENABLE_DEBUG_MSG
 
 /** Number of registers to read for debug */
 #define LSM6DS3_DEBUG_REGISTERS          (32)
@@ -152,11 +169,30 @@ typedef enum
   LSM6DS3_CONFIG_UPDATING_HW      /** updating sensor HW, when done goes back to IDLE */
 } lsm6ds3_config_step;
 
+typedef enum
+{
+  LSM6DS3_TEST_NO_ERROR,
+  LSM6DS3_FAC_TEST_HIGH_BIAS,
+  LSM6DS3_FAC_TEST_DEV_NOT_STATIONARY,
+  LSM6DS3_FAC_TEST_ZERO_VARIANCE
+} lsm6ds3_test_err_code;
+
 typedef struct lsm6ds3_self_test_info
 {
   sns_physical_sensor_test_type test_type;
   bool test_client_present;
 } lsm6ds3_self_test_info;
+
+typedef struct lsm6ds3_factory_test_info
+{
+  int32_t num_samples;             /** number of samples acquired */
+  float variance_threshold;        /** stationary detect variance threshold */
+  float variance[TRIAXIS_NUM];          /** variance */
+  float sample_square_sum[TRIAXIS_NUM]; /** sum of square of sample data */
+  float sample_sum[TRIAXIS_NUM];        /** sum of sample data */
+  float bias_thresholds[TRIAXIS_NUM];
+  bool at_rest;
+} lsm6ds3_factory_test_info;
 
 /** HW FIFO information */
 typedef struct lsm6ds3_fifo_info
@@ -311,6 +347,9 @@ typedef struct lsm6ds3_instance_state
   bool instance_is_ready_to_configure;
   bool fifo_flush_in_progress;
   bool new_self_test_request;
+  bool fac_test_in_progress;
+  lsm6ds3_factory_test_info fac_test_info;
+  lsm6ds3_sensor_type fac_test_sensor;
   bool update_fac_cal_in_registry;
 
   size_t log_interrupt_encoded_size;
@@ -349,4 +388,11 @@ sns_rc lsm6ds3_inst_deinit(sns_sensor_instance *const this);
  * @return none
  */
 void lsm6ds3_run_self_test(sns_sensor_instance *instance);
+
+/**
+ * Processes results for factory test for accel and gyro.
+ *
+ * @param[i] instance   reference to instance
+ */
+void lsm6ds3_process_fac_test(sns_sensor_instance *instance);
 

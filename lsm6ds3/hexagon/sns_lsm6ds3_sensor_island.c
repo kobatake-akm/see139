@@ -24,6 +24,7 @@
 
 #include "sns_lsm6ds3_hal.h"
 #include "sns_lsm6ds3_sensor.h"
+#include "sns_lsm6ds3_sensor_instance.h"
 
 #include "pb_decode.h"
 #include "pb_encode.h"
@@ -35,7 +36,6 @@
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
 #include "sns_registry.pb.h"
-#include "sns_printf.h"
 
 static sns_sensor_uid const* lsm6ds3_accel_get_sensor_uid(sns_sensor const *const this)
 {
@@ -87,8 +87,10 @@ void lsm6ds3_start_power_rail_timer(sns_sensor *const this,
   {
     sns_service_manager *smgr = this->cb->get_service_manager(this);
     sns_stream_service *stream_svc = (sns_stream_service*)smgr->get_service(smgr, SNS_STREAM_SERVICE);
-    stream_svc->api->create_sensor_stream(stream_svc, this, state->common.timer_suid,
-                                          &state->timer_stream);
+    sns_sensor_uid suid;
+
+    sns_suid_lookup_get(&state->common.suid_lookup_data, "timer", &suid);
+    stream_svc->api->create_sensor_stream(stream_svc, this, suid, &state->timer_stream);
   }
 
   req_len = pb_encode_request(buffer, sizeof(buffer), &req_payload,
@@ -135,43 +137,19 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
   sns_rc rv = SNS_RC_SUCCESS;
   sns_sensor_event *event;
 
-  if(state->fw_stream)
+  if(!sns_suid_lookup_complete(&state->common.suid_lookup_data))
   {
-    if(sns_sensor_uid_compare(&state->common.irq_suid, &((sns_sensor_uid){{0}}))
-       || sns_sensor_uid_compare(&state->common.acp_suid, &((sns_sensor_uid){{0}}))
-       || sns_sensor_uid_compare(&state->common.timer_suid, &((sns_sensor_uid){{0}}))
-       || sns_sensor_uid_compare(&state->common.dae_suid, &((sns_sensor_uid){{0}}))
-       || sns_sensor_uid_compare(&state->common.reg_suid, &((sns_sensor_uid){{0}})))
+    state->island_service->api->sensor_island_exit(state->island_service, this);
+    sns_suid_lookup_handle(this, &state->common.suid_lookup_data);
+
+    if(sns_suid_lookup_get(&state->common.suid_lookup_data, "registry", NULL))
     {
-      /** All SUID events can be handled in normal mode. */
-      state->island_service->api->sensor_island_exit(state->island_service, this);
-
-      lsm6ds3_process_suid_events(this);
-
-      if(!sns_sensor_uid_compare(&state->common.reg_suid, &((sns_sensor_uid){{0}})))
-      {
-        lsm6ds3_request_registry(this);
-      }
+      lsm6ds3_request_registry(this);
     }
 
-    /** check if the SUID sensor stream can be removed. */
-    if(!sns_sensor_uid_compare(&state->common.reg_suid, &((sns_sensor_uid){{0}})))
-          {
-      /** Non-accel sensors only request for registry SUID. */
-      if(state->sensor != LSM6DS3_ACCEL)
-          {
-        sns_sensor_util_remove_sensor_stream(this, &state->fw_stream);
-          }
-      else
-          {
-        if(!sns_sensor_uid_compare(&state->common.irq_suid, &((sns_sensor_uid){{0}}))
-           && !sns_sensor_uid_compare(&state->common.acp_suid, &((sns_sensor_uid){{0}}))
-           && !sns_sensor_uid_compare(&state->common.timer_suid, &((sns_sensor_uid){{0}}))
-           && !sns_sensor_uid_compare(&state->common.dae_suid, &((sns_sensor_uid){{0}})))
-          {
-          sns_sensor_util_remove_sensor_stream(this, &state->fw_stream);
-        }
-      }
+    if(sns_suid_lookup_complete(&state->common.suid_lookup_data))
+    {
+      sns_suid_lookup_deinit(this, &state->common.suid_lookup_data);
     }
   }
 
@@ -204,7 +182,7 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
             else
             {
               rv = SNS_RC_INVALID_LIBRARY_STATE;
-              SNS_PRINTF(LOW, this, "LSM6DS3 HW absent");
+              LSM6DS3_PRINTF(LOW, this, "LSM6DS3 HW absent");
             }
             state->power_rail_pend_state = LSM6DS3_POWER_RAIL_PENDING_NONE;
           }
@@ -252,7 +230,7 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
     }
   }
 
-  if(!sns_sensor_uid_compare(&state->common.timer_suid, &((sns_sensor_uid){{0}})) &&
+  if(sns_suid_lookup_get(&state->common.suid_lookup_data, "timer", NULL) &&
      state->common.registry_pf_cfg_received && state->common.registry_cfg_received &&
      state->common.registry_orient_received && state->common.registry_placement_received)
   {
@@ -435,6 +413,10 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
         {
           report_rate = (1000000.0f / (float)decoded_request.batching.batch_period);
         }
+        else
+        {
+          report_rate = decoded_payload.sample_rate;
+        }
 
         *chosen_report_rate = SNS_MAX(*chosen_report_rate,
                                       report_rate);
@@ -455,17 +437,17 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
   }
 
   /** If there is a client for the sensor and
-   *  if max_batch or flush_only are set in all requests then choose the largest WM. */
-  if(is_max_batch || is_flush_only)
+   *  if max_batch is set in all requests then choose the largest WM. */
+  if(is_max_batch)
   {
     if(*non_gated_sensor_client_present ||
        (gated_sensor_client_present && *gated_sensor_client_present))
     {
-    *chosen_report_rate = (1.0f / UINT32_MAX);
-  }
+      *chosen_report_rate = (1.0f / UINT32_MAX);
+    }
   }
 
-  SNS_PRINTF(LOW, this, "is_flush_only %u is_max_batch %d",
+  LSM6DS3_PRINTF(LOW, this, "is_flush_only %u is_max_batch %d",
              is_flush_only, is_max_batch);
 }
 
@@ -582,6 +564,10 @@ static void lsm6ds3_get_sensor_temp_config(sns_sensor *this,
         {
           report_rate = (1000000.0 / (float)decoded_request.batching.batch_period);
         }
+        else
+        {
+          report_rate = decoded_payload.sample_rate;
+        }
 
         if(decoded_request.has_batching)
         {
@@ -615,7 +601,7 @@ static void lsm6ds3_get_sensor_temp_config(sns_sensor *this,
   }
 
   if(*sensor_temp_client_present &&
-     (is_max_batch || is_flush_only))
+     (is_max_batch))
     {
       *chosen_report_rate = (1.0f / UINT32_MAX);
     }
@@ -774,14 +760,14 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
 
   inst_state->accel_info.gated_client_present = a_sensor_client_present_gated;
 
-  SNS_PRINTF(LOW, this, "Accel: rr %u sr %u f_p %u gated_present %u",
+  LSM6DS3_PRINTF(LOW, this, "Accel: rr %u sr %u f_p %u gated_present %u",
              (uint32_t)chosen_report_rate, (uint32_t)chosen_sample_rate,
              (uint32_t)chosen_flush_period_ticks, a_sensor_client_present_gated);
 
   lsm6ds3_get_imu_config(this, instance, LSM6DS3_GYRO, &sample_rate,
             &report_rate, &flush_period_ticks, &g_sensor_client_present, NULL);
 
-  SNS_PRINTF(LOW, this, "Gyro: rr %u sr %u f_p %u",
+  LSM6DS3_PRINTF(LOW, this, "Gyro: rr %u sr %u f_p %u",
              (uint32_t)report_rate, (uint32_t)sample_rate,
              (uint32_t)flush_period_ticks);
 
@@ -809,7 +795,7 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
              &flush_period_ticks, &sensor_temp_client_present);
   inst_state->sensor_temp_info.max_requested_flush_ticks = flush_period_ticks;
 
-  SNS_PRINTF(LOW, this, "Sensor temp: rr %u sr %u f_p %u",
+  LSM6DS3_PRINTF(LOW, this, "Sensor temp: rr %u sr %u f_p %u",
              (uint32_t)report_rate, (uint32_t)sample_rate,
              (uint32_t)flush_period_ticks);
 
@@ -860,6 +846,7 @@ void lsm6ds3_reval_instance_config(sns_sensor *this,
 
     sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
                 &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
+    registry_cfg.version = state->fac_cal_version;
   }
 
   lsm6ds3_set_inst_config(this,
@@ -883,7 +870,7 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
   sns_time delta;
   bool reval_config = false;
 
-  SNS_PRINTF(LOW, this, "set_client_req 0x%X  0x%X  %d", exist_request, new_request, remove);
+  LSM6DS3_PRINTF(LOW, this, "set_client_req 0x%X  0x%X  %d", exist_request, new_request, remove);
 
   if(remove)
   {
@@ -1055,8 +1042,9 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
     {
       /** Registry write can be handled in normal mode. */
       state->island_service->api->sensor_island_exit(state->island_service, this);
-      /** Example code for registry write operation. */
+      /** Update factory cal data in the registry. */
       lsm6ds3_update_registry(this, instance, LSM6DS3_ACCEL);
+      lsm6ds3_update_registry(this, instance, LSM6DS3_GYRO);
       lsm6ds3_update_sensor_state(this, instance);
     }
     this->cb->remove_instance(instance);

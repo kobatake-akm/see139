@@ -71,6 +71,32 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
+static void ak0991x_process_com_port_vector(sns_port_vector *vector,
+                                     void *user_arg)
+{
+  sns_sensor_instance *instance = (sns_sensor_instance *)user_arg;
+
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+
+  if (AKM_AK0991X_REG_HXL == vector->reg_addr)
+  {
+    sns_time first_timestamp = state->interrupt_timestamp 
+                               - (state->averaged_interval * (state->num_samples - 1));
+
+    ak0991x_process_mag_data_buffer(instance,
+                                    first_timestamp,
+                                    state->averaged_interval,
+                                    vector->buffer,
+                                    vector->bytes);
+
+
+      state->this_is_first_data = false;
+      state->pre_timestamp = state->interrupt_timestamp;
+  }
+}
+
+
+
 /** See sns_sensor_instance_api::notify_event */
 static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 {
@@ -206,7 +232,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
-        sns_ascp_for_each_vector_do(&stream, ak0991x_process_mag_data_buffer, (void *)this);
+        sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
