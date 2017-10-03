@@ -22,7 +22,7 @@
  */
 
 // TODO:1 Enable below macro to set SEE Lite mode
-//#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
+#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
 
 #ifdef AK0991X_ENABLE_SEE_LITE
 // SEE-Lite Mode. Require to select a target device and configure mode setting.

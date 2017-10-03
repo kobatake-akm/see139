@@ -199,9 +199,7 @@ typedef struct ak0991x_instance_state
   bool this_is_first_data;
   bool data_over_run;
   bool re_read_data_after_ascp;
-#ifdef AK0991X_ENABLE_FIFO
   bool fifo_flush_in_progress;
-#endif
   bool new_self_test_request;
   bool config_mag_after_ascp_xfer;
   sns_time averaged_interval;

@@ -470,7 +470,6 @@ float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr);
  */
 sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr);
 
-#ifdef AK0991X_ENABLE_DAE
 /**
  * Process a fifo buffer and extracts mag samples from the buffer
  * and generates event.
@@ -487,7 +486,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                                      sns_time            interval,
                                      uint8_t             *fifo,
                                      size_t              num_bytes);
-#endif //AK0991X_ENABLE_DAE
 
 #ifdef AK0991X_ENABLE_FIFO
 /**

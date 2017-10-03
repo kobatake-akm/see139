@@ -71,6 +71,7 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
+#ifdef AK0991X_ENABLE_DRI
 static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                      void *user_arg)
 {
@@ -94,8 +95,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
       state->pre_timestamp = state->interrupt_timestamp;
   }
 }
-
-
+#endif
 
 /** See sns_sensor_instance_api::notify_event */
 static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
