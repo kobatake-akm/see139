@@ -118,7 +118,7 @@
 #define AK09917_FIFO_SIZE                           32
 #define AK09918_FIFO_SIZE                           0
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
-                                                      AK0991X_NUM_DATA_HXL_TO_ST2 + 1
+                                                      AK0991X_NUM_DATA_HXL_TO_ST2
 
 /** Off to idle time */
 #define AK0991X_OFF_TO_IDLE_MS                      100 //ms
