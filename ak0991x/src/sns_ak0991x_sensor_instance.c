@@ -108,7 +108,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_DAE)
   sns_stream_service  *stream_mgr = (sns_stream_service *)
 #endif
-      service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+    service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   uint64_t buffer[10];
   pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)buffer, sizeof(buffer));
