@@ -1043,10 +1043,9 @@ TEST_SEQUENCE_FAILED:
 }
 
 /**
- * Read ST1 register data.
+ * Read ST1(10h) register data.
  *
  * @param[i] state                    Instance state
- * @param[i] port_handle              handle to synch COM port
  * @param[o] buffer                   st1 register data
  *
  * @return sns_rc
@@ -1054,14 +1053,13 @@ TEST_SEQUENCE_FAILED:
  * SNS_RC_SUCCESS
  */
 static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
-                               sns_sync_com_port_handle *port_handle,
                                uint8_t *buffer)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
   rv = ak0991x_com_read_wrapper(state->scp_service,
-                                port_handle,
+                                state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
                                 1,
@@ -1075,28 +1073,27 @@ static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
   return rv;
 }
 
+
 /**
- * Get all fifo data.
+ * Read HXL(11h) to ST2(18h) register data.
  *
  * @param[i] state                    Instance state
- * @param[i] port_handle              handle to synch COM port
  * @param[i] num_samples              number of samples
- * @param[o] buffer                   fifo data
+ * @param[o] buffer                   st1 register data
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-static sns_rc ak0991x_get_all_fifo_data(ak0991x_instance_state *state,
-                                        sns_sync_com_port_handle *port_handle,
-                                        uint16_t num_samples,
-                                        uint8_t *buffer)
+static sns_rc ak0991x_read_hxl_st2(ak0991x_instance_state *state,
+                                   uint16_t num_samples,
+                                   uint8_t *buffer)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
   rv = ak0991x_com_read_wrapper(state->scp_service,
-                                port_handle,
+                                state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_HXL,
                                 buffer,
                                 (uint32_t)(num_samples * AK0991X_NUM_DATA_HXL_TO_ST2),
@@ -1111,35 +1108,80 @@ static sns_rc ak0991x_get_all_fifo_data(ak0991x_instance_state *state,
 }
 
 /**
- * Get fifo data for 1 sample.
+ * Read all fifo data.
  *
+ * @param[i] state                    Instance state
  * @param[i] port_handle              handle to synch COM port
+ * @param[i] num_samples              number of samples
  * @param[o] buffer                   fifo data
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-static sns_rc ak0991x_get_fifo_data(ak0991x_instance_state *state,
-                                    sns_sync_com_port_handle *port_handle,
-                                    uint8_t *buffer)
+static void ak0991x_read_all_fifo_data(sns_sensor_instance *const instance,
+                                       uint16_t *num_samples,
+                                       uint8_t *buffer)
 {
-  sns_rc   rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                port_handle,
-                                AKM_AK0991X_REG_HXL,
-                                buffer,
-                                AK0991X_NUM_DATA_HXL_TO_ST2,
-                                &xfer_bytes);
-
-  if (xfer_bytes != AK0991X_NUM_DATA_HXL_TO_ST2)
+  if (state->mag_info.device_select == AK09917)
   {
-    rv = SNS_RC_FAILED;
-  }
+    //In case of AK09917, Read ST1 register to check FIFO samples
+    uint8_t st1_buf = 0;
+    if (SNS_RC_SUCCESS == ak0991x_read_st1(state, &st1_buf))
+    {
+      *num_samples = st1_buf >> 2;
+      AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x", *num_samples, st1_buf);
+      if (*num_samples > 0)
+      {
+        /*Number of bytes reading from sync-com-port should be less than AK0991X_MAX_FIFO_SIZE*/
+        if ((*num_samples * AK0991X_NUM_DATA_HXL_TO_ST2) > AK0991X_MAX_FIFO_SIZE)
+        {
+          SNS_INST_PRINTF(ERROR, instance,
+              "FIFO size should not be greater than AK0991X_MAX_FIFO_SIZE."
+              "So, num_samples to read limiting to max value");
+          *num_samples = (AK0991X_MAX_FIFO_SIZE / AK0991X_NUM_DATA_HXL_TO_ST2);
+        }
 
-  return rv;
+        // Read fifo buffer(HXL to ST2 register)
+        if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state, *num_samples, &buffer[0]))
+        {
+          SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
+        }
+      }
+    }
+    else
+    {
+      SNS_INST_PRINTF(ERROR, instance, "Error in reading length of the FIFO");
+    }
+  }
+  else
+  {
+    //Continue reading until fifo buffer is clear
+    //because there is no way to check FIFO samples for AK09915C/D.
+    uint8_t i;
+    for (i = 0; i < state->mag_info.max_fifo_size; i++)
+    {
+      //Read fifo buffer(HXL to ST2 register)
+      if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state,
+                                                 1,
+                                                 &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]))
+      {
+        SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
+      }
+
+      if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
+      {
+        //fifo buffer is clear
+        break;
+      }
+      else
+      {
+        (*num_samples)++;
+      }
+    }
+  }
 }
 
 /**
@@ -1405,12 +1447,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 //#endif
   for(i = 0; i < num_bytes; i += 8)
   {
-    // check if there's valid data in FIFO
-    if ((fifo_start[i + 7] & AK0991X_INV_FIFO_DATA) && (state->mag_info.use_fifo))
-    {
-      break;
-    }
-
     sns_time timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     ak0991x_handle_mag_sample(&fifo_start[i],
                               timestamp,
@@ -1494,8 +1530,7 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint8_t st1_buf;
 
-  ak0991x_read_st1(state,state->com_port_info.port_handle,
-                   &st1_buf);
+  ak0991x_read_st1(state, &st1_buf);
 
   state->num_samples = 1;
 
@@ -1541,73 +1576,19 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
 #endif
 
-  if(state->mag_info.device_select == AK09917)
-  {
-    uint8_t st1_buf=0;
-    //In case of AK09917,
-    //Read ST1 register to check FIFO samples
-    if(SNS_RC_SUCCESS == ak0991x_read_st1(state,
-       state->com_port_info.port_handle,
-       &st1_buf))
-    {
-      num_samples = st1_buf >> 2;
-      AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
-      if(num_samples > 0)
-      {
-        /*Number of bytes reading from sync-com-port should be less than AK0991X_MAX_FIFO_SIZE*/
-        if((num_samples*AK0991X_NUM_DATA_HXL_TO_ST2)>AK0991X_MAX_FIFO_SIZE)
-        {
-          SNS_INST_PRINTF(ERROR, instance,
-            "FIFO size should not be greater than AK0991X_MAX_FIFO_SIZE."
-            "So, num_samples to read limiting to max value");
-          num_samples = (AK0991X_MAX_FIFO_SIZE/AK0991X_NUM_DATA_HXL_TO_ST2);
-        }
-        //Read continuously all data in FIFO at one time.
-        ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
-                                  num_samples,&buffer[0]);
-      }
-    }
-    else
-    {
-      SNS_INST_PRINTF(ERROR, instance, "Error in reading length of the FIFO");
-    }
-  }
-  else
-  {
-    //Continue reading until fifo buffer is clear
-    for (i = 0; i < state->mag_info.max_fifo_size; i++)
-    {
-      ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
-                            &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
-
-      if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
-      {
-        //fifo buffer is clear
-        break;
-      }
-      else
-      {
-        num_samples++;
-      }
-    }
-  }
+  ak0991x_read_all_fifo_data(instance, &num_samples, &buffer[0]);
 
   if (num_samples != 0)
   {
     state->num_samples = num_samples;
     ak0991x_validate_timestamp(instance);
-  }
-
-  sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-
-  if (num_samples != 0)
-  {
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
     // Allocate log packet memory only if there are samples to flush
     ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
   }
 
+  sns_time sample_interval_ticks = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
   for (i = 0; i < num_samples; i++)
   {
@@ -1837,8 +1818,6 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
-  sns_rc   rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
   uint8_t  buffer[AK0991X_MAX_FIFO_SIZE];
   uint16_t num_samples =  0;
   uint8_t  i;
@@ -1850,45 +1829,7 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
 
   if (state->mag_info.use_fifo)
   {
-    if (state->mag_info.device_select == AK09917)
-    {
-      uint8_t st1_buf;
-      //In case of AK09917,
-      //Read ST1 register to check FIFO samples
-      ak0991x_read_st1(state,state->com_port_info.port_handle,
-                       &st1_buf);
-
-      num_samples = st1_buf >> 2;
-      AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x",num_samples,st1_buf );
-
-      if(num_samples > 0)
-      {
-        //Read continuously all data in FIFO at one time.
-        //TODO: FIFO read should happen through async_com_port
-        ak0991x_get_all_fifo_data(state,state->com_port_info.port_handle,
-                                  num_samples, &buffer[0]);
-      }
-    }
-    else
-    {
-      //Continue reading until fifo buffer is clear
-      //TODO: Check FIFO length and read fifo data at one go
-      for (i = 0; i < state->mag_info.max_fifo_size; i++)
-      {
-        ak0991x_get_fifo_data(state,state->com_port_info.port_handle,
-                              &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]);
-
-        if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
-        {
-          //fifo buffer is clear
-          break;
-        }
-        else
-        {
-          num_samples++;
-        }
-      }
-    }
+    ak0991x_read_all_fifo_data(instance, &num_samples, &buffer[0]);
 
     sns_time timer_interval_ticks;
     timer_interval_ticks = (timestamp - state->pre_timestamp) / (state->mag_info.cur_wmk + 1);
@@ -1949,31 +1890,16 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance)
   }
   else
   {
-  // Read register ST1->ST2
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                state->com_port_info.port_handle,
-                                AKM_AK0991X_REG_ST1,
-                                &buffer[0],
-                                AK0991X_NUM_DATA_ST1_TO_ST2,
-                                &xfer_bytes);
+    // Read register HXL->ST2
+    ak0991x_read_hxl_st2(state, 1, &buffer[0]);
 
-  if (xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
-  {
-    rv = SNS_RC_FAILED;
-  }
-
-  if (rv != SNS_RC_SUCCESS)
-  {
-    return rv;
-  }
-
-  ak0991x_handle_mag_sample(&buffer[1],
-                            timestamp,
-                            instance,
-                            event_service,
-                            state,
-                            &log_mag_state_raw_info
-                            );
+    ak0991x_handle_mag_sample(&buffer[0],
+                              timestamp,
+                              instance,
+                              event_service,
+                              state,
+                              &log_mag_state_raw_info
+                              );
   }
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
