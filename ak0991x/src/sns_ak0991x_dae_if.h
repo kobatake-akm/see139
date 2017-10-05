@@ -15,8 +15,6 @@
 
 #include "sns_ak0991x_lite.h"
 
-#ifdef AK0991X_ENABLE_DAE
-
 #include <stdint.h>
 #include "sns_sensor_instance.h"
 #include "sns_data_stream.h"
@@ -37,6 +35,7 @@ typedef enum
 
 typedef struct
 {
+#ifdef AK0991X_ENABLE_DAE
   struct sns_data_stream *stream;
   const sns_sensor_uid   *suid; /* for diag print purpose */
   const char             *nano_hal_vtable_name;
@@ -44,6 +43,9 @@ typedef struct
   bool                   stream_usable:1;
   bool                   flushing_hw:1;
   bool                   flushing_data:1;
+#else
+  ak0991x_dae_if_state   state;
+#endif
 } ak0991x_dae_stream;
 
 typedef struct ak0991x_dae_if_info
@@ -72,5 +74,3 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this);
 bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this);
 
 void ak0991x_dae_if_process_events(sns_sensor_instance *this);
-
-#endif // AK0991X_ENABLE_DAE

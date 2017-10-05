@@ -14,8 +14,6 @@
 
 #include "sns_ak0991x_dae_if.h"
 
-#ifdef AK0991X_ENABLE_DAE
-
 #include "sns_mem_util.h"
 #include "sns_service_manager.h"
 #include "sns_stream_service.h"
@@ -47,6 +45,7 @@
 /*======================================================================================
   Helper Functions
   ======================================================================================*/
+#ifdef AK0991X_ENABLE_DAE
 static bool stream_usable(ak0991x_dae_stream *dae_stream)
 {
   return (NULL != dae_stream->stream && dae_stream->stream_usable);
@@ -102,13 +101,13 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
 //  if(mag_info->use_fifo)
 //  {
 //    if(mag_info->device_select == AK09917)
-//      config_req.expected_get_data_bytes = mag_info->cur_wmk * 6 + 1;
+//      config_req.expected_get_data_bytes = mag_info->cur_wmk * AK0991X_NUM_DATA_HXL_TO_ST2 + 1;
 //    else
-//      config_req.expected_get_data_bytes = mag_info->max_fifo_size * 6 + 1;
+//      config_req.expected_get_data_bytes = mag_info->max_fifo_size * AK0991X_NUM_DATA_HXL_TO_ST2 + 1;
 //  }
 //  else
 //  {
-//    config_req.expected_get_data_bytes = 6 + 1;
+//    config_req.expected_get_data_bytes = AK0991X_NUM_DATA_ST1_TO_ST2;
 //  }
 
   if((req.request_len =
@@ -437,6 +436,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 #endif
   }
 }
+#endif
 
 /*======================================================================================
   Public Functions
@@ -444,8 +444,13 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 /* ------------------------------------------------------------------------------------ */
 bool ak0991x_dae_if_available(sns_sensor_instance *this)
 {
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
   return (dae_if->mag.stream != NULL && dae_if->mag.stream_usable);
+#else
+  UNUSED_VAR(this);
+  return false;
+#endif
 }
 
 /* ------------------------------------------------------------------------------------ */
@@ -455,8 +460,9 @@ sns_rc ak0991x_dae_if_init(
   sns_sensor_uid       *dae_suid,
   sns_sensor_uid const *parent_suid)
 {
-  AK0991X_INST_PRINT(LOW, this,"line=%d dae_if_init",__LINE__);
   sns_rc rc = SNS_RC_NOT_AVAILABLE;
+#ifdef AK0991X_ENABLE_DAE
+  AK0991X_INST_PRINT(LOW, this,"line=%d dae_if_init",__LINE__);
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info* dae_if = &state->dae_if;
   sns_dae_set_static_config config_req = sns_dae_set_static_config_init_default;
@@ -539,24 +545,35 @@ sns_rc ak0991x_dae_if_init(
     dae_if->mag.stream_usable   = true;
 
   }
-
+#else
+  UNUSED_VAR(this);
+  UNUSED_VAR(stream_mgr);
+  UNUSED_VAR(dae_suid);
+  UNUSED_VAR(parent_suid);
+#endif
   return rc;
 }
 
 /* ------------------------------------------------------------------------------------ */
 void ak0991x_dae_if_deinit(ak0991x_instance_state *state, sns_stream_service *stream_mgr)
 {
+#ifdef AK0991X_ENABLE_DAE
   if(NULL != state->dae_if.mag.stream)
   {
     stream_mgr->api->remove_stream(stream_mgr, state->dae_if.mag.stream);
     state->dae_if.mag.stream = NULL;
   }
+#else
+  UNUSED_VAR(state);
+  UNUSED_VAR(stream_mgr);
+#endif
 }
 
 /* ------------------------------------------------------------------------------------ */
 bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info    *dae_if = &state->dae_if;
 
@@ -566,7 +583,9 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
     AK0991X_INST_PRINT(LOW, this,"stopping mag stream=0x%x", &dae_if->mag.stream);
     cmd_sent |= stop_streaming(&dae_if->mag);
   }
-
+#else
+  UNUSED_VAR(this);
+#endif
   return cmd_sent;
 }
 
@@ -574,6 +593,7 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
 bool ak0991x_dae_if_start_streaming(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info    *dae_if = &state->dae_if;
 
@@ -583,6 +603,9 @@ bool ak0991x_dae_if_start_streaming(sns_sensor_instance *this)
     cmd_sent |= send_mag_config(&dae_if->mag, &state->mag_info);
   }
 
+#else
+  UNUSED_VAR(this);
+#endif
   return cmd_sent;
 }
 
@@ -590,6 +613,7 @@ bool ak0991x_dae_if_start_streaming(sns_sensor_instance *this)
 bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
@@ -597,6 +621,9 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
   {
     cmd_sent |= flush_hw(&dae_if->mag);
   }
+#else
+  UNUSED_VAR(this);
+#endif
   return cmd_sent;
 }
 
@@ -604,6 +631,7 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
 bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
@@ -615,13 +643,16 @@ bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this)
     }
     cmd_sent |= dae_if->mag.flushing_data;
   }
-
+#else
+  UNUSED_VAR(this);
+#endif
   return cmd_sent;
 }
 
 /* ------------------------------------------------------------------------------------ */
 void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 {
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
   process_events(this, &state->dae_if.mag);
@@ -634,6 +665,7 @@ void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 
     ak0991x_dae_if_deinit(state, stream_mgr);
   }
+#else
+  UNUSED_VAR(this);
+#endif
 }
-#endif // AK0991X_ENABLE_DAE
-

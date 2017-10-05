@@ -102,13 +102,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
-
-#ifdef AK0991X_ENABLE_DRI
-  sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
-  sns_diag_service    *diag = state->diag_service;
-#endif // AK0991X_ENABLE_DIAG_LOGGING
-#endif // AK0991X_ENABLE_DRI
   sns_sensor_event    *event;
 
   // Turn COM port ON
@@ -116,12 +109,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     state->com_port_info.port_handle,
     true);
 
-#ifdef AK0991X_ENABLE_DAE
   ak0991x_dae_if_process_events(this);
-#endif
 
 #ifdef AK0991X_ENABLE_DRI
   // Handle interrupts
+  sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
   if (NULL != state->interrupt_data_stream)
   {
     event = state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
@@ -140,63 +132,38 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-#ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
-          sns_gpio_state gpio_state = ak0991x_read_gpio(this, state->irq_info.irq_config.interrupt_num,
-                                      state->irq_info.irq_config.is_chip_pin);
 
-          // check GPIO interrupt pin status
-          if( (state->irq_info.irq_config.interrupt_trigger_type == SNS_INTERRUPT_TRIGGER_TYPE_FALLING && gpio_state == SNS_GPIO_STATE_LOW) ||
-              (state->irq_info.irq_config.interrupt_trigger_type == SNS_INTERRUPT_TRIGGER_TYPE_RISING && gpio_state == SNS_GPIO_STATE_HIGH))
+          // Check if the ak0991x_inst_notify_event is an actual DRDY event or not.
+          if( ak0991x_is_drdy(this) && (state->ascp_xfer_in_progress == 0))
           {
-#endif // AK0991X_ENABLE_CHECK_DRI_GPIO
-
-#ifdef AK0991X_ENABLE_CHECK_REG_ST1
-            // Check if the ak0991x_inst_notify_event is an actual DRDY event or not.
-            if( ak0991x_is_drdy(this) && (state->ascp_xfer_in_progress == 0))
+            state->irq_event_time = irq_event.timestamp;
+            state->irq_info.detect_irq_event = true; // detect interrupt
+            if ((state->mag_info.device_select != AK09917) && (state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
             {
-#endif // AK0991X_ENABLE_CHECK_REG_ST1
-              state->irq_info.irq_count++;
-              state->irq_event_time = irq_event.timestamp;
-              state->irq_info.detect_irq_event = true; // detect interrupt
-#ifdef AK0991X_ENABLE_FIFO
-              if ((state->mag_info.device_select != AK09917) && (state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
-              {
-                ak0991x_flush_fifo(this);
-              }
-              else if(state->mag_info.use_fifo && state->data_over_run)
-              {
-                ak0991x_flush_fifo(this);
-              }
-              else
-              {
-#endif // AK0991X_ENABLE_FIFO
-                ak0991x_handle_interrupt_event(this);
-#ifdef AK0991X_ENABLE_FIFO
-              }
-#endif // AK0991X_ENABLE_FIFO
-              AK0991X_INST_PRINT(LOW, this, "irq_event %u", (uint32_t)irq_event.timestamp);
-              state->irq_info.detect_irq_event = false; // clear interrupt
-
-#ifdef AK0991X_ENABLE_CHECK_REG_ST1
+              ak0991x_flush_fifo(this);
             }
-            else if (state->ascp_xfer_in_progress != 0)
+            else if(state->mag_info.use_fifo && state->data_over_run)
             {
-              state->re_read_data_after_ascp = true;
+              ak0991x_flush_fifo(this);
             }
             else
             {
-              AK0991X_INST_PRINT(ERROR, this, "DRDY is not ready. Wrong interrupt.");
+              ak0991x_handle_interrupt_event(this);
             }
-#endif
-            // Already got an interrupt event. Ignore additional events.
-            event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
+            AK0991X_INST_PRINT(LOW, this, "irq_event %u", (uint32_t)irq_event.timestamp);
+            state->irq_info.detect_irq_event = false; // clear interrupt
+          }
+          else if (state->ascp_xfer_in_progress != 0)
+          {
+            state->re_read_data_after_ascp = true;
+          }
+          else
+          {
+            AK0991X_INST_PRINT(ERROR, this, "DRDY is not ready. Wrong interrupt.");
+          }
+          // Already got an interrupt event. Ignore additional events.
+          event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
 
-#ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
-          }
-          else{
-            AK0991X_INST_PRINT(ERROR, this, "Wrong GPIO interrupt detected.");
-          }
-#endif
         }
       }
       else
@@ -225,18 +192,21 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
+        sns_diag_service    *diag = state->diag_service;
         sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
         log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
         log_mag_state_raw_info.diag = diag;
         log_mag_state_raw_info.instance = this;
         log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
         ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
-#endif
+#endif // AK0991X_ENABLE_DIAG_LOGGING
+
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
-#endif
+#endif // AK0991X_ENABLE_DIAG_LOGGING
+
         state->ascp_xfer_in_progress--;
 
         if(state->re_read_data_after_ascp && (state->ascp_xfer_in_progress == 0))
@@ -256,7 +226,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->async_com_port_data_stream);
     }
   }
-#endif
+#endif // AK0991X_ENABLE_DRI
 
   // Handle timer event
   if (NULL != state->timer_data_stream)

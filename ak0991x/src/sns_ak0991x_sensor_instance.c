@@ -105,9 +105,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     (ak0991x_state *)sstate->state;
   float               data[3];
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_DAE)
   sns_stream_service  *stream_mgr = (sns_stream_service *)
-#endif
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   uint64_t buffer[10];
@@ -382,10 +380,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
 #endif
 
-#ifdef AK0991X_ENABLE_DAE
   AK0991X_INST_PRINT(LOW, this, "before dae_if init" );
   ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid, &((sns_sensor_uid)MAG_SUID));
-#endif
 
   return SNS_RC_SUCCESS;
 }
@@ -450,9 +446,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->com_port_info.port_handle,
     true);
 
-#ifdef AK0991X_ENABLE_DAE
   AK0991X_INST_PRINT(LOW, this, "dae_if_available %d",(int)ak0991x_dae_if_available(this));
-#endif
 
   if (client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
@@ -472,16 +466,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     desired_report_rate = payload->report_rate;
 
     // Register for interrupt
-#ifdef AK0991X_ENABLE_DRI
-#ifdef AK0991X_ENABLE_DAE
     if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-#else
-    if(state->mag_info.use_dri)
-#endif
     {
       ak0991x_register_interrupt(this);
     }
-#endif //AK0991X_ENABLE_DRI
 
     if (desired_report_rate > desired_sample_rate)
     {
@@ -505,8 +493,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       state->mag_info.req_wmk = 0;
     }
-
-#ifdef AK0991X_ENABLE_FIFO
     if (state->mag_info.use_fifo)
     {
       if (desired_report_rate != 0)
@@ -541,7 +527,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           break;
       }
     }
-#endif
 
     AK0991X_INST_PRINT(LOW, this, "desired_wmk=%d",desired_wmk);
 
@@ -570,7 +555,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_req.sample_rate = mag_chosen_sample_rate;
     state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
-#ifdef AK0991X_ENABLE_DAE
     AK0991X_INST_PRINT(LOW, this, "sample_rate=%d, reg_value=%d, config_step=%d",
                        (int)mag_chosen_sample_rate,
                        (int)mag_chosen_sample_rate_reg_value,
@@ -582,14 +566,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
       state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
     }
-#endif //  AK0991X_ENABLE_DAE
 
-#ifdef AK0991X_ENABLE_DAE
     if (state->config_step == AK0991X_CONFIG_IDLE)
-#endif // AK0991X_ENABLE_DAE
     {
 
-#ifdef AK0991X_ENABLE_FIFO
       // care the FIFO buffer if enabled FIFO and already streaming
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
@@ -607,27 +587,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           AK0991X_INST_PRINT(ERROR, this, "soft reset failed.");
         }
       }
-#endif // AK0991X_ENABLE_FIFO
 
       // hardware setting for measurement mode
-#ifdef AK0991X_ENABLE_DRI
-#ifdef AK0991X_ENABLE_DAE
       if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
-#else
-      if (state->mag_info.use_dri)
-#endif
       {
         ak0991x_reconfig_hw(this);
         AK0991X_INST_PRINT(LOW, this, "done ak0991x_reconfig_hw");
       }
-#endif //AK0991X_ENABLE_DRI
 
       // Register for timer
-#ifdef AK0991X_ENABLE_DAE
       if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-#else
-      if (!state->mag_info.use_dri)
-#endif
       {
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this, false);
@@ -664,13 +633,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     }
   }
 
-#ifdef AK0991X_ENABLE_FIFO
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->fifo_flush_in_progress = true;
-#ifdef AK0991X_ENABLE_DAE
     if(!ak0991x_dae_if_flush_samples(this))
-#endif // AK0991X_ENABLE_DAE
     {
       AK0991X_INST_PRINT(LOW, this, "flush requested.");
       ak0991x_flush_fifo(this);
@@ -678,7 +644,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->fifo_flush_in_progress = false;
     }
   }
-#endif // AK0991X_ENABLE_FIFO
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
     if (state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
@@ -689,45 +654,29 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_req.sample_rate = 0;
       state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
 
-#ifdef AK0991X_ENABLE_DAE
       if (AK0991X_CONFIG_IDLE == state->config_step &&
           ak0991x_dae_if_stop_streaming(this))
       {
         AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
         state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
       }
-#endif
 
-#ifdef AK0991X_ENABLE_DAE
       if (state->config_step == AK0991X_CONFIG_IDLE)
-#endif
       {
-#ifdef AK0991X_ENABLE_FIFO
         // care the FIFO buffer if enabled FIFO
         if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
         {
           ak0991x_flush_fifo(this);
         }
-#endif // AK0991X_ENABLE_FIFO
 
         // hardware setting for measurement mode
-#ifdef AK0991X_ENABLE_DRI
-#ifdef AK0991X_ENABLE_DAE
         if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
-#else
-        if (state->mag_info.use_dri)
-#endif
        	{
           ak0991x_reconfig_hw(this);
           AK0991X_INST_PRINT(LOW, this, "done ak0991x_reconfig_hw");
         }
-#endif //AK0991X_ENABLE_DRI
         // Register for timer
-#ifdef AK0991X_ENABLE_DAE
         if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-#else
-        if (!state->mag_info.use_dri)
-#endif
         {
           ak0991x_reconfig_hw(this);
           ak0991x_register_timer(this, false);
@@ -736,13 +685,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_send_config_event(this);
       }
 
-#ifdef AK0991X_ENABLE_DAE
       // DAE handles PAUSE_SAMPLING request
       ak0991x_dae_if_process_events(this);
 
       // DAE handles FLUSH_HW request
       ak0991x_dae_if_process_events(this);
-#endif
 
       AK0991X_INST_PRINT(LOW, this, "Execute the self-test.");
       ak0991x_run_self_test(this);
@@ -753,24 +700,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
       // hardware setting for measurement mode
-#ifdef AK0991X_ENABLE_DRI
-#ifdef AK0991X_ENABLE_DAE
       if (state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-#else
-      if (state->mag_info.use_dri)
-#endif
       {
         ak0991x_reconfig_hw(this);
         AK0991X_INST_PRINT(LOW, this, "done ak0991x_reconfig_hw");
       }
-#endif //AK0991X_ENABLE_DRI
 
       // Register for timer
-#ifdef AK0991X_ENABLE_DAE
       if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
-#else
-      if (!state->mag_info.use_dri)
-#endif
       {
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this, false);
@@ -779,10 +716,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
       ak0991x_send_config_event(this);
 
-#ifdef AK0991X_ENABLE_DAE
       // DAE handles SET_STREAMING_CONFIG request
       ak0991x_dae_if_process_events(this);
-#endif
     }
     else
     {

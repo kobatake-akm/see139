@@ -22,7 +22,7 @@
  */
 
 // TODO:1 Enable below macro to set SEE Lite mode
-#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
+//#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
 
 #ifdef AK0991X_ENABLE_SEE_LITE
 // SEE-Lite Mode. Require to select a target device and configure mode setting.
@@ -33,8 +33,6 @@
 //#define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
 #define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 //#define AK0991X_ENABLE_DEINIT             // Enable deinit call
-#define AK0991X_ENABLE_CHECK_DRI_GPIO     // Enable checking DRI GPIO status when event_notify called.
-#define AK0991X_ENABLE_CHECK_REG_ST1      // ENable checking DRDY bit status read when event_notify called.
 
 //TODO:2 Please select a target device for SEE-Lite
 //#define AK0991X_TARGET_AK09911
@@ -97,7 +95,5 @@
 //#define AK0991X_ENABLE_FUSE               // Enable fuse rom
 #define AK0991X_ENABLE_DRI                // Enable DRI
 #define AK0991X_ENABLE_FIFO               // Enable FIFO
-#define AK0991X_ENABLE_CHECK_DRI_GPIO     // Enable checking DRI GPIO status when event_notify called.
-#define AK0991X_ENABLE_CHECK_REG_ST1      // ENable checking DRDY bit status read when event_notify called.
 
 #endif	// AK0991X_ENABLE_SEE_LITE
