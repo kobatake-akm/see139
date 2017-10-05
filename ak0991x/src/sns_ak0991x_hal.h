@@ -470,7 +470,6 @@ float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr);
  */
 sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr);
 
-#ifdef AK0991X_ENABLE_DAE
 /**
  * Process a fifo buffer and extracts mag samples from the buffer
  * and generates event.
@@ -487,34 +486,14 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                                      sns_time            interval,
                                      uint8_t             *fifo,
                                      size_t              num_bytes);
-#endif //AK0991X_ENABLE_DAE
 
-#ifdef AK0991X_ENABLE_FIFO
 /**
  * Sends a FIFO complete event.
  *
  * @param instance   Instance reference
  */
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
-#endif
 
-#ifdef AK0991X_ENABLE_CHECK_DRI_GPIO
-/**
- * Reads value of a GPIO pin.
- * Function has been written to demonstrate use of the GPIO
- * Service to read gpio.
- *
- * @param[i] instance     instance reference
- * @param[i] gpio         gpio pin to read
- * @param[i] is_chip_pin  true if this is a chip level TLMM pin
- *       else false.
- *
- * @return sns_gpio_state
- */
-sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin);
-#endif // AK0991X_ENABLE_CHECK_DRI_GPIO
-
-#ifdef AK0991X_ENABLE_CHECK_REG_ST1
 /**
  * Check the drdy bit
  *
@@ -523,9 +502,7 @@ sns_gpio_state ak0991x_read_gpio(sns_sensor_instance *instance, uint32_t gpio, b
  * @return false: no data ready, true: data is ready
  */
 bool ak0991x_is_drdy(sns_sensor_instance *const instance);
-#endif // AK0991X_ENABLE_CHECK_REG_ST1
 
-#ifdef AK0991X_ENABLE_FIFO
 /**
  * Flush mag samples from the buffer
  * and generates event.
@@ -533,9 +510,7 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance);
  * @param instance                 Sensor Instance
  */
 void ak0991x_flush_fifo(sns_sensor_instance *const instance);
-#endif
 
-#ifdef AK0991X_ENABLE_DRI
 /**
  * Handle an interrupt by reading the Fifo status register and sending out
  * appropriate requests to the asynchronous com port sensor to read the fifo.
@@ -543,7 +518,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance);
  * @param instance                 Sensor Instance
  */
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
-#endif //AK0991X_ENABLE_DRI
 
 #ifdef AK0991X_ENABLE_S4S
 /**
@@ -578,7 +552,6 @@ sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance);
  */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance);
 
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
 /**
  * Submit the Sensor State Raw Log Packet
  *
@@ -642,15 +615,12 @@ void ak0991x_log_sensor_state_raw_alloc(
 sns_rc ak0991x_encode_log_sensor_state_raw(
   void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
   size_t *bytes_written);
-#endif
 
-#ifdef AK0991X_ENABLE_DRI
 /**
  * Enable interrupt if not already enabled
  *
  */
 void ak0991x_register_interrupt(sns_sensor_instance *this);
-#endif //AK0991X_ENABLE_DRI
 
 /**
  * Enable timer if not already enabled
