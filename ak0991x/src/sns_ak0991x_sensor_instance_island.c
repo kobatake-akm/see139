@@ -251,7 +251,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
           AK0991X_INST_PRINT(LOW, this, "Execute handle timer event");
-          ak0991x_handle_timer_event(this);
+          ak0991x_flush_fifo(this);
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
         {

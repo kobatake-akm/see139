@@ -201,6 +201,7 @@ typedef struct ak0991x_instance_state
   bool config_mag_after_ascp_xfer;
   sns_time averaged_interval;
   sns_time pre_timestamp;
+  sns_time measurement_time;
 
   /** Timer info */
   sns_sensor_uid timer_suid;

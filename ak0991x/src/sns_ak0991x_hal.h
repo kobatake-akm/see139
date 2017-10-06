@@ -532,17 +532,6 @@ sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance);
 #endif // AK0991X_ENABLE_S4S
 
 /**
- * Handle an timer by reading the register and sending out
- * appropriate requests to the asynchronous com port sensor to read the data.
- *
- * @return sns_rc
- * SNS_RC_FAILED - COM port failure
- * SNS_RC_SUCCESS
- * @param instance                 Sensor Instance
- */
-sns_rc ak0991x_handle_timer_event(sns_sensor_instance *const instance);
-
-/**
  * Sends config update event for the chosen sample_rate
  *
  * @return sns_rc
