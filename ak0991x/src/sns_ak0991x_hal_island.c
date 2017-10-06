@@ -646,7 +646,13 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
-  state->pre_timestamp = sns_get_system_time();
+  // check last timestamp
+  sns_time now = sns_get_system_time();
+  if( state->pre_timestamp < now ){
+    state->pre_timestamp = now;
+  }else{
+    AK0991X_INST_PRINT(LOW, this, "negative timestamp detected!!!");
+  }
   state->this_is_first_data = true;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
 
