@@ -250,11 +250,11 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     return SNS_RC_FAILED;
   }
 
-  uint8_t i;
-  for (i = 0; i < AK0991X_NUM_DATA_HXL_TO_ST2; i++)
-  {
-    state->pre_data_buffer[i] = 0;
-  }
+//  uint8_t i;
+//  for (i = 0; i < AK0991X_NUM_DATA_HXL_TO_ST2; i++)
+//  {
+//    state->pre_data_buffer[i] = 0;
+//  }
   state->pre_timestamp = 0;
   state->this_is_first_data = true;
 
