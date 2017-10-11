@@ -23,6 +23,8 @@
 #include "sns_ak0991x_hal.h"
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
+#include "sns_ak0991x_s4s.h"
+
 
 #include "sns_interrupt.pb.h"
 #include "sns_async_com_port.pb.h"
@@ -144,12 +146,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &sensor_state->device_select,
               sizeof(sensor_state->device_select));
   state->mag_info.cur_wmk = 0;
-#ifdef AK0991X_ENABLE_S4S
-  state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->mag_info.s4s_t_ph       = AK0991X_S4S_T_PH;
-  state->mag_info.s4s_rr         = AK0991X_S4S_RR;
-  state->mag_info.s4s_dt_abort   = false;
-#endif // AK0991X_ENABLE_S4S
+  // Init for s4s
+  ak0991x_s4s_inst_init(this, sstate);
 
   switch (state->mag_info.device_select)
   {
@@ -161,7 +159,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = false;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
-    state->mag_info.use_sync_stream = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
@@ -172,7 +169,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = 0;
-    state->mag_info.use_sync_stream = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
@@ -183,7 +179,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = false;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
-    state->mag_info.use_sync_stream = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
@@ -195,9 +190,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-    // QC: Disbale S4S here. Should use registry to gate enabling S4S
-    //state->mag_info.use_sync_stream = sensor_state->supports_sync_stream;
-    state->mag_info.use_sync_stream = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
@@ -208,7 +200,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = false;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
-    state->mag_info.use_sync_stream = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916D)
@@ -219,7 +210,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
-    state->mag_info.use_sync_stream = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
@@ -230,9 +220,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-    // QC: Disbale S4S here. Should use registry to gate enabling S4S
-    //state->mag_info.use_sync_stream = sensor_state->supports_sync_stream;
-    state->mag_info.use_sync_stream = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
@@ -243,13 +230,12 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = false;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
-    state->mag_info.use_sync_stream = false;
     break;
 #endif
   default:
     return SNS_RC_FAILED;
   }
-
+ 
 //  uint8_t i;
 //  for (i = 0; i < AK0991X_NUM_DATA_HXL_TO_ST2; i++)
 //  {
@@ -290,9 +276,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &sensor_state->timer_suid,
               sizeof(sensor_state->timer_suid));
   state->timer_data_stream = NULL;
-#ifdef AK0991X_ENABLE_S4S
-  state->s4s_timer_data_stream = NULL;
-#endif // AK0991X_ENABLE_S4S
 
   /** Initialize COM port to be used by the Instance */
   sns_memscpy(&state->com_port_info.com_config,
@@ -408,9 +391,8 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 #endif
 
   sns_sensor_util_remove_sensor_instance_stream(this,&state->timer_data_stream);
-#ifdef AK0991X_ENABLE_S4S
-  sns_sensor_util_remove_sensor_instance_stream(this,&state->s4s_timer_data_stream);
-#endif // AK0991X_ENABLE_S4S
+  //Deinit for S4S
+  ak0991x_s4s_inst_deinit(this);
 #ifdef AK0991X_ENABLE_DRI
   sns_sensor_util_remove_sensor_instance_stream(this,&state->interrupt_data_stream);
   sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
@@ -601,13 +583,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this, false);
         AK0991X_INST_PRINT(LOW, this, "done register_timer");
-#ifdef AK0991X_ENABLE_S4S
-        if (state->mag_info.use_sync_stream)
-        {
-          ak0991x_register_timer(this, true);
-          AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
-        }
-#endif // AK0991X_ENABLE_S4S
+        // Register for s4s timer
+        ak0991x_s4s_register_timer(this);
       }
 
       //ak0991x_dae_if_start_streaming(this);

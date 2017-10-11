@@ -25,6 +25,7 @@
 #include "sns_ak0991x_hal.h"
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
+#include "sns_ak0991x_s4s.h"
 
 #include "sns_async_com_port.pb.h"
 #include "sns_timer.pb.h"
@@ -374,14 +375,14 @@ static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_service * scp_service,
  *
  * @return sns_rc
  */
-static sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
-                                        sns_sync_com_port_service * scp_service,
-                                        sns_sync_com_port_handle *port_handle,
-                                        uint32_t reg_addr,
-                                        uint8_t *buffer,
-                                        uint32_t bytes,
-                                        uint32_t *xfer_bytes,
-                                        bool save_write_time )
+sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
+                                 sns_sync_com_port_service * scp_service,
+                                 sns_sync_com_port_handle *port_handle,
+                                 uint32_t reg_addr,
+                                 uint8_t *buffer,
+                                 uint32_t bytes,
+                                 uint32_t *xfer_bytes,
+                                 bool save_write_time )
 {
 
   sns_port_vector port_vec;
@@ -524,53 +525,13 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
                                 cur_wmk );
 #endif
 
-#ifdef AK0991X_ENABLE_S4S
-  // Configure TPH and RR for S4S
-  if((desired_odr != AK0991X_MAG_ODR_OFF) && state->mag_info.use_sync_stream)
+  sns_rc rv = SNS_RC_SUCCESS;
+  // Set mag config for S4S
+  rv = ak0991x_s4s_set_mag_config(this);
+  if (rv != SNS_RC_SUCCESS)
   {
-    sns_rc   rv = SNS_RC_SUCCESS;
-    uint8_t buf_s4s[3];
-
-    buf_s4s[0] = 0x0
-      | (1 << 7)                                   // TPH
-      | ((state->mag_info.s4s_t_ph >> 1) & 0x7F);  // TPH1
-    buf_s4s[1] = 0x0
-      | ((state->mag_info.s4s_t_ph >> 9) & 0xFF);  // TPH2
-    if(device_select == AK09917)
-    {
-      buf_s4s[2] = 0x0
-        | (state->mag_info.s4s_rr & 0x07);         // RR
-    }
-    else
-    {
-      buf_s4s[2] = 0x0
-        | (state->mag_info.s4s_rr & 0x03);         // RR
-    }
-
-    AK0991X_INST_PRINT(LOW, this, "bf[0]=%d bf[2]=%d",buf_s4s[0], buf_s4s[1]);
-    //TODO: optimize comport write calls
-    //Instead of calling multiple writes, write in a single scp write
-    rv = ak0991x_com_write_wrapper(this,
-                                   scp_service,
-                                   port_handle,
-                                   AKM_AK0991X_REG_TPH1,
-                                   &buf_s4s[0],
-                                   3,
-                                   &xfer_bytes,
-                                   false);
-
-    if (xfer_bytes != 3)
-    {
-      rv = SNS_RC_FAILED;
-    }
-
-    if (rv != SNS_RC_SUCCESS)
-    {
-      return rv;
-    }
+    return rv;
   }
-#endif  // AK0991X_ENABLE_S4S
-
 
   // Configure control register 1
   if ((device_select == AK09912) || (device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
@@ -1737,122 +1698,6 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
 #endif
 }
 
-#ifdef AK0991X_ENABLE_S4S
-sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance)
-{
-  ak0991x_instance_state *state =
-    (ak0991x_instance_state *)instance->state->state;
-
-  AK0991X_INST_PRINT(LOW, instance, "handle s4s_timer event");
-
-  sns_time t_ph_time = sns_get_system_time();
-  sns_time i2c_start_time;
-  uint8_t  buffer;
-  uint16_t dt_count;
-  sns_rc rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
-
-  buffer = 0;
-  // Send a ST command
-  rv = ak0991x_com_write_wrapper(instance,
-                                 state->scp_service,
-                                 state->com_port_info.port_handle,
-                                 AKM_AK0991X_REG_SYT,
-                                 &buffer,
-                                 1,
-                                 &xfer_bytes,
-                                 true);
-
-  if (xfer_bytes != 1)
-  {
-    rv = SNS_RC_FAILED;
-  }
-
-  if (rv != SNS_RC_SUCCESS)
-  {
-    return rv;
-  }
-
-  // Get the start time for s4s
-  rv = state->scp_service->api->sns_scp_get_write_time(state->com_port_info.port_handle,
-                                                       &i2c_start_time);
-
-  if (rv != SNS_RC_SUCCESS)
-  {
-    return rv;
-  }
-
-  dt_count = (i2c_start_time - t_ph_time) * (1 << state->mag_info.s4s_rr) * 2048
-             / (float)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-
-  AK0991X_INST_PRINT(LOW, instance, "i2c_start_time=%u", (uint32_t)i2c_start_time);
-  AK0991X_INST_PRINT(LOW, instance, "t_ph_time=%u", (uint32_t)t_ph_time);
-  AK0991X_INST_PRINT(LOW, instance, "dt_count=%u", (uint32_t)dt_count);
-  AK0991X_INST_PRINT(LOW, instance, "t_ph_interval=%u",(uint32_t)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000));
-
-
-  if ( dt_count > 127 || state->mag_info.s4s_dt_abort)
-  {
-    buffer = 0x80;
-  }
-  else
-  {
-    buffer = (uint8_t)dt_count;
-  }
-
-  // Send a DT command and DT Data
-  rv = ak0991x_com_write_wrapper(instance,
-                                 state->scp_service,
-                                 state->com_port_info.port_handle,
-                                 AKM_AK0991X_REG_DT,
-                                 &buffer,
-                                 1,
-                                 &xfer_bytes,
-                                 false);
-
-  if (xfer_bytes != 1)
-  {
-    rv = SNS_RC_FAILED;
-  }
-
-  if (rv != SNS_RC_SUCCESS)
-  {
-    return rv;
-  }
-
-  /* Processes DT abort */
-  if (dt_count >= 0x80)
-  {
-    //TODO: Even after sending a DT Abort command, the hardware will still stay synchronized using the previous ST/DT pairs.
-    //If there are many DT Aborts in a row, the synchronization will slowly drift until it is no longer good.
-    //However, just sending one DT Abort due to missing the timeline will probably not impact the timing significantly
-    state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-    ak0991x_send_config_event(instance);
-    return SNS_RC_FAILED;
-  }
-
-  /* Checks the S4S synchronization state */
-  if (state->mag_info.s4s_sync_state == AK0991X_S4S_NOT_SYNCED)
-  {
-    state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCING;
-    AK0991X_INST_PRINT(LOW, instance, "S4S syncing...");
-  }
-  else if (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCING)
-  {
-    state->mag_info.s4s_sync_state = AK0991X_S4S_1ST_SYNCED;
-    AK0991X_INST_PRINT(LOW, instance, "S4S 1st synced");
-  }
-  else if (state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED)
-  {
-    state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCED;
-    ak0991x_send_config_event(instance);
-    AK0991X_INST_PRINT(LOW, instance, "S4S synced");
-  }
-
-  return rv;
-}
-#endif // AK0991X_ENABLE_S4S
-
 /** See sns_ak0991x_hal.h */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 {
@@ -1878,8 +1723,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09911_MIN_RANGE;
     phy_sensor_config.range[1] = AK09911_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = false;
-    phy_sensor_config.stream_is_synchronous = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
@@ -1894,8 +1737,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09912_MIN_RANGE;
     phy_sensor_config.range[1] = AK09912_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = false;
-    phy_sensor_config.stream_is_synchronous = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
@@ -1910,8 +1751,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09913_MIN_RANGE;
     phy_sensor_config.range[1] = AK09913_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = false;
-    phy_sensor_config.stream_is_synchronous = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C)
@@ -1935,19 +1774,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09915_MIN_RANGE;
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
-#ifdef AK0991X_ENABLE_S4S
-    phy_sensor_config.stream_is_synchronous = 
-       (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    //TODO: What value should be set?
-    //RESP: This value should be a timestamp(ideally in the nearby future) of a valid synchronized sample
-    //Example: if running at exactly 100Hz, samples will be 10ms apart.
-    //If the stream is synchronized to time 1234ms -- ,
-    //then valid values to put into here would be "1234ms + (10ms * N)" for any (reasonable) value of N.
-    phy_sensor_config.sync_ts_anchor = sns_get_system_time();
-#else // AK0991X_ENABLE_S4S
-    phy_sensor_config.stream_is_synchronous = false;
-#endif // AK0991X_ENABLE_S4S
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915D)
@@ -1971,15 +1797,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09915_MIN_RANGE;
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
-#ifdef AK0991X_ENABLE_S4S
-    phy_sensor_config.stream_is_synchronous =
-        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    //TODO: What value should be set?
-    phy_sensor_config.sync_ts_anchor = sns_get_system_time();
-#else // AK0991X_ENABLE_S4S
-    phy_sensor_config.stream_is_synchronous = false;
-#endif // AK0991X_ENABLE_S4S
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
@@ -1994,8 +1811,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = false;
-    phy_sensor_config.stream_is_synchronous = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916D)
@@ -2010,8 +1825,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = false;
-    phy_sensor_config.stream_is_synchronous = false;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
@@ -2035,15 +1848,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09917_MIN_RANGE;
     phy_sensor_config.range[1] = AK09917_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = state->mag_info.use_sync_stream;
-#ifdef AK0991X_ENABLE_S4S
-    phy_sensor_config.stream_is_synchronous =
-        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    //TODO: What value should be set?
-    phy_sensor_config.sync_ts_anchor = sns_get_system_time();
-#else // AK0991X_ENABLE_S4S
-    phy_sensor_config.stream_is_synchronous = false;
-#endif // AK0991X_ENABLE_S4S
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
@@ -2058,13 +1862,15 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
-    phy_sensor_config.has_stream_is_synchronous = false;
-    phy_sensor_config.stream_is_synchronous = false;
     break;
 #endif
   default:
     return SNS_RC_FAILED;
   }
+
+  //Set config event for s4s
+  ak0991x_s4s_send_config_event(instance, &phy_sensor_config);
+
   pb_buffer_arg op_mode_args;
   op_mode_args.buf = operating_mode;
   op_mode_args.buf_len = sizeof(operating_mode);
@@ -2261,7 +2067,7 @@ void ak0991x_register_timer(sns_sensor_instance *this,
       state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
       if (state->s4s_timer_data_stream != NULL)
       {
-        stream_mgr->api->remove_stream(stream_mgr, s4s_state->timer_data_stream);
+        stream_mgr->api->remove_stream(stream_mgr, state->s4s_timer_data_stream);
         state->s4s_timer_data_stream = NULL;
       }
     }
