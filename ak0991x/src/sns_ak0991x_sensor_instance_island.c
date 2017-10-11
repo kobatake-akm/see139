@@ -250,8 +250,14 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
-          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event");
-          ak0991x_flush_fifo(this);
+          sns_time time_from_previous = sns_get_system_time() - state->pre_timestamp;
+          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. pre-now=%u",(uint32_t)time_from_previous);
+          if(state->called_handle_timer_reg_event){
+            state->force_fifo_read_till_wm = true;
+            ak0991x_flush_fifo(this);
+          }else{
+            AK0991X_INST_PRINT(LOW, this, "Wrong timer event...");
+          }
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
         {
@@ -261,6 +267,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             // and will be needed by the mag sensor to populate the fields sent to the DAE sensor(so that timers remain synchronized in the DAE environment),
             // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
             AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr reg event");
+            state->called_handle_timer_reg_event = true;
         }
       }
       else
