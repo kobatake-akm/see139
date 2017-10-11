@@ -372,6 +372,26 @@ typedef struct log_sensor_state_raw_info
 #endif
 
 /******************* Function Declarations ***********************************/
+/**
+ * Write wrapper for Synch Com Port Service.
+ *
+ * @param[i] port_handle      port handle
+ * @param[i] reg_addr         register address
+ * @param[i] buffer           write buffer
+ * @param[i] bytes            bytes to write
+ * @param[o] xfer_bytes       bytes written
+ * @param[i] save_write_time  true to save write transfer time.
+ *
+ * @return sns_rc
+ */
+sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
+                                 sns_sync_com_port_service * scp_service,
+                                 sns_sync_com_port_handle *port_handle,
+                                 uint32_t reg_addr,
+                                 uint8_t *buffer,
+                                 uint32_t bytes,
+                                 uint32_t *xfer_bytes,
+                                 bool save_write_time );
 
 /**
  * Resets the Sensor SW.
@@ -518,18 +538,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance);
  * @param instance                 Sensor Instance
  */
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
-
-#ifdef AK0991X_ENABLE_S4S
-/**
- * Handle a timer for s4s to synchronize by SYT and DT command.
- *
- * @return sns_rc
- * SNS_RC_FAILED - COM port failure
- * SNS_RC_SUCCESS
- * @param instance                 Sensor Instance
- */
-sns_rc ak0991x_handle_s4s_timer_event(sns_sensor_instance *const instance);
-#endif // AK0991X_ENABLE_S4S
 
 /**
  * Sends config update event for the chosen sample_rate

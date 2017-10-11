@@ -25,6 +25,7 @@
 #include "sns_ak0991x_hal.h"
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
+#include "sns_ak0991x_s4s.h"
 
 #include "sns_interrupt.pb.h"
 #include "sns_async_com_port.pb.h"
@@ -280,50 +281,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     }
   }
 
-#ifdef AK0991X_ENABLE_S4S
-  // Handle timer event for s4s
-  if (NULL != state->s4s_timer_data_stream)
-  {
-    AK0991X_INST_PRINT(LOW, this, "s4s_timer_data_stream");
-    event = state->s4s_timer_data_stream->api->peek_input(state->s4s_timer_data_stream);
-
-    while (NULL != event)
-    {
-      pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
-                                                   event->event_len);
-      sns_timer_sensor_event timer_event;
-
-      if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
-      {
-        if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
-        {
-          AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
-                                        event->message_id);
-        }
-        else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
-        {
-          ak0991x_handle_s4s_timer_event(this);
-          AK0991X_INST_PRINT(LOW, this, "Execute handle s4s timer event");
-        }
-        else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
-        {
-          AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr s4s reg event");
-        }
-        else
-        {
-          AK0991X_INST_PRINT(ERROR, this, "handle timer ERROR s4s");
-        }
-      }
-      else
-      {
-        AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d",
-                                      event->message_id);
-      }
-
-      event = state->s4s_timer_data_stream->api->get_next_input(state->s4s_timer_data_stream);
-    }
-  }
-#endif // AK0991X_ENABLE_S4S
+  // Handle timer data stream for S4S
+  ak0991x_s4s_handle_timer_data_stream(this);
 
   // Turn COM port OFF
   state->scp_service->api->sns_scp_update_bus_power(

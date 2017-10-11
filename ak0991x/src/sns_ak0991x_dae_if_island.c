@@ -26,6 +26,7 @@
 #include "sns_ak0991x_hal.h"
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
+#include "sns_ak0991x_s4s.h"
 
 #include "sns_dae.pb.h"
 
@@ -286,7 +287,7 @@ static void process_response(
 #ifdef AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
       //Send ST/DT command
-      ak0991x_handle_s4s_timer_event(this);
+      ak0991x_s4s_handle_timer_event(this);
       break;
 #endif // AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
@@ -347,7 +348,7 @@ static void process_response(
       if(state->mag_info.use_sync_stream)
       {
       state->mag_info.s4s_dt_abort = true;
-      ak0991x_handle_s4s_timer_event(this);
+      ak0991x_s4s_handle_timer_event(this);
       state->mag_info.s4s_dt_abort = false;
       }
       break;
