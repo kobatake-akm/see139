@@ -199,6 +199,8 @@ typedef struct ak0991x_instance_state
   bool fifo_flush_in_progress;
   bool new_self_test_request;
   bool config_mag_after_ascp_xfer;
+  bool force_fifo_read_till_wm;
+  bool called_handle_timer_reg_event;
   sns_time averaged_interval;
   sns_time pre_timestamp;
   sns_time measurement_time;
@@ -237,7 +239,7 @@ typedef struct ak0991x_instance_state
 
   uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
-  uint8_t               pre_data_buffer[8];
+  int16_t               pre_lsbdata[TRIAXIS_NUM];
 
   size_t encoded_mag_event_len;
 
