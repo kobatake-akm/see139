@@ -1473,13 +1473,11 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  sns_time now = sns_get_system_time();
   uint8_t num_samples = state->num_samples;
 
 #ifdef AK0991X_ENABLE_S4S
   // for S4S, no need to validate timestamp????
   if(state->mag_info.use_sync_stream){
-    state->interrupt_timestamp = now;
     state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
     return;
   }
@@ -1491,8 +1489,6 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 
   if(state->irq_info.detect_irq_event){
     state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
-  }else{
-    state->interrupt_timestamp = now; // for Polling or Flush
   }
 
   if(state->this_is_first_data){
