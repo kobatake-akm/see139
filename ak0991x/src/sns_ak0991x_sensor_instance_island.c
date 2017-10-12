@@ -251,8 +251,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
-          sns_time time_from_previous = sns_get_system_time() - state->pre_timestamp;
-          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. pre-now=%u",(uint32_t)time_from_previous);
+//          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. pre-now=%u",(uint32_t)(sns_get_system_time() - state->pre_timestamp));
           if(state->called_handle_timer_reg_event){
             state->force_fifo_read_till_wm = true;
             ak0991x_flush_fifo(this);
