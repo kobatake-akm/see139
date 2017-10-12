@@ -1138,6 +1138,14 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
     {
       state->num_samples = st1_buf >> 2;
       AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x", state->num_samples, st1_buf);
+#ifdef AK0991X_ENABLE_S4S
+      //To avoid reporting incorrect data in S4S by FIFO+Pollng mode
+      if (state->mag_info.use_sync_stream &&
+          (state->num_samples < state->mag_info.cur_wmk + 1))
+      {
+        state->num_samples = state->mag_info.cur_wmk + 1;
+      }
+#endif
       if (state->num_samples > 0)
       {
         /*Number of bytes reading from sync-com-port should be less than AK0991X_MAX_FIFO_SIZE*/
