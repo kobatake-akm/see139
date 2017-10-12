@@ -275,6 +275,7 @@ void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
 
 sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
 {
+#ifdef AK0991X_ENABLE_S4S
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
@@ -385,6 +386,10 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   }
 
   return rv;
+#else // AK0991X_ENABLE_S4S
+  UNUSED_VAR(instance);
+  return SNS_RC_SUCCESS;
+#endif // AK0991X_ENABLE_S4S
 }
 
 void ak0991x_s4s_handle_timer_data_stream(sns_sensor_instance *const this)
