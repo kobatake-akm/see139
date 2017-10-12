@@ -1129,6 +1129,7 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
   }
 
 #ifdef AK0991X_ENABLE_FIFO
+
   // From here for FIFO
   if (state->mag_info.device_select == AK09917)
   {
@@ -1136,16 +1137,14 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
     uint8_t st1_buf = 0;
     if (SNS_RC_SUCCESS == ak0991x_read_st1(state, &st1_buf))
     {
-      state->num_samples = st1_buf >> 2;
-      AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x", state->num_samples, st1_buf);
-#ifdef AK0991X_ENABLE_S4S
-      //To avoid reporting incorrect data in S4S by FIFO+Pollng mode
-      if (state->mag_info.use_sync_stream &&
-          (state->num_samples < state->mag_info.cur_wmk + 1))
-      {
+      // update num when polling+FIFO or S4S+FIFO mode
+      if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm || state->mag_info.use_sync_stream) ){
         state->num_samples = state->mag_info.cur_wmk + 1;
+      }else{
+        state->num_samples = st1_buf >> 2;
       }
-#endif
+      AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x", state->num_samples, st1_buf);
+
       if (state->num_samples > 0)
       {
         /*Number of bytes reading from sync-com-port should be less than AK0991X_MAX_FIFO_SIZE*/
@@ -1174,6 +1173,7 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
     //Continue reading until fifo buffer is clear
     //because there is no way to check FIFO samples for AK09915C/D.
     uint8_t i;
+    state->num_samples = 0;
     for (i = 0; i < state->mag_info.max_fifo_size; i++)
     {
       //Read fifo buffer(HXL to ST2 register)
@@ -1186,19 +1186,18 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
 
       if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
       {
-        //fifo buffer is clear
-        break;
-      }
-      else
-      {
-        state->num_samples++;
+        if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm || state->mag_info.use_sync_stream) ){
+          if(i >= state->mag_info.cur_wmk + 1){
+            state->num_samples = i;
+            break;
+          }
+        }else{
+          //fifo buffer is clear
+          state->num_samples = i;
+          break;
+        }
       }
     }
-  }
-
-  // update num_samples when polling+FIFO mode
-  if( state->mag_info.use_fifo && state->force_fifo_read_till_wm ){
-    state->num_samples = state->mag_info.cur_wmk+1;
   }
 
 #endif // AK0991X_ENABLE_FIFO
@@ -1353,10 +1352,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
-  // Check magnetic sensor overflow
-  if ((mag_sample[7] & AK0991X_HOFL_BIT) != 0)
+  // Check magnetic sensor overflow (and invalid data for FIFO)
+  uint8_t inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
+  if ((mag_sample[7] & (AK0991X_HOFL_BIT | inv_fifo_bit)) != 0)
   {
-    AK0991X_INST_PRINT(LOW, instance, "sensor overflow: HOFL_BIT=1, use previous data.");
+    AK0991X_INST_PRINT(LOW, instance, "HOFL_BIT=1 or INV=1, use previous data.");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
     lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
     lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
@@ -1543,7 +1543,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     if(update_interrupt_timestamp){
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
     }
-    AK0991X_INST_PRINT(LOW, instance, "num=%d averaged_interval=%u data_count=%d" ,num_samples, (uint32_t)state->averaged_interval,(uint16_t)state->mag_info.data_count);
+//    AK0991X_INST_PRINT(LOW, instance, "num=%d averaged_interval=%u data_count=%d" ,num_samples, (uint32_t)state->averaged_interval,(uint16_t)state->mag_info.data_count);
     state->mag_info.data_count++;
   }else{
     AK0991X_INST_PRINT(LOW, instance, "ERROR: num_samples=0 !!!");
