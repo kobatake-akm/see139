@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/12/17     010030     AKM(M)           Debugged of the ak0991x_get_adjusted_mag_data.
  * 10/12/17     010029     AKM(M)           Modified for the timestamp in the Polling and FIFO+Polling mode.
  * 10/12/17                AKM(N+M)         Removed duplicate functions/code paths.
  * 10/12/17                AKM(N)           Separated file for S4S.
@@ -70,4 +71,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10029  // major:01 minor:00 revision:29
+#define AK0991X_DRIVER_VERSION 10030  // major:01 minor:00 revision:30

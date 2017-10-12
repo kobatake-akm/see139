@@ -463,11 +463,9 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service * scp_service,
  * SNS_RC_SUCCESS
  */
 sns_rc ak0991x_set_sstvt_adj(
-#ifdef AK0991X_ENABLE_FUSE
                              sns_sync_com_port_service* scp_service,
                              sns_sync_com_port_handle *port_handle,
                              sns_diag_service *diag,
-#endif
                              uint8_t device_select,
                              float *sstvt_adj);
 
