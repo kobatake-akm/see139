@@ -1138,6 +1138,14 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
     {
       state->num_samples = st1_buf >> 2;
       AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x", state->num_samples, st1_buf);
+#ifdef AK0991X_ENABLE_S4S
+      //To avoid reporting incorrect data in S4S by FIFO+Pollng mode
+      if (state->mag_info.use_sync_stream &&
+          (state->num_samples < state->mag_info.cur_wmk + 1))
+      {
+        state->num_samples = state->mag_info.cur_wmk + 1;
+      }
+#endif
       if (state->num_samples > 0)
       {
         /*Number of bytes reading from sync-com-port should be less than AK0991X_MAX_FIFO_SIZE*/
@@ -1465,13 +1473,11 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  sns_time now = sns_get_system_time();
   uint8_t num_samples = state->num_samples;
 
 #ifdef AK0991X_ENABLE_S4S
   // for S4S, no need to validate timestamp????
   if(state->mag_info.use_sync_stream){
-    state->interrupt_timestamp = now;
     state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
     return;
   }
@@ -1483,8 +1489,6 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 
   if(state->irq_info.detect_irq_event){
     state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
-  }else{
-    state->interrupt_timestamp = now; // for Polling or Flush
   }
 
   if(state->this_is_first_data){

@@ -212,6 +212,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(state->re_read_data_after_ascp && (state->ascp_xfer_in_progress == 0))
         {
+          state->interrupt_timestamp = sns_get_system_time(); // For flush
           ak0991x_flush_fifo(this);
           state->re_read_data_after_ascp = false;
         }
@@ -254,6 +255,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 //          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. pre-now=%u",(uint32_t)(sns_get_system_time() - state->pre_timestamp));
           if(state->called_handle_timer_reg_event){
             state->force_fifo_read_till_wm = true;
+            state->interrupt_timestamp = sns_get_system_time(); // For Polling
             ak0991x_flush_fifo(this);
           }else{
             AK0991X_INST_PRINT(LOW, this, "Wrong timer event...");
