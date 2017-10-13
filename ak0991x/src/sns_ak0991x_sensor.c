@@ -220,9 +220,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
  * @return bool true if decode is successful else false
  */
 static bool ak0991x_get_decoded_mag_request(
-#ifdef AK0991X_ENABLE_DEBUG_MSG
                                             sns_sensor const *this,
-#endif
                                             sns_request const *in_request,
                                             sns_std_request *decoded_request,
                                             sns_std_sensor_config *decoded_payload)
@@ -242,13 +240,15 @@ static bool ak0991x_get_decoded_mag_request(
     return false;
   }
 
+#ifndef AK0991X_ENABLE_DEBUG_MSG
+  UNUSED_VAR(this);
+#endif
+
   return true;
 }
 
 static void ak0991x_get_mag_config(
-#ifdef AK0991X_ENABLE_DEBUG_MSG
                                    sns_sensor const *this,
-#endif
                                    sns_sensor_instance *instance,
                                    float *chosen_sample_rate,
                                    float *chosen_report_rate,
@@ -263,6 +263,10 @@ static void ak0991x_get_mag_config(
   *chosen_flush_period = 0;
   *sensor_client_present = false;
 
+#ifndef AK0991X_ENABLE_DEBUG_MSG
+   UNUSED_VAR(this)
+#endif
+
   /** Parse through existing requests and get fastest sample
    *  rate, report rate, and longest flush period requests. */
   for (request = instance->cb->get_client_request(instance, &suid, true);
@@ -275,10 +279,7 @@ static void ak0991x_get_mag_config(
     if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
       if(ak0991x_get_decoded_mag_request(
-#ifdef AK0991X_ENABLE_DEBUG_MSG
-          this,
-#endif
-          request, &decoded_request, &decoded_payload))
+          this, request, &decoded_request, &decoded_payload))
       {
         float report_rate;
         uint32_t flush_period;
@@ -366,9 +367,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   AK0991X_PRINT(LOW, this, "ak0991x_reval_instance_config");
 
   ak0991x_get_mag_config(
-#ifdef AK0991X_ENABLE_DEBUG_MSG
                          this,
-#endif
                          instance,
                          &chosen_sample_rate,
                          &chosen_report_rate,
@@ -1457,9 +1456,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  * @return bool True if decoding is successful else false.
  */
 static bool ak0991x_get_decoded_self_test_request(
-#ifdef AK0991X_ENABLE_DEBUG_MSG
                                                   sns_sensor const *this,
-#endif
                                                   sns_request const *request,
                                                   sns_std_request *decoded_request,
                                                   sns_physical_sensor_test_config *test_config)
@@ -1477,6 +1474,9 @@ static bool ak0991x_get_decoded_self_test_request(
     AK0991X_PRINT(ERROR, this, "AK0991X decode error");
     return false;
   }
+#ifndef AK0991X_ENABLE_DEBUG_MSG
+  UNUSED_VAR(this);
+#endif
   return true;
 }
 
@@ -1490,9 +1490,7 @@ static bool ak0991x_get_decoded_self_test_request(
  * @return Ture if request is valid else false
  */
 static bool ak0991x_extract_self_test_info(
-#ifdef AK0991X_ENABLE_DEBUG_MSG
                                    sns_sensor const *this,
-#endif
                                    sns_sensor_instance *instance,
                                    struct sns_request const *new_request)
 {
@@ -1501,12 +1499,14 @@ static bool ak0991x_extract_self_test_info(
   ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
   ak0991x_self_test_info *self_test_info;
 
+#ifndef AK0991X_ENABLE_DEBUG_MSG
+  UNUSED_VAR(this);
+#endif
+
   self_test_info = &inst_state->mag_info.test_info;
 
   if(ak0991x_get_decoded_self_test_request(
-#ifdef AK0991X_ENABLE_DEBUG_MSG
       this,
-#endif
   		new_request, &decoded_request, &test_config))
   {
     self_test_info->test_type = test_config.test_type;
@@ -1633,11 +1633,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             {               
               // Set sensitivity adjustment data
               rv = ak0991x_set_sstvt_adj(
-#ifdef AK0991X_ENABLE_FUSE
                                          state->scp_service,
                                          state->com_port_info.port_handle,
                                          diag,
-#endif
                                          state->device_select,
                                          &state->sstvt_adj[0]);
             }
@@ -1931,9 +1929,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
              SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
           {
             if(ak0991x_extract_self_test_info(
-#ifdef AK0991X_ENABLE_DEBUG_MSG
                 this,
-#endif
             		instance, new_request))
             {
               AK0991X_PRINT(LOW, this, "new_self_test_request = true");

@@ -470,6 +470,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       state->mag_info.req_wmk = 0;
     }
+#ifdef AK0991X_ENABLE_FIFO
     if (state->mag_info.use_fifo)
     {
       if (desired_report_rate != 0)
@@ -504,6 +505,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           break;
       }
     }
+#endif // AK0991X_ENABLE_FIFO
 
     AK0991X_INST_PRINT(LOW, this, "desired_wmk=%d",desired_wmk);
 
