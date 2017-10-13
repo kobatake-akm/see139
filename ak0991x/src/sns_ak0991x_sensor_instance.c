@@ -556,11 +556,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_flush_fifo(this);
 
         // Reset device
-        sns_diag_service *diag = state->diag_service;
         rv = ak0991x_device_sw_reset(this,
                                      state->scp_service,
-                                     state->com_port_info.port_handle,
-                                     diag);
+                                     state->com_port_info.port_handle);
         if(rv == SNS_RC_SUCCESS){
           AK0991X_INST_PRINT(LOW, this, "soft reset called.");
         }else{

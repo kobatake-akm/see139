@@ -418,14 +418,11 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
  */
 sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
-                               sns_sync_com_port_handle *port_handle,
-                               sns_diag_service *diag )
+                               sns_sync_com_port_handle *port_handle)
 {
   uint8_t  buffer[1];
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
-
-  UNUSED_VAR(diag);
 
   buffer[0] = AK0991X_SOFT_RESET;
   rv = ak0991x_com_write_wrapper(this,
@@ -2042,6 +2039,10 @@ void ak0991x_register_timer(sns_sensor_instance *this,
     else
 #endif // AK0991X_ENABLE_S4S
     {
+      // Set timeout_period for heart beat
+      state->heart_beat_timeout_period = (state->mag_info.use_fifo)?
+        req_payload.timeout_period * 2 : req_payload.timeout_period * 5;
+
       if (NULL == state->timer_data_stream)
       {
         stream_mgr->api->create_sensor_instance_stream(stream_mgr,
