@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/13/17                AKM(M)           Changed S4S name and debugged for negative timestamp when irq->flush->acsp.
  * 10/12/17     010030     AKM(M)           Debugged of the ak0991x_get_adjusted_mag_data.
  * 10/12/17     010029     AKM(M)           Modified for the timestamp in the Polling and FIFO+Polling mode.
  * 10/12/17                AKM(N+M)         Removed duplicate functions/code paths.

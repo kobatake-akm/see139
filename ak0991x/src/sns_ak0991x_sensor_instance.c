@@ -237,6 +237,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
  
   state->pre_timestamp = sns_get_system_time();
+
   state->this_is_first_data = true;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
@@ -548,11 +549,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if (state->config_step == AK0991X_CONFIG_IDLE)
     {
-
       // care the FIFO buffer if enabled FIFO and already streaming
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
-        state->interrupt_timestamp = sns_get_system_time(); // For flush
         ak0991x_flush_fifo(this);
 
         // Reset device
@@ -614,7 +613,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(!ak0991x_dae_if_flush_samples(this))
     {
       AK0991X_INST_PRINT(LOW, this, "flush requested.");
-      state->interrupt_timestamp = sns_get_system_time(); // For flush
       ak0991x_flush_fifo(this);
       ak0991x_send_fifo_flush_done(this);
       state->fifo_flush_in_progress = false;
@@ -642,7 +640,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         // care the FIFO buffer if enabled FIFO
         if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
         {
-          state->interrupt_timestamp = sns_get_system_time(); // For flush
           ak0991x_flush_fifo(this);
         }
 

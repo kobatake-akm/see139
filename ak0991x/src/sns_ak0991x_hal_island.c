@@ -615,6 +615,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   // check last timestamp
+  AK0991X_INST_PRINT(LOW, this, "check last timestamp. pre_timestamp=%u acsp=%d", (uint32_t)state->pre_timestamp, state->ascp_xfer_in_progress);
   sns_time now = sns_get_system_time();
   if( state->pre_timestamp > now ){
     AK0991X_INST_PRINT(LOW, this, "negative timestamp detected!!! Keep using pre_timestamp.");
@@ -1166,12 +1167,14 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
         // Read fifo buffer(HXL to ST2 register)
         if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state, state->num_samples, &buffer[0]))
         {
+          state->num_samples = 0;
           SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
         }
       }
     }
     else
     {
+      state->num_samples = 0;
       SNS_INST_PRINTF(ERROR, instance, "Error in reading length of the FIFO");
     }
   }
@@ -1382,8 +1385,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.resolution;
   ipdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z] * state->mag_info.resolution;
 
-  AK0991X_INST_PRINT(LOW, instance, "timestamp %u Mag[LSB] %d,%d,%d",
+  AK0991X_INST_PRINT(LOW, instance, "timestamp=%u pre=%u irq=%u average=%u Mag[LSB] %d,%d,%d",
       (uint32_t)timestamp,
+      (uint32_t)state->pre_timestamp,
+      (uint32_t)state->irq_event_time,
+      (uint32_t)state->averaged_interval,
       (int16_t)(lsbdata[TRIAXIS_X]),
       (int16_t)(lsbdata[TRIAXIS_Y]),
       (int16_t)(lsbdata[TRIAXIS_Z]));
@@ -1478,11 +1484,13 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_time now = sns_get_system_time();
   uint8_t num_samples = state->num_samples;
 
 #ifdef AK0991X_ENABLE_S4S
   // for S4S, no need to validate timestamp????
   if(state->mag_info.use_sync_stream){
+    state->interrupt_timestamp = now;
     state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
     return;
   }
@@ -1495,9 +1503,12 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 #ifdef AK0991X_ENABLE_DRI
   if(state->irq_info.detect_irq_event){
     state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
-  }
+//    AK0991X_INST_PRINT(LOW, instance, "detect irq, update interrupt_timestamp");
+  } else
 #endif // AK0991X_ENABLE_DRI
-
+  {
+    state->interrupt_timestamp = now; // for Polling or Flush
+  }
   if(state->this_is_first_data){
     AK0991X_INST_PRINT(LOW, instance, "this_is_first_data");
 
@@ -1560,7 +1571,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     if(update_interrupt_timestamp){
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
     }
-//    AK0991X_INST_PRINT(LOW, instance, "num=%d averaged_interval=%u data_count=%d" ,num_samples, (uint32_t)state->averaged_interval,(uint16_t)state->mag_info.data_count);
+    AK0991X_INST_PRINT(LOW, instance, "num=%d averaged_interval=%u data_count=%d" ,num_samples, (uint32_t)state->averaged_interval,(uint16_t)state->mag_info.data_count);
     state->mag_info.data_count++;
   }else{
     AK0991X_INST_PRINT(LOW, instance, "ERROR: num_samples=0 !!!");
@@ -1623,41 +1634,42 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   ak0991x_read_all_data(instance, &buffer[0]);
 
-  ak0991x_validate_timestamp(instance);
-  // Allocate log packet memory only if there are samples to flush
-  ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
+  if(state->num_samples > 0){
+    ak0991x_validate_timestamp(instance);
 
-  for (i = 0; i < state->num_samples; i++)
-  {
-    // flush event trigger is IRQ
-    if (state->irq_info.detect_irq_event)
+    // Allocate log packet memory only if there are samples to flush
+    ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
+
+    for (i = 0; i < state->num_samples; i++)
     {
-      if(i <= state->mag_info.cur_wmk){
-        // data till the WM
-        timestamp = state->interrupt_timestamp -
-          (state->averaged_interval * (state->mag_info.cur_wmk - i));
-      }else{
-        // in case there are some data buffered in FIFO.
-        timestamp = state->interrupt_timestamp +
-          (state->averaged_interval * (i - state->mag_info.cur_wmk));
+      // flush event trigger is IRQ
+      if (state->irq_info.detect_irq_event)
+      {
+        if(i <= state->mag_info.cur_wmk){
+          // data till the WM
+          timestamp = state->interrupt_timestamp -
+            (state->averaged_interval * (state->mag_info.cur_wmk - i));
+        }else{
+          // in case there are some data buffered in FIFO.
+          timestamp = state->interrupt_timestamp +
+            (state->averaged_interval * (i - state->mag_info.cur_wmk));
+        }
       }
-    }
-    else
-    {
-      timestamp = state->pre_timestamp + (state->averaged_interval * (i + 1));
+      else
+      {
+        timestamp = state->pre_timestamp + (state->averaged_interval * (i + 1));
+      }
+
+      ak0991x_handle_mag_sample(&buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * i],
+                                timestamp,
+                                instance,
+                                event_service,
+                                state,
+                                &log_mag_state_raw_info
+                                );
     }
 
-    ak0991x_handle_mag_sample(&buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * i],
-                              timestamp,
-                              instance,
-                              event_service,
-                              state,
-                              &log_mag_state_raw_info
-                              );
-  }
-
-  if (state->num_samples != 0)
-  {
+    AK0991X_INST_PRINT(LOW, instance, "update pre_timestamp=%u.",(uint32_t)state->pre_timestamp);
     state->pre_timestamp = timestamp;
     state->this_is_first_data = false;
 
@@ -1666,6 +1678,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 #else
     UNUSED_VAR(log_mag_state_raw_info);
 #endif
+  }else{
+    AK0991X_INST_PRINT(LOW, instance, "num_samples = 0.");
   }
   state->force_fifo_read_till_wm = false;
 }
