@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/16/17     010031     AKM(M)           Debugged negative timestamp when DRI+FIFO/Polling+FIFO.
  * 10/13/17                AKM(M)           Changed S4S name and debugged for negative timestamp when irq->flush->acsp.
  * 10/12/17     010030     AKM(M)           Debugged of the ak0991x_get_adjusted_mag_data.
  * 10/12/17     010029     AKM(M)           Modified for the timestamp in the Polling and FIFO+Polling mode.
@@ -72,4 +73,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10030  // major:01 minor:00 revision:30
+#define AK0991X_DRIVER_VERSION 10031  // major:01 minor:00 revision:31

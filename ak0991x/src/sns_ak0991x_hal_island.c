@@ -418,14 +418,11 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
  */
 sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
-                               sns_sync_com_port_handle *port_handle,
-                               sns_diag_service *diag )
+                               sns_sync_com_port_handle *port_handle)
 {
   uint8_t  buffer[1];
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
-
-  UNUSED_VAR(diag);
 
   buffer[0] = AK0991X_SOFT_RESET;
   rv = ak0991x_com_write_wrapper(this,
@@ -615,7 +612,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   // check last timestamp
-  AK0991X_INST_PRINT(LOW, this, "check last timestamp. pre_timestamp=%u acsp=%d", (uint32_t)state->pre_timestamp, state->ascp_xfer_in_progress);
   sns_time now = sns_get_system_time();
   if( state->pre_timestamp > now ){
     AK0991X_INST_PRINT(LOW, this, "negative timestamp detected!!! Keep using pre_timestamp.");
@@ -862,16 +858,13 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  sns_diag_service *diag = state->diag_service;
-
   // Initialize error code
   *err = 0;
 
   // Reset device
   rv = ak0991x_device_sw_reset(this,
                                state->scp_service,
-                               state->com_port_info.port_handle,
-                               diag);
+                               state->com_port_info.port_handle);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -1500,15 +1493,12 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   bool update_interrupt_timestamp = false;
   uint16_t averaging_weight;
 
-#ifdef AK0991X_ENABLE_DRI
   if(state->irq_info.detect_irq_event){
     state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
-//    AK0991X_INST_PRINT(LOW, instance, "detect irq, update interrupt_timestamp");
-  } else
-#endif // AK0991X_ENABLE_DRI
-  {
+  }else{
     state->interrupt_timestamp = now; // for Polling or Flush
   }
+
   if(state->this_is_first_data){
     AK0991X_INST_PRINT(LOW, instance, "this_is_first_data");
 
@@ -1548,8 +1538,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     else
 #endif // AK0991X_ENABLE_DRI
     {
-      // timer event or fifo_flush
-      if(!state->fifo_flush_in_progress){
+      if( !state->fifo_flush_in_progress && !state->this_is_the_last_flush ){
         update_interrupt_timestamp = true;
       }
     }
@@ -1571,7 +1560,6 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     if(update_interrupt_timestamp){
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
     }
-    AK0991X_INST_PRINT(LOW, instance, "num=%d averaged_interval=%u data_count=%d" ,num_samples, (uint32_t)state->averaged_interval,(uint16_t)state->mag_info.data_count);
     state->mag_info.data_count++;
   }else{
     AK0991X_INST_PRINT(LOW, instance, "ERROR: num_samples=0 !!!");
@@ -1634,7 +1622,8 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   ak0991x_read_all_data(instance, &buffer[0]);
 
-  if(state->num_samples > 0){
+  if(state->num_samples > 0)
+  {
     ak0991x_validate_timestamp(instance);
 
     // Allocate log packet memory only if there are samples to flush
@@ -1657,7 +1646,12 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
       }
       else
       {
-        timestamp = state->pre_timestamp + (state->averaged_interval * (i + 1));
+        // Not using average_interval in order to avoid negative timestamp when ODR changed.
+        if(state->this_is_the_last_flush && !state->mag_info.use_dri){
+          timestamp = state->pre_timestamp + ((state->interrupt_timestamp-state->pre_timestamp)/state->num_samples * (i + 1));
+        }else{
+          timestamp = state->pre_timestamp + (state->averaged_interval * (i + 1));
+        }
       }
 
       ak0991x_handle_mag_sample(&buffer[AK0991X_NUM_DATA_HXL_TO_ST2 * i],
@@ -1669,7 +1663,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                                 );
     }
 
-    AK0991X_INST_PRINT(LOW, instance, "update pre_timestamp=%u.",(uint32_t)state->pre_timestamp);
     state->pre_timestamp = timestamp;
     state->this_is_first_data = false;
 
@@ -2056,6 +2049,10 @@ void ak0991x_register_timer(sns_sensor_instance *this,
     else
 #endif // AK0991X_ENABLE_S4S
     {
+      // Set timeout_period for heart beat
+//      state->heart_beat_timeout_period = (state->mag_info.use_fifo)?
+//        req_payload.timeout_period * 2 : req_payload.timeout_period * 5;
+
       if (NULL == state->timer_data_stream)
       {
         stream_mgr->api->create_sensor_instance_stream(stream_mgr,

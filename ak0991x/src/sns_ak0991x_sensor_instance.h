@@ -201,9 +201,14 @@ typedef struct ak0991x_instance_state
   bool config_mag_after_ascp_xfer;
   bool force_fifo_read_till_wm;
   bool called_handle_timer_reg_event;
+  bool this_is_the_last_flush;
   sns_time averaged_interval;
   sns_time pre_timestamp;
   sns_time measurement_time;
+//  sns_time heart_beat_timestamp;
+//  sns_time heart_beat_timeout_period;
+//  uint8_t  heart_beat_sample_count;
+//  uint8_t  heart_beat_attempt_count;
 
   /** Timer info */
   sns_sensor_uid timer_suid;

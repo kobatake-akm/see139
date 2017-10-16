@@ -237,7 +237,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
  
   state->pre_timestamp = sns_get_system_time();
-
   state->this_is_first_data = true;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
@@ -552,14 +551,28 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       // care the FIFO buffer if enabled FIFO and already streaming
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
+        state->this_is_the_last_flush = true;
         ak0991x_flush_fifo(this);
+        state->this_is_the_last_flush = false;
+
+        // stop timer
+        if (state->timer_data_stream != NULL)
+        {
+          state->mag_req.sample_rate = AK0991X_ODR_0;
+          state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
+          ak0991x_reconfig_hw(this);
+          ak0991x_register_timer(this, false);
+          AK0991X_INST_PRINT(LOW, this, "stop register_timer");
+
+          // reset
+          state->mag_req.sample_rate = mag_chosen_sample_rate;
+          state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
+        }
 
         // Reset device
-        sns_diag_service *diag = state->diag_service;
         rv = ak0991x_device_sw_reset(this,
                                      state->scp_service,
-                                     state->com_port_info.port_handle,
-                                     diag);
+                                     state->com_port_info.port_handle);
         if(rv == SNS_RC_SUCCESS){
           AK0991X_INST_PRINT(LOW, this, "soft reset called.");
         }else{

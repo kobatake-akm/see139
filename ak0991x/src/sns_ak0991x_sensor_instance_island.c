@@ -83,7 +83,6 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
   if (AKM_AK0991X_REG_HXL == vector->reg_addr)
   {
     if(state->num_samples != 0){
-
       sns_time first_timestamp = state->interrupt_timestamp
                                  - (state->averaged_interval * (state->num_samples - 1));
 
@@ -110,6 +109,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
   sns_sensor_event    *event;
+  sns_rc rv = SNS_RC_SUCCESS;
 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
@@ -143,10 +143,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           // Check if the ak0991x_inst_notify_event is an actual DRDY event or not.
           if( ak0991x_is_drdy(this) && (state->ascp_xfer_in_progress == 0))
           {
-//            AK0991X_INST_PRINT(LOW, this, "irq_event %u", (uint32_t)irq_event.timestamp);
             state->irq_event_time = irq_event.timestamp;
             state->irq_info.detect_irq_event = true; // detect interrupt
-
             if ((state->mag_info.device_select != AK09917) && (state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
             {
               ak0991x_flush_fifo(this);
@@ -159,6 +157,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             {
               ak0991x_handle_interrupt_event(this);
             }
+            AK0991X_INST_PRINT(LOW, this, "irq_event %u", (uint32_t)irq_event.timestamp);
             state->irq_info.detect_irq_event = false; // clear interrupt
           }
           else if (state->ascp_xfer_in_progress != 0)
@@ -171,6 +170,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           }
           // Already got an interrupt event. Ignore additional events.
           event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
+
         }
       }
       else
@@ -257,10 +257,42 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
-//          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. pre-now=%u",(uint32_t)(sns_get_system_time() - state->pre_timestamp));
+          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. pre-now=%u",(uint32_t)(sns_get_system_time() - state->pre_timestamp));
           if(state->called_handle_timer_reg_event){
             state->force_fifo_read_till_wm = true;
             ak0991x_flush_fifo(this);
+/*
+            if (state->heart_beat_sample_count < 5)
+            {
+              state->heart_beat_sample_count++;
+            }
+            else
+            {
+              if (state->interrupt_timestamp - state->heart_beat_timestamp > state->heart_beat_timeout_period)
+              {
+                // Detect streaming has stopped
+
+                rv = ak0991x_device_sw_reset(this,
+                                             state->scp_service,
+                                             state->com_port_info.port_handle);
+                if (rv == SNS_RC_SUCCESS) {
+                  AK0991X_INST_PRINT(LOW, this, "soft reset called");
+                } else {
+                  AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
+                }
+
+                rv = SNS_RC_NOT_AVAILABLE;
+
+                ak0991x_reconfig_hw(this);
+
+              }
+              else
+              {
+                state->heart_beat_timestamp = state->interrupt_timestamp;
+                state->heart_beat_sample_count = 0;
+              }
+            }
+*/
           }else{
             AK0991X_INST_PRINT(LOW, this, "Wrong timer event...");
           }
@@ -274,6 +306,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
             AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr reg event");
             state->called_handle_timer_reg_event = true;
+//            state->heart_beat_attempt_count = 0;
+//            state->heart_beat_sample_count = 0;
         }
       }
       else
@@ -293,7 +327,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     false);
-  return SNS_RC_SUCCESS;
+  return rv;
 }
 
 /** Public Data Definitions. */

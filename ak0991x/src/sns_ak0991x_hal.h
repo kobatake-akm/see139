@@ -408,8 +408,7 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
  */
 sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
-                               sns_sync_com_port_handle *port_handle,
-                               sns_diag_service *diag );
+                               sns_sync_com_port_handle *port_handle);
 
 /**
  * Enable Mag streaming. enables Mag sensor with

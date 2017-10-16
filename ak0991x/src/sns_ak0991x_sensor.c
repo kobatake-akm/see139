@@ -418,9 +418,9 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
   return rv;
 }
 
-//#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static void ak0991x_register_power_rails(sns_sensor *const this)
 {
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   AK0991X_PRINT(LOW, this, "ak0991x_register_power_rails");
 
    ak0991x_state *state = (ak0991x_state *)this->state->state;
@@ -434,8 +434,10 @@ static void ak0991x_register_power_rails(sns_sensor *const this)
 
    state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
                                                           &state->rail_config);
+#else
+   UNUSED_VAR(this);
+#endif
 }
-//#endif
 
 static void ak0991x_send_flush_config(sns_sensor *const this,
                                       sns_sensor_instance *instance)
@@ -489,6 +491,10 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   {
     AK0991X_PRINT(ERROR, this, "AK0991x timer req encode error");
   }
+//#else
+//  UNUSED_VAR(this);
+//  UNUSED_VAR(timeout_ticks);
+//  UNUSED_VAR(pwr_rail_pend_state);
 }
 #endif
 
@@ -1037,6 +1043,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 static void
 ak0991x_publish_registry_attributes(sns_sensor *const this)
 {
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -1081,6 +1088,9 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
   }
+#else
+  UNUSED_VAR(this);
+#endif // AK0991X_ENABLE_ALL_ATTRIBUTES
 }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
@@ -1644,8 +1654,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               // Reset Sensor
               rv = ak0991x_device_sw_reset(NULL,
                                            state->scp_service,
-                                           state->com_port_info.port_handle,
-                                           diag);
+                                           state->com_port_info.port_handle);
             }
 
             if (rv == SNS_RC_SUCCESS)
