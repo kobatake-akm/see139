@@ -441,6 +441,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       (sns_ak0991x_mag_req *)client_request->request;
     desired_sample_rate = payload->sample_rate;
     desired_report_rate = payload->report_rate;
+    state->mag_info.flush_only = payload->is_flush_only;
 
     // Register for interrupt
     if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))

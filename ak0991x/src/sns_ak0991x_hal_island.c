@@ -626,6 +626,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->called_handle_timer_reg_event = false;
+  state->mag_info.flush_only = false;
 
   return SNS_RC_SUCCESS;
 }
@@ -1622,7 +1623,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   ak0991x_read_all_data(instance, &buffer[0]);
 
-  if(state->num_samples > 0)
+  if(!state->mag_info.flush_only && state->num_samples > 0)
   {
     ak0991x_validate_timestamp(instance);
 
@@ -1662,7 +1663,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                                 &log_mag_state_raw_info
                                 );
     }
-
     state->pre_timestamp = timestamp;
     state->this_is_first_data = false;
 
@@ -1672,7 +1672,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     UNUSED_VAR(log_mag_state_raw_info);
 #endif
   }else{
-    AK0991X_INST_PRINT(LOW, instance, "num_samples = 0.");
+    AK0991X_INST_PRINT(LOW, instance,"flush_only=%d or num_samples=%d. skip handle_mag_sample", state->mag_info.flush_only, state->num_samples);
   }
   state->force_fifo_read_till_wm = false;
 }
