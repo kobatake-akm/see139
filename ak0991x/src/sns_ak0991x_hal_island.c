@@ -628,6 +628,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->called_handle_timer_reg_event = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_attempt_count = 0;
+  state->heart_beat_timestamp = now;
 
   return SNS_RC_SUCCESS;
 }
@@ -2038,9 +2039,26 @@ void ak0991x_register_timer(sns_sensor_instance *this,
     else
 #endif // AK0991X_ENABLE_S4S
     {
-      // Set timeout_period for heart beat
-      state->heart_beat_timeout_period = (state->mag_info.use_fifo)?
-        req_payload.timeout_period * 2 : req_payload.timeout_period * 5;
+      // Set timeout_period for heart beat 
+      // as 5 samples time for Polling/S4S plus 1 sample time for jitter
+      // or 2 samples time for DRI plus 1 sample time for jitter
+      // or 2 FIFO buffers time for FIFO+Polling/FIFO+DRI/FIFO+S4S plus 1 sample time for jitter
+#ifdef AK0991X_ENABLE_S4S
+      if (state->mag_info.use_sync_stream)
+      {
+        state->heart_beat_timeout_period = (state->mag_info.use_fifo)?
+          req_payload.timeout_period * 2  : req_payload.timeout_period * 5;
+        state->heart_beat_timeout_period += sns_convert_ns_to_ticks(
+          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
+      }
+      else
+#endif
+      {
+        state->heart_beat_timeout_period = (state->mag_info.use_fifo || state->mag_info.use_dri)?
+          req_payload.timeout_period * 2 : req_payload.timeout_period * 5;
+        state->heart_beat_timeout_period += sns_convert_ns_to_ticks(
+          1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+      }
 
       if (NULL == state->timer_data_stream)
       {
