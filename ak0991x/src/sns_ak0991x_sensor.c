@@ -1644,8 +1644,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               // Reset Sensor
               rv = ak0991x_device_sw_reset(NULL,
                                            state->scp_service,
-                                           state->com_port_info.port_handle,
-                                           diag);
+                                           state->com_port_info.port_handle);
             }
 
             if (rv == SNS_RC_SUCCESS)

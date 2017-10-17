@@ -259,34 +259,46 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             state->interrupt_timestamp = sns_get_system_time(); // For Polling
             ak0991x_flush_fifo(this);
 
-            if (state->heart_beat_count < 5)
+            if (state->heart_beat_sample_count < 5)
             {
-              state->heart_beat_count++;
+              state->heart_beat_sample_count++;
             }
             else
             {
+              // Detect streaming has stopped
               if (state->interrupt_timestamp - state->heart_beat_timestamp > state->heart_beat_timeout_period)
               {
-                // Detect streaming has stopped
+                AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
 
-                rv = ak0991x_device_sw_reset(this,
-                                             state->scp_service,
-                                             state->com_port_info.port_handle);
-                if (rv == SNS_RC_SUCCESS) {
-                  AK0991X_INST_PRINT(LOW, this, "soft reset called");
-                } else {
-                  AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
+                // Streaming is unable to resume after 3 attempts
+                if (state->heart_beat_attempt_count >= 3)
+                {
+                 AK0991X_INST_PRINT(ERROR, this, "Streming is unable to resume after 3 attempts");
+                 rv = SNS_RC_INVALID_STATE;
                 }
+                // Perform a reset operation in an attempt to revive the sensor
+                else
+                {
+                  rv = ak0991x_device_sw_reset(this,
+                                               state->scp_service,
+                                               state->com_port_info.port_handle);
+                  if (rv == SNS_RC_SUCCESS) {
+                    AK0991X_INST_PRINT(LOW, this, "soft reset called");
+                  } else {
+                    AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
+                  }
 
-                rv = SNS_RC_NOT_AVAILABLE;
-
-                ak0991x_reconfig_hw(this);
-
+                  // Indicate streaming error
+                  rv = SNS_RC_NOT_AVAILABLE;
+                  ak0991x_reconfig_hw(this);
+                  state->heart_beat_attempt_count++;
+                }
               }
               else
               {
                 state->heart_beat_timestamp = state->interrupt_timestamp;
-                state->heart_beat_count = 0;
+                state->heart_beat_sample_count = 0;
+                state->heart_beat_attempt_count = 0;
               }
             }
           }else{
@@ -302,8 +314,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
             AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr reg event");
             state->called_handle_timer_reg_event = true;
-            state->heart_beat_attempt_count = 0;
-            state->heart_beat_sample_count = 0;
         }
       }
       else

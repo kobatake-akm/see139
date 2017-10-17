@@ -626,6 +626,8 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->called_handle_timer_reg_event = false;
+  state->heart_beat_sample_count = 0;
+  state->heart_beat_attempt_count = 0;
 
   return SNS_RC_SUCCESS;
 }
@@ -858,16 +860,13 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  sns_diag_service *diag = state->diag_service;
-
   // Initialize error code
   *err = 0;
 
   // Reset device
   rv = ak0991x_device_sw_reset(this,
                                state->scp_service,
-                               state->com_port_info.port_handle,
-                               diag);
+                               state->com_port_info.port_handle);
 
   if (rv != SNS_RC_SUCCESS)
   {
