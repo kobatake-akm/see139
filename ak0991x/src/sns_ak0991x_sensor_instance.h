@@ -206,10 +206,10 @@ typedef struct ak0991x_instance_state
   sns_time averaged_interval;
   sns_time pre_timestamp;
   sns_time measurement_time;
-//  sns_time heart_beat_timestamp;
-//  sns_time heart_beat_timeout_period;
-//  uint8_t  heart_beat_sample_count;
-//  uint8_t  heart_beat_attempt_count;
+  sns_time heart_beat_timestamp;
+  sns_time heart_beat_timeout_period;
+  uint8_t  heart_beat_sample_count;
+  uint8_t  heart_beat_attempt_count;
 
   /** Timer info */
   sns_sensor_uid timer_suid;

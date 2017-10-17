@@ -586,6 +586,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_reconfig_hw(this);
         AK0991X_INST_PRINT(LOW, this, "done ak0991x_reconfig_hw");
+        // Register for timer to enable heart beat function
+        ak0991x_register_timer(this, false);
       }
 
       // Register for timer

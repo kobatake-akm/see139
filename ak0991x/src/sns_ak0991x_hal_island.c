@@ -627,6 +627,9 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->force_fifo_read_till_wm = false;
   state->called_handle_timer_reg_event = false;
   state->mag_info.flush_only = false;
+  state->heart_beat_sample_count = 0;
+  state->heart_beat_attempt_count = 0;
+  state->heart_beat_timestamp = now;
 
   return SNS_RC_SUCCESS;
 }
@@ -2049,10 +2052,6 @@ void ak0991x_register_timer(sns_sensor_instance *this,
     else
 #endif // AK0991X_ENABLE_S4S
     {
-      // Set timeout_period for heart beat
-//      state->heart_beat_timeout_period = (state->mag_info.use_fifo)?
-//        req_payload.timeout_period * 2 : req_payload.timeout_period * 5;
-
       if (NULL == state->timer_data_stream)
       {
         stream_mgr->api->create_sensor_instance_stream(stream_mgr,
