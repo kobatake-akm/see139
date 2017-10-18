@@ -628,7 +628,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->called_handle_timer_reg_event = false;
   state->mag_info.flush_only = false;
   state->heart_beat_sample_count = 0;
-  state->heart_beat_attempt_count = 0;
   state->heart_beat_timestamp = now;
 
   return SNS_RC_SUCCESS;
@@ -1958,8 +1957,7 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
 #endif //A0991X_ENABLE_DRI
 }
 
-void ak0991x_register_timer(sns_sensor_instance *this,
-                            bool register_s4s_timer)
+void ak0991x_register_heart_beat_timer(sns_sensor_instance *this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
@@ -1971,65 +1969,114 @@ void ak0991x_register_timer(sns_sensor_instance *this,
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   size_t                  req_len;
   uint8_t                 buffer[20] = {0};
-  req_payload.is_periodic = true;
+  sns_time                sample_period;
   req_payload.has_priority = true;
+  req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
+  req_payload.is_periodic = false;
+  req_payload.start_time = sns_get_system_time();
+
+  sample_period = sns_convert_ns_to_ticks(
+      1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+ 
+  // Set timeout_period for heart beat in DRI/FIFO+DRI
+  // as 2 samples time for DRI
+  // or 2 FIFO buffers time for FIFO+DRI
+  if (state->mag_info.use_fifo)
+  {
+    req_payload.timeout_period = sample_period * 2 * (state->mag_info.cur_wmk + 1);
+  }
+  else
+  {
+    req_payload.timeout_period = sample_period * 2;
+  }
+
+  if (state->mag_req.sample_rate != AK0991X_ODR_0)
+  {
+    if (NULL == state->timer_data_stream)
+    {
+      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                     this,
+                                                     state->timer_suid,
+                                                     &state->timer_data_stream
+                                                     );
+    }
+
+    req_len = pb_encode_request(buffer,
+                                sizeof(buffer),
+                                &req_payload,
+                                sns_timer_sensor_config_fields,
+                                NULL);
+
+    if (req_len > 0)
+    {
+      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
+      timer_req.request_len = req_len;
+      timer_req.request = buffer;
+
+      /** Send encoded request to Timer Sensor */
+      state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+    }
+    else
+    {
+      AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
+    }
+  }
+  else
+  {
+    if (state->timer_data_stream != NULL)
+    {
+      stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
+      state->timer_data_stream = NULL;
+      AK0991X_INST_PRINT(LOW, this, "remove timer.");
+    }
+  }
+}
+
+void ak0991x_register_timer(sns_sensor_instance *this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service *stream_mgr = (sns_stream_service *)
+      service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
+  sns_request             timer_req;
+  sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
+  size_t                  req_len;
+  uint8_t                 buffer[20] = {0};
+  sns_time                sample_period;
+  req_payload.has_priority = true;
+  req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+  req_payload.is_periodic = true;
 
 #ifdef AK0991X_ENABLE_S4S
   if (state->mag_info.use_sync_stream)
   {
-    if (register_s4s_timer)
-    {
-      sns_time                t_ph_period = sns_convert_ns_to_ticks(
-          AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-      req_payload.start_time = sns_get_system_time() - t_ph_period;
-      req_payload.start_config.early_start_delta = 0;
-      req_payload.start_config.late_start_delta = t_ph_period;
-      req_payload.priority = SNS_TIMER_PRIORITY_S4S;
-      req_payload.timeout_period = t_ph_period;
-    }
-    else
-    {
-      req_payload.start_time = sns_get_system_time() - sns_convert_ns_to_ticks(
-          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
-      req_payload.start_config.early_start_delta = 0;
-      req_payload.start_config.late_start_delta = sns_convert_ns_to_ticks(
-          2 * AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-
-      if (state->mag_info.use_fifo)
-      {
-        req_payload.timeout_period = sns_convert_ns_to_ticks(
-          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * (state->mag_info.cur_wmk + 1) * 1000 * 1000);
-      }
-      else
-      {
-        req_payload.timeout_period = sns_convert_ns_to_ticks(
-          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
-      }
-    }
+    sample_period = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
+    req_payload.start_time = sns_get_system_time() - sample_period;
+    req_payload.start_config.early_start_delta = 0;
+    req_payload.start_config.late_start_delta = sample_period * 2;
   }
   else
 #endif // AK0991X_ENABLE_S4S
   {
-    UNUSED_VAR(register_s4s_timer);
-    req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-
-    if (state->mag_info.use_fifo)
-    {
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
-        1 / state->mag_req.sample_rate * (state->mag_info.cur_wmk + 1) * 1000 * 1000 * 1000);
-    }
-    else
-    {
-      req_payload.timeout_period = sns_convert_ns_to_ticks(
+    sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
-    }
     //TODO: start time calculation should be similar to above use_sync_stream case
     //If this sensor is doing polling, it would be good to synchronize the Mag polling timer,
     //with other polling timers on the system.
     //For example, that the pressure sensor is polling at 20Hz.
     //It would be good to make sure the mag polling timer and the pressure polling timer are synchronized if possible.
     req_payload.start_time = sns_get_system_time();
+  } 
+
+  if (state->mag_info.use_fifo)
+  {
+    req_payload.timeout_period = sample_period * (state->mag_info.cur_wmk + 1);
+  }
+  else
+  {
+    req_payload.timeout_period = sample_period;
   }
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
@@ -2038,50 +2085,20 @@ void ak0991x_register_timer(sns_sensor_instance *this,
     AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);
     AK0991X_INST_PRINT(LOW, this, "late_start_delta=%u", (uint32_t)req_payload.start_config.late_start_delta);
 
-#ifdef AK0991X_ENABLE_S4S
-    if (register_s4s_timer)
+    // Set heart_beat_timeout_period for heart beat in Polling/FIFO+Polling/S4S/FIFO+S4S
+    // as 5 samples time for Polling/S4S plus 1 sample time for jitter
+    // or 2 FIFO buffers time for FIFO+Polling/FIFO+S4S plus 2 sample time for jitter
+    state->heart_beat_timeout_period = 
+      (state->mag_info.use_fifo)? req_payload.timeout_period * 2 + sample_period * 2
+      : req_payload.timeout_period * 5 * sample_period;
+ 
+    if (NULL == state->timer_data_stream)
     {
-      if (NULL == state->s4s_timer_data_stream)
-      {
-        stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                       this,
-                                                       state->timer_suid,
-                                                       &state->s4s_timer_data_stream
-                                                       );
-      }
-    }
-    else
-#endif // AK0991X_ENABLE_S4S
-    {
-      // Set timeout_period for heart beat
-      // as 5 samples time for Polling/S4S plus 1 sample time for jitter
-      // or 2 samples time for DRI plus 1 sample time for jitter
-      // or 2 FIFO buffers time for FIFO+Polling/FIFO+DRI/FIFO+S4S plus 1 sample time for jitter
-#ifdef AK0991X_ENABLE_S4S
-      if (state->mag_info.use_sync_stream)
-      {
-        state->heart_beat_timeout_period = (state->mag_info.use_fifo)?
-          req_payload.timeout_period * 2  : req_payload.timeout_period * 5;
-        state->heart_beat_timeout_period += sns_convert_ns_to_ticks(
-          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
-      }
-      else
-#endif
-      {
-        state->heart_beat_timeout_period = (state->mag_info.use_fifo || state->mag_info.use_dri)?
-          req_payload.timeout_period * 2 : req_payload.timeout_period * 5;
-        state->heart_beat_timeout_period += sns_convert_ns_to_ticks(
-          1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
-      }
-
-      if (NULL == state->timer_data_stream)
-      {
-        stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                       this,
-                                                       state->timer_suid,
-                                                       &state->timer_data_stream
-                                                       );
-      }
+      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                     this,
+                                                     state->timer_suid,
+                                                     &state->timer_data_stream
+                                                     );
     }
  
     req_len = pb_encode_request(buffer,
@@ -2097,16 +2114,7 @@ void ak0991x_register_timer(sns_sensor_instance *this,
       timer_req.request = buffer;
 
       /** Send encoded request to Timer Sensor */
-#ifdef AK0991X_ENABLE_S4S
-      if (register_s4s_timer)
-      {
-        state->s4s_timer_data_stream->api->send_request(state->s4s_timer_data_stream, &timer_req);
-      }
-      else
-#endif // AK0991X_ENABLE_S4S
-      {
-        state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
-      }
+      state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
     }
     else
     {
@@ -2115,25 +2123,11 @@ void ak0991x_register_timer(sns_sensor_instance *this,
   }
   else
   {
-#ifdef AK0991X_ENABLE_S4S
-    if (register_s4s_timer)
+    if (state->timer_data_stream != NULL)
     {
-      state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-      if (state->s4s_timer_data_stream != NULL)
-      {
-        stream_mgr->api->remove_stream(stream_mgr, state->s4s_timer_data_stream);
-        state->s4s_timer_data_stream = NULL;
-      }
-    }
-    else
-#endif
-    {
-      if (state->timer_data_stream != NULL)
-      {
-        stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-        state->timer_data_stream = NULL;
-        AK0991X_INST_PRINT(LOW, this, "remove timer.");
-      }
+      stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
+      state->timer_data_stream = NULL;
+      AK0991X_INST_PRINT(LOW, this, "remove timer.");
     }
   }
 }
