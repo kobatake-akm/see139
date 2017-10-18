@@ -58,17 +58,6 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
   }
-#endif
-  {
-    char const type[] = "mag";
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.str.funcs.encode = pb_encode_string_cb;
-    value.str.arg = &((pb_buffer_arg)
-        { .buf = type, .buf_len = sizeof(type) });
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
-  }
-#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   {
     char const vendor[] = "akm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -118,6 +107,15 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         values, ARR_SIZE(values), true);
   }
 #endif
+  {
+    char const type[] = "mag";
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.str.funcs.encode = pb_encode_string_cb;
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = type, .buf_len = sizeof(type) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
+  }
 }
 
 
@@ -260,16 +258,6 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   ak0991x_send_suid_req(this, "registry", sizeof("registry"));
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
-
-// for Dragon Board. vote power rail for testing
-#if defined(TARGET_IS_DRAGONBOARD) && !defined(AK0991X_ENABLE_POWER_RAIL)
-  sns_time timeticks;
-  state->rail_config.rail_vote = SNS_RAIL_ON_NPM;
-  state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
-                                                           this,
-                                                           &state->rail_config,
-                                                           &timeticks); /* ignored */
-#endif
 
   return SNS_RC_SUCCESS;
 }

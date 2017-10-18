@@ -694,15 +694,11 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service *scp_service,
 static sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
                                sns_sync_com_port_handle *port_handle,
-                               sns_diag_service *diag,
                                uint8_t *asa)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint8_t  buffer[1];
   uint32_t xfer_bytes;
-
-  UNUSED_VAR(diag);
-
 
   buffer[0] = AK0991X_MAG_FUSEROM;
   // Set Fuse ROM access mode
@@ -885,7 +881,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     rv = ak0991x_read_asa(this,
                           state->scp_service,
                           state->com_port_info.port_handle,
-                          diag,
                           asa);
 
 
@@ -1217,7 +1212,6 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
 sns_rc ak0991x_set_sstvt_adj(
                              sns_sync_com_port_service* scp_service,
                              sns_sync_com_port_handle *port_handle,
-                             sns_diag_service *diag,
                              akm_device_type device_select,
                              float *sstvt_adj)
 {
@@ -1236,7 +1230,7 @@ sns_rc ak0991x_set_sstvt_adj(
 
 #ifdef AK0991X_ENABLE_FUSE
   uint8_t buffer[AK0991X_NUM_SENSITIVITY];
-  rv = ak0991x_read_asa(NULL, scp_service,port_handle, diag, buffer);
+  rv = ak0991x_read_asa(NULL, scp_service,port_handle, buffer);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -1265,7 +1259,6 @@ sns_rc ak0991x_set_sstvt_adj(
 #else
   UNUSED_VAR(scp_service);
   UNUSED_VAR(port_handle);
-  UNUSED_VAR(diag);
 #endif
 
   return rv;

@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/18/17                AKM(M)           Modified for SEE-Lite except using new SUID handler utility
  * 10/18/17     010033     AKM(N)           Added heart beat timer function
  * 10/16/17     010032     AKM(M)           Supports flush_only.
  * 10/16/17     010031     AKM(M)           Debugged negative timestamp when DRI+FIFO/Polling+FIFO.
