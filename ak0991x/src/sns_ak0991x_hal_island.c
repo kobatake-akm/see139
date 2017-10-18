@@ -1123,7 +1123,9 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
   // For Polling + non FIFO mode
-  if(!state->mag_info.use_fifo || (state->force_fifo_read_till_wm && state->mag_info.cur_wmk == 0) )
+  if(!state->mag_info.use_fifo ||
+      (state->force_fifo_read_till_wm && state->mag_info.cur_wmk == 0) ||
+      (state->mag_info.use_sync_stream && state->mag_info.cur_wmk == 0 ))
   {
     state->num_samples = 1;
     ak0991x_read_hxl_st2(state,
@@ -1141,8 +1143,8 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
     uint8_t st1_buf = 0;
     if (SNS_RC_SUCCESS == ak0991x_read_st1(state, &st1_buf))
     {
-      // update num when polling+FIFO or S4S+FIFO mode
-      if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm || state->mag_info.use_sync_stream) ){
+      // update num when polling+FIFO mode
+      if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm) ){
         state->num_samples = state->mag_info.cur_wmk + 1;
       }else{
         state->num_samples = st1_buf >> 2;
@@ -1192,7 +1194,7 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
 
       if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
       {
-        if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm || state->mag_info.use_sync_stream) ){
+        if( state->mag_info.use_fifo && state->force_fifo_read_till_wm ){
           if(i >= state->mag_info.cur_wmk + 1){
             state->num_samples = i;
             break;

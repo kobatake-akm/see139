@@ -235,7 +235,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
             if(state->ascp_xfer_in_progress == 0)
             {
-              // Register for tiemr to enable heart beat function
+              // Register for timer to enable heart beat function
               ak0991x_register_heart_beat_timer(this);
               state->heart_beat_attempt_count = 0;
 
