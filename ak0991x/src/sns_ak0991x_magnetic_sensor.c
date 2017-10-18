@@ -261,6 +261,16 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   ak0991x_send_suid_req(this, "registry", sizeof("registry"));
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
+// for Dragon Board. vote power rail for testing
+#if defined(TARGET_IS_DRAGONBOARD) && !defined(AK0991X_ENABLE_POWER_RAIL)
+  sns_time timeticks;
+  state->rail_config.rail_vote = SNS_RAIL_ON_NPM;
+  state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
+                                                           this,
+                                                           &state->rail_config,
+                                                           &timeticks); /* ignored */
+#endif
+
   return SNS_RC_SUCCESS;
 }
 

@@ -429,7 +429,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
 
 static void ak0991x_register_power_rails(sns_sensor *const this)
 {
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
+#ifdef AK0991X_ENABLE_POWER_RAIL
   AK0991X_PRINT(LOW, this, "ak0991x_register_power_rails");
 
    ak0991x_state *state = (ak0991x_state *)this->state->state;
@@ -1052,7 +1052,6 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 static void
 ak0991x_publish_registry_attributes(sns_sensor *const this)
 {
-#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -1097,9 +1096,6 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
   }
-#else
-  UNUSED_VAR(this);
-#endif // AK0991X_ENABLE_ALL_ATTRIBUTES
 }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
@@ -1569,8 +1565,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   if(NULL != state->timer_stream)
   {
     AK0991X_PRINT(LOW, this, "ak0991x_process_timer_events");
-
     event = state->timer_stream->api->peek_input(state->timer_stream);
+
+//    AK0991X_PRINT(LOW, this, "ak0991x_process_timer_events id=%d", event->message_id);
 
     while (NULL != event)
     {
@@ -1596,10 +1593,12 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             else
             {
               state->who_am_i = buffer[1] << 8 | buffer[0];
+              AK0991X_PRINT(LOW, this, "Read WHO-AM-I %d",state->who_am_i);
 
               //Check AKM device ID
               if (buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
               {
+#ifdef AK0991X_ENABLE_ALL_DEVICES
                 if (buffer[1] == AK09911_WHOAMI_DEV_ID)
                 {
                   state->device_select = AK09911;
@@ -1641,6 +1640,57 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                   AK0991X_PRINT(ERROR, this, "Unsupported Sensor");
                   rv = SNS_RC_INVALID_STATE;
                 }
+#else
+#ifdef AK0991X_TARGET_AK09911
+                if(buffer[1] == AK09911_WHOAMI_DEV_ID){
+                  state->device_select = AK09911;
+                }
+#endif
+#ifdef AK0991X_TARGET_AK09912
+                if(buffer[1] == AK09912_WHOAMI_DEV_ID){
+                  state->device_select = AK09912;
+                }
+#endif
+#ifdef AK0991X_TARGET_AK09913
+                if(buffer[1] == AK09913_WHOAMI_DEV_ID){
+                  state->device_select = AK09913;
+                }
+#endif
+#ifdef AK0991X_TARGET_AK09915C
+                if((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915C_SUB_ID)){
+                  state->device_select = AK09915C;
+                }
+#endif
+#ifdef AK0991X_TARGET_AK09915D
+                if((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915D_SUB_ID)){
+                  state->device_select = AK09915D;
+                }
+#endif
+#ifdef AK0991X_TARGET_AK09916C
+                if(buffer[1] == AK09916C_WHOAMI_DEV_ID){
+                  state->device_select = AK09916C;
+                }
+#endif
+#ifdef AK0991X_TARGET_AK09916D
+                if(buffer[1] == AK09916D_WHOAMI_DEV_ID){
+                  state->device_select = AK09916D;
+                }
+#endif
+#ifdef AK0991X_TARGET_AK09917
+                if(buffer[1] == AK09917_WHOAMI_DEV_ID){
+                  state->device_select = AK09917;
+                }
+#endif
+#ifdef AK0991X_TARGET_AK09918
+                if(buffer[1] == AK09918_WHOAMI_DEV_ID){
+                  state->device_select = AK09918;
+                }
+#endif
+                else{
+                  AK0991X_PRINT(ERROR, this, "Unsupported Sensor");
+                  rv = SNS_RC_INVALID_STATE;
+                }
+#endif
               }
               else
               {
@@ -2037,7 +2087,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_POWER_RAIL
      NULL != state->pwr_rail_service &&
 #endif
-		 NULL != state->timer_stream &&
+     NULL != state->timer_stream &&
      state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
   {
 #ifdef AK0991X_ENABLE_POWER_RAIL
