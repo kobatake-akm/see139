@@ -253,6 +253,7 @@ static void ak0991x_get_mag_config(
                                    float *chosen_sample_rate,
                                    float *chosen_report_rate,
                                    uint32_t *chosen_flush_period,
+                                   bool *is_flush_only,
                                    bool *sensor_client_present)
 {
   sns_sensor_uid suid = MAG_SUID;
@@ -261,6 +262,7 @@ static void ak0991x_get_mag_config(
   *chosen_report_rate = 0;
   *chosen_sample_rate = 0;
   *chosen_flush_period = 0;
+  *is_flush_only = false;
   *sensor_client_present = false;
 
 #ifndef AK0991X_ENABLE_DEBUG_MSG
@@ -283,6 +285,8 @@ static void ak0991x_get_mag_config(
       {
         float report_rate;
         uint32_t flush_period;
+
+        *is_flush_only = decoded_request.batching.flush_only;
 
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
@@ -323,7 +327,8 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
                                         float chosen_report_rate,
                                         float chosen_sample_rate,
                                         sns_ak0991x_registry_cfg registry_cfg,
-                                        uint32_t chosen_flush_period)
+                                        uint32_t chosen_flush_period,
+                                        bool is_flush_only)
 {
   sns_ak0991x_mag_req new_client_config;
   sns_request config;
@@ -332,6 +337,7 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   new_client_config.sample_rate = chosen_sample_rate;
   new_client_config.flush_period = chosen_flush_period;
   new_client_config.registry_cfg = registry_cfg;
+  new_client_config.is_flush_only = is_flush_only;
 
   config.message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
   config.request_len = sizeof(sns_ak0991x_mag_req);
@@ -359,6 +365,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   float chosen_sample_rate = 0;
   float chosen_report_rate = 0;
   uint32_t chosen_flush_period = 0;
+  bool is_flush_only = false;
   bool m_sensor_client_present;
   UNUSED_VAR(instance);
   ak0991x_state *state = (ak0991x_state*)this->state->state;
@@ -372,6 +379,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                          &chosen_sample_rate,
                          &chosen_report_rate,
                          &chosen_flush_period,
+                         &is_flush_only,
                          &m_sensor_client_present);
 
   sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
@@ -385,7 +393,8 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                               chosen_report_rate,
                               chosen_sample_rate,
                               registry_cfg,
-                              chosen_flush_period);
+                              chosen_flush_period,
+                              is_flush_only);
 }
 
 static sns_rc ak0991x_register_com_port(sns_sensor *const this)
@@ -418,9 +427,9 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
   return rv;
 }
 
-//#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static void ak0991x_register_power_rails(sns_sensor *const this)
 {
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   AK0991X_PRINT(LOW, this, "ak0991x_register_power_rails");
 
    ak0991x_state *state = (ak0991x_state *)this->state->state;
@@ -434,8 +443,10 @@ static void ak0991x_register_power_rails(sns_sensor *const this)
 
    state->pwr_rail_service->api->sns_register_power_rails(state->pwr_rail_service,
                                                           &state->rail_config);
+#else
+   UNUSED_VAR(this);
+#endif
 }
-//#endif
 
 static void ak0991x_send_flush_config(sns_sensor *const this,
                                       sns_sensor_instance *instance)
@@ -489,6 +500,10 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   {
     AK0991X_PRINT(ERROR, this, "AK0991x timer req encode error");
   }
+//#else
+//  UNUSED_VAR(this);
+//  UNUSED_VAR(timeout_ticks);
+//  UNUSED_VAR(pwr_rail_pend_state);
 }
 #endif
 
@@ -1037,6 +1052,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 static void
 ak0991x_publish_registry_attributes(sns_sensor *const this)
 {
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -1081,6 +1097,9 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
   }
+#else
+  UNUSED_VAR(this);
+#endif // AK0991X_ENABLE_ALL_ATTRIBUTES
 }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
@@ -2023,7 +2042,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   {
 #ifdef AK0991X_ENABLE_POWER_RAIL
     sns_time timeticks;
-    state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
+    state->rail_config.rail_vote = SNS_RAIL_ON_NPM;
     state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                              this,
                                                              &state->rail_config,

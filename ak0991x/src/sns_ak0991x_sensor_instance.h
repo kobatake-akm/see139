@@ -149,6 +149,7 @@ typedef struct ak0991x_mag_info
   uint16_t       max_fifo_size;
   bool           use_dri;
   bool           use_fifo;
+  bool           flush_only;
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;
@@ -201,6 +202,7 @@ typedef struct ak0991x_instance_state
   bool config_mag_after_ascp_xfer;
   bool force_fifo_read_till_wm;
   bool called_handle_timer_reg_event;
+  bool this_is_the_last_flush;
   sns_time averaged_interval;
   sns_time pre_timestamp;
   sns_time measurement_time;
@@ -270,6 +272,7 @@ typedef struct sns_ak0991x_mag_req
   float sample_rate;
   float report_rate;
   uint32_t flush_period;
+  bool is_flush_only;
   sns_ak0991x_registry_cfg registry_cfg;
 } sns_ak0991x_mag_req;
 

@@ -441,6 +441,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       (sns_ak0991x_mag_req *)client_request->request;
     desired_sample_rate = payload->sample_rate;
     desired_report_rate = payload->report_rate;
+    state->mag_info.flush_only = payload->is_flush_only;
 
     // Register for interrupt
     if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
@@ -548,12 +549,26 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if (state->config_step == AK0991X_CONFIG_IDLE)
     {
-
       // care the FIFO buffer if enabled FIFO and already streaming
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
-        state->interrupt_timestamp = sns_get_system_time(); // For flush
+        state->this_is_the_last_flush = true;
         ak0991x_flush_fifo(this);
+        state->this_is_the_last_flush = false;
+
+        // stop timer
+        if (state->timer_data_stream != NULL)
+        {
+          state->mag_req.sample_rate = AK0991X_ODR_0;
+          state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
+          ak0991x_reconfig_hw(this);
+          ak0991x_register_timer(this, false);
+          AK0991X_INST_PRINT(LOW, this, "stop register_timer");
+
+          // reset
+          state->mag_req.sample_rate = mag_chosen_sample_rate;
+          state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
+        }
 
         // Reset device
         rv = ak0991x_device_sw_reset(this,
@@ -614,7 +629,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(!ak0991x_dae_if_flush_samples(this))
     {
       AK0991X_INST_PRINT(LOW, this, "flush requested.");
-      state->interrupt_timestamp = sns_get_system_time(); // For flush
       ak0991x_flush_fifo(this);
       ak0991x_send_fifo_flush_done(this);
       state->fifo_flush_in_progress = false;
@@ -642,7 +656,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         // care the FIFO buffer if enabled FIFO
         if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
         {
-          state->interrupt_timestamp = sns_get_system_time(); // For flush
           ak0991x_flush_fifo(this);
         }
 
