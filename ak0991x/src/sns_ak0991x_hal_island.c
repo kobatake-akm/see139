@@ -1382,45 +1382,46 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.resolution;
   ipdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z] * state->mag_info.resolution;
 
-  AK0991X_INST_PRINT(LOW, instance, "timestamp=%u pre=%u irq=%u average=%u Mag[LSB] %d,%d,%d",
+  AK0991X_INST_PRINT(LOW, instance, "timestamp=%u pre=%u irq=%u average=%u Mag[LSB] %d,%d,%d flush_only=%d",
       (uint32_t)timestamp,
       (uint32_t)state->pre_timestamp,
       (uint32_t)state->irq_event_time,
       (uint32_t)state->averaged_interval,
       (int16_t)(lsbdata[TRIAXIS_X]),
       (int16_t)(lsbdata[TRIAXIS_Y]),
-      (int16_t)(lsbdata[TRIAXIS_Z]));
-
-  // axis conversion
-  for (i = 0; i < TRIAXIS_NUM; i++)
+      (int16_t)(lsbdata[TRIAXIS_Z]),
+      state->mag_info.flush_only);
+  if(!state->mag_info.flush_only)
   {
-    opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
-      ipdata[state->axis_map[i].ipaxis];
+	  // axis conversion
+	  for (i = 0; i < TRIAXIS_NUM; i++)
+	  {
+	    opdata_raw[state->axis_map[i].opaxis] = (state->axis_map[i].invert ? -1.0 : 1.0) *
+	      ipdata[state->axis_map[i].ipaxis];
+	  }
+
+	  // factory calibration
+	  vector3 opdata_cal = sns_apply_calibration_correction_3(
+	      make_vector3_from_array(opdata_raw),
+	      make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
+	      state->mag_registry_cfg.fac_cal_corr_mat);
+
+	  pb_send_sensor_stream_event(instance,
+	                              &state->mag_info.suid,
+	                              timestamp,
+	                              SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_EVENT,
+	                              status,
+	                              opdata_cal.data,
+	                              ARR_SIZE(opdata_cal.data),
+	                              state->encoded_mag_event_len);
+
+	  // Log raw uncalibrated sensor data
+	  ak0991x_log_sensor_state_raw_add(
+	    log_mag_state_raw_info,
+	    opdata_raw,
+	    timestamp,
+	    status);
   }
-
-  // factory calibration
-  vector3 opdata_cal = sns_apply_calibration_correction_3(
-      make_vector3_from_array(opdata_raw),
-      make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
-      state->mag_registry_cfg.fac_cal_corr_mat);
-
-  pb_send_sensor_stream_event(instance,
-                              &state->mag_info.suid,
-                              timestamp,
-                              SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_EVENT,
-                              status,
-                              opdata_cal.data,
-                              ARR_SIZE(opdata_cal.data),
-                              state->encoded_mag_event_len);
-
-  // Log raw uncalibrated sensor data
-  ak0991x_log_sensor_state_raw_add(
-    log_mag_state_raw_info,
-    opdata_raw,
-    timestamp,
-    status);
-
-
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -2052,6 +2053,27 @@ void ak0991x_register_timer(sns_sensor_instance *this,
     else
 #endif // AK0991X_ENABLE_S4S
     {
+      // Set timeout_period for heart beat
+      // as 5 samples time for Polling/S4S plus 1 sample time for jitter
+      // or 2 samples time for DRI plus 1 sample time for jitter
+      // or 2 FIFO buffers time for FIFO+Polling/FIFO+DRI/FIFO+S4S plus 1 sample time for jitter
+#ifdef AK0991X_ENABLE_S4S
+      if (state->mag_info.use_sync_stream)
+      {
+        state->heart_beat_timeout_period = (state->mag_info.use_fifo)?
+          req_payload.timeout_period * 2  : req_payload.timeout_period * 5;
+        state->heart_beat_timeout_period += sns_convert_ns_to_ticks(
+          AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
+      }
+      else
+#endif
+      {
+        state->heart_beat_timeout_period = (state->mag_info.use_fifo || state->mag_info.use_dri)?
+          req_payload.timeout_period * 2 : req_payload.timeout_period * 5;
+        state->heart_beat_timeout_period += sns_convert_ns_to_ticks(
+          1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+      }
+
       if (NULL == state->timer_data_stream)
       {
         stream_mgr->api->create_sensor_instance_stream(stream_mgr,

@@ -2042,7 +2042,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   {
 #ifdef AK0991X_ENABLE_POWER_RAIL
     sns_time timeticks;
-    state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
+    state->rail_config.rail_vote = SNS_RAIL_ON_NPM;
     state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                              this,
                                                              &state->rail_config,
