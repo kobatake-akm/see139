@@ -405,13 +405,13 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
           if(state->mag_info.use_sync_stream)
           {
 #ifdef AK0991X_ENABLE_S4S
-            ak0991x_register_timer(this, true);
+            ak0991x_s4s_register_timer(this);
             AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
 #endif
           }
           else
           {
-            ak0991x_register_timer(this, false);
+            ak0991x_register_timer(this);
           }
         }
       }

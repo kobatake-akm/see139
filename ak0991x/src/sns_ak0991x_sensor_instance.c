@@ -238,6 +238,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
  
   state->pre_timestamp = sns_get_system_time();
   state->this_is_first_data = true;
+  state->heart_beat_attempt_count = 0;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -562,7 +563,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->mag_req.sample_rate = AK0991X_ODR_0;
           state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
           ak0991x_reconfig_hw(this);
-          ak0991x_register_timer(this, false);
+          ak0991x_register_timer(this);
           AK0991X_INST_PRINT(LOW, this, "stop register_timer");
 
           // reset
@@ -586,18 +587,19 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_reconfig_hw(this);
         AK0991X_INST_PRINT(LOW, this, "done ak0991x_reconfig_hw");
-        // Register for timer to enable heart beat function
-        ak0991x_register_timer(this, false);
       }
 
       // Register for timer
       if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
       {
         ak0991x_reconfig_hw(this);
-        ak0991x_register_timer(this, false);
+        ak0991x_register_timer(this);
         AK0991X_INST_PRINT(LOW, this, "done register_timer");
         // Register for s4s timer
-        ak0991x_s4s_register_timer(this);
+        if (state->mag_info.use_sync_stream)
+        {
+          ak0991x_s4s_register_timer(this);
+        }
       }
 
       //ak0991x_dae_if_start_streaming(this);
@@ -669,7 +671,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
         {
           ak0991x_reconfig_hw(this);
-          ak0991x_register_timer(this, false);
+          ak0991x_register_timer(this);
           AK0991X_INST_PRINT(LOW, this, "done register_timer");
         }
         ak0991x_send_config_event(this);
@@ -700,7 +702,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
       {
         ak0991x_reconfig_hw(this);
-        ak0991x_register_timer(this, false);
+        ak0991x_register_timer(this);
         AK0991X_INST_PRINT(LOW, this, "done register_timer");
       }
 

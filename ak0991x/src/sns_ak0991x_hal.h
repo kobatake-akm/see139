@@ -617,11 +617,16 @@ sns_rc ak0991x_encode_log_sensor_state_raw(
 void ak0991x_register_interrupt(sns_sensor_instance *this);
 
 /**
+ * Enable heart beat timer if not already enabled
+ *
+ */
+void ak0991x_register_heart_beat_timer(sns_sensor_instance *this);
+
+/**
  * Enable timer if not already enabled
  *
  */
-void ak0991x_register_timer(sns_sensor_instance *this,
-                            bool register_s4s_timer);
+void ak0991x_register_timer(sns_sensor_instance *this);
 
 /**
  * Get time for measurement

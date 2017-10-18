@@ -261,12 +261,69 @@ void ak0991x_s4s_inst_deinit(sns_sensor_instance *const this)
 void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
 {
 #ifdef AK0991X_ENABLE_S4S
-  ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if (state->mag_info.use_sync_stream)
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service *stream_mgr = (sns_stream_service *)
+      service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
+  sns_request             timer_req;
+  sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
+  size_t                  req_len;
+  uint8_t                 buffer[20] = {0};
+  req_payload.is_periodic = true;
+  req_payload.has_priority = true;
+  sns_time                t_ph_period = sns_convert_ns_to_ticks(
+      AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+  req_payload.start_time = sns_get_system_time() - t_ph_period;
+  req_payload.start_config.early_start_delta = 0;
+  req_payload.start_config.late_start_delta = t_ph_period;
+  req_payload.priority = SNS_TIMER_PRIORITY_S4S;
+  req_payload.timeout_period = t_ph_period;
+
+  if (state->mag_req.sample_rate != AK0991X_ODR_0)
   {
-    ak0991x_register_timer(this, true);
-    AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
+    AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);
+    AK0991X_INST_PRINT(LOW, this, "late_start_delta=%u", (uint32_t)req_payload.start_config.late_start_delta);
+
+    if (NULL == state->s4s_timer_data_stream)
+    {
+      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                     this,
+                                                     state->timer_suid,
+                                                     &state->s4s_timer_data_stream
+                                                     );
+    }
+
+    req_len = pb_encode_request(buffer,
+                                sizeof(buffer),
+                                &req_payload,
+                                sns_timer_sensor_config_fields,
+                                NULL);
+
+    if (req_len > 0)
+    {
+      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
+      timer_req.request_len = req_len;
+      timer_req.request = buffer;
+
+      /** Send encoded request to Timer Sensor */
+      state->s4s_timer_data_stream->api->send_request(state->s4s_timer_data_stream, &timer_req);
+    }
+    else
+    {
+      AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
+    }
+  }
+  else
+  {
+    state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+    if (state->s4s_timer_data_stream != NULL)
+    {
+      stream_mgr->api->remove_stream(stream_mgr, state->s4s_timer_data_stream);
+      state->s4s_timer_data_stream = NULL;
+    }
   }
 #else // AK0991X_ENABLE_S4S
   UNUSED_VAR(this);
