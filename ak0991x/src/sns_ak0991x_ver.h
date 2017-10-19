@@ -22,6 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/18/17                AKM(M)           Modified heart beat function
+ * 10/18/17                AKM(M)           Modified for SEE-Lite except using new SUID handler utility
+ * 10/18/17     010033     AKM(N)           Added heart beat timer function
  * 10/16/17     010032     AKM(M)           Supports flush_only.
  * 10/16/17     010031     AKM(M)           Debugged negative timestamp when DRI+FIFO/Polling+FIFO.
  * 10/13/17                AKM(M)           Changed S4S name and debugged for negative timestamp when irq->flush->acsp.
@@ -74,4 +77,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10032  // major:01 minor:00 revision:32
+#define AK0991X_DRIVER_VERSION 10033  // major:01 minor:00 revision:33

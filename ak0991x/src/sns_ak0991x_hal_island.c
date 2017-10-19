@@ -626,7 +626,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->called_handle_timer_reg_event = false;
-  state->mag_info.flush_only = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = now;
 
@@ -694,15 +693,11 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service *scp_service,
 static sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
                                sns_sync_com_port_handle *port_handle,
-                               sns_diag_service *diag,
                                uint8_t *asa)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint8_t  buffer[1];
   uint32_t xfer_bytes;
-
-  UNUSED_VAR(diag);
-
 
   buffer[0] = AK0991X_MAG_FUSEROM;
   // Set Fuse ROM access mode
@@ -885,7 +880,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     rv = ak0991x_read_asa(this,
                           state->scp_service,
                           state->com_port_info.port_handle,
-                          diag,
                           asa);
 
 
@@ -1123,7 +1117,9 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
   // For Polling + non FIFO mode
-  if(!state->mag_info.use_fifo || (state->force_fifo_read_till_wm && state->mag_info.cur_wmk == 0) )
+  if(!state->mag_info.use_fifo ||
+      (state->force_fifo_read_till_wm && state->mag_info.cur_wmk == 0) ||
+      (state->mag_info.use_sync_stream && state->mag_info.cur_wmk == 0 ))
   {
     state->num_samples = 1;
     ak0991x_read_hxl_st2(state,
@@ -1141,8 +1137,8 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
     uint8_t st1_buf = 0;
     if (SNS_RC_SUCCESS == ak0991x_read_st1(state, &st1_buf))
     {
-      // update num when polling+FIFO or S4S+FIFO mode
-      if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm || state->mag_info.use_sync_stream) ){
+      // update num when polling+FIFO mode
+      if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm) ){
         state->num_samples = state->mag_info.cur_wmk + 1;
       }else{
         state->num_samples = st1_buf >> 2;
@@ -1192,7 +1188,7 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
 
       if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
       {
-        if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm || state->mag_info.use_sync_stream) ){
+        if( state->mag_info.use_fifo && state->force_fifo_read_till_wm ){
           if(i >= state->mag_info.cur_wmk + 1){
             state->num_samples = i;
             break;
@@ -1215,7 +1211,6 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
 sns_rc ak0991x_set_sstvt_adj(
                              sns_sync_com_port_service* scp_service,
                              sns_sync_com_port_handle *port_handle,
-                             sns_diag_service *diag,
                              akm_device_type device_select,
                              float *sstvt_adj)
 {
@@ -1234,7 +1229,7 @@ sns_rc ak0991x_set_sstvt_adj(
 
 #ifdef AK0991X_ENABLE_FUSE
   uint8_t buffer[AK0991X_NUM_SENSITIVITY];
-  rv = ak0991x_read_asa(NULL, scp_service,port_handle, diag, buffer);
+  rv = ak0991x_read_asa(NULL, scp_service,port_handle, buffer);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -1263,7 +1258,6 @@ sns_rc ak0991x_set_sstvt_adj(
 #else
   UNUSED_VAR(scp_service);
   UNUSED_VAR(port_handle);
-  UNUSED_VAR(diag);
 #endif
 
   return rv;
@@ -1979,15 +1973,15 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *this)
       1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
  
   // Set timeout_period for heart beat in DRI/FIFO+DRI
-  // as 2 samples time for DRI
-  // or 2 FIFO buffers time for FIFO+DRI
+  // as 5 samples time for DRI
+  // or 5 FIFO buffers time for FIFO+DRI
   if (state->mag_info.use_fifo)
   {
-    req_payload.timeout_period = sample_period * 2 * (state->mag_info.cur_wmk + 1);
+    req_payload.timeout_period = sample_period * 5 * (state->mag_info.cur_wmk + 1);
   }
   else
   {
-    req_payload.timeout_period = sample_period * 2;
+    req_payload.timeout_period = sample_period * 5;
   }
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)

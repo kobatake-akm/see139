@@ -38,7 +38,7 @@
 #include "sns_registry_util.h"
 
 /** Forward Declaration of Instance API */
-sns_sensor_instance_api ak0991x_sensor_instance_api;
+extern sns_sensor_instance_api ak0991x_sensor_instance_api;
 
 /** Number of entries in reg_map table. */
 #define AK0991X_REG_MAP_TABLE_SIZE  (7)

@@ -76,7 +76,7 @@
 #endif // AK0991X_USE_DEFAULTS
 
 /** Forward Declaration of Magnetic Sensor API */
-sns_sensor_api ak0991x_mag_sensor_api;
+extern sns_sensor_api ak0991x_mag_sensor_api;
 
 /**
  * AK0991X ODR definitions

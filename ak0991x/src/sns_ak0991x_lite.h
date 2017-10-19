@@ -31,7 +31,7 @@
 #define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
 //#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 //#define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
-#define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
+//#define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 //#define AK0991X_ENABLE_DEINIT             // Enable deinit call
 
 //TODO:2 Please select a target device for SEE-Lite
@@ -90,7 +90,7 @@
 #define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
 #define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 #define AK0991X_ENABLE_DEINIT             // Enable deinit call
-#define AK0991X_ENABLE_S4S                // Enable S4S parts
+//#define AK0991X_ENABLE_S4S                // Enable S4S parts
 #define AK0991X_ENABLE_ALL_DEVICES        // Enable AKM all sensors
 //#define AK0991X_ENABLE_FUSE               // Enable fuse rom
 #define AK0991X_ENABLE_DRI                // Enable DRI
