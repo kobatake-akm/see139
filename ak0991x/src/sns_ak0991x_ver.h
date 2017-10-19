@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 10/18/17                AKM(M)           Modified heart beat function
+ * 10/18/17     010034     Qualcomm/AKM     Debugged timestamp issue. Added 1[sec] delay power rail when off.
  * 10/18/17                AKM(M)           Modified for SEE-Lite except using new SUID handler utility
  * 10/18/17     010033     AKM(N)           Added heart beat timer function
  * 10/16/17     010032     AKM(M)           Supports flush_only.
@@ -77,4 +77,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10033  // major:01 minor:00 revision:33
+#define AK0991X_DRIVER_VERSION 10034  // major:01 minor:00 revision:34
