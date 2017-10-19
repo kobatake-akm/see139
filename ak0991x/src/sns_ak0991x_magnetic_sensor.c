@@ -107,6 +107,8 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         values, ARR_SIZE(values), true);
   }
 #endif
+  // QC - the last input param to sns_publish_attribute() indicates this is not 
+  // the last attribute to publish; so move this whole block up 
   {
     char const type[] = "mag";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;

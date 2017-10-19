@@ -611,6 +611,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
+  // QC - When the first ever stream starts, what is pre_timestamp set to? zero?
   // check last timestamp
   sns_time now = sns_get_system_time();
   if( state->pre_timestamp > now ){
@@ -619,6 +620,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     state->pre_timestamp = now;
   }
 
+  // QC - pull var declarations to top of function
   sns_time meas_usec;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
@@ -1228,6 +1230,7 @@ sns_rc ak0991x_set_sstvt_adj(
   }
 
 #ifdef AK0991X_ENABLE_FUSE
+  // QC - Init to 0 else Klocwork will complain
   uint8_t buffer[AK0991X_NUM_SENSITIVITY];
   rv = ak0991x_read_asa(NULL, scp_service,port_handle, buffer);
 
@@ -1354,6 +1357,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
+  // QC - pull var declarations to top of function
   // Check magnetic sensor overflow (and invalid data for FIFO)
   uint8_t inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
   if ((mag_sample[7] & (AK0991X_HOFL_BIT | inv_fifo_bit)) != 0)
