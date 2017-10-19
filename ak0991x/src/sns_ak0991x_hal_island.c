@@ -1142,45 +1142,46 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
   }
 
 #ifdef AK0991X_ENABLE_FIFO
-
   // From here for FIFO
   if (state->mag_info.device_select == AK09917)
   {
     //In case of AK09917, Read ST1 register to check FIFO samples
-    st1_buf = 0;
-    if (SNS_RC_SUCCESS == ak0991x_read_st1(state, &st1_buf))
-    {
-      // update num when polling+FIFO mode
-      if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm) ){
-        state->num_samples = state->mag_info.cur_wmk + 1;
-      }else{
-        state->num_samples = st1_buf >> 2;
+    //DRI, it already read, then skip
+    if(!state->irq_info.detect_irq_event){
+      st1_buf = 0;
+      if (SNS_RC_SUCCESS == ak0991x_read_st1(state, &st1_buf))
+      {
+        // update num when polling+FIFO mode
+        if( state->mag_info.use_fifo && (state->force_fifo_read_till_wm) ){
+          state->num_samples = state->mag_info.cur_wmk + 1;
+        }else{
+          state->num_samples = st1_buf >> 2;
+        }
       }
       AK0991X_INST_PRINT(LOW, instance, "num=%d st1=%x", state->num_samples, st1_buf);
+    }
 
-      if (state->num_samples > 0)
+    if (state->num_samples > 0)
+    {
+      /*Number of bytes reading from sync-com-port should be less than AK0991X_MAX_FIFO_SIZE*/
+      if ((state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2) > AK0991X_MAX_FIFO_SIZE)
       {
-        /*Number of bytes reading from sync-com-port should be less than AK0991X_MAX_FIFO_SIZE*/
-        if ((state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2) > AK0991X_MAX_FIFO_SIZE)
-        {
-          SNS_INST_PRINTF(ERROR, instance,
-              "FIFO size should not be greater than AK0991X_MAX_FIFO_SIZE."
-              "So, num_samples to read limiting to max value");
-          state->num_samples = (AK0991X_MAX_FIFO_SIZE / AK0991X_NUM_DATA_HXL_TO_ST2);
-        }
+        SNS_INST_PRINTF(ERROR, instance,
+            "FIFO size should not be greater than AK0991X_MAX_FIFO_SIZE."
+            "So, num_samples to read limiting to max value");
+        state->num_samples = (AK0991X_MAX_FIFO_SIZE / AK0991X_NUM_DATA_HXL_TO_ST2);
+      }
 
-        // Read fifo buffer(HXL to ST2 register)
-        if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state, state->num_samples, &buffer[0]))
-        {
-          state->num_samples = 0;
-          SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
-        }
+      // Read fifo buffer(HXL to ST2 register)
+      if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state, state->num_samples, &buffer[0]))
+      {
+        state->num_samples = 0;
+        SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
       }
     }
     else
     {
       state->num_samples = 0;
-      SNS_INST_PRINTF(ERROR, instance, "Error in reading length of the FIFO");
     }
   }
   else
@@ -1213,7 +1214,6 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
       }
     }
   }
-
 #endif // AK0991X_ENABLE_FIFO
 }
 
@@ -1390,15 +1390,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.resolution;
   ipdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z] * state->mag_info.resolution;
 
-  AK0991X_INST_PRINT(LOW, instance, "timestamp=%u pre=%u irq=%u average=%u Mag[LSB] %d,%d,%d flush_only=%d",
-      (uint32_t)timestamp,
-      (uint32_t)state->pre_timestamp,
-      (uint32_t)state->irq_event_time,
-      (uint32_t)state->averaged_interval,
-      (int16_t)(lsbdata[TRIAXIS_X]),
-      (int16_t)(lsbdata[TRIAXIS_Y]),
-      (int16_t)(lsbdata[TRIAXIS_Z]),
-      state->mag_info.flush_only);
   if(!state->mag_info.flush_only)
   {
 	  // axis conversion
@@ -1430,6 +1421,16 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 	    timestamp,
 	    status);
   }
+
+  AK0991X_INST_PRINT(LOW, instance, "timestamp=%u pre=%u irq=%u average=%u Mag[LSB] %d,%d,%d flush_only=%d",
+      (uint32_t)timestamp,
+      (uint32_t)state->pre_timestamp,
+      (uint32_t)state->irq_event_time,
+      (uint32_t)state->averaged_interval,
+      (int16_t)(lsbdata[TRIAXIS_X]),
+      (int16_t)(lsbdata[TRIAXIS_Y]),
+      (int16_t)(lsbdata[TRIAXIS_Z]),
+      state->mag_info.flush_only);
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -1687,7 +1688,11 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     UNUSED_VAR(log_mag_state_raw_info);
 #endif
   }else{
-    AK0991X_INST_PRINT(LOW, instance,"flush_only=%d or num_samples=%d. skip handle_mag_sample", state->mag_info.flush_only, state->num_samples);
+    if(state->mag_info.flush_only){
+      AK0991X_INST_PRINT(LOW, instance,"flush_only=%d. skip handle_mag_sample", state->mag_info.flush_only);
+    }else{
+      AK0991X_INST_PRINT(LOW, instance,"num_samples=%d. skip handle_mag_sample", state->num_samples);
+    }
   }
   state->force_fifo_read_till_wm = false;
 }
