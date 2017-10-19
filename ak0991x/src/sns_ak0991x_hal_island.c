@@ -1524,6 +1524,9 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       (state->interrupt_timestamp - state->pre_timestamp > (state->averaged_interval * state->mag_info.max_fifo_size * 12) / 10  )){
     // no calculate averaged_interval
     AK0991X_INST_PRINT(LOW, instance, "possible data over run detected");
+  }else if(state->heart_beat_attempt_count != 0 ){
+    AK0991X_INST_PRINT(LOW, instance, "heart beat flush.");
+    // no calculate averaged_interval
   }else{
     enable_averaging = true;
 #ifdef AK0991X_ENABLE_DRI
@@ -1620,7 +1623,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   ak0991x_read_all_data(instance, &buffer[0]);
 
-  if(!state->mag_info.flush_only && state->num_samples > 0)
+  if(state->num_samples > 0)
   {
     ak0991x_validate_timestamp(instance);
 
