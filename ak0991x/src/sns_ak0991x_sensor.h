@@ -76,7 +76,7 @@
 #endif // AK0991X_USE_DEFAULTS
 
 /** Forward Declaration of Magnetic Sensor API */
-sns_sensor_api ak0991x_mag_sensor_api;
+extern sns_sensor_api ak0991x_mag_sensor_api;
 
 /**
  * AK0991X ODR definitions
@@ -142,11 +142,14 @@ sns_sensor_api ak0991x_mag_sensor_api;
 #define AK0991X_NUM_OF_ATTRIBUTES  (21)
 
 /** Power rail timeout States for the AK0991X Sensors.*/
+
+#define AK0991X_POWER_RAIL_OFF_TIMEOUT_NS 1000000000ULL /* 1 second */
 typedef enum
 {
   AK0991X_POWER_RAIL_PENDING_NONE,
   AK0991X_POWER_RAIL_PENDING_INIT,
   AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ,
+  AK0991X_POWER_RAIL_PENDING_OFF,
 } ak0991x_power_rail_pending_state;
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS

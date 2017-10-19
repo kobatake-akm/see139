@@ -112,8 +112,8 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
   if (state->mag_info.use_dri)
   {
     AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
-    // Streaming is unable to resume after 3 attempts
-    if (state->heart_beat_attempt_count >= 3)
+    // Streaming is unable to resume after 4 attempts
+    if (state->heart_beat_attempt_count >= 4)
     {
      AK0991X_INST_PRINT(ERROR, this, "Streming is unable to resume after 3 attempts");
      rv = SNS_RC_INVALID_STATE;
@@ -121,20 +121,25 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
     // Perform a reset operation in an attempt to revive the sensor
     else
     {
-      ak0991x_flush_fifo(this);
-      rv = ak0991x_device_sw_reset(this,
-                                   state->scp_service,
-                                   state->com_port_info.port_handle);
-      if (rv == SNS_RC_SUCCESS) {
-        AK0991X_INST_PRINT(LOW, this, "soft reset called");
-      } else {
-        AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
-      }
-      // Indicate streaming error
-      rv = SNS_RC_NOT_AVAILABLE;
-      ak0991x_reconfig_hw(this);
-      state->called_handle_timer_reg_event = true;
       state->heart_beat_attempt_count++;
+
+      ak0991x_flush_fifo(this);
+
+      if(state->heart_beat_attempt_count >= 3)
+      {
+        rv = ak0991x_device_sw_reset(this,
+                                     state->scp_service,
+                                     state->com_port_info.port_handle);
+        if (rv == SNS_RC_SUCCESS) {
+          AK0991X_INST_PRINT(LOW, this, "soft reset called");
+        } else {
+          AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
+        }
+        // Indicate streaming error
+        rv = SNS_RC_NOT_AVAILABLE;
+        ak0991x_reconfig_hw(this);
+      }
+      state->called_handle_timer_reg_event = true;
       ak0991x_register_heart_beat_timer(this);
     }
   }
@@ -215,12 +220,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
-      if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
-      {
-        state->irq_info.is_ready = true;
-        ak0991x_start_mag_streaming(this);
-      }
-      else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT == event->message_id)
+      if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
                                                      event->event_len);
@@ -228,23 +228,19 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
           // Check if the ak0991x_inst_notify_event is an actual DRDY event or not.
-          if(ak0991x_is_drdy(this)){
-
+          if(ak0991x_is_drdy(this))
+          {
+            AK0991X_INST_PRINT(LOW, this, "irq_event %u, num_samples=%d", (uint32_t)irq_event.timestamp, state->num_samples);
             state->irq_event_time = irq_event.timestamp;
             state->irq_info.detect_irq_event = true; // detect interrupt
 
+            // Register for timer to enable heart beat function
+            ak0991x_register_heart_beat_timer(this);
+            state->heart_beat_attempt_count = 0;
+
             if(state->ascp_xfer_in_progress == 0)
             {
-              // Register for timer to enable heart beat function
-              ak0991x_register_heart_beat_timer(this);
-              state->heart_beat_attempt_count = 0;
-
-              AK0991X_INST_PRINT(LOW, this, "irq_event %u, num_samples=%d", (uint32_t)irq_event.timestamp, state->num_samples);
-              if ((state->mag_info.device_select != AK09917) && (state->mag_info.use_fifo) && (state->mag_info.cur_wmk < 1))
-              {
-                ak0991x_flush_fifo(this);
-              }
-              else if(state->mag_info.use_fifo && state->data_over_run)
+              if (state->mag_info.use_fifo && (state->mag_info.cur_wmk < 2 || state->data_over_run) )
               {
                 ak0991x_flush_fifo(this);
               }
@@ -267,6 +263,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             AK0991X_INST_PRINT(ERROR, this, "DRDY is not ready. Wrong interrupt.");
           }
         }
+      }
+      else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
+      {
+        state->irq_info.is_ready = true;
+        ak0991x_start_mag_streaming(this);
       }
       else
       {

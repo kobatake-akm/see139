@@ -611,6 +611,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
+  // QC - When the first ever stream starts, what is pre_timestamp set to? zero?
   // check last timestamp
   sns_time now = sns_get_system_time();
   if( state->pre_timestamp > now ){
@@ -619,6 +620,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     state->pre_timestamp = now;
   }
 
+  // QC - pull var declarations to top of function
   sns_time meas_usec;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
@@ -626,7 +628,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->called_handle_timer_reg_event = false;
-  state->mag_info.flush_only = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = now;
 
@@ -694,15 +695,11 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service *scp_service,
 static sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
                                sns_sync_com_port_handle *port_handle,
-                               sns_diag_service *diag,
                                uint8_t *asa)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint8_t  buffer[1];
   uint32_t xfer_bytes;
-
-  UNUSED_VAR(diag);
-
 
   buffer[0] = AK0991X_MAG_FUSEROM;
   // Set Fuse ROM access mode
@@ -885,7 +882,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     rv = ak0991x_read_asa(this,
                           state->scp_service,
                           state->com_port_info.port_handle,
-                          diag,
                           asa);
 
 
@@ -1217,7 +1213,6 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
 sns_rc ak0991x_set_sstvt_adj(
                              sns_sync_com_port_service* scp_service,
                              sns_sync_com_port_handle *port_handle,
-                             sns_diag_service *diag,
                              akm_device_type device_select,
                              float *sstvt_adj)
 {
@@ -1235,8 +1230,9 @@ sns_rc ak0991x_set_sstvt_adj(
   }
 
 #ifdef AK0991X_ENABLE_FUSE
+  // QC - Init to 0 else Klocwork will complain
   uint8_t buffer[AK0991X_NUM_SENSITIVITY];
-  rv = ak0991x_read_asa(NULL, scp_service,port_handle, diag, buffer);
+  rv = ak0991x_read_asa(NULL, scp_service,port_handle, buffer);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -1265,7 +1261,6 @@ sns_rc ak0991x_set_sstvt_adj(
 #else
   UNUSED_VAR(scp_service);
   UNUSED_VAR(port_handle);
-  UNUSED_VAR(diag);
 #endif
 
   return rv;
@@ -1362,6 +1357,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
+  // QC - pull var declarations to top of function
   // Check magnetic sensor overflow (and invalid data for FIFO)
   uint8_t inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
   if ((mag_sample[7] & (AK0991X_HOFL_BIT | inv_fifo_bit)) != 0)
@@ -1532,6 +1528,9 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       (state->interrupt_timestamp - state->pre_timestamp > (state->averaged_interval * state->mag_info.max_fifo_size * 12) / 10  )){
     // no calculate averaged_interval
     AK0991X_INST_PRINT(LOW, instance, "possible data over run detected");
+  }else if(state->heart_beat_attempt_count != 0 ){
+    AK0991X_INST_PRINT(LOW, instance, "heart beat flush.");
+    // no calculate averaged_interval
   }else{
     enable_averaging = true;
 #ifdef AK0991X_ENABLE_DRI
@@ -1628,7 +1627,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
   ak0991x_read_all_data(instance, &buffer[0]);
 
-  if(!state->mag_info.flush_only && state->num_samples > 0)
+  if(state->num_samples > 0)
   {
     ak0991x_validate_timestamp(instance);
 
@@ -1981,15 +1980,15 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *this)
       1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
  
   // Set timeout_period for heart beat in DRI/FIFO+DRI
-  // as 2 samples time for DRI
-  // or 2 FIFO buffers time for FIFO+DRI
+  // as 5 samples time for DRI
+  // or 5 FIFO buffers time for FIFO+DRI
   if (state->mag_info.use_fifo)
   {
-    req_payload.timeout_period = sample_period * 2 * (state->mag_info.cur_wmk + 1);
+    req_payload.timeout_period = sample_period * 5 * (state->mag_info.cur_wmk + 1);
   }
   else
   {
-    req_payload.timeout_period = sample_period * 2;
+    req_payload.timeout_period = sample_period * 5;
   }
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
