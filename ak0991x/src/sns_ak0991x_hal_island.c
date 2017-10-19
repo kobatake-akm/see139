@@ -626,7 +626,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->called_handle_timer_reg_event = false;
-  state->mag_info.flush_only = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = now;
 
