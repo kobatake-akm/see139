@@ -25,6 +25,7 @@
 
 #include "sns_diag_service.h"
 #include "sns_interrupt.pb.h"
+#include "sns_timer.pb.h"
 #include "sns_physical_sensor_test.pb.h"
 #include "sns_std_sensor.pb.h"
 #include "sns_ak0991x_lite.h"
@@ -210,6 +211,7 @@ typedef struct ak0991x_instance_state
   sns_time heart_beat_timeout_period;
   uint8_t  heart_beat_sample_count;
   uint8_t  heart_beat_attempt_count;
+  sns_timer_sensor_config req_payload;
 
   /** Timer info */
   sns_sensor_uid timer_suid;

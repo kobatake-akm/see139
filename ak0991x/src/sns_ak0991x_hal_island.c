@@ -577,6 +577,8 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
                                    false);
 }
 
+static void ak0991x_set_timer_request_payload(sns_sensor_instance *const this );
+
 /**
  * see sns_ak0991x_hal.h
  */
@@ -584,6 +586,8 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
   sns_rc rv;
+  sns_time meas_usec;
+  sns_time now = sns_get_system_time();
 
   if(state->ascp_xfer_in_progress)
   {
@@ -613,7 +617,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   // QC - When the first ever stream starts, what is pre_timestamp set to? zero?
   // check last timestamp
-  sns_time now = sns_get_system_time();
   if( state->pre_timestamp > now ){
     AK0991X_INST_PRINT(LOW, this, "negative timestamp detected!!! Keep using pre_timestamp.");
   }else{
@@ -621,7 +624,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   // QC - pull var declarations to top of function
-  sns_time meas_usec;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
   state->this_is_first_data = true;
@@ -630,6 +632,10 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->called_handle_timer_reg_event = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = now;
+  if(state->mag_info.use_dri)
+  {
+    ak0991x_set_timer_request_payload(this); // reset parameter for heart beat timer
+  }
 
   return SNS_RC_SUCCESS;
 }
@@ -1117,6 +1123,8 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
                                        uint8_t *buffer)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint8_t st1_buf;
+  uint8_t i;
 
   // For Polling + non FIFO mode
   if(!state->mag_info.use_fifo ||
@@ -1136,7 +1144,7 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
   if (state->mag_info.device_select == AK09917)
   {
     //In case of AK09917, Read ST1 register to check FIFO samples
-    uint8_t st1_buf = 0;
+    st1_buf = 0;
     if (SNS_RC_SUCCESS == ak0991x_read_st1(state, &st1_buf))
     {
       // update num when polling+FIFO mode
@@ -1176,7 +1184,6 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
   {
     //Continue reading until fifo buffer is clear
     //because there is no way to check FIFO samples for AK09915C/D.
-    uint8_t i;
     state->num_samples = 0;
     for (i = 0; i < state->mag_info.max_fifo_size; i++)
     {
@@ -1341,9 +1348,10 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   float ipdata[TRIAXIS_NUM] = {0}, opdata_raw[TRIAXIS_NUM] = {0};
   int16_t lsbdata[TRIAXIS_NUM] = {0};
-
+  uint8_t inv_fifo_bit;
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
+  vector3 opdata_cal;
 
   /*
   AK0991X_INST_PRINT(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
@@ -1359,7 +1367,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   // QC - pull var declarations to top of function
   // Check magnetic sensor overflow (and invalid data for FIFO)
-  uint8_t inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
+  inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
   if ((mag_sample[7] & (AK0991X_HOFL_BIT | inv_fifo_bit)) != 0)
   {
     AK0991X_INST_PRINT(LOW, instance, "HOFL_BIT=1 or INV=1, use previous data.");
@@ -1398,7 +1406,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 	  }
 
 	  // factory calibration
-	  vector3 opdata_cal = sns_apply_calibration_correction_3(
+	  opdata_cal = sns_apply_calibration_correction_3(
 	      make_vector3_from_array(opdata_raw),
 	      make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
 	      state->mag_registry_cfg.fac_cal_corr_mat);
@@ -1687,7 +1695,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
   uint8_t  buffer[AK0991X_MAX_FIFO_SIZE];
   uint32_t enc_len;
   uint16_t num_of_bytes;
-
+  sns_request async_com_port_request;
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
@@ -1715,7 +1723,7 @@ void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)
                                          &enc_len);
 
   // Send message to Async Com Port
-  sns_request async_com_port_request =
+  async_com_port_request =
     (sns_request)
   {
     .message_id = SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW,
@@ -1739,8 +1747,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   sns_std_sensor_physical_config_event phy_sensor_config =
     sns_std_sensor_physical_config_event_init_default;
-
   char *operating_mode;
+  pb_buffer_arg op_mode_args;
 
   switch (state->mag_info.device_select)
   {
@@ -1904,7 +1912,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   //Set config event for s4s
   ak0991x_s4s_send_config_event(instance, &phy_sensor_config);
 
-  pb_buffer_arg op_mode_args;
   op_mode_args.buf = operating_mode;
   op_mode_args.buf_len = sizeof(operating_mode);
   phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
@@ -1932,10 +1939,12 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
 {
 #ifdef AK0991X_ENABLE_DRI
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  sns_data_stream* data_stream;
+  uint8_t buffer[20] = {0};
+
   if(!state->irq_info.is_registered)
   {
-    sns_data_stream* data_stream = state->interrupt_data_stream;
-    uint8_t buffer[20] = {0};
+    data_stream = state->interrupt_data_stream;
     sns_request irq_req =
       {
         .message_id = SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REQ,
@@ -1958,38 +1967,16 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
 #endif //A0991X_ENABLE_DRI
 }
 
-void ak0991x_register_heart_beat_timer(sns_sensor_instance *this)
+static void ak0991x_send_timer_request(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
   sns_stream_service *stream_mgr = (sns_stream_service *)
       service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-
+  sns_timer_sensor_config req_payload = state->req_payload;
   sns_request             timer_req;
-  sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   size_t                  req_len;
   uint8_t                 buffer[20] = {0};
-  sns_time                sample_period;
-  req_payload.has_priority = true;
-  req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
-  req_payload.is_periodic = false;
-  req_payload.start_time = sns_get_system_time();
-
-  sample_period = sns_convert_ns_to_ticks(
-      1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
- 
-  // Set timeout_period for heart beat in DRI/FIFO+DRI
-  // as 5 samples time for DRI
-  // or 5 FIFO buffers time for FIFO+DRI
-  if (state->mag_info.use_fifo)
-  {
-    req_payload.timeout_period = sample_period * 5 * (state->mag_info.cur_wmk + 1);
-  }
-  else
-  {
-    req_payload.timeout_period = sample_period * 5;
-  }
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
   {
@@ -2013,7 +2000,6 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *this)
       timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
       timer_req.request_len = req_len;
       timer_req.request = buffer;
-
       /** Send encoded request to Timer Sensor */
       state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
     }
@@ -2033,104 +2019,92 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *this)
   }
 }
 
-void ak0991x_register_timer(sns_sensor_instance *this)
+void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-
-  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service *stream_mgr = (sns_stream_service *)
-      service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-
-  sns_request             timer_req;
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
-  size_t                  req_len;
-  uint8_t                 buffer[20] = {0};
   sns_time                sample_period;
-  req_payload.has_priority = true;
-  req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-  req_payload.is_periodic = true;
 
-#ifdef AK0991X_ENABLE_S4S
-  if (state->mag_info.use_sync_stream)
+  // for heat beat timer
+  if(state->mag_info.use_dri)
   {
+#ifdef AK0991X_ENABLE_DRI
+    req_payload.has_priority = true;
+    req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
+    req_payload.is_periodic = false;
+    req_payload.start_time = sns_get_system_time();
+    sample_period = sns_convert_ns_to_ticks(
+        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+
+    // Set timeout_period for heart beat in DRI/FIFO+DRI
+    // as 5 samples time for DRI
+    // or 5 FIFO buffers time for FIFO+DRI
+    if (state->mag_info.use_fifo)
+    {
+      req_payload.timeout_period = sample_period * 5 * (state->mag_info.cur_wmk + 1);
+    }
+    else
+    {
+      req_payload.timeout_period = sample_period * 5;
+    }
+#endif // AK0991X_ENABLE_DRI
+  }
+  // for S4S timer
+  else if (state->mag_info.use_sync_stream)
+  {
+#ifdef AK0991X_ENABLE_S4S
     sample_period = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
     req_payload.start_time = sns_get_system_time() - sample_period;
     req_payload.start_config.early_start_delta = 0;
     req_payload.start_config.late_start_delta = sample_period * 2;
-  }
-  else
 #endif // AK0991X_ENABLE_S4S
+  }
+  // for polling timer
+  else
   {
+    req_payload.has_priority = true;
+    req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
+    req_payload.is_periodic = true;
+    req_payload.start_time = sns_get_system_time();
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+
     //TODO: start time calculation should be similar to above use_sync_stream case
     //If this sensor is doing polling, it would be good to synchronize the Mag polling timer,
     //with other polling timers on the system.
     //For example, that the pressure sensor is polling at 20Hz.
     //It would be good to make sure the mag polling timer and the pressure polling timer are synchronized if possible.
-    req_payload.start_time = sns_get_system_time();
-  } 
-
-  if (state->mag_info.use_fifo)
-  {
-    req_payload.timeout_period = sample_period * (state->mag_info.cur_wmk + 1);
-  }
-  else
-  {
-    req_payload.timeout_period = sample_period;
-  }
-
-  if (state->mag_req.sample_rate != AK0991X_ODR_0)
-  {
-    AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
-    AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);
-    AK0991X_INST_PRINT(LOW, this, "late_start_delta=%u", (uint32_t)req_payload.start_config.late_start_delta);
+    if (state->mag_info.use_fifo)
+    {
+      req_payload.timeout_period = sample_period * (state->mag_info.cur_wmk + 1);
+    }
+    else
+    {
+      req_payload.timeout_period = sample_period;
+    }
 
     // Set heart_beat_timeout_period for heart beat in Polling/FIFO+Polling/S4S/FIFO+S4S
     // as 5 samples time for Polling/S4S plus 1 sample time for jitter
     // or 2 FIFO buffers time for FIFO+Polling/FIFO+S4S plus 2 sample time for jitter
-    state->heart_beat_timeout_period = 
+    state->heart_beat_timeout_period =
       (state->mag_info.use_fifo)? req_payload.timeout_period * 2 + sample_period * 2
       : req_payload.timeout_period * 5 * sample_period;
- 
-    if (NULL == state->timer_data_stream)
-    {
-      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                     this,
-                                                     state->timer_suid,
-                                                     &state->timer_data_stream
-                                                     );
-    }
- 
-    req_len = pb_encode_request(buffer,
-                                sizeof(buffer),
-                                &req_payload,
-                                sns_timer_sensor_config_fields,
-                                NULL);
-
-    if (req_len > 0)
-    {
-      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
-      timer_req.request_len = req_len;
-      timer_req.request = buffer;
-
-      /** Send encoded request to Timer Sensor */
-      state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
-    }
-    else
-    {
-      AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
-    }
   }
-  else
-  {
-    if (state->timer_data_stream != NULL)
-    {
-      stream_mgr->api->remove_stream(stream_mgr, state->timer_data_stream);
-      state->timer_data_stream = NULL;
-      AK0991X_INST_PRINT(LOW, this, "remove timer.");
-    }
-  }
+  // reset request payload
+  state->req_payload = req_payload;
+}
+
+void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  state->req_payload.start_time = sns_get_system_time();
+  ak0991x_send_timer_request(this);
+}
+
+void ak0991x_register_timer(sns_sensor_instance *const this)
+{
+  ak0991x_set_timer_request_payload(this);
+  ak0991x_send_timer_request(this);
 }
 
 sns_rc ak0991x_get_meas_time( akm_device_type device_select,

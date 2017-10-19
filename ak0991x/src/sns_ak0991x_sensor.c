@@ -262,7 +262,7 @@ static void ak0991x_get_mag_config(
   *chosen_report_rate = 0;
   *chosen_sample_rate = 0;
   *chosen_flush_period = 0;
-  *is_flush_only = false; // QC - Consider setting to true here and then ANDing on line 291.
+  *is_flush_only = true; // QC - Consider setting to true here and then ANDing on line 291.
   *sensor_client_present = false;
 
 #ifndef AK0991X_ENABLE_DEBUG_MSG
@@ -288,7 +288,7 @@ static void ak0991x_get_mag_config(
 
         // QC - This does not look right. This will pick up is_flush_only for 
         // the last request in the list of requests. Should AND to get overall is_flush_only.
-        *is_flush_only = decoded_request.batching.flush_only;
+        *is_flush_only &= decoded_request.batching.flush_only;
 
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
@@ -1891,13 +1891,6 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       }
     }
 #endif
-
-    //if (sns_suid_lookup_complete(&state->suid_lookup_data))
-    //{
-    //  AK0991X_PRINT(LOW, this, "eeeee");
-
-    //  sns_suid_lookup_deinit(this, &state->suid_lookup_data);
-    //}
   }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
