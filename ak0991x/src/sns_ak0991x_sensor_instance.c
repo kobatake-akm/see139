@@ -574,16 +574,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->mag_req.sample_rate = mag_chosen_sample_rate;
           state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
         }
+      }
 
-        // Reset device
-        rv = ak0991x_device_sw_reset(this,
-                                     state->scp_service,
-                                     state->com_port_info.port_handle);
-        if(rv == SNS_RC_SUCCESS){
-          AK0991X_INST_PRINT(LOW, this, "soft reset called.");
-        }else{
-          AK0991X_INST_PRINT(ERROR, this, "soft reset failed.");
-        }
+      // Reset device
+      rv = ak0991x_device_sw_reset(this,
+                                   state->scp_service,
+                                   state->com_port_info.port_handle);
+      if(rv == SNS_RC_SUCCESS){
+        AK0991X_INST_PRINT(LOW, this, "soft reset called.");
+      }else{
+        AK0991X_INST_PRINT(ERROR, this, "soft reset failed.");
       }
 
       // hardware setting for measurement mode
