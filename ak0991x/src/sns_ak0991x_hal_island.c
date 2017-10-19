@@ -1974,15 +1974,15 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *this)
       1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
  
   // Set timeout_period for heart beat in DRI/FIFO+DRI
-  // as 2 samples time for DRI
-  // or 2 FIFO buffers time for FIFO+DRI
+  // as 5 samples time for DRI
+  // or 5 FIFO buffers time for FIFO+DRI
   if (state->mag_info.use_fifo)
   {
-    req_payload.timeout_period = sample_period * 2 * (state->mag_info.cur_wmk + 1);
+    req_payload.timeout_period = sample_period * 5 * (state->mag_info.cur_wmk + 1);
   }
   else
   {
-    req_payload.timeout_period = sample_period * 2;
+    req_payload.timeout_period = sample_period * 5;
   }
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
