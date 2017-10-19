@@ -1123,8 +1123,11 @@ static void ak0991x_read_all_data(sns_sensor_instance *const instance,
                                        uint8_t *buffer)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+
+#ifdef AK0991X_ENABLE_FIFO
   uint8_t st1_buf;
   uint8_t i;
+#endif
 
   // For Polling + non FIFO mode
   if(!state->mag_info.use_fifo ||
