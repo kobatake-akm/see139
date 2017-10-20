@@ -243,10 +243,15 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
 #ifdef AK0991X_ENABLE_DRI
+  sns_sensor_uid irq_suid;
+  sns_sensor_uid acp_suid;
+  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "interrupt", &irq_suid);
+  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "async_com_port", &acp_suid);
+
   sns_rc rv;
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                       this,
-                                                      sensor_state->irq_suid,
+                                                      irq_suid,
                                                       &state->interrupt_data_stream);
 
   if (rv != SNS_RC_SUCCESS)
@@ -256,7 +261,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                       this,
-                                                      sensor_state->acp_suid,
+                                                      acp_suid,
                                                       &state->async_com_port_data_stream);
 
   if (rv != SNS_RC_SUCCESS)
@@ -267,10 +272,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #endif //AK0991X_ENABLE_DRI
 
   /** Initialize Timer info to be used by the Instance */
-  sns_memscpy(&state->timer_suid,
-              sizeof(state->timer_suid),
-              &sensor_state->timer_suid,
-              sizeof(sensor_state->timer_suid));
+  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "timer", &state->timer_suid);
   state->timer_data_stream = NULL;
 
   /** Initialize COM port to be used by the Instance */
@@ -359,8 +361,10 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
 #endif
 
+  sns_sensor_uid dae_suid;
+  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
   AK0991X_INST_PRINT(LOW, this, "before dae_if init" );
-  ak0991x_dae_if_init(this, stream_mgr, &sensor_state->dae_suid, &((sns_sensor_uid)MAG_SUID));
+  ak0991x_dae_if_init(this, stream_mgr, &dae_suid, &((sns_sensor_uid)MAG_SUID));
 
   return SNS_RC_SUCCESS;
 }
@@ -570,16 +574,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->mag_req.sample_rate = mag_chosen_sample_rate;
           state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
         }
+      }
 
-        // Reset device
-        rv = ak0991x_device_sw_reset(this,
-                                     state->scp_service,
-                                     state->com_port_info.port_handle);
-        if(rv == SNS_RC_SUCCESS){
-          AK0991X_INST_PRINT(LOW, this, "soft reset called.");
-        }else{
-          AK0991X_INST_PRINT(ERROR, this, "soft reset failed.");
-        }
+      // Reset device
+      rv = ak0991x_device_sw_reset(this,
+                                   state->scp_service,
+                                   state->com_port_info.port_handle);
+      if(rv == SNS_RC_SUCCESS){
+        AK0991X_INST_PRINT(LOW, this, "soft reset called.");
+      }else{
+        AK0991X_INST_PRINT(ERROR, this, "soft reset failed.");
       }
 
       // hardware setting for measurement mode

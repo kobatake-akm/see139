@@ -262,7 +262,7 @@ static void ak0991x_get_mag_config(
   *chosen_report_rate = 0;
   *chosen_sample_rate = 0;
   *chosen_flush_period = 0;
-  *is_flush_only = false; // QC - Consider setting to true here and then ANDing on line 291.
+  *is_flush_only = true;
   *sensor_client_present = false;
 
 #ifndef AK0991X_ENABLE_DEBUG_MSG
@@ -286,9 +286,7 @@ static void ak0991x_get_mag_config(
         float report_rate;
         uint32_t flush_period;
 
-        // QC - This does not look right. This will pick up is_flush_only for 
-        // the last request in the list of requests. Should AND to get overall is_flush_only.
-        *is_flush_only = decoded_request.batching.flush_only;
+        *is_flush_only &= decoded_request.batching.flush_only;
 
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
@@ -476,7 +474,10 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
 
   if (state->timer_stream == NULL)
   {
-    stream_svc->api->create_sensor_stream(stream_svc, this, state->timer_suid,
+    sns_sensor_uid suid;
+
+    sns_suid_lookup_get(&state->suid_lookup_data, "timer", &suid);
+    stream_svc->api->create_sensor_stream(stream_svc, this, suid,
                                                 &state->timer_stream);
     state->remove_timer_stream = false;
   }
@@ -530,135 +531,29 @@ static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
 
 static void ak0991x_request_registry(sns_sensor *const this)
 {
-  // place a request to registry sensor
-  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_PF_CONFIG);
-  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_PLACE);
-  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_ORIENT);
-  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_FACCAL);
-  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_MAG_CONFIG);
-  ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_REG_CONFIG);
-}
-#endif
-
-/**
- * Processes events from SUID Sensor.
- *
- * @param[i] this   Sensor reference
- *
- * @return none
- */
-static void ak0991x_process_suid_events(sns_sensor *const this)
-{
-  ak0991x_state *state = (ak0991x_state *)this->state->state;
+  ak0991x_state *state = (ak0991x_state*)this->state->state;
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service *stream_svc = (sns_stream_service*) service_mgr->get_service(service_mgr,
-                                                              SNS_STREAM_SERVICE);
+  sns_stream_service *stream_svc = (sns_stream_service*)
+    service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
 
-  if(NULL == state->fw_stream)
+  // place a request to registry sensor
+
+  if(state->reg_data_stream == NULL)
   {
-    return;
-  }
+    sns_sensor_uid reg_suid;
+    sns_suid_lookup_get(&state->suid_lookup_data, "registry", &reg_suid);
+    stream_svc->api->create_sensor_stream(stream_svc, this, reg_suid,
+        &state->reg_data_stream);
 
-  AK0991X_PRINT(LOW, this, "ak0991x_process_suid_events");
-
-  for (;
-       0 != state->fw_stream->api->get_input_cnt(state->fw_stream);
-       state->fw_stream->api->get_next_input(state->fw_stream))
-  {
-    sns_sensor_event *event =
-      state->fw_stream->api->peek_input(state->fw_stream);
-
-    if (SNS_SUID_MSGID_SNS_SUID_EVENT == event->message_id)
-    {
-      pb_istream_t stream = pb_istream_from_buffer((void*)event->event, event->event_len);
-      sns_suid_event suid_event = sns_suid_event_init_default;
-      pb_buffer_arg data_type_arg = { .buf = NULL, .buf_len = 0 };
-      sns_sensor_uid uid_list;
-      sns_suid_search suid_search;
-      suid_search.suid = &uid_list;
-      suid_search.num_of_suids = 0;
-
-      suid_event.data_type.funcs.decode = &pb_decode_string_cb;
-      suid_event.data_type.arg = &data_type_arg;
-      suid_event.suid.funcs.decode = &pb_decode_suid_event;
-      suid_event.suid.arg = &suid_search;
-
-      if(!pb_decode(&stream, sns_suid_event_fields, &suid_event)) {
-         AK0991X_PRINT(ERROR, this, "SUID Decode failed");
-         continue;
-       }
-
-      /* if no suids found, ignore the event */
-      if(suid_search.num_of_suids == 0)
-      {
-        continue;
-      }
-
-      /* save suid based on incoming data type name */
-      if(0 == strncmp(data_type_arg.buf, "timer", data_type_arg.buf_len))
-      {
-        state->timer_suid = uid_list;
-        AK0991X_PRINT(LOW, this, "SUID:timer");
-        if(!SUID_IS_NULL(&state->timer_suid))
-        {
-          stream_svc->api->create_sensor_stream(stream_svc, this, state->timer_suid,
-                                                &state->timer_stream);
-          state->remove_timer_stream = false;
-          AK0991X_PRINT(LOW, this, "create_sensor_stream");
-          if(NULL == state->timer_stream)
-          {
-            AK0991X_PRINT(ERROR, this, __FILENAME__, __LINE__,
-                      "Failed to create timer stream");
-          }
-        }
-      }
-#ifdef AK0991X_ENABLE_DAE
-      else if(0 == strncmp(data_type_arg.buf, "data_acquisition_engine", data_type_arg.buf_len))
-      {
-        state->dae_suid = uid_list;
-        AK0991X_PRINT(ERROR, this, "SUID:data_acquisition_engine");
-      }
-#endif //AK0991X_ENABLE_DAE
-#ifdef AK0991X_ENABLE_DRI
-      else if(0 == strncmp(data_type_arg.buf, "interrupt", data_type_arg.buf_len))
-      {
-        state->irq_suid = uid_list;
-        AK0991X_PRINT(ERROR, this, "SUID:interrupt");
-      }
-     else if (0 == strncmp(data_type_arg.buf, "async_com_port",
-                            data_type_arg.buf_len))
-      {
-        state->acp_suid = uid_list;
-        AK0991X_PRINT(ERROR, this, "SUID:async_com_port");
-      }
-#endif //AK0991X_ENABLE_DRI
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-      else if (0 == strncmp(data_type_arg.buf, "registry", data_type_arg.buf_len))
-      {
-        state->reg_suid = uid_list;
-        AK0991X_PRINT(ERROR, this, "SUID:registry");
-        if(!SUID_IS_NULL(&state->reg_suid))
-        {
-          stream_svc->api->create_sensor_stream(stream_svc, this, state->reg_suid,
-                                                &state->reg_data_stream);
-          if(NULL != state->reg_data_stream)
-          {
-            ak0991x_request_registry(this);
-          }
-          else
-          {
-            AK0991X_PRINT(ERROR, this, "Failed to create registry stream");
-          }
-        }
-      }
-#endif
-      else
-      {
-        AK0991X_PRINT(ERROR, this, "unexpected datatype_name");
-      }
-    }
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_PF_CONFIG);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_PLACE);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_ORIENT);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_FACCAL);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_MAG_CONFIG);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_REG_CONFIG);
   }
 }
+#endif
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_item,
@@ -1141,68 +1036,12 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 static void
 ak0991x_sensor_publish_available(sns_sensor *const this)
 {
-  ak0991x_state *state = (ak0991x_state *)this->state->state;
-
-  if(
-#ifdef AK0991X_ENABLE_DRI
-      !SUID_IS_NULL(&state->irq_suid) &&
-      !SUID_IS_NULL(&state->acp_suid) &&
-#endif
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-      !SUID_IS_NULL(&state->reg_suid) &&
-#endif
-#ifdef AK0991X_ENABLE_DAE
-      !SUID_IS_NULL(&state->dae_suid) &&
-#endif
-      !SUID_IS_NULL(&state->timer_suid))
-  {
-    if( state->hw_is_present )
-    {
-      AK0991X_PRINT(MED, this, "AK0991x HW Present. Publishing available");
-      sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-      value.has_boolean = true;
-      value.boolean = true;
-      sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_AVAILABLE,
-                            &value, 1, true);
-    }
-
-    // remove unused fw_stream
-    sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-    sns_stream_service *stream_mgr =
-      (sns_stream_service *)service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-
-    stream_mgr->api->remove_stream(stream_mgr, state->fw_stream);
-    state->fw_stream = NULL;
-  }
-  else
-  {
-#ifdef AK0991X_ENABLE_DRI
-    if( SUID_IS_NULL(&state->irq_suid) )
-    {
-      AK0991X_PRINT(LOW, this, "AK0991x waiting for IRQ SUID" );
-    }
-    if( SUID_IS_NULL(&state->acp_suid) )
-    {
-      AK0991X_PRINT(LOW, this, "AK0991x waiting for ACP SUID" );
-    }
-#endif
-    if( SUID_IS_NULL(&state->timer_suid) )
-    {
-      AK0991X_PRINT(LOW, this, "AK0991x waiting for Timer SUID" );
-    }
-#ifdef AK0991X_ENABLE_DAE
-    if( SUID_IS_NULL(&state->dae_suid) )
-    {
-      AK0991X_PRINT(LOW, this, "AK0991x waiting for DAE SUID" );
-    }
-#endif
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-    if( SUID_IS_NULL(&state->reg_suid) )
-    {
-      AK0991X_PRINT(LOW, this, "AK0991x waiting for Reg SUID" );
-    }
-#endif
-  }
+  AK0991X_PRINT(MED, this, "AK0991x HW Present. Publishing available");
+  sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+  value.has_boolean = true;
+  value.boolean = true;
+  sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_AVAILABLE,
+                        &value, 1, true);
 }
 
 /**
@@ -1760,6 +1599,8 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 ak0991x_set_self_test_inst_config(this, instance);
               }
             }
+            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF)
           {
@@ -1768,9 +1609,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
                                          &state->rail_config,     NULL);
+            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
           }
-          state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-          state->remove_timer_stream = true;
         }
         else
         {
@@ -1788,44 +1629,6 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   }
 
   return rv;
-}
-
-/** See sns_ak0991x_sensor.h */
-void ak0991x_send_suid_req(sns_sensor *this,
-                           char *const data_type,
-                           uint32_t data_type_len)
-{
-  uint8_t buffer[50];
-  sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_state *state = (ak0991x_state *)this->state->state;
-  sns_service_manager *manager = this->cb->get_service_manager(this);
-  sns_stream_service *stream_service =
-    (sns_stream_service *)manager->get_service(manager, SNS_STREAM_SERVICE);
-  size_t encoded_len;
-  pb_buffer_arg data = (pb_buffer_arg){ .buf = data_type, .buf_len = data_type_len };
-
-  sns_suid_req suid_req = sns_suid_req_init_default;
-  suid_req.has_register_updates = true;
-  suid_req.register_updates = true;
-  suid_req.data_type.funcs.encode = &pb_encode_string_cb;
-  suid_req.data_type.arg = &data;
-
-  if (state->fw_stream == NULL)
-  {
-    stream_service->api->create_sensor_stream(stream_service,
-                                              this, sns_get_suid_lookup(), &state->fw_stream);
-  }
-
-  encoded_len = pb_encode_request(buffer, sizeof(buffer),
-                                  &suid_req, sns_suid_req_fields, NULL);
-
-  if (0 < encoded_len)
-  {
-    sns_request request = (sns_request){
-      .request_len = encoded_len, .request = buffer, .message_id = SNS_SUID_MSGID_SNS_SUID_REQ
-    };
-    state->fw_stream->api->send_request(state->fw_stream, &request);
-  }
 }
 
 /** See sns_ak0991x_sensor.h */
@@ -2054,9 +1857,41 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
   sns_rc           rv = SNS_RC_SUCCESS;
 
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service *stream_svc = (sns_stream_service*)
+    service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
   AK0991X_PRINT(LOW, this, "ak0991x_sensor_notify_event");
 
-  ak0991x_process_suid_events(this);
+  if (!sns_suid_lookup_complete(&state->suid_lookup_data))
+  {
+    sns_suid_lookup_handle(this, &state->suid_lookup_data);
+    if (state->timer_stream == NULL)
+    {
+      sns_sensor_uid timer_suid;
+      if(sns_suid_lookup_get(&state->suid_lookup_data,"timer", &timer_suid))
+      {
+        stream_svc->api->create_sensor_stream(stream_svc, this, timer_suid,
+                                              &state->timer_stream);
+        state->remove_timer_stream = false;
+        if(NULL == state->timer_stream)
+        {
+          AK0991X_PRINT(ERROR, this, __FILENAME__, __LINE__,
+                    "Failed to create timer stream");
+        }
+      }
+    }
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
+    sns_sensor_uid reg_suid;
+    if (sns_suid_lookup_get(&state->suid_lookup_data, "registry", &reg_suid))
+    {
+     if (state->reg_data_stream == NULL)
+      {
+        ak0991x_request_registry(this);
+      }
+    }
+#endif
+  }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   rv = ak0991x_process_registry_events(this);
@@ -2085,6 +1920,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                                              this,
                                                              &state->rail_config,
                                                              &timeticks); /* ignored */
+
     ak0991x_start_power_rail_timer(this,
                                    sns_convert_ns_to_ticks(
                                    AK0991X_OFF_TO_IDLE_MS * 1000000LL),

@@ -139,7 +139,6 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
         rv = SNS_RC_NOT_AVAILABLE;
         ak0991x_reconfig_hw(this);
       }
-      state->called_handle_timer_reg_event = true;
       ak0991x_register_heart_beat_timer(this);
     }
   }
@@ -180,7 +179,6 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
           // Indicate streaming error
           rv = SNS_RC_NOT_AVAILABLE;
           ak0991x_reconfig_hw(this);
-          state->called_handle_timer_reg_event = true;
           state->heart_beat_attempt_count++;
         }
       }
@@ -359,7 +357,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             if (!state->mag_info.use_dri)
             {
               state->force_fifo_read_till_wm = true;
-              state->interrupt_timestamp = sns_get_system_time(); // For Polling
               ak0991x_flush_fifo(this);
             }
             rv = ak0991x_heart_beat_timer_event(this);
@@ -374,8 +371,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             // That specific time will be returned in the SNS_TIMER_SENSOR_REG_EVENT event -- 
             // and will be needed by the mag sensor to populate the fields sent to the DAE sensor(so that timers remain synchronized in the DAE environment),
             // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
-            AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr reg event");
+          if(!state->mag_info.use_dri){
+            AK0991X_INST_PRINT(LOW, this, "Execute handle timer reg event for polling timer");
             state->called_handle_timer_reg_event = true;
+          }
         }
       }
       else

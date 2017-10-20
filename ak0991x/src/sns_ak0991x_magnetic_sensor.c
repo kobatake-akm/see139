@@ -58,6 +58,17 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
   }
+#endif
+  {
+    char const type[] = "mag";
+    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+    value.str.funcs.encode = pb_encode_string_cb;
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = type, .buf_len = sizeof(type) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
+  }
+#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   {
     char const vendor[] = "akm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -107,17 +118,6 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         values, ARR_SIZE(values), true);
   }
 #endif
-  // QC - the last input param to sns_publish_attribute() indicates this is not 
-  // the last attribute to publish; so move this whole block up 
-  {
-    char const type[] = "mag";
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.str.funcs.encode = pb_encode_string_cb;
-    value.str.arg = &((pb_buffer_arg)
-        { .buf = type, .buf_len = sizeof(type) });
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
-  }
 }
 
 
@@ -249,16 +249,17 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->placement[11] = 0.0;
 #endif // AK0991X_ENABLE_ALL_DEVICES
 
+  SNS_SUID_LOOKUP_INIT(state->suid_lookup_data, NULL);
 #ifdef AK0991X_ENABLE_DAE
-  ak0991x_send_suid_req(this, "data_acquisition_engine", sizeof("data_acquisition_engine"));
+  sns_suid_lookup_add(this, &state->suid_lookup_data, "data_acquisition_engine");
 #endif
 #ifdef AK0991X_ENABLE_DRI
-  ak0991x_send_suid_req(this, "interrupt", sizeof("interrupt"));
-  ak0991x_send_suid_req(this, "async_com_port", sizeof("async_com_port"));
+  sns_suid_lookup_add(this, &state->suid_lookup_data, "interrupt");
+  sns_suid_lookup_add(this, &state->suid_lookup_data, "async_com_port");
 #endif // AK0991X_ENABLE_DAE
-  ak0991x_send_suid_req(this, "timer", sizeof("timer"));
+  sns_suid_lookup_add(this, &state->suid_lookup_data, "timer");
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-  ak0991x_send_suid_req(this, "registry", sizeof("registry"));
+  sns_suid_lookup_add(this, &state->suid_lookup_data, "registry");
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
   return SNS_RC_SUCCESS;

@@ -24,7 +24,6 @@
 #include "sns_std.pb.h"
 #include "sns_std_sensor.pb.h"
 #include "sns_registry_util.h"
-#include "sns_gpio_service.h"
 
 /* Referenced data sheet version
  * AK09911  data sheet version MS1626_E-01

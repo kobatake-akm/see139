@@ -19,6 +19,7 @@
 #include "sns_data_stream.h"
 #include "sns_sensor_uid.h"
 #include "sns_pwr_rail_service.h"
+#include "sns_suid_util.h"
 
 #include "sns_ak0991x_hal.h"
 
@@ -35,10 +36,6 @@
       0xbc, 0x79, 0xd3, 0x09, 0x4d, 0x60, 0xd5, 0xeb  \
     }  \
   }
-
-#define SUID_IS_NULL(suid_ptr) ( sns_memcmp( (suid_ptr),                \
-                                             &(sns_sensor_uid){{0}},    \
-                                             sizeof(sns_sensor_uid) ) == 0 )
 
 //#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 #define AK0991X_REGISTRY_PF_CONFIG   "ak0991x_0_platform.config"
@@ -172,16 +169,8 @@ typedef struct ak0991x_state
   sns_data_stream       *fw_stream;
   sns_data_stream       *timer_stream;
 
-  // SUID
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-  sns_sensor_uid        reg_suid;
-#endif
-#ifdef AK0991X_ENABLE_DRI
-  sns_sensor_uid        irq_suid;
-  sns_sensor_uid        acp_suid; // Asynchronous COM Port
-#endif
-  sns_sensor_uid        timer_suid;
-  sns_sensor_uid        dae_suid; // Data Acquisition Engine
+  // Registry, IRQ, Timer, ASCP, DAE
+  SNS_SUID_LOOKUP_DATA(5) suid_lookup_data;
 
   ak0991x_com_port_info com_port_info;
   sns_interrupt_req      irq_config;
@@ -243,17 +232,6 @@ typedef struct ak0991x_state
 } ak0991x_state;
 
 /** Functions shared by all AK0991X Sensors */
-/**
- * Sends a request to the SUID Sensor to get SUID of a dependent
- * Sensor.
- *
- * @param[i] this          Sensor reference
- * @param[i] data_type     data_type of dependent Sensor
- * @param[i] data_type_len Length of the data_type string
- */
-void ak0991x_send_suid_req(sns_sensor * this, char *const data_type,
-                           uint32_t data_type_len);
-
 /**
  * notify_event() Sensor API common between all AK0991X Sensors.
  *
