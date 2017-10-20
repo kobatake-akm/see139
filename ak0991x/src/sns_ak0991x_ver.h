@@ -22,8 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 10/20/17                AKM              Modified averaging paramter for batch/polling.
- * 10/19/17                AKM              Modified for SEE-Lite.
+ * 10/20/17     010035     AKM              Modified for SEE-Lite. 
+ * 10/20/17                AKM              Fixed negavite timestamp intervals
  * 10/19/17     010034     Qualcomm/AKM     Debugged timestamp issue. Added 1[sec] delay power rail when off. Removed GPIO check.
  * 10/18/17                AKM(M)           Modified for SEE-Lite except using new SUID handler utility
  * 10/18/17     010033     AKM(N)           Added heart beat timer function
@@ -79,4 +79,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10034  // major:01 minor:00 revision:34
+#define AK0991X_DRIVER_VERSION 10035  // major:01 minor:00 revision:35

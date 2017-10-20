@@ -262,7 +262,7 @@ static void ak0991x_get_mag_config(
   *chosen_report_rate = 0;
   *chosen_sample_rate = 0;
   *chosen_flush_period = 0;
-  *is_flush_only = true; // QC - Consider setting to true here and then ANDing on line 291.
+  *is_flush_only = true;
   *sensor_client_present = false;
 
 #ifndef AK0991X_ENABLE_DEBUG_MSG
@@ -286,8 +286,6 @@ static void ak0991x_get_mag_config(
         float report_rate;
         uint32_t flush_period;
 
-        // QC - This does not look right. This will pick up is_flush_only for 
-        // the last request in the list of requests. Should AND to get overall is_flush_only.
         *is_flush_only &= decoded_request.batching.flush_only;
 
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
@@ -1601,6 +1599,8 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 ak0991x_set_self_test_inst_config(this, instance);
               }
             }
+            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF)
           {
@@ -1609,9 +1609,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
                                          &state->rail_config,     NULL);
+            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
           }
-          state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-          state->remove_timer_stream = true;
         }
         else
         {
