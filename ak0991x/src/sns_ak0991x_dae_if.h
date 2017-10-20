@@ -39,13 +39,12 @@ typedef struct
   struct sns_data_stream *stream;
   const sns_sensor_uid   *suid; /* for diag print purpose */
   const char             *nano_hal_vtable_name;
-  ak0991x_dae_if_state   state;
   bool                   stream_usable:1;
   bool                   flushing_hw:1;
   bool                   flushing_data:1;
-#else
-  ak0991x_dae_if_state   state;
 #endif
+  /* QC - This item is common for both dae and non-dae. Could just pull it out of the #if. */
+  ak0991x_dae_if_state   state;
 } ak0991x_dae_stream;
 
 typedef struct ak0991x_dae_if_info

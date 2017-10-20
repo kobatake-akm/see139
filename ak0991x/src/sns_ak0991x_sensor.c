@@ -262,7 +262,7 @@ static void ak0991x_get_mag_config(
   *chosen_report_rate = 0;
   *chosen_sample_rate = 0;
   *chosen_flush_period = 0;
-  *is_flush_only = false;
+  *is_flush_only = true; // QC - Consider setting to true here and then ANDing on line 291.
   *sensor_client_present = false;
 
 #ifndef AK0991X_ENABLE_DEBUG_MSG
@@ -286,7 +286,9 @@ static void ak0991x_get_mag_config(
         float report_rate;
         uint32_t flush_period;
 
-        *is_flush_only = decoded_request.batching.flush_only;
+        // QC - This does not look right. This will pick up is_flush_only for 
+        // the last request in the list of requests. Should AND to get overall is_flush_only.
+        *is_flush_only &= decoded_request.batching.flush_only;
 
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
@@ -465,7 +467,6 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   size_t                  req_len;
   uint8_t                 buffer[20];
-  sns_memset(buffer, 0, sizeof(buffer));
   req_payload.is_periodic = false;
   req_payload.start_time = sns_get_system_time();
   req_payload.timeout_period = timeout_ticks;
@@ -1565,10 +1566,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
 #ifdef AK0991X_ENABLE_POWER_RAIL
             /**----------------------Turn Power Rail OFF--------------------------*/
-            state->rail_config.rail_vote = SNS_RAIL_OFF;
-            state->pwr_rail_service->api->
-              sns_vote_power_rail_update(state->pwr_rail_service, this,
-                                         &state->rail_config,     NULL);
+            ak0991x_start_power_rail_timer(this,
+                                           sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
+                                           AK0991X_POWER_RAIL_PENDING_OFF);
 #endif
 
             if (state->hw_is_present)
@@ -1582,9 +1582,6 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             {
               AK0991X_PRINT(MED, this, "AK0991X HW absent");
             }
-
-            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-            state->remove_timer_stream = true;
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ)
           {
@@ -1604,10 +1601,17 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 ak0991x_set_self_test_inst_config(this, instance);
               }
             }
-
-            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-            state->remove_timer_stream = true;
           }
+          else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF)
+          {
+            AK0991X_PRINT(LOW, this, "state = POWER_RAIL_PENDING_OFF");
+            state->rail_config.rail_vote = SNS_RAIL_OFF;
+            state->pwr_rail_service->api->
+              sns_vote_power_rail_update(state->pwr_rail_service, this,
+                                         &state->rail_config,     NULL);
+          }
+          state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+          state->remove_timer_stream = true;
         }
         else
         {
@@ -1699,6 +1703,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       {
         // rail is already ON
         AK0991X_PRINT(LOW, this, "rail is already ON");
+        state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+        state->remove_timer_stream = true;
         reval_config = true;
       }
 #else
@@ -1833,12 +1839,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 
       if (sensor_state->rail_config.rail_vote != SNS_RAIL_OFF)
       {
-        sensor_state->rail_config.rail_vote = SNS_RAIL_OFF;
-        sensor_state->pwr_rail_service->api->sns_vote_power_rail_update(
-          sensor_state->pwr_rail_service,
-          sensor,
-          &sensor_state->rail_config,
-          NULL);
+#ifdef AK0991X_ENABLE_POWER_RAIL
+        ak0991x_start_power_rail_timer(this,
+                                       sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
+                                       AK0991X_POWER_RAIL_PENDING_OFF);
+#endif
       }
     }
   }
@@ -1886,13 +1891,6 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       }
     }
 #endif
-
-    //if (sns_suid_lookup_complete(&state->suid_lookup_data))
-    //{
-    //  AK0991X_PRINT(LOW, this, "eeeee");
-
-    //  sns_suid_lookup_deinit(this, &state->suid_lookup_data);
-    //}
   }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
