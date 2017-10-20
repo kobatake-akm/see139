@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/20/17                AKM              Modified averaging paramter for batch/polling.
  * 10/19/17                AKM              Modified for SEE-Lite.
  * 10/19/17     010034     Qualcomm/AKM     Debugged timestamp issue. Added 1[sec] delay power rail when off. Removed GPIO check.
  * 10/18/17                AKM(M)           Modified for SEE-Lite except using new SUID handler utility
