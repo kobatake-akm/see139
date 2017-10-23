@@ -447,6 +447,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     desired_report_rate = payload->report_rate;
     state->mag_info.flush_only = payload->is_flush_only;
 
+    // If already streaming, send out existing config before the next data events are sent
+    if (!state->this_is_first_data)
+    {
+      ak0991x_send_config_event(this);
+    }
+
     // Register for interrupt
     if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
     {

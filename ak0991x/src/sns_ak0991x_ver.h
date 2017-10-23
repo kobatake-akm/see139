@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/23/17     010036     Qualcomm         Sends config event to new clients immediately if already streaming
  * 10/20/17     010035     AKM              Modified for SEE-Lite. 
  * 10/20/17                AKM              Fixed negavite timestamp intervals
  * 10/19/17     010034     Qualcomm/AKM     Debugged timestamp issue. Added 1[sec] delay power rail when off. Removed GPIO check.
@@ -79,4 +80,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10035  // major:01 minor:00 revision:35
+#define AK0991X_DRIVER_VERSION 10036  // major:01 minor:00 revision:36
