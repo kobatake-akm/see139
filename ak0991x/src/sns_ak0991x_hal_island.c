@@ -1238,8 +1238,7 @@ sns_rc ak0991x_set_sstvt_adj(
   }
 
 #ifdef AK0991X_ENABLE_FUSE
-  // QC - Init to 0 else Klocwork will complain
-  uint8_t buffer[AK0991X_NUM_SENSITIVITY];
+  uint8_t buffer[AK0991X_NUM_SENSITIVITY] = {0};
   rv = ak0991x_read_asa(NULL, scp_service,port_handle, buffer);
 
   if (rv != SNS_RC_SUCCESS)

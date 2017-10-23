@@ -1822,7 +1822,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   }
   }
 
-  // QC: Sensors are required to call remove_instance when clientless
+  // Sensors are required to call remove_instance when clientless
   if(NULL != instance &&
      NULL == instance->cb->
      get_client_request(instance, &(sns_sensor_uid)MAG_SUID, true))

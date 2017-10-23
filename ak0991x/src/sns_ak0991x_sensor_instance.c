@@ -369,7 +369,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   return SNS_RC_SUCCESS;
 }
 
-// QC: Removed sensor_state parameter
 sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state =
