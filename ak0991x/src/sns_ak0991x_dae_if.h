@@ -43,7 +43,6 @@ typedef struct
   bool                   flushing_hw:1;
   bool                   flushing_data:1;
 #endif
-  /* QC - This item is common for both dae and non-dae. Could just pull it out of the #if. */
   ak0991x_dae_if_state   state;
 } ak0991x_dae_stream;
 

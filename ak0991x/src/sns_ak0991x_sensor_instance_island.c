@@ -372,7 +372,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             // and will be needed by the mag sensor to populate the fields sent to the DAE sensor(so that timers remain synchronized in the DAE environment),
             // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
           if(!state->mag_info.use_dri){
-            AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr reg event for polling timer");
+            AK0991X_INST_PRINT(LOW, this, "Execute handle timer reg event for polling timer");
             state->called_handle_timer_reg_event = true;
           }
         }

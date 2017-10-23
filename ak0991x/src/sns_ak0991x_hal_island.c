@@ -615,7 +615,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
-  // QC - When the first ever stream starts, what is pre_timestamp set to? zero?
   // check last timestamp
   if( state->pre_timestamp > now ){
     AK0991X_INST_PRINT(LOW, this, "negative timestamp detected!!! Keep using pre_timestamp.");
@@ -623,7 +622,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     state->pre_timestamp = now;
   }
 
-  // QC - pull var declarations to top of function
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
   state->this_is_first_data = true;
@@ -1368,7 +1366,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
-  // QC - pull var declarations to top of function
   // Check magnetic sensor overflow (and invalid data for FIFO)
   inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
   if ((mag_sample[7] & (AK0991X_HOFL_BIT | inv_fifo_bit)) != 0)
@@ -1422,7 +1419,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 	    status);
   }
 
-  AK0991X_INST_PRINT(LOW, instance, "timestamp=%u pre=%u irq=%u average=%u Mag[LSB] %d,%d,%d flush_only=%d",
+  AK0991X_INST_PRINT(LOW, instance, "timestamp %u pre %u irq %u average %u Mag[LSB] %d,%d,%d flush_only %d",
       (uint32_t)timestamp,
       (uint32_t)state->pre_timestamp,
       (uint32_t)state->irq_event_time,
@@ -1560,6 +1557,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       }
     }
   }
+
   if(num_samples>0){
     if(enable_averaging){
 #ifdef AK0991X_ENABLE_DRI
@@ -1569,7 +1567,8 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       else
 #endif // AK0991X_ENABLE_DRI
       {
-        averaging_weight = 95;
+        // for flush request, polling
+        averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
       }
       state->averaged_interval = (state->averaged_interval * averaging_weight +
          ((state->interrupt_timestamp - state->pre_timestamp) / num_samples) * (100 - averaging_weight)) / 100;
@@ -2039,7 +2038,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_DRI
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
-    req_payload.is_periodic = false;
+    req_payload.is_periodic = true;
     req_payload.start_time = sns_get_system_time();
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
