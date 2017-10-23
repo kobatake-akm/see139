@@ -1418,7 +1418,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 	    status);
   }
 
-  AK0991X_INST_PRINT(LOW, instance, "timestamp=%u pre=%u irq=%u average=%u Mag[LSB] %d,%d,%d flush_only=%d",
+  AK0991X_INST_PRINT(LOW, instance, "timestamp %u pre %u irq %u average %u Mag[LSB] %d,%d,%d flush_only %d",
       (uint32_t)timestamp,
       (uint32_t)state->pre_timestamp,
       (uint32_t)state->irq_event_time,
@@ -1565,7 +1565,11 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       else
 #endif // AK0991X_ENABLE_DRI
       {
-        averaging_weight = 95;
+        if(state->fifo_flush_in_progress){  // for batch.
+          averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
+        }else{
+          averaging_weight = 95;
+        }
       }
       state->averaged_interval = (state->averaged_interval * averaging_weight +
          ((state->interrupt_timestamp - state->pre_timestamp) / num_samples) * (100 - averaging_weight)) / 100;
