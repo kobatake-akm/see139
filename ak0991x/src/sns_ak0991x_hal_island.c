@@ -1418,7 +1418,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 	    status);
   }
 
-  AK0991X_INST_PRINT(LOW, instance, "timestamp %u pre %u irq %u average %u Mag[LSB] %d,%d,%d flush_only %d",
+  AK0991X_INST_PRINT(LOW, instance, "timestamp %u pre %u irq %u ave %u Mag %d,%d,%d fl_only %d num_sample %d",
       (uint32_t)timestamp,
       (uint32_t)state->pre_timestamp,
       (uint32_t)state->irq_event_time,
@@ -1426,7 +1426,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       (int16_t)(lsbdata[TRIAXIS_X]),
       (int16_t)(lsbdata[TRIAXIS_Y]),
       (int16_t)(lsbdata[TRIAXIS_Z]),
-      state->mag_info.flush_only);
+      state->mag_info.flush_only,
+      state->num_samples);
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -1484,6 +1485,98 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 #endif // AK0991X_ENABLE_FIFO
 }
 
+static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_time now = sns_get_system_time();
+  uint8_t num_samples = state->num_samples;
+
+#ifdef AK0991X_ENABLE_S4S
+  // for S4S, no need to validate timestamp????
+  if(state->mag_info.use_sync_stream){
+    state->interrupt_timestamp = now;
+    state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
+    return;
+  }
+#endif // AK0991X_ENABLE_S4S
+
+  bool enable_averaging = false;
+  bool update_interrupt_timestamp = false;
+  uint16_t averaging_weight;
+
+  bool is_num_equal_wm = (state->mag_info.cur_wmk+1 == state->num_samples) ? true : false;
+
+  if(state->irq_info.detect_irq_event){
+    state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
+  }else{
+    state->interrupt_timestamp = now; // for Polling or Flush
+  }
+
+  if(state->this_is_first_data){
+    AK0991X_INST_PRINT(LOW, instance, "this_is_first_data");
+
+    state->mag_info.data_count = 0;
+    if(state->irq_info.detect_irq_event){
+      if( state->mag_info.use_fifo && (num_samples > 1) && is_num_equal_wm ){
+        // DRI + FIFO and more than 1 data
+        state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp - state->measurement_time) / (num_samples - 1);
+      }else{
+        // DRI
+        state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+      }
+    }
+    else
+    {
+      // Polling / Polling + FIFO
+      state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
+    }
+  }else if(state->irq_info.detect_irq_event && !is_num_equal_wm){
+    // WM is not equal to the FIFO buffer
+    AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
+    update_interrupt_timestamp = true;
+  }else if(state->data_over_run){
+    AK0991X_INST_PRINT(LOW, instance, "data over run detected");
+    // no calculate averaged_interval
+  }else if((state->mag_info.use_fifo) &&
+      (state->interrupt_timestamp - state->pre_timestamp > (state->averaged_interval * state->mag_info.max_fifo_size * 12) / 10  )){
+    // no calculate averaged_interval
+    AK0991X_INST_PRINT(LOW, instance, "possible data over run detected");
+  }else if(state->heart_beat_attempt_count != 0 ){
+    AK0991X_INST_PRINT(LOW, instance, "heart beat flush.");
+    // no calculate averaged_interval
+  }else{
+    enable_averaging = true;
+    if(!state->irq_info.detect_irq_event && !state->fifo_flush_in_progress && !state->this_is_the_last_flush ){
+      update_interrupt_timestamp = true;
+    }
+  }
+  if(num_samples>0){
+    if(enable_averaging){
+      if(state->irq_info.detect_irq_event)
+      {
+        averaging_weight = ( (state->mag_info.data_count > 1) && (!state->fifo_flush_in_progress) ) ? 95 : 5;
+      }
+      else
+      {
+        if(state->fifo_flush_in_progress){  // for batch.
+          averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
+        }else{
+          averaging_weight = 95;
+        }
+      }
+      state->averaged_interval = (state->averaged_interval * averaging_weight +
+         ((state->interrupt_timestamp - state->pre_timestamp) / num_samples) * (100 - averaging_weight)) / 100;
+    }
+    if(update_interrupt_timestamp){
+      state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
+    }
+    state->mag_info.data_count++;
+  }else{
+    AK0991X_INST_PRINT(LOW, instance, "ERROR: num_samples=0 !!!");
+  }
+}
+
+/*
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1582,6 +1675,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     AK0991X_INST_PRINT(LOW, instance, "ERROR: num_samples=0 !!!");
   }
 }
+*/
 
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)
 {
@@ -1648,9 +1742,19 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
     for (i = 0; i < state->num_samples; i++)
     {
-      // flush event trigger is IRQ
+      // flush event trigger is IRQ and WM==num_samples
       if (state->irq_info.detect_irq_event)
       {
+        if(state->num_samples == state->mag_info.cur_wmk+1)
+        {
+          timestamp = state->interrupt_timestamp -
+            (state->averaged_interval * (state->mag_info.cur_wmk - i));
+        }
+        else
+        {
+          timestamp = state->pre_timestamp + (state->averaged_interval * (i + 1));
+        }
+/*
         if(i <= state->mag_info.cur_wmk){
           // data till the WM
           timestamp = state->interrupt_timestamp -
@@ -1660,6 +1764,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
           timestamp = state->interrupt_timestamp +
             (state->averaged_interval * (i - state->mag_info.cur_wmk));
         }
+*/
       }
       else
       {
