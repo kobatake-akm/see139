@@ -353,16 +353,16 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",(uint32_t)sns_get_system_time());
  
-          if(state->called_handle_timer_reg_event){
-            if (!state->mag_info.use_dri)
-            {
-              state->force_fifo_read_till_wm = true;
-              ak0991x_flush_fifo(this);
-            }
-            rv = ak0991x_heart_beat_timer_event(this);
-          }else{
-            AK0991X_INST_PRINT(LOW, this, "Wrong timer event...");
+//          if(state->called_handle_timer_reg_event){
+          if (!state->mag_info.use_dri)
+          {
+            state->force_fifo_read_till_wm = true;
           }
+          ak0991x_flush_fifo(this);
+          rv = ak0991x_heart_beat_timer_event(this);
+//          }else{
+//            AK0991X_INST_PRINT(LOW, this, "Wrong timer event...");
+//          }
         }
         else
         {
@@ -377,10 +377,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         // That specific time will be returned in the SNS_TIMER_SENSOR_REG_EVENT event --
         // and will be needed by the mag sensor to populate the fields sent to the DAE sensor(so that timers remain synchronized in the DAE environment),
         // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
-        if(!state->mag_info.use_dri){
-          AK0991X_INST_PRINT(LOW, this, "Execute handle timer reg event for polling timer");
-          state->called_handle_timer_reg_event = true;
-        }
+//        if(!state->mag_info.use_dri){
+//          AK0991X_INST_PRINT(LOW, this, "Execute handle timer reg event for polling timer");
+//          state->called_handle_timer_reg_event = true;
+//        }
       }
       event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
     }
