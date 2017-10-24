@@ -253,8 +253,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
               state->re_read_data_after_ascp = true;
             }
-            // Already got an interrupt event. Ignore additional events.
-            event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
           }
           else
           {
@@ -283,12 +281,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
-      if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)
-      {
-        AK0991X_INST_PRINT(LOW, this, "Received ASCP error event id=%d",
-                                      event->message_id);
-      }
-      else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
+      if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
 
@@ -322,6 +315,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->config_mag_after_ascp_xfer = false;
         }
       }
+      else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)
+      {
+        AK0991X_INST_PRINT(LOW, this, "Received ASCP error event id=%d",
+                                      event->message_id);
+      }
 
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
@@ -336,29 +334,25 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
-      pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
-                                                   event->event_len);
-      sns_timer_sensor_event timer_event;
-
       //TODO: Timer sensor never sends SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG event
       // It is a request message ID. Mag senosr sends to timer sensor
-      if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
+      if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
       {
-        AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
-                                      event->message_id);
-      }
-      else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
-      {
+        pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
+                                                     event->event_len);
+        sns_timer_sensor_event timer_event;
+
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
           AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",(uint32_t)sns_get_system_time());
  
 //          if(state->called_handle_timer_reg_event){
+          // for regular polling mode
           if (!state->mag_info.use_dri)
           {
             state->force_fifo_read_till_wm = true;
+            ak0991x_flush_fifo(this);
           }
-          ak0991x_flush_fifo(this);
           rv = ak0991x_heart_beat_timer_event(this);
 //          }else{
 //            AK0991X_INST_PRINT(LOW, this, "Wrong timer event...");
@@ -369,6 +363,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d",
                                         event->message_id);
         }
+      }
+      else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
+      {
+        AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
+                                      event->message_id);
       }
       else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
       {

@@ -276,7 +276,7 @@ static void ak0991x_get_mag_config(
        request = instance->cb->get_client_request(instance, &suid, false))
   {
     sns_std_request decoded_request;
-    sns_std_sensor_config decoded_payload = {0};
+    sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
 
     if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
