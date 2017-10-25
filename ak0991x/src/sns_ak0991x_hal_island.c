@@ -1472,12 +1472,13 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
   sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr,SNS_EVENT_SERVICE);
   sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_time now = sns_get_system_time();
 
   if(NULL != event)
   {
     event->message_id = SNS_STD_MSGID_SNS_STD_FLUSH_EVENT;
     event->event_len = 0;
-    event->timestamp = sns_get_system_time();
+    event->timestamp = now;
 
     e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
   }
@@ -1563,23 +1564,14 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   }
 
   if(num_samples>0){
-    if(enable_averaging){
-      if(state->irq_info.detect_irq_event)
-      {
-        averaging_weight = ( (state->mag_info.data_count > 1) && (!state->fifo_flush_in_progress) ) ? 95 : 5;
-      }
-      else
-      {
-        if(state->fifo_flush_in_progress){  // for batch.
-          averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
-        }else{
-          averaging_weight = 95;
-        }
-      }
+    if(enable_averaging) // only for polling mode
+    {
+      averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
       state->averaged_interval = (state->averaged_interval * averaging_weight +
          ((state->interrupt_timestamp - state->pre_timestamp) / num_samples) * (100 - averaging_weight)) / 100;
     }
-    if(update_interrupt_timestamp){
+    if(update_interrupt_timestamp)
+    {
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
     }
     state->mag_info.data_count++;
@@ -1644,6 +1636,14 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   log_mag_state_raw_info.instance = instance;
   log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
 #endif
+
+  // is ASCP is still during in the process, skip flush
+  if(state->ascp_xfer_in_progress > 0)
+  {
+    state->re_read_data_after_ascp = true;
+    AK0991X_INST_PRINT(LOW, instance, "this is the last flash before changing ODR. But waiting for ACSP done...");
+    return;
+  }
 
   ak0991x_read_all_data(instance, &buffer[0]);
 
@@ -2066,6 +2066,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   sns_time                sample_period;
+  sns_time now = sns_get_system_time();
 
   // for heat beat timer
   if(state->mag_info.use_dri)
@@ -2074,7 +2075,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
     req_payload.is_periodic = true;
-    req_payload.start_time = sns_get_system_time();
+    req_payload.start_time = now;
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 
@@ -2107,7 +2108,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
     req_payload.is_periodic = true;
-    req_payload.start_time = sns_get_system_time();
+    req_payload.start_time = now;
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 

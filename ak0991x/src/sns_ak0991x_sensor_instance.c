@@ -563,16 +563,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
         state->this_is_the_last_flush = true;
-        if(state->ascp_xfer_in_progress == 0)
-        {
-          AK0991X_INST_PRINT(LOW, this, "this is the last flash before changing ODR.");
-          ak0991x_flush_fifo(this);
-        }
-        else
-        {
-          state->re_read_data_after_ascp = true;
-          AK0991X_INST_PRINT(LOW, this, "this is the last flash before changing ODR. But waiting for ACSP done...");
-        }
+        ak0991x_flush_fifo(this);
 
         // stop timer
         if (state->timer_data_stream != NULL)
@@ -647,16 +638,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->fifo_flush_in_progress = true;
     if(!ak0991x_dae_if_flush_samples(this))
     {
-      if(state->ascp_xfer_in_progress == 0)
-      {
-        AK0991X_INST_PRINT(LOW, this, "Flush requested.");
-        ak0991x_flush_fifo(this);
-      }
-      else
-      {
-        state->re_read_data_after_ascp = true;
-        AK0991X_INST_PRINT(LOW, this, "Flush requested. But waiting for ACSP read done...");
-      }
+      AK0991X_INST_PRINT(LOW, this, "Flush requested.");
+      ak0991x_flush_fifo(this);
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
