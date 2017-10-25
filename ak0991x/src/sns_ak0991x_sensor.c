@@ -256,7 +256,12 @@ static void ak0991x_get_mag_config(
                                    bool *is_flush_only,
                                    bool *sensor_client_present)
 {
-  sns_sensor_uid suid = MAG_SUID;
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+  ak0991x_state *state = (ak0991x_state *)this->state->state;
+  sns_sensor_uid mag_suid = (state->hardware_id == 0)? (sns_sensor_uid)MAG_SUID1 : (sns_sensor_uid)MAG_SUID2;
+#else
+  sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
+#endif
   sns_request const *request;
 
   *chosen_report_rate = 0;
@@ -265,15 +270,11 @@ static void ak0991x_get_mag_config(
   *is_flush_only = true;
   *sensor_client_present = false;
 
-#ifndef AK0991X_ENABLE_DEBUG_MSG
-   UNUSED_VAR(this)
-#endif
-
   /** Parse through existing requests and get fastest sample
    *  rate, report rate, and longest flush period requests. */
-  for (request = instance->cb->get_client_request(instance, &suid, true);
+  for (request = instance->cb->get_client_request(instance, &mag_suid, true);
        NULL != request;
-       request = instance->cb->get_client_request(instance, &suid, false))
+       request = instance->cb->get_client_request(instance, &mag_suid, false))
   {
     sns_std_request decoded_request;
     sns_std_sensor_config decoded_payload;
@@ -545,12 +546,41 @@ static void ak0991x_request_registry(sns_sensor *const this)
     stream_svc->api->create_sensor_stream(stream_svc, this, reg_suid,
         &state->reg_data_stream);
 
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_PF_CONFIG);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_PLACE);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_ORIENT);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_FACCAL);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_MAG_CONFIG);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_REG_CONFIG);
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+    // Each driver registration shall be treated as a separate library within SEE.
+    // the below case is selected by SEE for each sensor as a separate library.
+    // hw_id = 0 is considered one library,
+    // the case is "true" to register for ak0991x_dri_0.json and msm8996_ak9911x_0.json.
+    // hw_id = 1 is considered another library,
+    // the case is "false" to register for a0991x_dri_1.json and msm8996_ak9911x_1.json.
+    //
+    // TODO:
+    if (0)
+    {
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PF_CONFIG);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PLACE);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_ORIENT);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_MAG_CONFIG);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_REG_CONFIG);
+    }
+    else
+    {
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_1_PF_CONFIG);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_1_PLACE);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_1_ORIENT);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_1_FACCAL);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_1_MAG_CONFIG);
+      ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_1_REG_CONFIG);
+    }
+#else
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PF_CONFIG);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PLACE);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_ORIENT);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_MAG_CONFIG);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_REG_CONFIG);
+#endif // AK0991X_ENABLE_DUAL_SENSOR
   }
 }
 #endif
@@ -618,7 +648,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
     pb_buffer_arg group_name = {0,0};
     read_event.name.arg = &group_name;
     read_event.name.funcs.decode = pb_decode_string_cb;
-
+ 
     if(!pb_decode(&stream, sns_registry_read_event_fields, &read_event))
     {
       AK0991X_PRINT(ERROR, this, "Error decoding registry event");
@@ -626,9 +656,40 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
     else
     {
       stream = pb_istream_from_buffer((void*)event->event, event->event_len);
-
-      if(0 == strncmp((char*)group_name.buf, "ak0991x_0.mag.config",
-                           group_name.buf_len))
+      bool mag_config;
+      bool reg_config;
+      bool pf_config;
+      bool place;
+      bool orient;
+      bool faccal;
+      mag_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_MAG_CONFIG,
+                           group_name.buf_len));
+      reg_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_REG_CONFIG,
+                           group_name.buf_len));
+      pf_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_PF_CONFIG,
+                           group_name.buf_len));
+      place = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_PLACE,
+                           group_name.buf_len));
+      orient = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_ORIENT,
+                             group_name.buf_len));
+      faccal = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_FACCAL,
+                             group_name.buf_len));
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+      mag_config |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_MAG_CONFIG,
+                           group_name.buf_len));
+      reg_config |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_REG_CONFIG,
+                           group_name.buf_len));
+      pf_config |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_PF_CONFIG,
+                           group_name.buf_len));
+      place |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_PLACE,
+                           group_name.buf_len));
+      orient |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_ORIENT,
+                           group_name.buf_len));
+      faccal |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_FACCAL,
+                            group_name.buf_len));
+#endif
+      AK0991X_PRINT(ERROR, this, "%d %d %d %d %d %d", mag_config, reg_config, pf_config, place, orient, faccal);
+      if(mag_config)
       {
         {
           sns_registry_decode_arg arg = {
@@ -661,10 +722,10 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "resolution_idx:%d, supports_sync_stream:%d ",
                                    state->resolution_idx,
                                    state->supports_sync_stream);
-       }
+        }
       }
-      if(0 == strncmp((char*)group_name.buf, "ak0991x_0.mag.config_2",
-                           group_name.buf_len))
+
+      if(reg_config)
       {
         {
           sns_registry_decode_arg arg = {
@@ -696,8 +757,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                    state->sdr);
         }
       }
-      else if(0 == strncmp((char*)group_name.buf, "ak0991x_0_platform.config",
-                           group_name.buf_len))
+      else if (pf_config)
       {
         {
           sns_registry_decode_arg arg = {
@@ -773,8 +833,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           }
         }
       }
-      else if(0 == strncmp((char*)group_name.buf, "ak0991x_0_platform.placement",
-                           group_name.buf_len))
+      else if (place)
       {
         {
           uint8_t arr_index = 0;
@@ -808,8 +867,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
               (int)state->placement[11]);
         }
       }
-      else if(0 == strncmp((char*)group_name.buf, "ak0991x_0_platform.orient",
-                             group_name.buf_len))
+      else if (orient)
       {
         {
           sns_registry_decode_arg arg = {
@@ -845,9 +903,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                  state->axis_map[2].invert);
         }
       }
-      else if(0 == strncmp((char*)group_name.buf,
-                             "ak0991x_0_platform.mag.fac_cal",
-                             group_name.buf_len))
+      else if (faccal)
       {
         {
           uint8_t bias_arr_index = 0, scale_arr_index = 0;
@@ -1640,6 +1696,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   bool reval_config = false;
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+  sns_sensor_uid mag_suid = (state->hardware_id == 0)? (sns_sensor_uid)MAG_SUID1: (sns_sensor_uid)MAG_SUID2;
+#else
+  sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
+#endif
 
   AK0991X_PRINT(HIGH, this, "ak0991x_set_client_request");
 
@@ -1805,27 +1866,27 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                 ak0991x_set_self_test_inst_config(this, instance);
                 reval_config = false;
               }
+            }
+          }
+        }
+
+        if (reval_config)
+        {
+          ak0991x_reval_instance_config(this, instance);
+
+          if(inst_state->new_self_test_request)
+          {
+            ak0991x_set_self_test_inst_config(this, instance);
           }
         }
       }
-
-      if (reval_config)
-      {
-        ak0991x_reval_instance_config(this, instance);
-
-        if(inst_state->new_self_test_request)
-        {
-          ak0991x_set_self_test_inst_config(this, instance);
-        }
-      }
     }
-  }
   }
 
   // Sensors are required to call remove_instance when clientless
   if(NULL != instance &&
      NULL == instance->cb->
-     get_client_request(instance, &(sns_sensor_uid)MAG_SUID, true))
+     get_client_request(instance, &mag_suid, true))
   {
     sns_sensor *sensor;
     AK0991X_PRINT(LOW, this, "Removing instance");

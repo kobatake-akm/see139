@@ -120,6 +120,12 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     .arr_index = &arr_index};
   batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
   batch_sample.sample.arg = &arg;
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+  sns_sensor_uid mag_suid = (sensor_state->hardware_id == 0)? (sns_sensor_uid)MAG_SUID1 :
+                                                              (sns_sensor_uid)MAG_SUID2;
+#else
+  sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
+#endif
 
   state->diag_service = (sns_diag_service *)
     service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
@@ -129,7 +135,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /**----------------Copy Sensor UID in instance state---------------*/
   sns_memscpy(&state->mag_info.suid,
               sizeof(state->mag_info.suid),
-              &((sns_sensor_uid)MAG_SUID),
+              &mag_suid,
               sizeof(state->mag_info.suid));
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x inst init" );
@@ -364,7 +370,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_sensor_uid dae_suid;
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
   AK0991X_INST_PRINT(LOW, this, "before dae_if init" );
-  ak0991x_dae_if_init(this, stream_mgr, &dae_suid, &((sns_sensor_uid)MAG_SUID));
+  ak0991x_dae_if_init(this, stream_mgr, &dae_suid, &mag_suid);
 
   return SNS_RC_SUCCESS;
 }
@@ -627,7 +633,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                   sizeof(payload->registry_cfg.fac_cal_corr_mat));
     }
   }
-
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->fifo_flush_in_progress = true;
