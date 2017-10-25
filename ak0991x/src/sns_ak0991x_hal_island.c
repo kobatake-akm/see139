@@ -1532,14 +1532,18 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
     }
   }else if(state->irq_info.detect_irq_event){
-    if(!is_num_equal_wm)
+    if(is_num_equal_wm)    // DRI, regular sequence.
+    {
+      state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
+    }
+    else  // DRI, num_samples is not equal to the WM
     {
       // WM is not equal to the FIFO buffer
-      AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
       update_interrupt_timestamp = true;
+      AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
     }
   }else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri){
-    AK0991X_INST_PRINT(LOW, instance, "flush");
+    AK0991X_INST_PRINT(LOW, instance, "flush during DRI/DRI+FIFO");
     update_interrupt_timestamp = true;
   }else if(state->data_over_run){
     AK0991X_INST_PRINT(LOW, instance, "data over run detected");
@@ -1656,6 +1660,11 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
         {
           timestamp = state->interrupt_timestamp -
             (state->averaged_interval * (state->mag_info.cur_wmk - i));
+          if(timestamp < state->pre_timestamp)
+          {
+            // for the first data.
+            timestamp = state->pre_timestamp;
+          }
         }
         else
         {
@@ -1706,7 +1715,15 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
       AK0991X_INST_PRINT(LOW, instance,"num_samples=%d. skip handle_mag_sample", state->num_samples);
     }
   }
+
+  // reset flags
   state->force_fifo_read_till_wm = false;
+  state->this_is_the_last_flush = false;
+  if(state->fifo_flush_in_progress)
+  {
+    ak0991x_send_fifo_flush_done(instance);
+    state->fifo_flush_in_progress = false;
+  }
 }
 
 void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance)

@@ -122,15 +122,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
     else
     {
       state->heart_beat_attempt_count++;
-
-      if(state->ascp_xfer_in_progress != 0)
-      {
-        ak0991x_flush_fifo(this);
-      }
-      else
-      {
-        state->re_read_data_after_ascp = true;
-      }
+      ak0991x_flush_fifo(this);
 
       if(state->heart_beat_attempt_count >= 3)
       {
@@ -312,9 +304,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 #endif // AK0991X_ENABLE_DIAG_LOGGING
 
         state->ascp_xfer_in_progress--;
+        AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress = %d", state->ascp_xfer_in_progress);
 
         if(state->re_read_data_after_ascp && (state->ascp_xfer_in_progress == 0))
         {
+          AK0991X_INST_PRINT(LOW, this, "flush after ASCP read.");
           ak0991x_flush_fifo(this);
           state->re_read_data_after_ascp = false;
         }
@@ -360,14 +354,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           if (!state->mag_info.use_dri)
           {
             state->force_fifo_read_till_wm = true;
-            if(state->ascp_xfer_in_progress != 0)
-            {
-              ak0991x_flush_fifo(this);
-            }
-            else
-            {
-              state->re_read_data_after_ascp = true;
-            }
+            ak0991x_flush_fifo(this);
           }
           rv = ak0991x_heart_beat_timer_event(this);
 //          }else{
