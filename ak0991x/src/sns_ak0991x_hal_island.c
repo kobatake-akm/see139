@@ -1542,7 +1542,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       update_interrupt_timestamp = true;
       AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
     }
-  }else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri && !state->fifo_flush_in_progress){
+  }else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri && state->is_previous_irq){
     AK0991X_INST_PRINT(LOW, instance, "flush during DRI/DRI+FIFO");
     update_interrupt_timestamp = true;
   }else if(state->data_over_run){
@@ -1586,6 +1586,9 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   }else{
     AK0991X_INST_PRINT(LOW, instance, "ERROR: num_samples=0 !!!");
   }
+
+  // remember previous is irq or not.
+  state->is_previous_irq = state->irq_info.detect_irq_event;
 }
 
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)

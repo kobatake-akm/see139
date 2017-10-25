@@ -202,6 +202,7 @@ typedef struct ak0991x_instance_state
   bool new_self_test_request;
   bool config_mag_after_ascp_xfer;
   bool force_fifo_read_till_wm;
+  bool is_previous_irq;
 //  bool called_handle_timer_reg_event;
   bool this_is_the_last_flush;
   sns_time averaged_interval;
