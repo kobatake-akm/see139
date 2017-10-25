@@ -1472,13 +1472,12 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
   sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr,SNS_EVENT_SERVICE);
   sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  sns_time now = sns_get_system_time();
 
   if(NULL != event)
   {
     event->message_id = SNS_STD_MSGID_SNS_STD_FLUSH_EVENT;
     event->event_len = 0;
-    event->timestamp = now;
+    event->timestamp = sns_get_system_time();
 
     e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
   }
@@ -1511,6 +1510,8 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   if(state->irq_info.detect_irq_event){
     state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
   }else{
+    // QC - maybe better to use 
+    // state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval)*num_samples;
     state->interrupt_timestamp = now; // for Polling or Flush
   }
 
@@ -1519,6 +1520,9 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 
     state->mag_info.data_count = 0;
     if(state->irq_info.detect_irq_event){
+      // QC - consider replacing the below if/else with
+      // state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp - 
+      //                             state->measurement_time) / (state->mag_info.cur_wmk+1);
       if( state->mag_info.use_fifo && (num_samples > 1) && is_num_equal_wm ){
         // DRI + FIFO and more than 1 data
         state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp - state->measurement_time) / (num_samples - 1);
@@ -1543,7 +1547,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       update_interrupt_timestamp = true;
       AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
     }
-  }else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri && state->is_previous_irq){
+  }else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri && !state->fifo_flush_in_progress){
     AK0991X_INST_PRINT(LOW, instance, "flush during DRI/DRI+FIFO");
     update_interrupt_timestamp = true;
   }else if(state->data_over_run){
@@ -1557,6 +1561,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     AK0991X_INST_PRINT(LOW, instance, "heart beat flush.");
     // no calculate averaged_interval
   }else{
+    // QC - What case is this? What's left after all of the above if/elseif's?
     enable_averaging = true;
     if(!state->irq_info.detect_irq_event && !state->fifo_flush_in_progress && !state->this_is_the_last_flush ){
       update_interrupt_timestamp = true;
@@ -1564,23 +1569,36 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   }
 
   if(num_samples>0){
-    if(enable_averaging) // only for polling mode
-    {
-      averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
+    if(enable_averaging){
+      if(state->irq_info.detect_irq_event)
+      {
+        // QC - How can both enable_averaging and detect_irq_event be true?
+        averaging_weight = ( (state->mag_info.data_count > 1) && (!state->fifo_flush_in_progress) ) ? 95 : 5;
+      }
+      else
+      {
+        if(state->fifo_flush_in_progress){  // for batch.
+          averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
+        }else{
+          averaging_weight = 95;
+        }
+      }
+      // QC - if num_samples > wm, should use wm instead of num_samples.
       state->averaged_interval = (state->averaged_interval * averaging_weight +
          ((state->interrupt_timestamp - state->pre_timestamp) / num_samples) * (100 - averaging_weight)) / 100;
     }
-    if(update_interrupt_timestamp)
-    {
+    if(update_interrupt_timestamp){
+      // QC - this would be better:
+      // if( num_samples > state->mag_info.cur_wmk+1 ) {
+      //   state->interrupt_timestamp = state->interrupt_timestamp + 
+      //     (state->averaged_interval * ((state->mag_info.cur_wmk+1)-num_samples));
+      // }
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
     }
     state->mag_info.data_count++;
   }else{
     AK0991X_INST_PRINT(LOW, instance, "ERROR: num_samples=0 !!!");
   }
-
-  // remember previous is irq or not.
-  state->is_previous_irq = state->irq_info.detect_irq_event;
 }
 
 bool ak0991x_is_drdy(sns_sensor_instance *const instance)
@@ -1636,14 +1654,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   log_mag_state_raw_info.instance = instance;
   log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
 #endif
-
-  // is ASCP is still during in the process, skip flush
-  if(state->ascp_xfer_in_progress > 0)
-  {
-    state->re_read_data_after_ascp = true;
-    AK0991X_INST_PRINT(LOW, instance, "this is the last flash before changing ODR. But waiting for ACSP done...");
-    return;
-  }
 
   ak0991x_read_all_data(instance, &buffer[0]);
 
@@ -2066,7 +2076,6 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   sns_time                sample_period;
-  sns_time now = sns_get_system_time();
 
   // for heat beat timer
   if(state->mag_info.use_dri)
@@ -2075,7 +2084,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
     req_payload.is_periodic = true;
-    req_payload.start_time = now;
+    req_payload.start_time = sns_get_system_time();
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 
@@ -2108,7 +2117,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
     req_payload.is_periodic = true;
-    req_payload.start_time = now;
+    req_payload.start_time = sns_get_system_time();
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 

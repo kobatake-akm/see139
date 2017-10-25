@@ -81,4 +81,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10036  // major:01 minor:00 revision:36
+#define AK0991X_DRIVER_VERSION 10037  // major:01 minor:00 revision:37
