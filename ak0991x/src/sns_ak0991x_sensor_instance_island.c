@@ -123,7 +123,14 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
     {
       state->heart_beat_attempt_count++;
 
-      ak0991x_flush_fifo(this);
+      if(state->ascp_xfer_in_progress != 0)
+      {
+        ak0991x_flush_fifo(this);
+      }
+      else
+      {
+        state->re_read_data_after_ascp = true;
+      }
 
       if(state->heart_beat_attempt_count >= 3)
       {
@@ -201,6 +208,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     (ak0991x_instance_state *)this->state->state;
   sns_sensor_event    *event;
   sns_rc rv = SNS_RC_SUCCESS;
+  sns_time now = sns_get_system_time();
 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
@@ -228,7 +236,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           // Check if the ak0991x_inst_notify_event is an actual DRDY event or not.
           if(ak0991x_is_drdy(this))
           {
-            AK0991X_INST_PRINT(LOW, this, "irq_event %u, num_samples=%d", (uint32_t)irq_event.timestamp, state->num_samples);
+            AK0991X_INST_PRINT(LOW, this, "irq_event %u, num_samples=%d, now=%u", 
+                               (uint32_t)irq_event.timestamp, state->num_samples,
+                               (uint32_t)now);
             state->irq_event_time = irq_event.timestamp;
             state->irq_info.detect_irq_event = true; // detect interrupt
 
@@ -317,8 +327,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       }
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)
       {
-        AK0991X_INST_PRINT(LOW, this, "Received ASCP error event id=%d",
-                                      event->message_id);
+        AK0991X_INST_PRINT(LOW, this, "Received ASYNC_COM_PORT_ERROR");
       }
 
       event = state->async_com_port_data_stream->api->get_next_input(
@@ -344,14 +353,21 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
-          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",(uint32_t)sns_get_system_time());
+          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",(uint32_t)now);
  
 //          if(state->called_handle_timer_reg_event){
           // for regular polling mode
           if (!state->mag_info.use_dri)
           {
             state->force_fifo_read_till_wm = true;
-            ak0991x_flush_fifo(this);
+            if(state->ascp_xfer_in_progress != 0)
+            {
+              ak0991x_flush_fifo(this);
+            }
+            else
+            {
+              state->re_read_data_after_ascp = true;
+            }
           }
           rv = ak0991x_heart_beat_timer_event(this);
 //          }else{
@@ -360,14 +376,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else
         {
-          AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d",
-                                        event->message_id);
+          AK0991X_INST_PRINT(ERROR, this, "Failed decoding event");
         }
-      }
-      else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
-      {
-        AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
-                                      event->message_id);
       }
       else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
       {
@@ -380,6 +390,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 //          AK0991X_INST_PRINT(LOW, this, "Execute handle timer reg event for polling timer");
 //          state->called_handle_timer_reg_event = true;
 //        }
+      }
+      else
+      {
+        AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d", event->message_id);
       }
       event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
     }

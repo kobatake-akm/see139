@@ -1531,13 +1531,15 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       // Polling / Polling + FIFO
       state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
     }
-  }else if(state->irq_info.detect_irq_event && !is_num_equal_wm){
-    // WM is not equal to the FIFO buffer
-    AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
-    update_interrupt_timestamp = true;
-  }else if(state->irq_info.detect_irq_event && (state->interrupt_timestamp - state->pre_timestamp) > ((state->averaged_interval * 12) / 10) ){
-    // WM is not equal to the FIFO buffer
-    AK0991X_INST_PRINT(LOW, instance, "interval is more than 20% longer than the averaged_interval.");
+  }else if(state->irq_info.detect_irq_event){
+    if(!is_num_equal_wm)
+    {
+      // WM is not equal to the FIFO buffer
+      AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
+      update_interrupt_timestamp = true;
+    }
+  }else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri){
+    AK0991X_INST_PRINT(LOW, instance, "flush");
     update_interrupt_timestamp = true;
   }else if(state->data_over_run){
     AK0991X_INST_PRINT(LOW, instance, "data over run detected");
