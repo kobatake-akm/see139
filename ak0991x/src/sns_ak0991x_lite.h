@@ -14,6 +14,15 @@
  *
  **/
 
+/*--------------------------------------------------------------------------
+ *
+ * COMPILE CONDITION
+ *
+ *-------------------------------------------------------------------------*/
+// Enable below macro to set dual sensor support mode
+//#define AK0991X_ENABLE_DUAL_SENSOR
+
+
 /*
  * For SEE-Lite Mode, please follow the procedure.
  * TODO1: define the AK0991X_ENABLE_SEE_LITE.
