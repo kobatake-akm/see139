@@ -688,7 +688,6 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       faccal |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_FACCAL,
                             group_name.buf_len));
 #endif
-      AK0991X_PRINT(ERROR, this, "%d %d %d %d %d %d", mag_config, reg_config, pf_config, place, orient, faccal);
       if(mag_config)
       {
         {
@@ -715,9 +714,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->resolution_idx = state->registry_cfg.res_idx;
           state->supports_sync_stream = state->registry_cfg.sync_stream;
 
-          AK0991X_PRINT(LOW, this, "is_dri:%d, hardware_id:%lld ",
+          AK0991X_PRINT(LOW, this, "is_dri:%d, hardware_id:%d ",
                                    state->is_dri,
-                                   state->hardware_id);
+                                   (uint32_t)state->hardware_id);
 
           AK0991X_PRINT(LOW, this, "resolution_idx:%d, supports_sync_stream:%d ",
                                    state->resolution_idx,
