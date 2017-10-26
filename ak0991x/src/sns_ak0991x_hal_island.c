@@ -631,6 +631,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 //  state->called_handle_timer_reg_event = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = now;
+  state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
   if(state->mag_info.use_dri)
   {
     ak0991x_set_timer_request_payload(this); // reset parameter for heart beat timer
@@ -1505,34 +1506,33 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   bool enable_averaging = false;
   bool update_interrupt_timestamp = false;
   uint16_t averaging_weight;
-
   bool is_num_equal_wm = (state->mag_info.cur_wmk+1 == state->num_samples) ? true : false;
 
   if(state->irq_info.detect_irq_event){
     state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
   }else{
+    // QC - maybe better to use 
+    // state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
     state->interrupt_timestamp = now; // for Polling or Flush
   }
 
-  if(state->this_is_first_data){
+  if(state->this_is_first_data)
+  {
     AK0991X_INST_PRINT(LOW, instance, "this_is_first_data");
 
     state->mag_info.data_count = 0;
     if(state->irq_info.detect_irq_event){
-      if( state->mag_info.use_fifo && (num_samples > 1) && is_num_equal_wm ){
-        // DRI + FIFO and more than 1 data
-        state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp - state->measurement_time) / (num_samples - 1);
-      }else{
-        // DRI
-        state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-      }
+      // QC - consider replacing the below if/else with
+      state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp -
+                                   state->measurement_time) / (state->mag_info.cur_wmk+1);
     }
-    else
+    else  // Polling / Polling + FIFO
     {
-      // Polling / Polling + FIFO
       state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
     }
-  }else if(state->irq_info.detect_irq_event){
+  }
+  else if(state->irq_info.detect_irq_event) // DRI detected.
+  {
     if(is_num_equal_wm)    // DRI, regular sequence.
     {
       state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
@@ -1543,39 +1543,62 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       update_interrupt_timestamp = true;
       AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
     }
-  }else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri && state->is_previous_irq){
+  }
+  else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri && state->is_previous_irq)
+  {
     AK0991X_INST_PRINT(LOW, instance, "flush during DRI/DRI+FIFO");
     update_interrupt_timestamp = true;
-  }else if(state->data_over_run){
+  }
+  else if(state->data_over_run)
+  {
     AK0991X_INST_PRINT(LOW, instance, "data over run detected");
     // no calculate averaged_interval
-  }else if((state->mag_info.use_fifo) &&
-      (state->interrupt_timestamp - state->pre_timestamp > (state->averaged_interval * state->mag_info.max_fifo_size * 12) / 10  )){
+  }
+  else if((state->mag_info.use_fifo) &&
+      (state->interrupt_timestamp - state->pre_timestamp > (state->averaged_interval * state->mag_info.max_fifo_size * 12) / 10  ))
+  {
     // no calculate averaged_interval
     AK0991X_INST_PRINT(LOW, instance, "possible data over run detected");
-  }else if(state->heart_beat_attempt_count != 0 ){
+  }
+  else if(state->heart_beat_attempt_count != 0 )
+  {
     AK0991X_INST_PRINT(LOW, instance, "heart beat flush.");
     // no calculate averaged_interval
-  }else{
+  }
+  else
+  {
+    // QC - What case is this? What's left after all of the above if/elseif's?
+    // For regular Polling / Polling + FIFO / batch(when last event is not irq)
     enable_averaging = true;
-    if(!state->irq_info.detect_irq_event && !state->fifo_flush_in_progress && !state->this_is_the_last_flush ){
+    if(!state->fifo_flush_in_progress && !state->this_is_the_last_flush ){
       update_interrupt_timestamp = true;
     }
   }
 
-  if(num_samples>0){
+  if(num_samples>0)
+  {
+    // QC - How can both enable_averaging and detect_irq_event be true?
+    // QC - if num_samples > wm, should use wm instead of num_samples.
     if(enable_averaging) // only for polling mode
     {
       averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
       state->averaged_interval = (state->averaged_interval * averaging_weight +
          ((state->interrupt_timestamp - state->pre_timestamp) / num_samples) * (100 - averaging_weight)) / 100;
     }
+
     if(update_interrupt_timestamp)
     {
+      // QC - this would be better:
+      // if( num_samples > state->mag_info.cur_wmk+1 ) {
+      //   state->interrupt_timestamp = state->interrupt_timestamp + 
+      //     (state->averaged_interval * ((state->mag_info.cur_wmk+1)-num_samples));
+      // }
       state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
     }
     state->mag_info.data_count++;
-  }else{
+  }
+  else
+  {
     AK0991X_INST_PRINT(LOW, instance, "ERROR: num_samples=0 !!!");
   }
 

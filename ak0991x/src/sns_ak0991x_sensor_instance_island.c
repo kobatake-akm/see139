@@ -200,12 +200,13 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     (ak0991x_instance_state *)this->state->state;
   sns_sensor_event    *event;
   sns_rc rv = SNS_RC_SUCCESS;
-  sns_time now = sns_get_system_time();
 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     true);
+
+  state->latest_event_time = sns_get_system_time();
 
   ak0991x_dae_if_process_events(this);
 
@@ -230,7 +231,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           {
             AK0991X_INST_PRINT(LOW, this, "irq_event %u, num_samples=%d, now=%u", 
                                (uint32_t)irq_event.timestamp, state->num_samples,
-                               (uint32_t)now);
+                               (uint32_t)state->latest_event_time);
             state->irq_event_time = irq_event.timestamp;
             state->irq_info.detect_irq_event = true; // detect interrupt
 
@@ -337,8 +338,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
-      //TODO: Timer sensor never sends SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG event
-      // It is a request message ID. Mag senosr sends to timer sensor
       if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
@@ -347,7 +346,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
-          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",(uint32_t)now);
+          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",
+                             (uint32_t)state->latest_event_time);
  
 //          if(state->called_handle_timer_reg_event){
           // for regular polling mode

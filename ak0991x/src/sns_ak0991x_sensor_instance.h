@@ -229,6 +229,7 @@ typedef struct ak0991x_instance_state
   sns_async_com_port_config ascp_config;
 #endif // AK0991X_ENABLE_DRI || AK0991X_ENABLE_FIFO
 
+  sns_time latest_event_time;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
 
