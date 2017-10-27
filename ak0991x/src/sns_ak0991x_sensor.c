@@ -990,7 +990,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
  *
  * @return none
  */
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
+#ifdef AK0991X_ENABLE_ALL_ATTRIBUTES
 static void
 ak0991x_publish_registry_attributes(sns_sensor *const this)
 {

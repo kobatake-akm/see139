@@ -1354,9 +1354,10 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
+  sns_time timestamp;
   for(i = 0; i < num_bytes; i += 8)
   {
-    sns_time timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
+    timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     ak0991x_handle_mag_sample(&fifo_start[i],
                               timestamp,
                               instance,
@@ -1366,7 +1367,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   }
 
   // store previous timestamp
-  state->pre_timestamp = state->interrupt_timestamp;
+  state->pre_timestamp = timestamp;
 
   // reset flags
   state->this_is_first_data = false;
