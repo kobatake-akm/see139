@@ -92,9 +92,8 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                       vector->buffer,
                                       vector->bytes);
 
-
-        state->this_is_first_data = false;
-        state->pre_timestamp = state->interrupt_timestamp;
+//      state->this_is_first_data = false;
+//      state->pre_timestamp = state->interrupt_timestamp;
     }
     else{
       AK0991X_INST_PRINT(LOW, instance, "skip ak0991x_process_mag_data_buffer because num_samples=%d detected.", state->num_samples);
@@ -226,40 +225,26 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          // Check if the ak0991x_inst_notify_event is an actual DRDY event or not.
-          if(ak0991x_is_drdy(this))
+//          AK0991X_INST_PRINT(LOW, this, "irq_event %u, now=%u",
+//                             (uint32_t)irq_event.timestamp,
+//                             (uint32_t)state->latest_event_time);
+
+          state->irq_event_time = irq_event.timestamp;
+          state->irq_info.detect_irq_event = true; // detect interrupt
+
+          // Register for timer to enable heart beat function
+          ak0991x_register_heart_beat_timer(this);
+          state->heart_beat_attempt_count = 0;
+
+          if(state->ascp_xfer_in_progress == 0)
           {
-            AK0991X_INST_PRINT(LOW, this, "irq_event %u, num_samples=%d, now=%u", 
-                               (uint32_t)irq_event.timestamp, state->num_samples,
-                               (uint32_t)state->latest_event_time);
-            state->irq_event_time = irq_event.timestamp;
-            state->irq_info.detect_irq_event = true; // detect interrupt
-
-            // Register for timer to enable heart beat function
-            ak0991x_register_heart_beat_timer(this);
-            state->heart_beat_attempt_count = 0;
-
-            if(state->ascp_xfer_in_progress == 0)
-            {
-              if (state->mag_info.use_fifo && (state->mag_info.cur_wmk < 2 || state->data_over_run) )
-              {
-                ak0991x_flush_fifo(this);
-              }
-              else
-              {
-                ak0991x_handle_interrupt_event(this);
-              }
-              state->irq_info.detect_irq_event = false; // clear interrupt
-            }
-            else
-            {
-              AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
-              state->re_read_data_after_ascp = true;
-            }
+            ak0991x_flush_fifo(this);
+            state->irq_info.detect_irq_event = false; // clear interrupt
           }
           else
           {
-            AK0991X_INST_PRINT(ERROR, this, "DRDY is not ready. Wrong interrupt.");
+            AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
+            state->re_read_data_after_ascp = true;
           }
         }
       }
@@ -288,21 +273,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
 
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
-        sns_diag_service    *diag = state->diag_service;
-        sns_memzero(&log_mag_state_raw_info, sizeof(log_mag_state_raw_info));
-        log_mag_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
-        log_mag_state_raw_info.diag = diag;
-        log_mag_state_raw_info.instance = this;
-        log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
-        ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
-#endif // AK0991X_ENABLE_DIAG_LOGGING
-
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
-
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
-        ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
-#endif // AK0991X_ENABLE_DIAG_LOGGING
 
         state->ascp_xfer_in_progress--;
         AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress = %d", state->ascp_xfer_in_progress);
@@ -349,7 +320,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",
                              (uint32_t)state->latest_event_time);
  
-//          if(state->called_handle_timer_reg_event){
           // for regular polling mode
           if (!state->mag_info.use_dri)
           {
@@ -357,9 +327,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             ak0991x_flush_fifo(this);
           }
           rv = ak0991x_heart_beat_timer_event(this);
-//          }else{
-//            AK0991X_INST_PRINT(LOW, this, "Wrong timer event...");
-//          }
         }
         else
         {
@@ -373,10 +340,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         // That specific time will be returned in the SNS_TIMER_SENSOR_REG_EVENT event --
         // and will be needed by the mag sensor to populate the fields sent to the DAE sensor(so that timers remain synchronized in the DAE environment),
         // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
-//        if(!state->mag_info.use_dri){
-//          AK0991X_INST_PRINT(LOW, this, "Execute handle timer reg event for polling timer");
-//          state->called_handle_timer_reg_event = true;
-//        }
       }
       else
       {

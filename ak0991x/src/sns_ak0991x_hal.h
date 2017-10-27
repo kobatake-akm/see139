@@ -510,13 +510,11 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
 
 /**
- * Check the drdy bit
+ * Get current status from ST1 register
  *
  * @param instance                 Sensor Instance
- *
- * @return false: no data ready, true: data is ready
  */
-bool ak0991x_is_drdy(sns_sensor_instance *const instance);
+// void ak0991x_get_current_status(sns_sensor_instance *const instance);
 
 /**
  * Flush mag samples from the buffer
@@ -532,7 +530,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance);
  *
  * @param instance                 Sensor Instance
  */
-void ak0991x_handle_interrupt_event(sns_sensor_instance *const instance);
+//void ak0991x_acsp_read_request(sns_sensor_instance *const instance);
 
 /**
  * Sends config update event for the chosen sample_rate
