@@ -72,7 +72,6 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
-#ifdef AK0991X_ENABLE_DRI
 static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                      void *user_arg)
 {
@@ -83,24 +82,18 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
   if (AKM_AK0991X_REG_HXL == vector->reg_addr)
   {
     if(state->num_samples != 0){
-      sns_time first_timestamp = state->interrupt_timestamp
-                                 - (state->averaged_interval * (state->num_samples - 1));
-
+      sns_time first_timestamp = state->interrupt_timestamp - (state->averaged_interval * (state->num_samples - 1));
       ak0991x_process_mag_data_buffer(instance,
                                       first_timestamp,
                                       state->averaged_interval,
                                       vector->buffer,
                                       vector->bytes);
-
-//      state->this_is_first_data = false;
-//      state->pre_timestamp = state->interrupt_timestamp;
     }
     else{
       AK0991X_INST_PRINT(LOW, instance, "skip ak0991x_process_mag_data_buffer because num_samples=%d detected.", state->num_samples);
     }
   }
 }
-#endif
 
 static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 {

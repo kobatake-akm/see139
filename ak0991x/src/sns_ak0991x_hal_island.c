@@ -1375,7 +1375,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   if(state->fifo_flush_in_progress)
   {
     ak0991x_send_fifo_flush_done(instance);
-    state->fifo_flush_in_progress = false;
   }
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
@@ -1401,6 +1400,9 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
     e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
   }
+
+  state->fifo_flush_in_progress = false;
+
 #else
   UNUSED_VAR(instance);
 #endif // AK0991X_ENABLE_FIFO
@@ -1429,7 +1431,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
   }else{
     // QC - maybe better to use 
-    // state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * num_samples);
+//    state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * state->num_samples);
     state->interrupt_timestamp = now; // for Polling or Flush
   }
 
@@ -1485,7 +1487,6 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   }
   else
   {
-    // QC - What case is this? What's left after all of the above if/elseif's?
     // For regular Polling / Polling + FIFO / batch(when last event is not irq)
     enable_averaging = true;
     if(!state->fifo_flush_in_progress && !state->this_is_the_last_flush ){
@@ -1553,7 +1554,7 @@ static void ak0991x_get_current_status(sns_sensor_instance *const instance)
   }
 }
 
-static void ak0991x_acsp_request(sns_sensor_instance *const instance)
+static void ak0991x_ascp_request(sns_sensor_instance *const instance)
 {
   uint8_t  buffer[AK0991X_MAX_FIFO_SIZE];
   uint32_t enc_len;
@@ -1604,6 +1605,13 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   // get num_samples, DRDY and data over run status from ST1
   ak0991x_get_current_status(instance);
 
+  // Wrong interrupt detected in DRI mode.
+  if(state->irq_info.detect_irq_event && !state->data_is_ready)
+  {
+    SNS_INST_PRINTF(ERROR, instance, "Wrong interrupt detected. DRDY is not ready.");
+    return;
+  }
+
   // FIFO mode
   if(state->mag_info.use_fifo ||
       !(state->force_fifo_read_till_wm && state->mag_info.cur_wmk == 0) ||
@@ -1613,7 +1621,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     {
       if(state->num_samples > 2)
       {
-        ak0991x_acsp_request(instance);  // ACSP request
+        ak0991x_ascp_request(instance);  // ASCP request
       }
       else
       {
@@ -1676,29 +1684,10 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     // sync flush
     if( state->ascp_xfer_in_progress == 0 )
     {
-      sns_time first_timestamp;
-      sns_time interval = state->averaged_interval;
-
-      if (state->irq_info.detect_irq_event && state->num_samples == state->mag_info.cur_wmk+1)
-      {
-        first_timestamp = state->interrupt_timestamp - (interval * (state->num_samples - 1));
-  //      if(first_timestamp < state->pre_timestamp)
-  //      {
-  //        // for the first data.
-  //        first_timestamp = state->pre_timestamp;
-  //      }
-      }
-      else
-      {
-        if(state->this_is_the_last_flush && !state->mag_info.use_dri){
-          interval = (state->interrupt_timestamp - state->pre_timestamp) / state->num_samples;
-        }
-        first_timestamp = state->pre_timestamp + interval;
-      }
-
+      sns_time first_timestamp = state->interrupt_timestamp - (state->averaged_interval * (state->num_samples - 1));
       ak0991x_process_mag_data_buffer(instance,
                                       first_timestamp,
-                                      interval,
+                                      state->averaged_interval,
                                       buffer,
                                       AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
     }

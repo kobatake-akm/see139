@@ -319,7 +319,6 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       if(state->fifo_flush_in_progress)
       {
-        state->fifo_flush_in_progress = false;
         ak0991x_send_fifo_flush_done(this);
       }
       break;
