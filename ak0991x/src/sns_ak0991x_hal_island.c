@@ -1614,6 +1614,12 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
 
   ak0991x_read_st1(state, &st1_buf);
 
+  if((st1_buf & AK0991X_DRDY_BIT) == 0)
+  {
+    // DRDY is not ready.
+    return false;
+  }
+
   state->num_samples = 1;
 
   // set num_samples
@@ -1629,8 +1635,8 @@ bool ak0991x_is_drdy(sns_sensor_instance *const instance)
   // check data over run
   state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;
 
-  // return drdy status
-  return (st1_buf & AK0991X_DRDY_BIT) ? true : false;
+  // DRDY is ready
+  return true;
 #else
   UNUSED_VAR(instance);
   return false;
