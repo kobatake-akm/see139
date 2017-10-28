@@ -206,8 +206,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
     state->com_port_info.port_handle,
     true);
 
-  state->latest_event_time = sns_get_system_time();
-
   ak0991x_dae_if_process_events(this);
 
 #ifdef AK0991X_ENABLE_DRI
@@ -234,10 +232,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                                (uint32_t)state->latest_event_time);
             state->irq_event_time = irq_event.timestamp;
             state->irq_info.detect_irq_event = true; // detect interrupt
-
-            // Register for timer to enable heart beat function
-            ak0991x_register_heart_beat_timer(this);
-            state->heart_beat_attempt_count = 0;
+            state->latest_event_time = sns_get_system_time();
+            state->system_time = state->latest_event_time;
 
             if(state->ascp_xfer_in_progress == 0)
             {
@@ -266,7 +262,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
         state->irq_info.is_ready = true;
-        ak0991x_start_mag_streaming(this);
+        //ak0991x_start_mag_streaming(this);
       }
       else
       {
@@ -280,10 +276,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
+    bool events_rcvd = false;
     event = state->async_com_port_data_stream->api->peek_input(state->async_com_port_data_stream);
 
     while (NULL != event)
     {
+      events_rcvd = true;
       if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
@@ -299,7 +297,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 #endif // AK0991X_ENABLE_DIAG_LOGGING
 
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
-
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
         ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
 #endif // AK0991X_ENABLE_DIAG_LOGGING
@@ -309,8 +306,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(state->re_read_data_after_ascp && (state->ascp_xfer_in_progress == 0))
         {
-          AK0991X_INST_PRINT(LOW, this, "flush after ASCP read.");
-          ak0991x_flush_fifo(this);
+          ak0991x_send_fifo_flush_done(this);
           state->re_read_data_after_ascp = false;
         }
 
@@ -328,6 +324,13 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
     }
+
+    if(events_rcvd)
+    {
+      // Register for timer to enable heart beat function
+      ak0991x_register_heart_beat_timer(this);
+      state->heart_beat_attempt_count = 0;
+    }
   }
 #endif // AK0991X_ENABLE_DRI
 
@@ -338,6 +341,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
+      state->latest_event_time = sns_get_system_time();
       if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,

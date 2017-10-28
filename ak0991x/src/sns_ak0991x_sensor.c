@@ -473,6 +473,9 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   sns_stream_service *stream_svc =
      (sns_stream_service*)smgr->get_service(smgr, SNS_STREAM_SERVICE);
 
+  AK0991X_PRINT(LOW, this, "start_power_rail_timer: timeout=%u state=%u",
+                (uint32_t)timeout_ticks, pwr_rail_pend_state);
+
   if (state->timer_stream == NULL)
   {
     sns_sensor_uid suid;
@@ -1453,11 +1456,11 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
   if(NULL != state->timer_stream)
   {
-    AK0991X_PRINT(LOW, this, "ak0991x_process_timer_events");
     event = state->timer_stream->api->peek_input(state->timer_stream);
 
     while (NULL != event)
     {
+      AK0991X_PRINT(LOW, this, "process_timer_events: msg=%u", event->message_id);
       if( event->message_id == SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT )
       {
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
@@ -1466,6 +1469,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
+          AK0991X_PRINT(LOW, this, "process_timer_events: state=%u", 
+                        state->power_rail_pend_state);
+
           if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_INIT)
           {
             /**-------------------Read and Confirm WHO-AM-I------------------------*/
@@ -1640,11 +1646,11 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           {
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
 
-            AK0991X_PRINT(LOW, this, "state = SET_CLINET_REQ");
+            AK0991X_PRINT(LOW, this, "state = SET_CLIENT_REQ");
 
             if (NULL != instance)
             {
-              AK0991X_PRINT(LOW, this, "state = SET_CLINET_REQ && instance is Not NULL");
+              AK0991X_PRINT(LOW, this, "state = SET_CLIENT_REQ && instance is Not NULL");
               ak0991x_instance_state *inst_state =
                 (ak0991x_instance_state*) instance->state->state;
               ak0991x_reval_instance_config(this, instance);

@@ -205,6 +205,7 @@ typedef struct ak0991x_instance_state
   bool is_previous_irq;
 //  bool called_handle_timer_reg_event;
   bool this_is_the_last_flush;
+  sns_time system_time;
   sns_time averaged_interval;
   sns_time pre_timestamp;
   sns_time measurement_time;
