@@ -243,8 +243,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
  
   state->pre_timestamp = sns_get_system_time();
-  state->pre_irq_event_timestamp = state->pre_timestamp;
   state->this_is_first_data = true;
+  state->received_irq_event = false;
   state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
 

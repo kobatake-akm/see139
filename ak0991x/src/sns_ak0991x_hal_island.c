@@ -628,7 +628,8 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
-  state->pre_irq_event_timestamp = now;
+  state->received_irq_event = false;
+  state->previous_event_is_irq = false;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->heart_beat_sample_count = 0;
@@ -1496,7 +1497,7 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  bool enable_filter = false;
+  bool enable_average = false;
 
 #ifdef AK0991X_ENABLE_S4S
   // for S4S, no need to validate timestamp????
@@ -1509,78 +1510,43 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 
   state->mag_info.data_count+=state->num_samples;
 
-  if(state->irq_info.detect_irq_event)
+  if(state->irq_info.detect_irq_event)  // DRI
   {
     state->interrupt_timestamp = state->irq_event_time;
+    state->received_irq_event = true;
+    state->previous_event_is_irq = true;
+    enable_average = true;
   }
   else
   {
-    state->interrupt_timestamp = state->system_time;
-  }
-
-  if(state->this_is_first_data)
-  {
-    AK0991X_INST_PRINT(LOW, instance, "this_is_first_data");
-
-    state->mag_info.data_count = state->num_samples; // reset num_samples
-    state->mag_info.pre_irq_event_data_count = 0;
-
-    if(state->irq_info.detect_irq_event)
+    if(state->previous_event_is_irq)
     {
-      state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp -
-                                   state->measurement_time) / state->mag_info.cur_wmk;
-
-      state->pre_irq_event_timestamp = state->irq_event_time;
-      state->mag_info.pre_irq_event_data_count = state->mag_info.data_count;
+      state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     }
     else
     {
-      state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+      state->interrupt_timestamp = state->system_time;
     }
-  }
-  else
-  {
-    if(state->irq_info.detect_irq_event)
-    {
-      state->averaged_interval = (state->interrupt_timestamp
-          - state->pre_irq_event_timestamp) /
-          (state->mag_info.data_count - state->mag_info.pre_irq_event_data_count);
 
-      state->pre_irq_event_timestamp = state->irq_event_time;
-      state->mag_info.pre_irq_event_data_count = state->mag_info.data_count;
-    }
-    else
+    if(state->mag_info.use_dri) // Flush during DRI
     {
-      if(state->mag_info.use_dri)  // for Flush
+      if(!state->received_irq_event)
       {
-        // last event was irq event
-        if(state->mag_info.pre_irq_event_data_count + state->num_samples
-            == state->mag_info.data_count)
-        {
-          state->interrupt_timestamp = state->pre_timestamp + state->num_samples * state->averaged_interval;
-          AK0991X_INST_PRINT(LOW, instance, "flush request. last event was irq_event. update interrunt_time %u", (uint32_t)state->interrupt_timestamp);
-        }
-        else
-        {
-          AK0991X_INST_PRINT(LOW, instance, "flush request. use system time %u", (uint32_t)state->interrupt_timestamp);
-          if(state->mag_info.pre_irq_event_data_count == 0)
-          {
-            enable_filter = true;
-          }
-        }
-      }
-      else  // for Polling, use averaging filter
-      {
-        enable_filter = true;
-        AK0991X_INST_PRINT(LOW, instance, "polling. use system time %u", (uint32_t)state->interrupt_timestamp);
+        // averaging if never received irq event
+        enable_average = true;
       }
     }
+    else // Polling
+    {
+      enable_average = true;
+    }
+    state->previous_event_is_irq = false;
   }
 
-  if(enable_filter)
+  if(enable_average)
   {
-    state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp) / state->mag_info.data_count;
-    AK0991X_INST_PRINT(LOW, instance, "apply averaging filter. averaged_interval = %u", (uint32_t)state->averaged_interval);
+    state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp -
+                                 state->measurement_time) / (state->mag_info.data_count - 1);
   }
 }
 
