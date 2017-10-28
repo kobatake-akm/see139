@@ -208,6 +208,7 @@ typedef struct ak0991x_instance_state
   sns_time averaged_interval;
   sns_time pre_timestamp;
   sns_time pre_irq_event_timestamp;
+  sns_time start_timestamp;
   sns_time measurement_time;
   sns_time heart_beat_timestamp;
   sns_time heart_beat_timeout_period;
