@@ -243,7 +243,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
  
   state->pre_timestamp = sns_get_system_time();
+  state->pre_irq_event_timestamp = state->pre_timestamp;
   state->this_is_first_data = true;
+  state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
@@ -569,7 +571,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
         state->this_is_the_last_flush = true;
+        AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
         ak0991x_flush_fifo(this);
+        state->this_is_the_last_flush = false;
 
         // stop timer
         if (state->timer_data_stream != NULL)
