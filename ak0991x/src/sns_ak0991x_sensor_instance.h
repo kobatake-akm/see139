@@ -156,7 +156,7 @@ typedef struct ak0991x_mag_info
   sns_sensor_uid suid;
   ak0991x_self_test_info test_info;
   bool                   use_sync_stream;
-  uint32_t      data_count;
+  uint64_t      data_count;
 
 #ifdef AK0991X_ENABLE_S4S
   ak0991x_s4s_state      s4s_sync_state;
@@ -205,6 +205,17 @@ typedef struct ak0991x_instance_state
   bool force_fifo_read_till_wm;
   bool is_previous_irq;
   bool this_is_the_last_flush;
+  bool received_irq_event;
+  bool previous_event_is_irq;
+  sns_time system_time;
+  sns_time averaged_interval;
+  sns_time pre_timestamp;
+  sns_time start_timestamp;
+  sns_time measurement_time;
+  sns_time heart_beat_timestamp;
+  sns_time heart_beat_timeout_period;
+  uint8_t  heart_beat_sample_count;
+  uint8_t  heart_beat_attempt_count;
   sns_timer_sensor_config req_payload;
 
   /** Timer info */

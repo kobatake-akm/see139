@@ -600,6 +600,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   // Enable Mag Streaming
+  AK0991X_INST_PRINT(LOW, this, "start_mag_streaming at %u", (uint32_t)now);
 
   //Transit to Power-down mode first and then transit to other modes.
   rv = ak0991x_set_mag_config(this, true);
@@ -621,7 +622,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   // check last timestamp
   if( state->pre_timestamp > now ){
-    AK0991X_INST_PRINT(LOW, this, "negative timestamp detected!!! Keep using pre_timestamp.");
+    AK0991X_INST_PRINT(ERROR, this, "negative timestamp detected!!! Keep using pre_timestamp.");
   }else{
     state->pre_timestamp = now;
   }
@@ -629,11 +630,14 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
   state->this_is_first_data = true;
+  state->mag_info.data_count = 0;
+  state->received_irq_event = false;
+  state->previous_event_is_irq = false;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = now;
-  state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+  state->start_timestamp = now;
   if(state->mag_info.use_dri)
   {
     ak0991x_set_timer_request_payload(this); // reset parameter for heart beat timer
@@ -651,6 +655,7 @@ sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
   sns_rc rv;
 
   // Disable Mag Streaming
+  AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
 
   rv = ak0991x_set_mag_config(this, true );
 
@@ -1400,6 +1405,8 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
     event->timestamp = now;
 
     e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
+
+    AK0991X_INST_PRINT(HIGH, instance, "FLUSH_EVENT sent");
   }
 
   state->fifo_flush_in_progress = false;
@@ -1412,111 +1419,57 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  sns_time now = sns_get_system_time();
+  bool enable_average = false;
 
 #ifdef AK0991X_ENABLE_S4S
   // for S4S, no need to validate timestamp????
   if(state->mag_info.use_sync_stream){
-    state->interrupt_timestamp = now;
-    state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / num_samples;
+    state->interrupt_timestamp = state->system_time;
+    state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / state->num_samples;
     return;
   }
 #endif // AK0991X_ENABLE_S4S
 
-  bool enable_averaging = false;
-  bool update_interrupt_timestamp = false;
-  uint16_t averaging_weight;
-  bool is_num_equal_wm = (state->mag_info.cur_wmk+1 == state->num_samples) ? true : false;
+  state->mag_info.data_count+=state->num_samples;
 
-  if(state->irq_info.detect_irq_event){
-    state->interrupt_timestamp = state->irq_event_time; // for DRI interrupt
-  }else{
-    // QC - maybe better to use 
-//    state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * state->num_samples);
-    state->interrupt_timestamp = now; // for Polling or Flush
-  }
-
-  if(state->this_is_first_data)
+  if(state->irq_info.detect_irq_event)  // DRI
   {
-    AK0991X_INST_PRINT(LOW, instance, "this_is_first_data");
-
-    state->mag_info.data_count = 0;
-    if(state->irq_info.detect_irq_event)
-    {
-      // QC - consider replacing the below if/else with
-      state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp -
-                                   state->measurement_time) / (state->mag_info.cur_wmk+1);
-    }
-    else  // Polling / Polling + FIFO
-    {
-      state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / state->num_samples;
-    }
-  }
-  else if(state->irq_info.detect_irq_event) // DRI detected.
-  {
-    if(is_num_equal_wm)    // DRI, regular sequence.
-    {
-      state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / state->num_samples;
-    }
-    else  // DRI, num_samples is not equal to the WM
-    {
-      // WM is not equal to the FIFO buffer
-      update_interrupt_timestamp = true;
-      AK0991X_INST_PRINT(LOW, instance, "WM+1 %d != num_samples %d",state->mag_info.cur_wmk+1, state->num_samples );
-    }
-  }
-  else if(!state->irq_info.detect_irq_event && state->mag_info.use_dri && state->is_previous_irq)
-  {
-    AK0991X_INST_PRINT(LOW, instance, "flush during DRI/DRI+FIFO");
-    update_interrupt_timestamp = true;
-  }
-  else if(state->data_over_run)
-  {
-    AK0991X_INST_PRINT(LOW, instance, "data over run detected");
-    // no calculate averaged_interval
-  }
-  else if((state->mag_info.use_fifo) &&
-      (state->interrupt_timestamp - state->pre_timestamp > (state->averaged_interval * state->mag_info.max_fifo_size * 12) / 10  ))
-  {
-    // no calculate averaged_interval
-    AK0991X_INST_PRINT(LOW, instance, "possible data over run detected");
-  }
-  else if(state->heart_beat_attempt_count != 0 )
-  {
-    AK0991X_INST_PRINT(LOW, instance, "heart beat flush.");
-    // no calculate averaged_interval
+    state->interrupt_timestamp = state->irq_event_time;
+    state->received_irq_event = true;
+    state->previous_event_is_irq = true;
+    enable_average = true;
   }
   else
   {
-    // For regular Polling / Polling + FIFO / batch(when last event is not irq)
-    enable_averaging = true;
-    if(!state->fifo_flush_in_progress && !state->this_is_the_last_flush ){
-      update_interrupt_timestamp = true;
+    if(state->previous_event_is_irq)
+    {
+      state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     }
+    else
+    {
+      state->interrupt_timestamp = state->system_time;
+    }
+
+    if(state->mag_info.use_dri) // Flush during DRI
+    {
+      if(!state->received_irq_event)
+      {
+        // averaging if never received irq event
+        enable_average = true;
+      }
+    }
+    else // Polling
+    {
+      enable_average = true;
+    }
+    state->previous_event_is_irq = false;
   }
 
-  // QC - How can both enable_averaging and detect_irq_event be true?
-  // QC - if num_samples > wm, should use wm instead of num_samples.
-  if(enable_averaging) // only for polling mode
+  if(enable_average)
   {
-    averaging_weight = (state->mag_info.data_count > 1) ? 80 : 20;
-    state->averaged_interval = (state->averaged_interval * averaging_weight +
-       ((state->interrupt_timestamp - state->pre_timestamp) / state->num_samples) * (100 - averaging_weight)) / 100;
+    state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp -
+                                 state->measurement_time) / (state->mag_info.data_count - 1);
   }
-
-  if(update_interrupt_timestamp)
-  {
-    // QC - this would be better:
-    // if( num_samples > state->mag_info.cur_wmk+1 ) {
-    //   state->interrupt_timestamp = state->interrupt_timestamp +
-    //     (state->averaged_interval * ((state->mag_info.cur_wmk+1)-num_samples));
-    // }
-    state->interrupt_timestamp = state->pre_timestamp + (state->averaged_interval * state->num_samples);
-  }
-  state->mag_info.data_count++;
-
-  // remember previous is irq or not.
-  state->is_previous_irq = state->irq_info.detect_irq_event;
 }
 
 static void ak0991x_get_current_status(sns_sensor_instance *const instance)
@@ -1550,9 +1503,17 @@ static void ak0991x_get_current_status(sns_sensor_instance *const instance)
     }
   }
   else
+
+  // reset flags
+  state->force_fifo_read_till_wm = false;
+  if(state->fifo_flush_in_progress)
   {
     state->num_samples = state->data_is_ready ? 1 : 0;
   }
+
+  // Register for timer to enable heart beat function
+  ak0991x_register_heart_beat_timer(instance);
+  state->heart_beat_attempt_count = 0;
 }
 
 static void ak0991x_ascp_request(sns_sensor_instance *const instance)
@@ -1875,9 +1836,9 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   phy_sensor_config.has_sample_rate = true;
   phy_sensor_config.sample_rate = state->mag_req.sample_rate;
 
-  AK0991X_INST_PRINT(LOW, instance,
-                     "tx phys config evt: op_mode %u rate %u/100 wm %u sync %u",
-                     operating_mode, (uint32_t)(state->mag_req.sample_rate * 100),
+  AK0991X_INST_PRINT(HIGH, instance,
+                     "tx PHYSICAL_CONFIG_EVENT: rate %u/100 wm %u sync %u",
+                     (uint32_t)(state->mag_req.sample_rate * 100),
                      phy_sensor_config.has_water_mark ? phy_sensor_config.water_mark : 0,
                      phy_sensor_config.stream_is_synchronous);
 
@@ -2119,19 +2080,19 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
+  AK0991X_INST_PRINT(LOW, this, "reconfig_hw");
+
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
     if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
             (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
             (!state->mag_info.use_dri))
     {
-      AK0991X_INST_PRINT(LOW, this, "start_mag_streaming");
       ak0991x_start_mag_streaming(this);
     }
   }
   else
   {
-    AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
     rv = ak0991x_stop_mag_streaming(this);
 
     if (rv != SNS_RC_SUCCESS)
