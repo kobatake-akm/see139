@@ -72,6 +72,7 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
+#ifdef AK0991X_ENABLE_FIFO
 static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                      void *user_arg)
 {
@@ -82,9 +83,8 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
   if (AKM_AK0991X_REG_HXL == vector->reg_addr)
   {
     if(state->num_samples != 0){
-      sns_time first_timestamp = state->interrupt_timestamp - (state->averaged_interval * (state->num_samples - 1));
       ak0991x_process_mag_data_buffer(instance,
-                                      first_timestamp,
+                                      state->first_timestamp,
                                       state->averaged_interval,
                                       vector->buffer,
                                       vector->bytes);
@@ -94,6 +94,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
     }
   }
 }
+#endif
 
 static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 {
@@ -216,34 +217,16 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          // Check if the ak0991x_inst_notify_event is an actual DRDY event or not.
-          if(ak0991x_is_drdy(this))
-          {
-            AK0991X_INST_PRINT(LOW, this, "irq_event %u, num_samples=%d, now=%u", 
-                               (uint32_t)irq_event.timestamp, state->num_samples,
-                               (uint32_t)state->latest_event_time);
-            state->irq_event_time = irq_event.timestamp;
-            state->irq_info.detect_irq_event = true; // detect interrupt
-            state->latest_event_time = sns_get_system_time();
-            state->system_time = state->latest_event_time;
+          state->irq_event_time = irq_event.timestamp;
+          state->irq_info.detect_irq_event = true; // detect interrupt
+          state->system_time = sns_get_system_time();
+          AK0991X_INST_PRINT(LOW, this, "irq_event %u, now=%u",
+                             (uint32_t)irq_event.timestamp,
+                             (uint32_t)state->system_time);
 
-            if(state->ascp_xfer_in_progress == 0)
-            {
-              if (state->mag_info.use_fifo && (state->mag_info.cur_wmk < 2 || state->data_over_run) )
-              {
-                ak0991x_flush_fifo(this);
-              }
-              else
-              {
-                ak0991x_handle_interrupt_event(this);
-              }
-              state->irq_info.detect_irq_event = false; // clear interrupt
-            }
-            else
-            {
-              AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
-              state->re_read_data_after_ascp = true;
-            }
+          if(state->ascp_xfer_in_progress == 0)
+          {
+            ak0991x_flush_fifo(this);
           }
           else
           {
@@ -255,7 +238,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
         state->irq_info.is_ready = true;
-        //ak0991x_start_mag_streaming(this);
       }
       else
       {
@@ -269,12 +251,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
-    bool events_rcvd = false;
     event = state->async_com_port_data_stream->api->peek_input(state->async_com_port_data_stream);
 
     while (NULL != event)
     {
-      events_rcvd = true;
       if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
@@ -304,13 +284,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
     }
-
-    if(events_rcvd)
-    {
-      // Register for timer to enable heart beat function
-      ak0991x_register_heart_beat_timer(this);
-      state->heart_beat_attempt_count = 0;
-    }
   }
 #endif // AK0991X_ENABLE_DRI
 
@@ -321,7 +294,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
-      state->latest_event_time = sns_get_system_time();
       if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
       {
         pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
@@ -330,13 +302,13 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
-          AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",
-                             (uint32_t)state->latest_event_time);
- 
           // for regular polling mode
-          if (!state->mag_info.use_dri)
+          if (!state->mag_info.use_dri && state->reg_event_done)
           {
             state->force_fifo_read_till_wm = true;
+            state->system_time = sns_get_system_time();
+            AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",
+                               (uint32_t)state->system_time);
             ak0991x_flush_fifo(this);
           }
           rv = ak0991x_heart_beat_timer_event(this);
@@ -353,6 +325,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         // That specific time will be returned in the SNS_TIMER_SENSOR_REG_EVENT event --
         // and will be needed by the mag sensor to populate the fields sent to the DAE sensor(so that timers remain synchronized in the DAE environment),
         // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
+        if(!state->mag_info.use_dri)
+        {
+          state->reg_event_done = true;
+        }
       }
       else
       {

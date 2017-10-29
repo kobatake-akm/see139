@@ -244,7 +244,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
  
   state->pre_timestamp = sns_get_system_time();
   state->this_is_first_data = true;
-  state->received_irq_event = false;
   state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
 
@@ -649,6 +648,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       state->system_time = sns_get_system_time();
       AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
+
+#ifdef AK0991X_ENABLE_DRI
       if (NULL != state->interrupt_data_stream)
       {
         sns_sensor_event *event = 
@@ -662,6 +663,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_flush_fifo(this);
       }
+#else
+      ak0991x_flush_fifo(this);
+#endif
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)

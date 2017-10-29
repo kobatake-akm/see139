@@ -627,21 +627,25 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     state->pre_timestamp = now;
   }
 
+
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
+//  state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
-  state->received_irq_event = false;
   state->previous_event_is_irq = false;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = now;
   state->start_timestamp = now;
+  state->reg_event_done = false;
   if(state->mag_info.use_dri)
   {
     ak0991x_set_timer_request_payload(this); // reset parameter for heart beat timer
   }
+
+  AK0991X_INST_PRINT(ERROR, this, "start sensor. start_time= %u",(uint32_t)now);
 
   return SNS_RC_SUCCESS;
 }
@@ -1053,7 +1057,6 @@ TEST_SEQUENCE_FAILED:
   }
 }
 
-#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
 /**
  * Read ST1(10h) register data.
  *
@@ -1084,7 +1087,6 @@ static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
 
   return rv;
 }
-#endif // AK0991X_ENABLE_DRI || AK0991X_ENABLE_FIFO
 
 /**
  * Read HXL(11h) to ST2(18h) register data.
@@ -1375,6 +1377,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->pre_timestamp = timestamp;
 
   // reset flags
+  state->irq_info.detect_irq_event = false;
   state->this_is_first_data = false;
   state->force_fifo_read_till_wm = false;
   state->this_is_the_last_flush = false;
@@ -1419,7 +1422,6 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  bool enable_average = false;
 
 #ifdef AK0991X_ENABLE_S4S
   // for S4S, no need to validate timestamp????
@@ -1432,43 +1434,60 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 
   state->mag_info.data_count+=state->num_samples;
 
+  // set interrupt_timestamp
   if(state->irq_info.detect_irq_event)  // DRI
   {
     state->interrupt_timestamp = state->irq_event_time;
-    state->received_irq_event = true;
     state->previous_event_is_irq = true;
-    enable_average = true;
   }
   else
   {
     if(state->previous_event_is_irq)
     {
       state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
+      state->previous_event_is_irq = false;
     }
     else
     {
       state->interrupt_timestamp = state->system_time;
     }
-
-    if(state->mag_info.use_dri) // Flush during DRI
-    {
-      if(!state->received_irq_event)
-      {
-        // averaging if never received irq event
-        enable_average = true;
-      }
-    }
-    else // Polling
-    {
-      enable_average = true;
-    }
-    state->previous_event_is_irq = false;
   }
 
-  if(enable_average)
+  // averaging
+  if(state->mag_info.data_count > 1)
   {
-    state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp -
-                                 state->measurement_time) / (state->mag_info.data_count - 1);
+    if(state->mag_info.use_dri)
+    {
+      state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp -
+                                   state->measurement_time) / (state->mag_info.data_count - 1);
+    }
+    else
+    {
+      state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp)
+          / (state->mag_info.data_count);
+    }
+  }
+  else
+  {
+    state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+  }
+
+  // first timestamp
+  if (state->irq_info.detect_irq_event)
+  {
+    state->first_timestamp = state->interrupt_timestamp -
+      (state->averaged_interval * (state->num_samples - 1));
+  }
+  else
+  {
+    if(state->mag_info.use_dri && state->this_is_first_data)
+    {
+      state->first_timestamp = state->start_timestamp + state->measurement_time;
+    }
+    else
+    {
+      state->first_timestamp = state->pre_timestamp + state->averaged_interval;
+    }
   }
 }
 
@@ -1482,6 +1501,7 @@ static void ak0991x_get_current_status(sns_sensor_instance *const instance)
   state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;  // check data over run
   state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
 
+#ifdef AK0991X_ENABLE_FIFO
   // set num_samples
   if( state->mag_info.use_fifo )
   {
@@ -1503,19 +1523,15 @@ static void ak0991x_get_current_status(sns_sensor_instance *const instance)
     }
   }
   else
-
-  // reset flags
-  state->force_fifo_read_till_wm = false;
-  if(state->fifo_flush_in_progress)
   {
     state->num_samples = state->data_is_ready ? 1 : 0;
   }
-
-  // Register for timer to enable heart beat function
-  ak0991x_register_heart_beat_timer(instance);
-  state->heart_beat_attempt_count = 0;
+#else
+  state->num_samples = state->data_is_ready ? 1 : 0;
+#endif
 }
 
+#ifdef AK0991X_ENABLE_FIFO
 static void ak0991x_ascp_request(sns_sensor_instance *const instance)
 {
   uint8_t  buffer[AK0991X_MAX_FIFO_SIZE];
@@ -1557,31 +1573,65 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
     AK0991X_INST_PRINT(ERROR, instance, "Failed sending request to ASCP");
   }
 }
+#endif
 
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint32_t i;
   uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
+
+  // is ASCP is still during in the process, skip flush
+  if(state->ascp_xfer_in_progress > 0)
+  {
+    state->re_read_data_after_ascp = true;
+    AK0991X_INST_PRINT(LOW, instance, "#ascp_xfer=%u", state->ascp_xfer_in_progress);
+    return;
+  }
+
+#ifdef AK0991X_ENABLE_DRI
+  if(state->mag_info.use_dri)
+  {
+    if( !state->irq_info.detect_irq_event &&
+        !state->this_is_the_last_flush &&
+        state->system_time < (state->pre_timestamp + state->averaged_interval)
+        )
+    {
+      if(state->fifo_flush_in_progress)
+      {
+        state->fifo_flush_in_progress = false;
+        ak0991x_send_fifo_flush_done(instance);
+      }
+      AK0991X_INST_PRINT(LOW, instance, "ignore flush");
+      return;
+    }
+  }
+#endif
 
   // get num_samples, DRDY and data over run status from ST1
   ak0991x_get_current_status(instance);
 
+#ifdef AK0991X_ENABLE_DRI
   // Wrong interrupt detected in DRI mode.
-  if(state->irq_info.detect_irq_event && !state->data_is_ready)
+  if(state->mag_info.use_dri)
   {
-    SNS_INST_PRINTF(ERROR, instance, "Wrong interrupt detected. DRDY is not ready.");
-    return;
+    if( (state->irq_info.detect_irq_event && !state->data_is_ready) ||
+        (state->irq_info.detect_irq_event &&
+            state->mag_info.use_fifo &&
+            (state->num_samples != state->mag_info.cur_wmk+1)) )
+    {
+      SNS_INST_PRINTF(ERROR, instance, "DRDY is not ready or WM is not equal num_samples=%d",state->num_samples);
+      return;
+    }
   }
+#endif
 
+#ifdef AK0991X_ENABLE_FIFO
   // FIFO mode
-  if(state->mag_info.use_fifo ||
-      !(state->force_fifo_read_till_wm && state->mag_info.cur_wmk == 0) ||
-      !(state->mag_info.use_sync_stream && state->mag_info.cur_wmk == 0 ))
+  if(state->mag_info.use_fifo)
   {
     if(state->mag_info.device_select == AK09917)    // AK09917
     {
-      if(state->num_samples > 2)
+      if(state->num_samples > 2 && !state->this_is_the_last_flush)
       {
         ak0991x_ascp_request(instance);  // ASCP request
       }
@@ -1603,6 +1653,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
       // sync flush
       //Continue reading until fifo buffer is clear
       //because there is no way to check FIFO samples for AK09915C/D.
+      uint32_t i;
       state->num_samples = 0;
       for (i = 0; i < state->mag_info.max_fifo_size; i++)
       {
@@ -1637,6 +1688,12 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
                          1,
                          &buffer[0]);
   }
+#else
+  state->num_samples = 1;
+  ak0991x_read_hxl_st2(state,
+                       1,
+                       &buffer[0]);
+#endif
 
   if(state->num_samples > 0)
   {
@@ -1646,13 +1703,21 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
     // sync flush
     if( state->ascp_xfer_in_progress == 0 )
     {
-      sns_time first_timestamp = state->interrupt_timestamp - (state->averaged_interval * (state->num_samples - 1));
       ak0991x_process_mag_data_buffer(instance,
-                                      first_timestamp,
+                                      state->first_timestamp,
                                       state->averaged_interval,
                                       buffer,
                                       AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
     }
+
+#ifdef AK0991X_ENABLE_DRI
+    if(state->mag_info.use_dri)
+    {
+      // Register for timer to enable heart beat function
+      ak0991x_register_heart_beat_timer(instance);
+    }
+#endif
+    state->heart_beat_attempt_count = 0;
   }
 }
 

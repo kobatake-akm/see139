@@ -475,7 +475,6 @@ sns_rc ak0991x_set_sstvt_adj(
  */
 float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr);
 
-
 /**
  * Provides sample interval based on current ODR
  *

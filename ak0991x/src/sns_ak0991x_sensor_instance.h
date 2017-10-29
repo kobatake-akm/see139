@@ -156,7 +156,7 @@ typedef struct ak0991x_mag_info
   sns_sensor_uid suid;
   ak0991x_self_test_info test_info;
   bool                   use_sync_stream;
-  uint64_t      data_count;
+  uint32_t      data_count;
 
 #ifdef AK0991X_ENABLE_S4S
   ak0991x_s4s_state      s4s_sync_state;
@@ -205,18 +205,22 @@ typedef struct ak0991x_instance_state
   bool force_fifo_read_till_wm;
   bool is_previous_irq;
   bool this_is_the_last_flush;
-  bool received_irq_event;
   bool previous_event_is_irq;
-  sns_time system_time;
-  sns_time averaged_interval;
-  sns_time pre_timestamp;
+  bool reg_event_done;
   sns_time start_timestamp;
+  sns_time interrupt_timestamp;
+  sns_time irq_event_time;
+  sns_time pre_timestamp;
+  sns_time first_timestamp;
+  sns_time averaged_interval;
+  sns_time system_time;
   sns_time measurement_time;
   sns_time heart_beat_timestamp;
   sns_time heart_beat_timeout_period;
   uint8_t  heart_beat_sample_count;
   uint8_t  heart_beat_attempt_count;
   sns_timer_sensor_config req_payload;
+
 
   /** Timer info */
   sns_sensor_uid timer_suid;
@@ -232,17 +236,6 @@ typedef struct ak0991x_instance_state
   ak0991x_async_com_port_info async_com_port_info;
   sns_async_com_port_config ascp_config;
 #endif // AK0991X_ENABLE_DRI || AK0991X_ENABLE_FIFO
-
-  sns_time latest_event_time;
-  sns_time interrupt_timestamp;
-  sns_time irq_event_time;
-  sns_time averaged_interval;
-  sns_time pre_timestamp;
-  sns_time measurement_time;
-  sns_time heart_beat_timestamp;
-  sns_time heart_beat_timeout_period;
-  uint8_t  heart_beat_sample_count;
-  uint8_t  heart_beat_attempt_count;
 
   /**--------DAE interface---------*/
   ak0991x_dae_if_info       dae_if;
