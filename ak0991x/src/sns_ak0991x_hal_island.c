@@ -588,7 +588,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
   sns_rc rv;
   sns_time meas_usec;
-  sns_time now;
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");
 
@@ -598,6 +597,8 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     state->config_mag_after_ascp_xfer = true;
     return SNS_RC_SUCCESS;
   }
+
+  // Enable Mag Streaming
 
   //Transit to Power-down mode first and then transit to other modes.
   rv = ak0991x_set_mag_config(this, true);
@@ -617,16 +618,14 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
-  now = sns_get_system_time();
-
-  // Enable Mag Streaming
-  AK0991X_INST_PRINT(LOW, this, "start_mag_streaming at %u", (uint32_t)now);
+  state->system_time = sns_get_system_time();
+  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u", (uint32_t)state->system_time);
 
   // check last timestamp
-  if( state->pre_timestamp > now ){
+  if( state->pre_timestamp > state->system_time ){
     AK0991X_INST_PRINT(ERROR, this, "negative timestamp detected!!! Keep using pre_timestamp.");
   }else{
-    state->pre_timestamp = now;
+    state->pre_timestamp = state->system_time;
   }
 
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
@@ -638,16 +637,14 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->heart_beat_sample_count = 0;
-  state->heart_beat_timestamp = now;
-  state->start_timestamp = now;
+  state->heart_beat_timestamp = state->system_time;
+  state->start_timestamp = state->system_time;
   state->reg_event_done = false;
   state->received_first_irq = false;
   if(state->mag_info.use_dri)
   {
     ak0991x_set_timer_request_payload(this); // reset parameter for heart beat timer
   }
-
-  AK0991X_INST_PRINT(ERROR, this, "start sensor. start_time= %u",(uint32_t)now);
 
   return SNS_RC_SUCCESS;
 }
@@ -1351,6 +1348,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   sns_service_manager *service_manager = instance->cb->get_service_manager(instance);
   sns_event_service *event_service =
     (sns_event_service*)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
+  sns_time timestamp;
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   sns_diag_service          *diag = state->diag_service;
@@ -1363,7 +1361,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
-  sns_time timestamp;
   for(i = 0; i < num_bytes; i += 8)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
@@ -1401,13 +1398,13 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
   sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr,SNS_EVENT_SERVICE);
   sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  sns_time now = sns_get_system_time();
+  state->system_time = sns_get_system_time();
 
   if(NULL != event)
   {
     event->message_id = SNS_STD_MSGID_SNS_STD_FLUSH_EVENT;
     event->event_len = 0;
-    event->timestamp = now;
+    event->timestamp = state->system_time;
 
     e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
 
@@ -1598,6 +1595,7 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
 }
 #endif
 
+// QC - please refactor this function
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -1940,10 +1938,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
                      phy_sensor_config.has_water_mark ? phy_sensor_config.water_mark : 0,
                      phy_sensor_config.stream_is_synchronous);
 
+  state->system_time = sns_get_system_time();
   pb_send_event(instance,
                 sns_std_sensor_physical_config_event_fields,
                 &phy_sensor_config,
-                sns_get_system_time(),
+                state->system_time,
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
 
@@ -2035,7 +2034,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   sns_time                sample_period;
-  sns_time now = sns_get_system_time();
+  state->system_time = sns_get_system_time();
 
   // for heat beat timer
   if(state->mag_info.use_dri)
@@ -2044,7 +2043,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
     req_payload.is_periodic = true;
-    req_payload.start_time = now;
+    req_payload.start_time = state->system_time;
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 
@@ -2066,7 +2065,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
   {
 #ifdef AK0991X_ENABLE_S4S
     sample_period = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
-    req_payload.start_time = sns_get_system_time() - sample_period;
+    req_payload.start_time = state->system_time - sample_period;
     req_payload.start_config.early_start_delta = 0;
     req_payload.start_config.late_start_delta = sample_period * 2;
 #endif // AK0991X_ENABLE_S4S
@@ -2077,7 +2076,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
     req_payload.is_periodic = true;
-    req_payload.start_time = now;
+    req_payload.start_time = state->system_time;
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
 
@@ -2109,7 +2108,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
 void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-  state->req_payload.start_time = sns_get_system_time();
+  state->req_payload.start_time = state->system_time;
   ak0991x_send_timer_request(this);
 }
 
