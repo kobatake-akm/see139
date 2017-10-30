@@ -319,7 +319,6 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       if(state->fifo_flush_in_progress)
       {
-        state->fifo_flush_in_progress = false;
         ak0991x_send_fifo_flush_done(this);
       }
       break;
@@ -392,7 +391,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       {
         dae_stream->stream_usable = false;
         AK0991X_INST_PRINT(LOW, this,"SNS_STD_ERROR_EVENT");
-        ak0991x_reconfig_hw(this);
+        //ak0991x_reconfig_hw(this);
 
         if(state->mag_info.use_dri)
         {

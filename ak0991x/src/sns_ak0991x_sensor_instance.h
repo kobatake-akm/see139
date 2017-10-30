@@ -197,22 +197,30 @@ typedef struct ak0991x_instance_state
   uint8_t ascp_xfer_in_progress;
   bool this_is_first_data;
   bool data_over_run;
+  bool data_is_ready;
   bool re_read_data_after_ascp;
   bool fifo_flush_in_progress;
   bool new_self_test_request;
   bool config_mag_after_ascp_xfer;
   bool force_fifo_read_till_wm;
   bool is_previous_irq;
-//  bool called_handle_timer_reg_event;
   bool this_is_the_last_flush;
-  sns_time averaged_interval;
+  bool previous_event_is_irq;
+  bool reg_event_done;
+  sns_time start_timestamp;
+  sns_time interrupt_timestamp;
+  sns_time irq_event_time;
   sns_time pre_timestamp;
+  sns_time first_timestamp;
+  sns_time averaged_interval;
+  sns_time system_time;
   sns_time measurement_time;
   sns_time heart_beat_timestamp;
   sns_time heart_beat_timeout_period;
   uint8_t  heart_beat_sample_count;
   uint8_t  heart_beat_attempt_count;
   sns_timer_sensor_config req_payload;
+
 
   /** Timer info */
   sns_sensor_uid timer_suid;
@@ -228,10 +236,6 @@ typedef struct ak0991x_instance_state
   ak0991x_async_com_port_info async_com_port_info;
   sns_async_com_port_config ascp_config;
 #endif // AK0991X_ENABLE_DRI || AK0991X_ENABLE_FIFO
-
-  sns_time latest_event_time;
-  sns_time interrupt_timestamp;
-  sns_time irq_event_time;
 
   /**--------DAE interface---------*/
   ak0991x_dae_if_info       dae_if;
