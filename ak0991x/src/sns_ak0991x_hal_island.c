@@ -640,6 +640,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->heart_beat_timestamp = now;
   state->start_timestamp = now;
   state->reg_event_done = false;
+  state->received_first_irq = false;
   if(state->mag_info.use_dri)
   {
     ak0991x_set_timer_request_payload(this); // reset parameter for heart beat timer
@@ -1439,6 +1440,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   {
     state->interrupt_timestamp = state->irq_event_time;
     state->previous_event_is_irq = true;
+    state->received_first_irq = true;
   }
   else
   {
@@ -1449,22 +1451,31 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     }
     else
     {
-      state->interrupt_timestamp = state->system_time;
+      if(state->mag_info.use_dri && state->received_first_irq)
+      {
+        state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
+      }
+      else{
+        state->interrupt_timestamp = state->system_time;
+      }
     }
   }
 
   // averaging
   if(state->mag_info.data_count > 1)
   {
-    if(state->mag_info.use_dri)
+    if(state->irq_info.detect_irq_event)
     {
       state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp -
                                    state->measurement_time) / (state->mag_info.data_count - 1);
     }
     else
     {
+      if(!(state->mag_info.use_dri && state->received_first_irq))
+      {
       state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp)
           / (state->mag_info.data_count);
+      }
     }
   }
   else
@@ -1589,6 +1600,16 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
   }
 
 #ifdef AK0991X_ENABLE_DRI
+
+  if(state->mag_info.use_dri)
+  {
+    if(!state->received_first_irq)
+    {
+      AK0991X_INST_PRINT(LOW, instance, "not irq received yet. ignored.");
+      return;
+    }
+  }
+
   if(state->mag_info.use_dri)
   {
     if( !state->irq_info.detect_irq_event &&
