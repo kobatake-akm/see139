@@ -1983,6 +1983,7 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
       timer_req.request = buffer;
       /** Send encoded request to Timer Sensor */
       state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+      AK0991X_INST_PRINT(LOW, this, "Success to send to Timer Sensor");
     }
     else
     {
