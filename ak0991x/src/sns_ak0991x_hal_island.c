@@ -588,7 +588,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
   sns_rc rv;
   sns_time meas_usec;
-  sns_time now = sns_get_system_time();
+  sns_time now;
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");
 
@@ -598,9 +598,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     state->config_mag_after_ascp_xfer = true;
     return SNS_RC_SUCCESS;
   }
-
-  // Enable Mag Streaming
-  AK0991X_INST_PRINT(LOW, this, "start_mag_streaming at %u", (uint32_t)now);
 
   //Transit to Power-down mode first and then transit to other modes.
   rv = ak0991x_set_mag_config(this, true);
@@ -620,13 +617,17 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
+  now = sns_get_system_time();
+
+  // Enable Mag Streaming
+  AK0991X_INST_PRINT(LOW, this, "start_mag_streaming at %u", (uint32_t)now);
+
   // check last timestamp
   if( state->pre_timestamp > now ){
     AK0991X_INST_PRINT(ERROR, this, "negative timestamp detected!!! Keep using pre_timestamp.");
   }else{
     state->pre_timestamp = now;
   }
-
 
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
@@ -1485,7 +1486,11 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   }
   else
   {
+#ifdef AK09917_REV_A
+    state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr) * 11 / 10;
+#else
     state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+#endif
   }
 
   // first timestamp
