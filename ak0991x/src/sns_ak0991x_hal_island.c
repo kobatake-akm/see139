@@ -1440,7 +1440,6 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   {
     state->interrupt_timestamp = state->irq_event_time;
     state->previous_event_is_irq = true;
-    state->received_first_irq = true;
   }
   else
   {
