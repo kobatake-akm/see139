@@ -1446,7 +1446,6 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
     if(state->previous_event_is_irq)
     {
       state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
-      state->previous_event_is_irq = false;
     }
     else
     {
@@ -1465,8 +1464,16 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   {
     if(state->irq_info.detect_irq_event)
     {
-      state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp -
-                                   state->measurement_time) / (state->mag_info.data_count - 1);
+      if(state->previous_event_is_irq)
+      {
+        state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp)
+            / state->num_samples;
+      }
+      else
+      {
+        state->averaged_interval = (state->interrupt_timestamp - state->start_timestamp -
+                                     state->measurement_time) / (state->mag_info.data_count - 1);
+      }
     }
     else
     {
@@ -1499,6 +1506,8 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       state->first_timestamp = state->pre_timestamp + state->averaged_interval;
     }
   }
+
+  state->previous_event_is_irq = (state->irq_info.detect_irq_event) ? true : false;
 }
 
 static void ak0991x_get_current_status(sns_sensor_instance *const instance)
