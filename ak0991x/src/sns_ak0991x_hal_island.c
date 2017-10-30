@@ -1439,7 +1439,6 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
   if(state->irq_info.detect_irq_event)  // DRI
   {
     state->interrupt_timestamp = state->irq_event_time;
-    state->previous_event_is_irq = true;
   }
   else
   {
