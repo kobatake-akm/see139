@@ -1666,9 +1666,10 @@ static bool ak0991x_check_first_irq(sns_sensor_instance *const instance)
   return ignore;
 }
 
-static void ak0991x_read_process(sns_sensor_instance *const instance, uint8_t *buffer)
+static void ak0991x_read_process(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
 #ifdef AK0991X_ENABLE_FIFO
   // FIFO mode
@@ -1740,13 +1741,26 @@ static void ak0991x_read_process(sns_sensor_instance *const instance, uint8_t *b
                            &buffer[0]);
 #endif
 
+  if(state->num_samples > 0)
+  {
+    // adjust timestamp and interval if needed.
+    ak0991x_validate_timestamp(instance);
+
+    // sync flush
+    if( state->ascp_xfer_in_progress == 0 )
+    {
+      ak0991x_process_mag_data_buffer(instance,
+                                      state->first_timestamp,
+                                      state->averaged_interval,
+                                      buffer,
+                                      AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
+    }
 }
 
 // QC - please refactor this function
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
   if(!ak0991x_check_ascp_process(instance))
   {
@@ -1755,22 +1769,7 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 
     if(!ak0991x_check_first_irq(instance))
     {
-      ak0991x_read_process(instance, buffer);
-
-      if(state->num_samples > 0)
-      {
-        // adjust timestamp and interval if needed.
-        ak0991x_validate_timestamp(instance);
-
-        // sync flush
-        if( state->ascp_xfer_in_progress == 0 )
-        {
-          ak0991x_process_mag_data_buffer(instance,
-                                          state->first_timestamp,
-                                          state->averaged_interval,
-                                          buffer,
-                                          AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
-        }
+      ak0991x_read_process(instance);
 
 #ifdef AK0991X_ENABLE_DRI
         if(state->mag_info.use_dri)
