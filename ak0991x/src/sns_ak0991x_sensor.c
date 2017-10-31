@@ -556,9 +556,7 @@ static void ak0991x_request_registry(sns_sensor *const this)
     // the case is "true" to register for ak0991x_dri_0.json and msm8996_ak9911x_0.json.
     // hw_id = 1 is considered another library,
     // the case is "false" to register for a0991x_dri_1.json and msm8996_ak9911x_1.json.
-    //
-    // TODO:
-    if (0)
+    if(this->cb->get_registration_index(this) == 0)
     {
       ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PF_CONFIG);
       ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PLACE);
