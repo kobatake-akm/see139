@@ -623,6 +623,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   // check last timestamp
   if( state->pre_timestamp > state->system_time ){
+    // QC - wouldn't this introduce increasing sample delivery latency?
     AK0991X_INST_PRINT(ERROR, this, "negative timestamp detected!!! Keep using pre_timestamp.");
   }else{
     state->pre_timestamp = state->system_time;
@@ -1464,7 +1465,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
       if(state->previous_event_is_irq)
       {
         state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp)
-            / state->num_samples;
+            / state->num_samples; // QC - should this be WM rather than num_samples?
       }
       else
       {
@@ -1490,6 +1491,7 @@ static void ak0991x_validate_timestamp(sns_sensor_instance *const instance)
 #endif
   }
 
+  // QC - how is this the first timestamp??
   // first timestamp
   if (state->irq_info.detect_irq_event)
   {
@@ -1550,7 +1552,10 @@ static void ak0991x_get_current_status(sns_sensor_instance *const instance)
   state->num_samples = state->data_is_ready ? 1 : 0;
 #endif
 
-  SNS_INST_PRINTF(ERROR, instance,"DOR=%d DRDY=%d FNUM=%d.",state->data_over_run, state->data_is_ready, state->num_samples);
+  if(state->data_over_run)
+  {
+    SNS_INST_PRINTF(HIGH, instance, "DOR detected");
+  }
 }
 
 #ifdef AK0991X_ENABLE_FIFO
@@ -1700,6 +1705,9 @@ static void ak0991x_read_process(sns_sensor_instance *const instance, uint8_t *b
       //because there is no way to check FIFO samples for AK09915C/D.
       uint32_t i;
       state->num_samples = 0;
+
+      // QC - we recommend reading WM+1 samples then verifying that the last sample is 
+      // INV_FIFO_DATA; if the last sample is valid THEN start reading one sample at a time
       for (i = 0; i < state->mag_info.max_fifo_size; i++)
       {
         //Read fifo buffer(HXL to ST2 register)
@@ -1742,7 +1750,6 @@ static void ak0991x_read_process(sns_sensor_instance *const instance, uint8_t *b
 
 }
 
-// QC - please refactor this function
 void ak0991x_flush_fifo(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;

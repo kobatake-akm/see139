@@ -1640,6 +1640,14 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             else
             {
               AK0991X_PRINT(MED, this, "AK0991X HW absent");
+              #ifdef AK0991X_ENABLE_POWER_RAIL
+              state->rail_config.rail_vote = SNS_RAIL_OFF;
+              state->pwr_rail_service->api->
+              sns_vote_power_rail_update(state->pwr_rail_service, this,
+                            &state->rail_config,     NULL);
+              state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+              state->remove_timer_stream = true;
+              #endif
             }
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ)
@@ -1666,12 +1674,14 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF)
           {
             AK0991X_PRINT(LOW, this, "state = POWER_RAIL_PENDING_OFF");
+            #ifdef AK0991X_ENABLE_POWER_RAIL
             state->rail_config.rail_vote = SNS_RAIL_OFF;
             state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
                                          &state->rail_config,     NULL);
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
             state->remove_timer_stream = true;
+            #endif
           }
         }
         else

@@ -391,7 +391,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       {
         dae_stream->stream_usable = false;
         AK0991X_INST_PRINT(LOW, this,"SNS_STD_ERROR_EVENT");
-        //ak0991x_reconfig_hw(this);
+        ak0991x_reconfig_hw(this);
 
         if(state->mag_info.use_dri)
         {
