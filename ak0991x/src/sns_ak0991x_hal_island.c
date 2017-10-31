@@ -1475,7 +1475,7 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
   state->first_timestamp = state->pre_timestamp + state->averaged_interval;
 }
 
-static void ak0991x_get_current_status(sns_sensor_instance *const instance)
+static void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint8_t st1_buf;
@@ -1514,7 +1514,7 @@ static void ak0991x_get_current_status(sns_sensor_instance *const instance)
   state->num_samples = state->data_is_ready ? 1 : 0;
 #endif
 
-  SNS_INST_PRINTF(ERROR, instance,"DOR=%d DRDY=%d FNUM=%d.",state->data_over_run, state->data_is_ready, state->num_samples);
+  SNS_INST_PRINTF(LOW, instance,"DOR=%d DRDY=%d FNUM=%d.",state->data_over_run, state->data_is_ready, (st1_buf >> 2));
 }
 
 #ifdef AK0991X_ENABLE_FIFO
@@ -1561,7 +1561,7 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
 }
 #endif
 
-static sns_rc ak0991x_check_ascp_process(sns_sensor_instance *const instance)
+static sns_rc ak0991x_check_ascp_and_first_irp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
@@ -1575,18 +1575,14 @@ static sns_rc ak0991x_check_ascp_process(sns_sensor_instance *const instance)
   }
 
 #ifdef AK0991X_ENABLE_DRI
-
   if(state->mag_info.use_dri)
   {
     if(!state->received_first_irq)
     {
-      AK0991X_INST_PRINT(LOW, instance, "not irq received yet. ignored.");
+      AK0991X_INST_PRINT(LOW, instance, "first irq is not received yet. ignored.");
       rc |= SNS_RC_FAILED;
     }
-  }
 
-  if(state->mag_info.use_dri)
-  {
     if( !state->irq_info.detect_irq_event &&
         !state->this_is_the_last_flush &&
         state->system_time < (state->pre_timestamp + state->averaged_interval)
@@ -1597,7 +1593,7 @@ static sns_rc ak0991x_check_ascp_process(sns_sensor_instance *const instance)
         state->fifo_flush_in_progress = false;
         ak0991x_send_fifo_flush_done(instance);
       }
-      AK0991X_INST_PRINT(LOW, instance, "ignore flush");
+      AK0991X_INST_PRINT(LOW, instance, "ignore flush.");
       rc |= SNS_RC_FAILED;
     }
   }
@@ -1605,34 +1601,7 @@ static sns_rc ak0991x_check_ascp_process(sns_sensor_instance *const instance)
   return rc;
 }
 
-
-static sns_rc ak0991x_check_first_irq(sns_sensor_instance *const instance)
-{
-  bool rc = SNS_RC_SUCCESS;
-#ifdef AK0991X_ENABLE_DRI
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  // Wrong interrupt detected in DRI mode.
-  if(state->mag_info.use_dri)
-  {
-    if( (state->irq_info.detect_irq_event && !state->data_is_ready) ||
-        (state->irq_info.detect_irq_event &&
-            state->mag_info.use_fifo &&
-            (state->num_samples != state->mag_info.cur_wmk+1)) )
-    {
-      SNS_INST_PRINTF(ERROR, instance, "DRDY is not ready or WM is not equal num_samples=%d",state->num_samples);
-      rc |= SNS_RC_FAILED;
-    }
-  }
-#else
-      state->num_samples = 1;
-      ak0991x_read_hxl_st2(state,
-                           1,
-                           &buffer[0]);
-#endif
-  return rc;
-}
-
-static void ak0991x_read_process(sns_sensor_instance *const instance)
+static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
@@ -1735,28 +1704,26 @@ static void ak0991x_read_process(sns_sensor_instance *const instance)
 }
 
 // QC - please refactor this function
-void ak0991x_flush_fifo(sns_sensor_instance *const instance)
+void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  if(SNS_RC_SUCCESS == ak0991x_check_ascp_process(instance))
+  if(SNS_RC_SUCCESS == ak0991x_check_ascp_and_first_irp(instance))
   {
     // get num_samples, DRDY and data over run status from ST1
-    ak0991x_get_current_status(instance);
+    ak0991x_get_st1_status(instance);
 
-    if(SNS_RC_SUCCESS == ak0991x_check_first_irq(instance))
-    {
-      ak0991x_read_process(instance);
+    // read data. when AK09917 && FIFO mode && WM>2, use ASCP
+    ak0991x_read_fifo_buffer(instance);
 
 #ifdef AK0991X_ENABLE_DRI
-        if(state->mag_info.use_dri)
-        {
-          // Register for timer to enable heart beat function
-          ak0991x_register_heart_beat_timer(instance);
-        }
-#endif
-        state->heart_beat_attempt_count = 0;
+    if(state->mag_info.use_dri)
+    {
+      // Register for timer to enable heart beat function
+      ak0991x_register_heart_beat_timer(instance);
     }
+#endif
+    state->heart_beat_attempt_count = 0;
   }
 }
 

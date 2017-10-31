@@ -516,12 +516,12 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
 // void ak0991x_get_current_status(sns_sensor_instance *const instance);
 
 /**
- * Flush mag samples from the buffer
+ * Read mag samples from the buffer
  * and generates event.
  *
  * @param instance                 Sensor Instance
  */
-void ak0991x_flush_fifo(sns_sensor_instance *const instance);
+void ak0991x_read_mag_samples(sns_sensor_instance *const instance);
 
 /**
  * Handle an interrupt by reading the Fifo status register and sending out
