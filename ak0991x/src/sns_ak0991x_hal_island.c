@@ -623,6 +623,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   // check last timestamp
   if( state->pre_timestamp > state->system_time ){
+    // QC - wouldn't this introduce increasing sample delivery latency?
     AK0991X_INST_PRINT(ERROR, this, "negative timestamp detected!!! Keep using pre_timestamp.");
   }else{
     state->pre_timestamp = state->system_time;
@@ -1516,7 +1517,10 @@ static void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   state->num_samples = state->data_is_ready ? 1 : 0;
 #endif
 
-  SNS_INST_PRINTF(LOW, instance,"DOR=%d DRDY=%d FNUM=%d.",state->data_over_run, state->data_is_ready, (st1_buf >> 2));
+  if(state->data_over_run)
+  {
+    SNS_INST_PRINTF(HIGH, instance, "DOR detected");
+  }
 }
 
 #ifdef AK0991X_ENABLE_FIFO
@@ -1636,6 +1640,8 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
       // sync flush
       //Continue reading until fifo buffer is clear
       //because there is no way to check FIFO samples for AK09915C/D.
+      // QC - we recommend reading WM+1 samples then verifying that the last sample is
+      // INV_FIFO_DATA; if the last sample is valid THEN start reading one sample at a time
       uint32_t i;
       state->num_samples = 0;
       for (i = 0; i < state->mag_info.max_fifo_size; i++)
