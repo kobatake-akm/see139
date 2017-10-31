@@ -1418,6 +1418,7 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
 static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 {
+#ifdef AK0991X_ENABLE_DRI
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
   // set interrupt_timestamp
@@ -1449,6 +1450,9 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     state->first_timestamp = state->pre_timestamp + state->averaged_interval;
   }
+#else
+  UNUSED_VAR(instance);
+#endif // AK0991X_ENABLE_DRI
 }
 
 static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
@@ -1597,17 +1601,15 @@ static sns_rc ak0991x_check_ascp_process(sns_sensor_instance *const instance)
     }
   }
 #endif
-
   return rc;
 }
 
 
 static sns_rc ak0991x_check_first_irq(sns_sensor_instance *const instance)
 {
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   bool rc = SNS_RC_SUCCESS;
-
 #ifdef AK0991X_ENABLE_DRI
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   // Wrong interrupt detected in DRI mode.
   if(state->mag_info.use_dri)
   {
@@ -1620,8 +1622,9 @@ static sns_rc ak0991x_check_first_irq(sns_sensor_instance *const instance)
       rc |= SNS_RC_FAILED;
     }
   }
+#else
+  UNUSED_VAR(instance);
 #endif
-
   return rc;
 }
 
