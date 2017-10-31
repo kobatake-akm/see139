@@ -602,6 +602,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if (state->config_step == AK0991X_CONFIG_IDLE)
     {
+      state->system_time = sns_get_system_time();
+
       // care the FIFO buffer if enabled FIFO and already streaming
       if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
       {
