@@ -84,7 +84,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
   {
     if(state->num_samples != 0){
       ak0991x_process_mag_data_buffer(instance,
-                                      state->first_timestamp,
+                                      state->first_data_ts_of_batch,
                                       state->averaged_interval,
                                       vector->buffer,
                                       vector->bytes);

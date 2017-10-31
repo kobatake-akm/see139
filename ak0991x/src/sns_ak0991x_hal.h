@@ -509,7 +509,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
 
 /**
- * Flush mag samples from the buffer
+ * Read mag samples from the buffer
  * and generates event.
  *
  * @param instance                 Sensor Instance
