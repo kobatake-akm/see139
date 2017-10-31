@@ -630,6 +630,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
+//  state->averaged_interval = ak0991x_get_sample_interval(state->mag_info.curr_odr);
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
@@ -1623,7 +1624,10 @@ static sns_rc ak0991x_check_first_irq(sns_sensor_instance *const instance)
     }
   }
 #else
-  UNUSED_VAR(instance);
+      state->num_samples = 1;
+      ak0991x_read_hxl_st2(state,
+                           1,
+                           &buffer[0]);
 #endif
   return rc;
 }
