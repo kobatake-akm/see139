@@ -1755,6 +1755,7 @@ static void ak0991x_read_process(sns_sensor_instance *const instance)
                                       buffer,
                                       AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
     }
+  }
 }
 
 // QC - please refactor this function
@@ -1779,7 +1780,6 @@ void ak0991x_flush_fifo(sns_sensor_instance *const instance)
         }
 #endif
         state->heart_beat_attempt_count = 0;
-      }
     }
   }
 }
