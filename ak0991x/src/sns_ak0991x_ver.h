@@ -22,8 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 10/31/17                AKM              Removed AK09917_REV_A flag. Calculate averaged_interval in DRI mode.
- * 10/31/17     010038     AKM              Refactor to use ASCP even in flush. Added AK09917_REV_A flag.
+ * 10/31/17     010038     AKM              Refactor to use ASCP in flush. Added AK09917_REV_A flag. 
+ * 10/31/17                AKM              Added dual sensor support
  * 10/25/17     010037     AKM              Removed averaging filter for DRI mode
  * 10/23/17     010036     Qualcomm         Sends config event to new clients immediately if already streaming
  * 10/20/17     010035     AKM              Modified for SEE-Lite. 
