@@ -28,7 +28,7 @@
 #include "sns_diag_service.h"
 #include "sns_registry_util.h"
 
-#define MAG_SUID \
+#define MAG_SUID1 \
   {  \
     .sensor_uid =  \
     {  \
@@ -37,14 +37,33 @@
     }  \
   }
 
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+#define MAG_SUID2 \
+  {  \
+    .sensor_uid =  \
+    {  \
+      0xaf, 0xf9, 0x3c, 0x5a, 0xc8, 0xc5, 0x45, 0x70, \
+      0xb4, 0xbe, 0xc1, 0xa5, 0x7b, 0x8d, 0x5f, 0xec  \
+    }  \
+  }
+#endif
+
 //#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-#define AK0991X_REGISTRY_PF_CONFIG   "ak0991x_0_platform.config"
-#define AK0991X_REGISTRY_PLACE       "ak0991x_0_platform.placement"
-#define AK0991X_REGISTRY_ORIENT      "ak0991x_0_platform.orient"
-#define AK0991X_REGISTRY_FACCAL      "ak0991x_0_platform.mag.fac_cal"
-#define AK0991X_REGISTRY_MAG_CONFIG  "ak0991x_0.mag.config"
-#define AK0991X_REGISTRY_REG_CONFIG  "ak0991x_0.mag.config_2"
-//#endif
+#define AK0991X_REGISTRY_0_PF_CONFIG   "ak0991x_0_platform.config"
+#define AK0991X_REGISTRY_0_PLACE       "ak0991x_0_platform.placement"
+#define AK0991X_REGISTRY_0_ORIENT      "ak0991x_0_platform.orient"
+#define AK0991X_REGISTRY_0_FACCAL      "ak0991x_0_platform.mag.fac_cal"
+#define AK0991X_REGISTRY_0_MAG_CONFIG  "ak0991x_0.mag.config"
+#define AK0991X_REGISTRY_0_REG_CONFIG  "ak0991x_0.mag.config_2"
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+#define AK0991X_REGISTRY_1_PF_CONFIG   "ak0991x_1_platform.config"
+#define AK0991X_REGISTRY_1_PLACE       "ak0991x_1_platform.placement"
+#define AK0991X_REGISTRY_1_ORIENT      "ak0991x_1_platform.orient"
+#define AK0991X_REGISTRY_1_FACCAL      "ak0991x_1_platform.mag.fac_cal"
+#define AK0991X_REGISTRY_1_MAG_CONFIG  "ak0991x_1.mag.config"
+#define AK0991X_REGISTRY_1_REG_CONFIG  "ak0991x_1.mag.config_2"
+#endif // AK0991X_ENABLE_DUAL_SENSOR
+//#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
 #if 0
 /** TODO Using 8996 Platform config as defaults. This is for

@@ -41,7 +41,20 @@
 static sns_sensor_uid const* ak0991x_mag_get_sensor_uid(sns_sensor const *const this)
 {
   UNUSED_VAR(this);
-  static const sns_sensor_uid sensor_uid = MAG_SUID;
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+  static sns_sensor_uid sensor_uid;
+  //TODO
+  if(0)
+  {
+    sensor_uid = (sns_sensor_uid)MAG_SUID1;
+  }
+  else
+  {
+    sensor_uid = (sns_sensor_uid)MAG_SUID2;
+  }
+#else
+  static const sns_sensor_uid sensor_uid = MAG_SUID1;
+#endif
 
   return &sensor_uid;
 }
@@ -51,9 +64,9 @@ sns_sensor_api ak0991x_mag_sensor_api =
   .struct_len         = sizeof(sns_sensor_api),
   .init               = &ak0991x_mag_init,
 #ifdef AK0991X_ENABLE_DEINIT
-	.deinit             = &ak0991x_mag_deinit,
+  .deinit             = &ak0991x_mag_deinit,
 #endif
-	.get_sensor_uid     = &ak0991x_mag_get_sensor_uid,
+  .get_sensor_uid     = &ak0991x_mag_get_sensor_uid,
   .set_client_request = &ak0991x_set_client_request,
   .notify_event       = &ak0991x_sensor_notify_event,
 };
