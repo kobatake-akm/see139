@@ -43,8 +43,7 @@ static sns_sensor_uid const* ak0991x_mag_get_sensor_uid(sns_sensor const *const 
   UNUSED_VAR(this);
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   static sns_sensor_uid sensor_uid;
-  //TODO
-  if(0)
+  if(this->cb->get_registration_index(this) == 0)
   {
     sensor_uid = (sns_sensor_uid)MAG_SUID1;
   }
