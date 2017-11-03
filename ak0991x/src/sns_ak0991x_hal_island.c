@@ -641,10 +641,14 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->previous_irq_time = state->system_time;
   state->reg_event_done = false;
   state->received_first_irq = false;
+
+#ifdef AK0991X_ENABLE_DRI
   if(state->mag_info.use_dri)
   {
-    ak0991x_set_timer_request_payload(this); // reset parameter for heart beat timer
+    ak0991x_set_timer_request_payload(this);
+    ak0991x_register_heart_beat_timer(this);
   }
+#endif
 
   return SNS_RC_SUCCESS;
 }
@@ -1567,7 +1571,7 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
 }
 #endif
 
-static sns_rc ak0991x_check_ascp_and_first_irp(sns_sensor_instance *const instance)
+static sns_rc ak0991x_check_ascp_and_first_irq(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
@@ -1599,7 +1603,7 @@ static sns_rc ak0991x_check_ascp_and_first_irp(sns_sensor_instance *const instan
         state->fifo_flush_in_progress = false;
         ak0991x_send_fifo_flush_done(instance);
       }
-      AK0991X_INST_PRINT(LOW, instance, "ignore flush.");
+      AK0991X_INST_PRINT(LOW, instance, "wait for irq...");
       rc |= SNS_RC_FAILED;
     }
   }
@@ -1711,12 +1715,11 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   }
 }
 
-// QC - please refactor this function
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  if(SNS_RC_SUCCESS == ak0991x_check_ascp_and_first_irp(instance))
+  if(SNS_RC_SUCCESS == ak0991x_check_ascp_and_first_irq(instance))
   {
     // get num_samples, DRDY and data over run status from ST1
     ak0991x_get_st1_status(instance);

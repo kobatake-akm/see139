@@ -112,9 +112,9 @@
 #define AK09911_FIFO_SIZE                           0
 #define AK09912_FIFO_SIZE                           0
 #define AK09913_FIFO_SIZE                           0
-#define AK09915_FIFO_SIZE                           16  //to prevent DOR (HW FIFO buffer size = 32)
+#define AK09915_FIFO_SIZE                           25  //to prevent DOR (HW FIFO buffer size = 32)
 #define AK09916_FIFO_SIZE                           0
-#define AK09917_FIFO_SIZE                           16  //to prevent DOR (HW FIFO buffer size = 32)
+#define AK09917_FIFO_SIZE                           25  //to prevent DOR (HW FIFO buffer size = 32)
 #define AK09918_FIFO_SIZE                           0
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2
