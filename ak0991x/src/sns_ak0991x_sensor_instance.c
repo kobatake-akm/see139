@@ -460,12 +460,13 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this,
                                      float mag_chosen_sample_rate,
                                      ak0991x_mag_odr mag_chosen_sample_rate_reg_value)
 {
+#ifdef AK0991X_ENABLE_FIFO
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
   state->this_is_the_last_flush = true;
   AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
-  ak0991x_flush_fifo(this);
+  ak0991x_read_mag_samples(this);
   state->this_is_the_last_flush = false;
 
   // stop timer
@@ -481,6 +482,11 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this,
     state->mag_req.sample_rate = mag_chosen_sample_rate;
     state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
   }
+#else
+  UNUSED_VAR(this);
+  UNUSED_VAR(mag_chosen_sample_rate);
+  UNUSED_VAR(mag_chosen_sample_rate_reg_value);
+#endif // AK0991X_ENABLE_FIFO
 }
 
 /** See sns_sensor_instance_api::set_client_config */
@@ -676,15 +682,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
         if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
         {
-          ak0991x_flush_fifo(this);
+          ak0991x_read_mag_samples(this);
         }
       }
       else
       {
-        ak0991x_flush_fifo(this);
+        ak0991x_read_mag_samples(this);
       }
 #else
-      ak0991x_flush_fifo(this);
+      ak0991x_read_mag_samples(this);
 #endif
     }
   }

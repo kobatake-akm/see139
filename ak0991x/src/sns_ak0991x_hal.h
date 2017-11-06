@@ -112,9 +112,9 @@
 #define AK09911_FIFO_SIZE                           0
 #define AK09912_FIFO_SIZE                           0
 #define AK09913_FIFO_SIZE                           0
-#define AK09915_FIFO_SIZE                           32
+#define AK09915_FIFO_SIZE                           25  //to prevent DOR (HW FIFO buffer size = 32)
 #define AK09916_FIFO_SIZE                           0
-#define AK09917_FIFO_SIZE                           32
+#define AK09917_FIFO_SIZE                           25  //to prevent DOR (HW FIFO buffer size = 32)
 #define AK09918_FIFO_SIZE                           0
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2
@@ -509,27 +509,12 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance);
 
 /**
- * Get current status from ST1 register
- *
- * @param instance                 Sensor Instance
- */
-// void ak0991x_get_current_status(sns_sensor_instance *const instance);
-
-/**
- * Flush mag samples from the buffer
+ * Read mag samples from the buffer
  * and generates event.
  *
  * @param instance                 Sensor Instance
  */
-void ak0991x_flush_fifo(sns_sensor_instance *const instance);
-
-/**
- * Handle an interrupt by reading the Fifo status register and sending out
- * appropriate requests to the asynchronous com port sensor to read the fifo.
- *
- * @param instance                 Sensor Instance
- */
-//void ak0991x_acsp_read_request(sns_sensor_instance *const instance);
+void ak0991x_read_mag_samples(sns_sensor_instance *const instance);
 
 /**
  * Sends config update event for the chosen sample_rate

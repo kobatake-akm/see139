@@ -84,7 +84,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
   {
     if(state->num_samples != 0){
       ak0991x_process_mag_data_buffer(instance,
-                                      state->first_timestamp,
+                                      state->first_data_ts_of_batch,
                                       state->averaged_interval,
                                       vector->buffer,
                                       vector->bytes);
@@ -115,7 +115,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
     else
     {
       state->heart_beat_attempt_count++;
-      ak0991x_flush_fifo(this);
+      ak0991x_read_mag_samples(this);
 
       if(state->heart_beat_attempt_count >= 3)
       {
@@ -227,7 +227,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           if(state->ascp_xfer_in_progress == 0)
           {
             state->received_first_irq = true;
-            ak0991x_flush_fifo(this);
+            ak0991x_read_mag_samples(this);
           }
           else
           {
@@ -310,7 +310,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             state->system_time = sns_get_system_time();
             AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",
                                (uint32_t)state->system_time);
-            ak0991x_flush_fifo(this);
+            ak0991x_read_mag_samples(this);
           }
           rv = ak0991x_heart_beat_timer_event(this);
         }
