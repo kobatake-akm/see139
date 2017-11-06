@@ -1433,12 +1433,12 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     state->interrupt_timestamp = state->irq_event_time;
     if(state->this_is_first_data)
     {
-      // calculate internal oscillator error. 10 bit resolution(= 0.1% error)
-      uint32_t internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << 10 ) /
+      // calculate internal oscillator error. 12 bit resolution(= 0.05% error)
+      uint32_t internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
           (state->measurement_time + ak0991x_get_sample_interval(state->mag_info.curr_odr) * (state->mag_info.data_count-1));
 
       // update actual averaged interval
-      state->averaged_interval = (sns_time)((ak0991x_get_sample_interval(state->mag_info.curr_odr) * internal_clock_error) >> 10);
+      state->averaged_interval = (sns_time)((ak0991x_get_sample_interval(state->mag_info.curr_odr) * internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
       AK0991X_INST_PRINT(HIGH, instance, "this is the first data. avg_intvl %u",(uint32_t)state->averaged_interval);
     }
     else
