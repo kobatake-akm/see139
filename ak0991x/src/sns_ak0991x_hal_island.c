@@ -41,6 +41,7 @@
 #include "sns_diag.pb.h"
 
 #include "sns_cal_util.h"
+#include "sns_cal.pb.h"
 #include "sns_sensor_util.h"
 
 //#define AK0991X_VERBOSE_DEBUG             // Define to enable extra debugging
@@ -1433,22 +1434,33 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     state->interrupt_timestamp = state->irq_event_time;
     if(state->this_is_first_data)
     {
+      sns_time nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+
       // calculate internal oscillator error. 10 bit resolution(= 0.1% error)
-      uint32_t internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << 10 ) /
-          (state->measurement_time + ak0991x_get_sample_interval(state->mag_info.curr_odr) * (state->mag_info.data_count-1));
+      // QC - This calculation will overflow if the delta is bigger than 218 ms
+      uint32_t internal_clock_error = // QC - should probably be uint64_t.
+          ( (state->interrupt_timestamp - state->previous_irq_time) << 10 ) / 
+          (state->measurement_time + nominal_intvl * (state->mag_info.data_count-1));
 
       // update actual averaged interval
-      state->averaged_interval = (sns_time)((ak0991x_get_sample_interval(state->mag_info.curr_odr) * internal_clock_error) >> 10);
-      AK0991X_INST_PRINT(HIGH, instance, "this is the first data. avg_intvl %u",(uint32_t)state->averaged_interval);
+      state->averaged_interval = (sns_time)((nominal_intvl * internal_clock_error) >> 10);
+      AK0991X_INST_PRINT(HIGH, instance, "this is the first data. avg_intvl %u",
+                         (uint32_t)state->averaged_interval);
     }
     else
     {
+      // QC - This should be dividing by the WM samples, not the actual number of samples read from the FIFO
       state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
     }
 
+    // QC - This looks wrong.
+    // QC - Is "state->num_samples-1" the WM? or is it the number of samples just read from the buffer.
+    // QC - For this calculation to work, it needs to be the WM.
+    // QC - Also, must check to make sure that first_data_ts_of_batch is bigger than pre_timestamp.
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * (state->num_samples - 1));
 
+    // QC - what's the difference between data_count and num_samples?
     state->mag_info.data_count = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
   }
@@ -1738,6 +1750,33 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   }
 }
 
+static void ak0991x_send_cal_event(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_cal_event cal_event = sns_cal_event_init_default;
+  pb_buffer_arg buff_arg_bias = { 
+    .buf     = &state->mag_registry_cfg.fac_cal_bias, 
+    .buf_len = ARR_SIZE(state->mag_registry_cfg.fac_cal_bias) };
+  pb_buffer_arg buff_arg_comp_matrix = { 
+    .buf     = &state->mag_registry_cfg.fac_cal_corr_mat.data, 
+    .buf_len = ARR_SIZE(state->mag_registry_cfg.fac_cal_corr_mat.data) };
+
+  cal_event.bias.funcs.encode        = &pb_encode_float_arr_cb;
+  cal_event.bias.arg                 = &buff_arg_bias;
+  cal_event.comp_matrix.funcs.encode = &pb_encode_float_arr_cb;
+  cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
+  cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
+
+  AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
+
+  pb_send_event(instance,
+                sns_cal_event_fields,
+                &cal_event,
+                sns_get_system_time(),
+                SNS_CAL_MSGID_SNS_CAL_EVENT,
+                &state->mag_info.suid);
+}
+
 /** See sns_ak0991x_hal.h */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 {
@@ -1931,6 +1970,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
                 state->system_time,
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
+
+  ak0991x_send_cal_event(instance);
 
   return SNS_RC_SUCCESS;
 }

@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/04/17     010040     Qualcomm         Added Calibration event. 
  * 11/03/17     010039     AKM              Removed AK09917_REV_A flag. Calculate averaged_interval.
  * 11/03/17                Qualcomm         Fixed flush request handling during power up
  * 10/31/17     010038     AKM              Refactor to use ASCP in flush. Added AK09917_REV_A flag. 
@@ -85,4 +86,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10039  // major:01 minor:00 revision:39
+#define AK0991X_DRIVER_VERSION 10040  // major:01 minor:00 revision:40
