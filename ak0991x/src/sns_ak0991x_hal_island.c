@@ -1453,14 +1453,13 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
       state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
     }
 
-    // QC - This looks wrong.
     // QC - Is "state->num_samples-1" the WM? or is it the number of samples just read from the buffer.
     // QC - For this calculation to work, it needs to be the WM.
     // QC - Also, must check to make sure that first_data_ts_of_batch is bigger than pre_timestamp.
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * (state->num_samples - 1));
 
-    // QC - what's the difference between data_count and num_samples?
+    // QC - what's the difference between state->mag_info.data_count and state->num_samples?
     state->mag_info.data_count = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
   }
@@ -1601,7 +1600,6 @@ static sns_rc ak0991x_check_ascp_and_first_irq(sns_sensor_instance *const instan
   {
     if(!state->received_first_irq)
     {
-      AK0991X_INST_PRINT(LOW, instance, "first irq is not received yet. ignored.");
       rc |= SNS_RC_FAILED;
     }
 
@@ -2049,11 +2047,16 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
       AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
     }
   }
+/* 
+  // QC - Must not remove timer stream here as this function can be called 
+  // QC - from within the while loop processing timer stream event
+  // QC - Let deinit() process remove timer stream
   else
   {
     sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
     AK0991X_INST_PRINT(LOW, this, "remove timer.");
   }
+*/
 }
 
 void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
@@ -2205,13 +2208,13 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  AK0991X_INST_PRINT(LOW, this, "reconfig_hw");
+  AK0991X_INST_PRINT(LOW, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
 
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
     if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
-            (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
-            (!state->mag_info.use_dri))
+        (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
+        (!state->mag_info.use_dri))
     {
       ak0991x_start_mag_streaming(this);
     }

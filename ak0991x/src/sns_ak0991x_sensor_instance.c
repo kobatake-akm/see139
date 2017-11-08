@@ -56,6 +56,9 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   }
   else if (desired_sample_rate <= AK0991X_ODR_10)
   {
+    // QC -- disable 1Hz support to more easily pass CTS tests. This avoids phase
+    // change jitter when switiching between 1Hz & 10Hz operation.
+    /*
     if ((desired_sample_rate <= AK0991X_ODR_1) &&
         ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
     {
@@ -63,6 +66,7 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
       *chosen_reg_value = AK0991X_MAG_ODR1;
     }
     else
+    */
     {
       *chosen_sample_rate = AK0991X_ODR_10;
       *chosen_reg_value = AK0991X_MAG_ODR10;
