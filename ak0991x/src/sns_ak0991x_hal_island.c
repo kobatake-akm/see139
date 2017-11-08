@@ -642,6 +642,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->previous_irq_time = state->system_time;
   state->reg_event_done = false;
   state->received_first_irq = false;
+  state->is_temp_average = false;
 
 #ifdef AK0991X_ENABLE_DRI
   if(state->mag_info.use_dri)
@@ -1428,6 +1429,13 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
 #ifdef AK0991X_ENABLE_DRI
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
+  // if the previous batch use unreliable timestamp, then reset.
+  if(state->is_temp_average)
+  {
+    state->averaged_interval = state->temp_averaged_interval; // reset
+    state->is_temp_average = false;
+  }
+
   // set interrupt_timestamp
   if(state->irq_info.detect_irq_event)  // DRI
   {
@@ -1436,14 +1444,14 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     {
       sns_time nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
-      // calculate internal oscillator error. 10 bit resolution(= 0.1% error)
+      // calculate internal oscillator error. 12 bit resolution(= 0.025% error)
       // QC - This calculation will overflow if the delta is bigger than 218 ms
-      uint32_t internal_clock_error = // QC - should probably be uint64_t.
-          ( (state->interrupt_timestamp - state->previous_irq_time) << 10 ) / 
+      uint64_t internal_clock_error = // QC - should probably be uint64_t.
+          ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
           (state->measurement_time + nominal_intvl * (state->mag_info.data_count-1));
 
       // update actual averaged interval
-      state->averaged_interval = (sns_time)((nominal_intvl * internal_clock_error) >> 10);
+      state->averaged_interval = (sns_time)((nominal_intvl * internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
       AK0991X_INST_PRINT(HIGH, instance, "this is the first data. avg_intvl %u",
                          (uint32_t)state->averaged_interval);
     }
@@ -1457,7 +1465,21 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     // QC - For this calculation to work, it needs to be the WM.
     // QC - Also, must check to make sure that first_data_ts_of_batch is bigger than pre_timestamp.
     state->first_data_ts_of_batch = state->interrupt_timestamp -
-      (state->averaged_interval * (state->num_samples - 1));
+      (state->averaged_interval * state->mag_info.cur_wmk);
+
+    // check negative timestamp
+    if(state->first_data_ts_of_batch < state->pre_timestamp)
+    {
+      AK0991X_INST_PRINT(HIGH, instance, "Negative timestamp detected! pre %u first_ts %u",
+                         (uint32_t)state->pre_timestamp,
+                         (uint32_t)state->first_data_ts_of_batch);
+      state->is_temp_average = true;
+      state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
+
+      state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / state->num_samples;
+      state->first_data_ts_of_batch = state->interrupt_timestamp -
+        (state->averaged_interval * (state->num_samples - 1));
+    }
 
     // QC - what's the difference between state->mag_info.data_count and state->num_samples?
     state->mag_info.data_count = 0; // reset only for DRI mode
