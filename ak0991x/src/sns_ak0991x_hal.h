@@ -126,15 +126,26 @@
 #define AK0991X_TWAIT_USEC                          100 //us
 
 /** masurement time */
-#define AK09911_TIME_FOR_MEASURE_US                 8500 //us
-#define AK09912_TIME_FOR_MEASURE_US                 8500 //us
-#define AK09913_TIME_FOR_MEASURE_US                 8200 //us
-#define AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4950 //us
-#define AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8500 //us
-#define AK09916_TIME_FOR_MEASURE_US                 8200 //us
-#define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4100 //us
-#define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us
-#define AK09918_TIME_FOR_MEASURE_US                 8200 //us
+/*
+#define AK09911_TIME_FOR_MEASURE_US                 8500 //us (MAX)
+#define AK09912_TIME_FOR_MEASURE_US                 8500 //us (MAX)
+#define AK09913_TIME_FOR_MEASURE_US                 8200 //us (MAX)
+#define AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4950 //us (MAX)
+#define AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  9350 //us (MAX)
+#define AK09916_TIME_FOR_MEASURE_US                 8200 //us (MAX)
+#define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4100 //us (MAX)
+#define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us (MAX)
+#define AK09918_TIME_FOR_MEASURE_US                 8200 //us (MAX)
+*/
+#define AK09911_TIME_FOR_MEASURE_US                 7200 //us (TYP)
+#define AK09912_TIME_FOR_MEASURE_US                 7200 //us (TYP)
+#define AK09913_TIME_FOR_MEASURE_US                 7200 //us (TYP)
+#define AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4500 //us (TYP)
+#define AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8500 //us (TYP)
+#define AK09916_TIME_FOR_MEASURE_US                 7200 //us (TYP)
+#define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  3600 //us (TYP)
+#define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  7200 //us (TYP)
+#define AK09918_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 
 #ifdef AK0991X_ENABLE_S4S
 /** s4s configuration */
@@ -321,6 +332,11 @@
  * Number of axes in a 3 axis sensor
  */
 #define AK0991X_NUM_AXES                            TRIAXIS_NUM
+
+/*******************************
+ * Measurement time calculation bit resolution
+ */
+#define AK0991X_CALC_BIT_RESOLUTION                 12
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************
