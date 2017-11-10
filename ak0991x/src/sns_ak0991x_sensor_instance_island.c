@@ -226,7 +226,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
           if(state->ascp_xfer_in_progress == 0)
           {
-            state->received_first_irq = true;
             ak0991x_read_mag_samples(this);
           }
           else
