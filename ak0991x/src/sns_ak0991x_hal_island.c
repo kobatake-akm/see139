@@ -41,6 +41,7 @@
 #include "sns_diag.pb.h"
 
 #include "sns_cal_util.h"
+#include "sns_cal.pb.h"
 #include "sns_sensor_util.h"
 
 //#define AK0991X_VERBOSE_DEBUG             // Define to enable extra debugging
@@ -641,6 +642,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->previous_irq_time = state->system_time;
   state->reg_event_done = false;
   state->received_first_irq = false;
+  state->is_temp_average = false;
 
 #ifdef AK0991X_ENABLE_DRI
   if(state->mag_info.use_dri)
@@ -1427,28 +1429,59 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
 #ifdef AK0991X_ENABLE_DRI
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
+  // if the previous batch use unreliable timestamp, then reset.
+  if(state->is_temp_average)
+  {
+    state->averaged_interval = state->temp_averaged_interval; // reset
+    state->is_temp_average = false;
+  }
+
   // set interrupt_timestamp
   if(state->irq_info.detect_irq_event)  // DRI
   {
     state->interrupt_timestamp = state->irq_event_time;
     if(state->this_is_first_data)
     {
-      // calculate internal oscillator error. 10 bit resolution(= 0.1% error)
-      uint32_t internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << 10 ) /
-          (state->measurement_time + ak0991x_get_sample_interval(state->mag_info.curr_odr) * (state->mag_info.data_count-1));
+      sns_time nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+
+      // calculate internal oscillator error. 12 bit resolution(= 0.025% error)
+      // QC - This calculation will overflow if the delta is bigger than 218 ms
+      uint64_t internal_clock_error = // QC - should probably be uint64_t.
+          ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
+          (state->measurement_time + nominal_intvl * (state->mag_info.data_count-1));
 
       // update actual averaged interval
-      state->averaged_interval = (sns_time)((ak0991x_get_sample_interval(state->mag_info.curr_odr) * internal_clock_error) >> 10);
-      AK0991X_INST_PRINT(HIGH, instance, "this is the first data. avg_intvl %u",(uint32_t)state->averaged_interval);
+      state->averaged_interval = (sns_time)((nominal_intvl * internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
+      AK0991X_INST_PRINT(HIGH, instance, "this is the first data. avg_intvl %u",
+                         (uint32_t)state->averaged_interval);
     }
     else
     {
+      // QC - This should be dividing by the WM samples, not the actual number of samples read from the FIFO
       state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
     }
 
+    // QC - Is "state->num_samples-1" the WM? or is it the number of samples just read from the buffer.
+    // QC - For this calculation to work, it needs to be the WM.
+    // QC - Also, must check to make sure that first_data_ts_of_batch is bigger than pre_timestamp.
     state->first_data_ts_of_batch = state->interrupt_timestamp -
-      (state->averaged_interval * (state->num_samples - 1));
+      (state->averaged_interval * state->mag_info.cur_wmk);
 
+    // check negative timestamp
+    if(state->first_data_ts_of_batch < state->pre_timestamp)
+    {
+      AK0991X_INST_PRINT(HIGH, instance, "Negative timestamp detected! pre %u first_ts %u",
+                         (uint32_t)state->pre_timestamp,
+                         (uint32_t)state->first_data_ts_of_batch);
+      state->is_temp_average = true;
+      state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
+
+      state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / state->num_samples;
+      state->first_data_ts_of_batch = state->interrupt_timestamp -
+        (state->averaged_interval * (state->num_samples - 1));
+    }
+
+    // QC - what's the difference between state->mag_info.data_count and state->num_samples?
     state->mag_info.data_count = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
   }
@@ -1589,7 +1622,6 @@ static sns_rc ak0991x_check_ascp_and_first_irq(sns_sensor_instance *const instan
   {
     if(!state->received_first_irq)
     {
-      AK0991X_INST_PRINT(LOW, instance, "first irq is not received yet. ignored.");
       rc |= SNS_RC_FAILED;
     }
 
@@ -1736,6 +1768,33 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 #endif
     state->heart_beat_attempt_count = 0;
   }
+}
+
+static void ak0991x_send_cal_event(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_cal_event cal_event = sns_cal_event_init_default;
+  pb_buffer_arg buff_arg_bias = { 
+    .buf     = &state->mag_registry_cfg.fac_cal_bias, 
+    .buf_len = ARR_SIZE(state->mag_registry_cfg.fac_cal_bias) };
+  pb_buffer_arg buff_arg_comp_matrix = { 
+    .buf     = &state->mag_registry_cfg.fac_cal_corr_mat.data, 
+    .buf_len = ARR_SIZE(state->mag_registry_cfg.fac_cal_corr_mat.data) };
+
+  cal_event.bias.funcs.encode        = &pb_encode_float_arr_cb;
+  cal_event.bias.arg                 = &buff_arg_bias;
+  cal_event.comp_matrix.funcs.encode = &pb_encode_float_arr_cb;
+  cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
+  cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
+
+  AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
+
+  pb_send_event(instance,
+                sns_cal_event_fields,
+                &cal_event,
+                sns_get_system_time(),
+                SNS_CAL_MSGID_SNS_CAL_EVENT,
+                &state->mag_info.suid);
 }
 
 /** See sns_ak0991x_hal.h */
@@ -1932,6 +1991,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
 
+  ak0991x_send_cal_event(instance);
+
   return SNS_RC_SUCCESS;
 }
 
@@ -2008,11 +2069,16 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
       AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
     }
   }
+/* 
+  // QC - Must not remove timer stream here as this function can be called 
+  // QC - from within the while loop processing timer stream event
+  // QC - Let deinit() process remove timer stream
   else
   {
     sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
     AK0991X_INST_PRINT(LOW, this, "remove timer.");
   }
+*/
 }
 
 void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
@@ -2164,13 +2230,13 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  AK0991X_INST_PRINT(LOW, this, "reconfig_hw");
+  AK0991X_INST_PRINT(LOW, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
 
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
     if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
-            (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
-            (!state->mag_info.use_dri))
+        (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
+        (!state->mag_info.use_dri))
     {
       ak0991x_start_mag_streaming(this);
     }
