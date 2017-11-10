@@ -22,6 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/09/17     010042     AKM              Fine tuned average interval calculation
+ * 11/09/17                Qualcomm         Changed to disallow Flush requests without Config requests
+ * 11/09/17                Qualcomm         When DAE is unavailable reconfig HW after interrupt is ready
  * 11/07/17     010041     Qualcomm         Remove 1Hz ODR. Don't delete timer stream while processing it.
  * 11/04/17     010040     Qualcomm         Added Calibration event. 
  * 11/03/17     010039     AKM              Removed AK09917_REV_A flag. Calculate averaged_interval.
@@ -87,4 +90,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10041  // major:01 minor:00 revision:41
+#define AK0991X_DRIVER_VERSION 10042  // major:01 minor:00 revision:42

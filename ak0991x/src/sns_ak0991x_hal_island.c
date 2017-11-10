@@ -1297,7 +1297,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.resolution;
   ipdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z] * state->mag_info.resolution;
 
-  if(!state->mag_info.flush_only)
+  // QC - flush_only is only applicable when DAE sensor is available
+  //if(!state->mag_info.flush_only)
   {
 	  // axis conversion
 	  for (i = 0; i < TRIAXIS_NUM; i++)
@@ -1328,7 +1329,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 	    timestamp,
 	    status);
   }
-
+/* 
+  // QC - costly to print each sample
   AK0991X_INST_PRINT(LOW, instance, "timestamp %u pre %u irq %u ave %u Mag %d,%d,%d fl_only %d num_sample %d",
       (uint32_t)timestamp,
       (uint32_t)state->pre_timestamp,
@@ -1339,6 +1341,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       (int16_t)(lsbdata[TRIAXIS_Z]),
       state->mag_info.flush_only,
       state->num_samples);
+*/
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -1376,6 +1379,17 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                               event_service,
                               state,
                               &log_mag_state_raw_info);
+
+    // QC - prints only first/last/only sample of the batch
+    if(num_samples_sets == 1 || num_samples_sets == state->num_samples)
+    {
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u ave %u #sample %d",
+          (uint32_t)timestamp,
+          (uint32_t)state->pre_timestamp,
+          (uint32_t)state->irq_event_time,
+          (uint32_t)state->averaged_interval,
+          state->num_samples);
+    }
   }
 
   // store previous timestamp
@@ -1445,8 +1459,7 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
       sns_time nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
       // calculate internal oscillator error. 12 bit resolution(= 0.025% error)
-      // QC - This calculation will overflow if the delta is bigger than 218 ms
-      uint64_t internal_clock_error = // QC - should probably be uint64_t.
+      uint64_t internal_clock_error =
           ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
           (state->measurement_time + nominal_intvl * (state->mag_info.data_count-1));
 
@@ -1461,9 +1474,6 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
       state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
     }
 
-    // QC - Is "state->num_samples-1" the WM? or is it the number of samples just read from the buffer.
-    // QC - For this calculation to work, it needs to be the WM.
-    // QC - Also, must check to make sure that first_data_ts_of_batch is bigger than pre_timestamp.
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * state->mag_info.cur_wmk);
 
@@ -1476,6 +1486,7 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
       state->is_temp_average = true;
       state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
 
+      // QC - should use WM, not num_samples, in these 2 statements
       state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / state->num_samples;
       state->first_data_ts_of_batch = state->interrupt_timestamp -
         (state->averaged_interval * (state->num_samples - 1));
@@ -1622,19 +1633,21 @@ static sns_rc ak0991x_check_ascp_and_first_irq(sns_sensor_instance *const instan
   {
     if(!state->received_first_irq)
     {
+      // QC - When WM is high this can significantly delay Flush response resulting in CTS test failure
+      AK0991X_INST_PRINT(LOW, instance, "first irq is not received yet. wait.");
       rc |= SNS_RC_FAILED;
     }
-
-    if( !state->irq_info.detect_irq_event &&
-        !state->this_is_the_last_flush &&
-        state->system_time < (state->pre_timestamp + state->averaged_interval)
-        )
+    else if(!state->irq_info.detect_irq_event &&
+            !state->this_is_the_last_flush &&
+            state->system_time < (state->pre_timestamp + state->averaged_interval))
     {
+      /*
       if(state->fifo_flush_in_progress)
       {
         state->fifo_flush_in_progress = false;
         ak0991x_send_fifo_flush_done(instance);
-      }
+      } 
+      */ 
       AK0991X_INST_PRINT(LOW, instance, "wait for irq...");
       rc |= SNS_RC_FAILED;
     }
@@ -2062,23 +2075,12 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
       timer_req.request = buffer;
       /** Send encoded request to Timer Sensor */
       state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
-      AK0991X_INST_PRINT(LOW, this, "Success to send to Timer Sensor");
     }
     else
     {
       AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
     }
   }
-/* 
-  // QC - Must not remove timer stream here as this function can be called 
-  // QC - from within the while loop processing timer stream event
-  // QC - Let deinit() process remove timer stream
-  else
-  {
-    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
-    AK0991X_INST_PRINT(LOW, this, "remove timer.");
-  }
-*/
 }
 
 void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
