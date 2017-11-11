@@ -219,6 +219,7 @@ typedef struct ak0991x_instance_state
   sns_time previous_irq_time;
   sns_time heart_beat_timestamp;
   sns_time heart_beat_timeout_period;
+  sns_time nominal_intvl;
   uint8_t  heart_beat_sample_count;
   uint8_t  heart_beat_attempt_count;
   sns_timer_sensor_config req_payload;
@@ -243,7 +244,7 @@ typedef struct ak0991x_instance_state
   ak0991x_dae_if_info       dae_if;
   ak0991x_config_step       config_step;
 
-  /** Data streams from dependentcies. */
+  /** Data streams from dependencies. */
   sns_data_stream       *timer_data_stream;
 #ifdef AK0991X_ENABLE_DRI
   sns_data_stream       *interrupt_data_stream;

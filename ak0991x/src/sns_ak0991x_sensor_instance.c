@@ -237,7 +237,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
-  state->got_internal_clock_error = state->mag_info.use_dri ? false : true;
+  state->got_internal_clock_error = !state->mag_info.use_dri;
   state->got_first_irq = !state->mag_info.use_dri;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);

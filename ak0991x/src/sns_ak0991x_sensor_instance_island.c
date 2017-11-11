@@ -102,7 +102,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
     (ak0991x_instance_state *)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  if (state->mag_info.use_dri)
+  if (state->mag_info.use_dri && state->got_internal_clock_error)
   {
     AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
     // Streaming is unable to resume after 4 attempts
@@ -122,9 +122,8 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
         rv = ak0991x_device_sw_reset(this,
                                      state->scp_service,
                                      state->com_port_info.port_handle);
-        if (rv == SNS_RC_SUCCESS) {
-          AK0991X_INST_PRINT(LOW, this, "soft reset called");
-        } else {
+        if (rv != SNS_RC_SUCCESS)
+        {
           AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
         }
         // Indicate streaming error

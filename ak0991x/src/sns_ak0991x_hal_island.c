@@ -447,8 +447,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   }
 
   //1ms wait
-  //  sns_busy_wait(sns_convert_ns_to_ticks(1000000LL));
-  sns_busy_wait(sns_convert_ns_to_ticks(10000LL));
+  sns_busy_wait(sns_convert_ns_to_ticks(1000000LL));
 
   return SNS_RC_SUCCESS;
 }
@@ -578,11 +577,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   if(!force_off && state->mag_info.use_dri && !state->got_first_irq && !state->got_internal_clock_error)
   {
     buffer[0] = 0x0;
-//    buffer[1] = (uint8_t)AK0991X_MAG_ODR100 | (state->mag_info.sdr << 6);
-    buffer[1] = 0x0
-      | ((uint8_t)state->mag_info.use_fifo << 7) // FIFO bit
-      | (state->mag_info.sdr << 6)               // SDR bit
-      | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
+    buffer[1] = (uint8_t)AK0991X_MAG_ODR100 | (state->mag_info.sdr << 6);
     AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement start.");
   }
 
@@ -647,15 +642,18 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = state->system_time;
   state->previous_irq_time = state->system_time;
+  state->irq_event_time = state->system_time;
   state->reg_event_done = false;
   state->is_temp_average = false;
   state->got_first_irq = !state->mag_info.use_dri;
+  state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u", (uint32_t)state->system_time);
 
-  #ifdef AK0991X_ENABLE_DRI
-  if(state->mag_info.use_dri)
+#ifdef AK0991X_ENABLE_DRI
+  if(state->mag_info.use_dri && state->got_internal_clock_error)
   {
+    AK0991X_INST_PRINT(HIGH, this, "register heart beat timer for DRI");
     ak0991x_set_timer_request_payload(this);
     ak0991x_register_heart_beat_timer(this);
   }
@@ -1388,22 +1386,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     // store previous timestamp
     state->pre_timestamp = timestamp;
   }
-  else
-  {
-    // restart sensor
-    AK0991X_INST_PRINT(LOW, instance, "re-start for actual ODR.");
-
-    // Reset device
-    sns_rc rv = ak0991x_device_sw_reset(instance,
-                                 state->scp_service,
-                                 state->com_port_info.port_handle);
-    if(rv != SNS_RC_SUCCESS){
-      AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
-    }
-
-    state->got_internal_clock_error = true;
-    ak0991x_reconfig_hw(instance);
-  }
 
   // reset flags
   state->this_is_first_data = false;
@@ -1463,38 +1445,35 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
   // set interrupt_timestamp
   if(state->irq_info.detect_irq_event)  // DRI
   {
-    sns_time nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
     state->interrupt_timestamp = state->irq_event_time;
 
     if(!state->got_first_irq)
     {
       if(!state->got_internal_clock_error)
       {
-        // calculate internal oscillator error. 12 bit resolution(= 0.025% error)
+        // calculate internal clock error. 12 bit resolution(= 0.025% error)
         state->internal_clock_error =
             ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) / (state->measurement_time);
-
-        AK0991X_INST_PRINT(HIGH, instance, "internal_clock_error %u",
-                           (uint32_t)state->internal_clock_error);
       }
       else{
-        // calculate internal oscillator error. 12 bit resolution(= 0.025% error)
+        // calculate internal clock error. 12 bit resolution(= 0.025% error)
         state->internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
-            (state->measurement_time + nominal_intvl * (state->mag_info.data_count - 1));
+            (state->measurement_time + state->nominal_intvl * (state->mag_info.data_count - 1));
       }
+      // update averaged interval
+      state->averaged_interval = (sns_time)((state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
 
-      // update actual averaged interval
-      state->averaged_interval = (sns_time)((nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
-      AK0991X_INST_PRINT(HIGH, instance, "this is the first irq. avg_intvl %u",
-                         (uint32_t)state->averaged_interval);
+      AK0991X_INST_PRINT(HIGH, instance, "this is the first irq. avg_intvl %u clk_err %u",
+                         (uint32_t)state->averaged_interval,
+                         (uint32_t)state->internal_clock_error);
 
-      state->got_first_irq = true;
+      state->got_first_irq = true; // received the first irq data
     }
     else
     {
-      // keep re-calculating for OSC frequency drift be temperature change.
+      // keep re-calculating for clock frequency drifting.
       state->internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
-          (nominal_intvl * state->mag_info.data_count);
+          (state->nominal_intvl * state->mag_info.data_count);
 
       // QC - This should be dividing by the WM samples, not the actual number of samples read from the FIFO
       // AKM - mag_info.data_count is not equal to the FIFO  num. It is # of samples from the PREVIOUS irq.
@@ -1574,8 +1553,12 @@ static void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
 
 #ifdef AK0991X_ENABLE_FIFO
-  // set num_samples
-  if( state->mag_info.use_fifo )
+
+  if(!state->got_internal_clock_error)
+  {
+    state->num_samples = 1;
+  }
+  else if( state->mag_info.use_fifo )
   {
     if(state->mag_info.device_select == AK09917 && !state->force_fifo_read_till_wm )
     {
@@ -1652,7 +1635,7 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
 }
 #endif
 
-static sns_rc ak0991x_check_ascp_and_first_irq(sns_sensor_instance *const instance)
+static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
@@ -1795,13 +1778,10 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  if(SNS_RC_SUCCESS == ak0991x_check_ascp_and_first_irq(instance))
+  if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
     // get num_samples, DRDY and data over run status from ST1
-    if(state->got_internal_clock_error)
-    {
-      ak0991x_get_st1_status(instance);
-    }
+    ak0991x_get_st1_status(instance);
 
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
     ak0991x_read_fifo_buffer(instance);
@@ -1812,6 +1792,23 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       // Register for timer to enable heart beat function
       ak0991x_register_heart_beat_timer(instance);
     }
+    else
+    {
+      // restart sensor
+      AK0991X_INST_PRINT(LOW, instance, "re-start for actual ODR.");
+
+      // Reset device
+      sns_rc rv = ak0991x_device_sw_reset(instance,
+                                   state->scp_service,
+                                   state->com_port_info.port_handle);
+      if(rv != SNS_RC_SUCCESS)
+      {
+        AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+      }
+      state->got_internal_clock_error = true;
+      ak0991x_reconfig_hw(instance);
+    }
+
 #endif
     state->heart_beat_attempt_count = 0;
   }
