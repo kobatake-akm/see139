@@ -445,10 +445,6 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   {
     return rv;
   }
-
-  //1ms wait
-  sns_busy_wait(sns_convert_ns_to_ticks(1000000LL));
-
   return SNS_RC_SUCCESS;
 }
 
@@ -574,7 +570,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 #endif
 
   // Force 100Hz DRI measurement starts to get the clock error.
-  if(!force_off && state->mag_info.use_dri && !state->got_first_irq && !state->got_internal_clock_error)
+  if(!force_off && state->mag_info.use_dri && (state->mag_info.irq_event_count == 0))
   {
     buffer[0] = 0x0;
     buffer[1] = (uint8_t)AK0991X_MAG_ODR100 | (state->mag_info.sdr << 6);
@@ -634,7 +630,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->system_time = sns_get_system_time();
   state->pre_timestamp = state->system_time;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
-  state->measurement_time = sns_convert_ns_to_ticks(meas_usec * 1000);
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
@@ -645,13 +640,14 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->irq_event_time = state->system_time;
   state->reg_event_done = false;
   state->is_temp_average = false;
-  state->got_first_irq = !state->mag_info.use_dri;
+
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u", (uint32_t)state->system_time);
 
 #ifdef AK0991X_ENABLE_DRI
-  if(state->mag_info.use_dri && state->got_internal_clock_error)
+  if(state->mag_info.use_dri &&
+      (state->mag_info.irq_event_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC))
   {
     AK0991X_INST_PRINT(HIGH, this, "register heart beat timer for DRI");
     ak0991x_set_timer_request_payload(this);
@@ -1360,7 +1356,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
-  if(state->got_internal_clock_error)
+  if(state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     for(i = 0; i < num_bytes; i += 8)
     {
@@ -1388,8 +1384,8 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   }
 
   // reset flags
-  state->this_is_first_data = false;
   state->irq_info.detect_irq_event = false;
+  state->this_is_first_data = false;
   state->force_fifo_read_till_wm = false;
   state->this_is_the_last_flush = false;
   if(state->fifo_flush_in_progress)
@@ -1430,6 +1426,74 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 #endif // AK0991X_ENABLE_FIFO
 }
 
+#ifdef AK0991X_ENABLE_DRI
+static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+
+  // set interrupt_timestamp
+  if(state->irq_info.detect_irq_event)  // DRI
+  {
+    state->interrupt_timestamp = state->irq_event_time;
+
+    if(state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
+    {
+      if( !state->this_is_first_data )
+      {
+        // keep re-calculating for clock frequency drifting.
+        state->internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
+            (state->nominal_intvl * state->mag_info.data_count);
+
+        // QC - This should be dividing by the WM samples, not the actual number of samples read from the FIFO
+        // AKM - mag_info.data_count is not equal to the FIFO  num. It is # of samples from the PREVIOUS irq.
+        // AKM - It can be more than WM if there are flushs between the current irq and previous.
+        state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
+      }
+    }
+    else    // during OSC error rate calculation after init
+    {
+      // 100Hz Fixed. calculate internal clock error from time between the previous inq and the current
+      state->internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
+          ak0991x_get_sample_interval(AK0991X_MAG_ODR100);
+    }
+  }
+
+  if(state->this_is_first_data) // come into DRI and flush request
+  {
+    // the previous interrupt is not the interrupt. Then use nomina_interval
+    state->averaged_interval = (sns_time)((state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
+
+    if(state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
+    {
+      AK0991X_INST_PRINT(LOW, instance, "this is the first data. avg_intvl %u clk_err %u",
+                         (uint32_t)state->averaged_interval,
+                         (uint32_t)state->internal_clock_error);
+    }
+  }
+}
+
+static void ak0991x_check_neagative_timestamp_for_dri(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+
+  // check negative timestamp
+  if(state->first_data_ts_of_batch < state->pre_timestamp)
+  {
+    AK0991X_INST_PRINT(HIGH, instance, "Negative timestamp detected! pre %u first_ts %u avg %u",
+                       (uint32_t)state->pre_timestamp,
+                       (uint32_t)state->first_data_ts_of_batch,
+                       (uint32_t)state->averaged_interval);
+    state->is_temp_average = true;
+    state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
+
+    // QC - should use WM, not num_samples, in these 2 statements
+    state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / (state->mag_info.cur_wmk + 1);
+    state->first_data_ts_of_batch = state->interrupt_timestamp -
+      (state->averaged_interval * state->mag_info.cur_wmk);
+  }
+}
+#endif // AK0991X_ENABLE_DRI
+
 static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 {
 #ifdef AK0991X_ENABLE_DRI
@@ -1442,67 +1506,20 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     state->is_temp_average = false;
   }
 
-  // set interrupt_timestamp
+  ak0991x_calc_average_interval_for_dri(instance);
+
   if(state->irq_info.detect_irq_event)  // DRI
   {
-    state->interrupt_timestamp = state->irq_event_time;
-
-    if(!state->got_first_irq)
-    {
-      if(!state->got_internal_clock_error)
-      {
-        // calculate internal clock error. 12 bit resolution(= 0.025% error)
-        state->internal_clock_error =
-            ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) / (state->measurement_time);
-      }
-      else{
-        // calculate internal clock error. 12 bit resolution(= 0.025% error)
-        state->internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
-            (state->measurement_time + state->nominal_intvl * (state->mag_info.data_count - 1));
-      }
-      // update averaged interval
-      state->averaged_interval = (sns_time)((state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
-
-      AK0991X_INST_PRINT(HIGH, instance, "this is the first irq. avg_intvl %u clk_err %u",
-                         (uint32_t)state->averaged_interval,
-                         (uint32_t)state->internal_clock_error);
-
-      state->got_first_irq = true; // received the first irq data
-    }
-    else
-    {
-      // keep re-calculating for clock frequency drifting.
-      state->internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
-          (state->nominal_intvl * state->mag_info.data_count);
-
-      // QC - This should be dividing by the WM samples, not the actual number of samples read from the FIFO
-      // AKM - mag_info.data_count is not equal to the FIFO  num. It is # of samples from the PREVIOUS irq.
-      // AKM - It can be more than WM if there are flushs between the current irq and previous.
-      state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
-    }
-
-    if(state->got_internal_clock_error)
+    if(state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
     {
       state->first_data_ts_of_batch = state->interrupt_timestamp -
         (state->averaged_interval * state->mag_info.cur_wmk);
 
-      // check negative timestamp
-      if(state->first_data_ts_of_batch < state->pre_timestamp)
-      {
-        AK0991X_INST_PRINT(HIGH, instance, "Negative timestamp detected! pre %u first_ts %u",
-                           (uint32_t)state->pre_timestamp,
-                           (uint32_t)state->first_data_ts_of_batch);
-        state->is_temp_average = true;
-        state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
-
-        // QC - should use WM, not num_samples, in these 2 statements
-        state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / (state->mag_info.cur_wmk + 1);
-        state->first_data_ts_of_batch = state->interrupt_timestamp -
-          (state->averaged_interval * state->mag_info.cur_wmk);
-      }
+      ak0991x_check_neagative_timestamp_for_dri(instance);
     }
     else
     {
+      // Because fixed 100Hz + DRI mode
       state->first_data_ts_of_batch = state->interrupt_timestamp;
     }
 
@@ -1554,7 +1571,8 @@ static void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 
 #ifdef AK0991X_ENABLE_FIFO
 
-  if(!state->got_internal_clock_error)
+  if(state->mag_info.use_dri &&
+      (state->mag_info.irq_event_count <= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC))
   {
     state->num_samples = 1;
   }
@@ -1647,26 +1665,16 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     AK0991X_INST_PRINT(LOW, instance, "#ascp_xfer=%u", state->ascp_xfer_in_progress);
     rc |= SNS_RC_FAILED;
   }
-/*
+
 #ifdef AK0991X_ENABLE_DRI
-  if(state->mag_info.use_dri)
+  if( !state->irq_info.detect_irq_event &&
+      (state->mag_info.irq_event_count < AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC) )
   {
-    if (!state->got_internal_clock_error)
-    {
-      // QC - When WM is high this can significantly delay Flush response resulting in CTS test failure
-      AK0991X_INST_PRINT(LOW, instance, "first irq is not received yet. wait.");
-      rc |= SNS_RC_FAILED;
-    }
-    else if(!state->irq_info.detect_irq_event &&
-            !state->this_is_the_last_flush &&
-            state->system_time < (state->pre_timestamp + state->averaged_interval))
-    {
-      AK0991X_INST_PRINT(LOW, instance, "wait for irq...");
-      rc |= SNS_RC_FAILED;
-    }
+    AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
+    rc |= SNS_RC_FAILED;
   }
 #endif
-*/
+
   return rc;
 }
 
@@ -1676,8 +1684,10 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
 #ifdef AK0991X_ENABLE_FIFO
+
   // FIFO mode
-  if(state->mag_info.use_fifo && state->got_internal_clock_error)
+  if(state->mag_info.use_fifo &&
+      (state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC) )
   {
     if(state->mag_info.device_select == AK09917)    // AK09917
     {
@@ -1787,26 +1797,30 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
     ak0991x_read_fifo_buffer(instance);
 
 #ifdef AK0991X_ENABLE_DRI
-    if(state->mag_info.use_dri && state->got_internal_clock_error)
+    if( state->mag_info.use_dri )
     {
-      // Register for timer to enable heart beat function
-      ak0991x_register_heart_beat_timer(instance);
-    }
-    else
-    {
-      // restart sensor
-      AK0991X_INST_PRINT(LOW, instance, "re-start for actual ODR.");
-
-      // Reset device
-      sns_rc rv = ak0991x_device_sw_reset(instance,
-                                   state->scp_service,
-                                   state->com_port_info.port_handle);
-      if(rv != SNS_RC_SUCCESS)
+      if( ( state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC) )
       {
-        AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+        // restart timer to enable heart beat function
+        ak0991x_register_heart_beat_timer(instance);
       }
-      state->got_internal_clock_error = true;
-      ak0991x_reconfig_hw(instance);
+      else if (state->mag_info.irq_event_count == AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
+      {
+        // restart sensor
+        AK0991X_INST_PRINT(LOW, instance, "re-start for actual ODR.");
+
+        // Reset device
+        sns_rc rv = ak0991x_device_sw_reset(instance,
+                                     state->scp_service,
+                                     state->com_port_info.port_handle);
+        if(rv != SNS_RC_SUCCESS)
+        {
+          AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+        }
+        ak0991x_reconfig_hw(instance);
+
+        state->mag_info.irq_event_count++; // to prevent for duplicate starts.
+      }
     }
 
 #endif
