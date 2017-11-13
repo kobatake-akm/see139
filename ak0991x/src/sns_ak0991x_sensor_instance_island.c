@@ -102,7 +102,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
     (ak0991x_instance_state *)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  if (state->mag_info.use_dri)
+  if (state->mag_info.use_dri && state->got_internal_clock_error)
   {
     AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
     // Streaming is unable to resume after 4 attempts
@@ -122,9 +122,8 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
         rv = ak0991x_device_sw_reset(this,
                                      state->scp_service,
                                      state->com_port_info.port_handle);
-        if (rv == SNS_RC_SUCCESS) {
-          AK0991X_INST_PRINT(LOW, this, "soft reset called");
-        } else {
+        if (rv != SNS_RC_SUCCESS)
+        {
           AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
         }
         // Indicate streaming error
@@ -220,13 +219,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->irq_event_time = irq_event.timestamp;
           state->irq_info.detect_irq_event = true; // detect interrupt
           state->system_time = sns_get_system_time();
-          AK0991X_INST_PRINT(LOW, this, "irq_event %u, now=%u",
+          AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
                              (uint32_t)irq_event.timestamp,
                              (uint32_t)state->system_time);
 
           if(state->ascp_xfer_in_progress == 0)
           {
-            state->received_first_irq = true;
             ak0991x_read_mag_samples(this);
           }
           else
@@ -239,6 +237,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
         state->irq_info.is_ready = true;
+        ak0991x_reconfig_hw(this);
       }
       else
       {
@@ -263,7 +262,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
 
         state->ascp_xfer_in_progress--;
-        AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress = %d", state->ascp_xfer_in_progress);
+        if(state->ascp_xfer_in_progress != 0)
+        {
+          AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress = %d", state->ascp_xfer_in_progress);
+        }
 
         if(state->re_read_data_after_ascp && (state->ascp_xfer_in_progress == 0))
         {

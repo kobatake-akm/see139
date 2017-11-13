@@ -56,21 +56,8 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   }
   else if (desired_sample_rate <= AK0991X_ODR_10)
   {
-    // QC -- disable 1Hz support to more easily pass CTS tests. This avoids phase
-    // change jitter when switiching between 1Hz & 10Hz operation.
-    /*
-    if ((desired_sample_rate <= AK0991X_ODR_1) &&
-        ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
-    {
-      *chosen_sample_rate = AK0991X_ODR_1;
-      *chosen_reg_value = AK0991X_MAG_ODR1;
-    }
-    else
-    */
-    {
-      *chosen_sample_rate = AK0991X_ODR_10;
-      *chosen_reg_value = AK0991X_MAG_ODR10;
-    }
+    *chosen_sample_rate = AK0991X_ODR_10;
+    *chosen_reg_value = AK0991X_MAG_ODR10;
   }
   else if (desired_sample_rate <= AK0991X_ODR_20)
   {
@@ -250,6 +237,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
+  state->got_internal_clock_error = !state->mag_info.use_dri;
+  state->got_first_irq = !state->mag_info.use_dri;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -615,7 +604,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->system_time = sns_get_system_time();
 
       // care the FIFO buffer if enabled FIFO and already streaming
-      if ((!state->this_is_first_data) && (state->mag_info.use_fifo))
+      if ( (!state->this_is_first_data) && (state->mag_info.use_fifo) )
       {
         ak0991x_care_fifo_buffer(this,
                                  mag_chosen_sample_rate,
