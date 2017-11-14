@@ -336,7 +336,9 @@
 /*******************************
  * Measurement time calculation bit resolution
  */
-#define AK0991X_CALC_BIT_RESOLUTION                 12
+#define AK0991X_CALC_BIT_RESOLUTION                 13
+
+#define AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC          2
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************

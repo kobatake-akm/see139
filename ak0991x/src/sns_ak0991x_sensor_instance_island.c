@@ -102,7 +102,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
     (ak0991x_instance_state *)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  if (state->mag_info.use_dri && state->got_internal_clock_error)
+  if (state->mag_info.use_dri)
   {
     AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
     // Streaming is unable to resume after 4 attempts
@@ -218,6 +218,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           state->irq_event_time = irq_event.timestamp;
           state->irq_info.detect_irq_event = true; // detect interrupt
+          state->mag_info.irq_event_count++;
           state->system_time = sns_get_system_time();
           AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
                              (uint32_t)irq_event.timestamp,

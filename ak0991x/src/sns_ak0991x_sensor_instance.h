@@ -157,6 +157,7 @@ typedef struct ak0991x_mag_info
   ak0991x_self_test_info test_info;
   bool                   use_sync_stream;
   uint32_t      data_count;
+  uint32_t      irq_event_count;
 
 #ifdef AK0991X_ENABLE_S4S
   ak0991x_s4s_state      s4s_sync_state;
@@ -205,8 +206,6 @@ typedef struct ak0991x_instance_state
   bool force_fifo_read_till_wm;
   bool this_is_the_last_flush;
   bool reg_event_done;
-  bool got_first_irq;
-  bool got_internal_clock_error;
   bool is_temp_average;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
@@ -215,7 +214,6 @@ typedef struct ak0991x_instance_state
   sns_time averaged_interval;
   sns_time temp_averaged_interval;
   sns_time system_time;
-  sns_time measurement_time;
   sns_time previous_irq_time;
   sns_time heart_beat_timestamp;
   sns_time heart_beat_timeout_period;
