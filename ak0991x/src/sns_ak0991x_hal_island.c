@@ -570,11 +570,13 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 #endif
 
   // Force 100Hz DRI measurement starts to get the clock error.
-  if(!force_off && state->mag_info.use_dri && (state->mag_info.irq_event_count == 0))
+  if(!force_off && state->mag_info.use_dri && (state->mag_info.irq_event_count == 0) && !state->is_running_clock_error_procedure)
   {
     buffer[0] = 0x0;
     buffer[1] = (uint8_t)AK0991X_MAG_ODR100 | (state->mag_info.sdr << 6);
     AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement start.");
+
+    state->is_running_clock_error_procedure = true;
   }
 
   return ak0991x_com_write_wrapper(this,
@@ -1810,6 +1812,9 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       }
       else if (state->mag_info.irq_event_count == AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
       {
+        // got clock error rate.
+        state->is_running_clock_error_procedure = false;
+
         // restart sensor
         AK0991X_INST_PRINT(LOW, instance, "re-start for actual ODR.");
 

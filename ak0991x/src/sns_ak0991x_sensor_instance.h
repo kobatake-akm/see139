@@ -207,6 +207,7 @@ typedef struct ak0991x_instance_state
   bool this_is_the_last_flush;
   bool reg_event_done;
   bool is_temp_average;
+  bool is_running_clock_error_procedure;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
   sns_time pre_timestamp;
