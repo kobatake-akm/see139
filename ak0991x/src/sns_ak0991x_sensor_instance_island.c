@@ -260,6 +260,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
 
+        AK0991X_INST_PRINT(LOW, this, "got ASCP event");
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
 
         state->ascp_xfer_in_progress--;

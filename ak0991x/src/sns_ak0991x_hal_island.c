@@ -630,6 +630,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->system_time = sns_get_system_time();
   state->pre_timestamp = state->system_time;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
+  state->measurement_time = (sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
@@ -1462,6 +1463,9 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
   {
     // the previous interrupt is not the interrupt. Then use nomina_interval
     state->averaged_interval = (sns_time)((state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
+
+    // update pre_timestamp to consider the first measurenet doesn't have ODR length but measurement time
+    state->pre_timestamp = state->pre_timestamp + state->measurement_time - state->averaged_interval;
 
     if(state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
     {

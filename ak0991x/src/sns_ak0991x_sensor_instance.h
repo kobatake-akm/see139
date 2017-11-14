@@ -218,6 +218,7 @@ typedef struct ak0991x_instance_state
   sns_time heart_beat_timestamp;
   sns_time heart_beat_timeout_period;
   sns_time nominal_intvl;
+  sns_time measurement_time;
   uint8_t  heart_beat_sample_count;
   uint8_t  heart_beat_attempt_count;
   sns_timer_sensor_config req_payload;
