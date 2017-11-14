@@ -593,6 +593,24 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                        (int)mag_chosen_sample_rate_reg_value,
                        (int)state->config_step);
 
+#ifdef AK0991X_ENABLE_DRI
+    if(state->mag_info.use_dri &&
+       state->mag_info.use_fifo &&
+       state->mag_info.irq_event_count > 0 &&
+       state->mag_info.irq_event_count <= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
+    {
+      // Save request, but not set HW config -- return success
+      AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement is still running. save request.");
+      ak0991x_send_config_event(this);
+      // Turn COM port OFF
+      state->scp_service->api->sns_scp_update_bus_power(
+                                                        state->com_port_info.port_handle,
+                                                        false);
+
+      return SNS_RC_SUCCESS;
+    }
+#endif
+
     if (AK0991X_CONFIG_IDLE == state->config_step &&
         ak0991x_dae_if_stop_streaming(this))
     {

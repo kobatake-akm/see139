@@ -972,7 +972,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  ak0991x_get_adjusted_mag_data(this, buffer, &data[0]);
+  ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
 
 #ifdef AK0991X_ENABLE_ALL_DEVICES
   // check read value
