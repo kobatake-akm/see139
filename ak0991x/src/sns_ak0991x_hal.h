@@ -336,7 +336,9 @@
 /*******************************
  * Measurement time calculation bit resolution
  */
-#define AK0991X_CALC_BIT_RESOLUTION                 12
+#define AK0991X_CALC_BIT_RESOLUTION                 13
+
+#define AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC          2
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************
@@ -516,6 +518,10 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                                      sns_time            interval,
                                      uint8_t             *fifo,
                                      size_t              num_bytes);
+
+
+// QC -  Please add function header
+void ak0991x_get_st1_status(sns_sensor_instance *const instance);
 
 /**
  * Sends a FIFO complete event.

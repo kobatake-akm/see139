@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/15/17     010043     AKM              Fixed delayed Flush response
+ * 11/15/17                Qualcomm         Fixed race condition in DAE interface module
  * 11/09/17     010042     AKM              Fine tuned average interval calculation
  * 11/09/17                Qualcomm         Changed to disallow Flush requests without Config requests
  * 11/09/17                Qualcomm         When DAE is unavailable reconfig HW after interrupt is ready
@@ -90,4 +92,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10042  // major:01 minor:00 revision:42
+#define AK0991X_DRIVER_VERSION 10043  // major:01 minor:00 revision:43
