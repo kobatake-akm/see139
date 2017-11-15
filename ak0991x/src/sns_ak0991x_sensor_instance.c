@@ -237,6 +237,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
+  state->is_running_clock_error_procedure = false;
 
   // for polling, set to AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC+1 in or to ignore always.
   state->mag_info.irq_event_count = state->mag_info.use_dri ? 0 : AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC+1;
@@ -382,13 +383,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, false);
   }
 
-#ifdef AK0991X_ENABLE_DAE
-  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service  *stream_mgr =
-    (sns_stream_service *)service_mgr->get_service(service_mgr,
-                                                   SNS_STREAM_SERVICE);
-  ak0991x_dae_if_deinit(state, stream_mgr);
-#endif
+  ak0991x_dae_if_deinit(this);
 
   sns_sensor_util_remove_sensor_instance_stream(this,&state->timer_data_stream);
   //Deinit for S4S
@@ -594,10 +589,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                        (int)state->config_step);
 
 #ifdef AK0991X_ENABLE_DRI
-    if(state->mag_info.use_dri &&
-       state->mag_info.use_fifo &&
-       state->mag_info.irq_event_count > 0 &&
-       state->mag_info.irq_event_count <= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
+    if(state->is_running_clock_error_procedure)
     {
       // Save request, but not set HW config -- return success
       AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement is still running. save request.");

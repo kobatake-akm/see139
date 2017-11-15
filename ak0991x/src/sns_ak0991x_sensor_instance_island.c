@@ -216,22 +216,37 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          state->irq_event_time = irq_event.timestamp;
-          state->irq_info.detect_irq_event = true; // detect interrupt
-          state->mag_info.irq_event_count++;
-          state->system_time = sns_get_system_time();
-          AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
-                             (uint32_t)irq_event.timestamp,
-                             (uint32_t)state->system_time);
+          // check DRDY status.
+          ak0991x_get_st1_status(this);
 
-          if(state->ascp_xfer_in_progress == 0)
+          if(state->data_is_ready)
           {
-            ak0991x_read_mag_samples(this);
+            state->irq_event_time = irq_event.timestamp;
+            state->irq_info.detect_irq_event = true; // detect interrupt
+            state->mag_info.irq_event_count++;
+            state->system_time = sns_get_system_time();
+
+            if(state->mag_info.irq_event_count < AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC ||
+               (state->system_time - irq_event.timestamp > state->averaged_interval))
+            {
+              AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
+                                 (uint32_t)irq_event.timestamp,
+                                 (uint32_t)state->system_time);
+            }
+
+            if(state->ascp_xfer_in_progress == 0)
+            {
+              ak0991x_read_mag_samples(this);
+            }
+            else
+            {
+              AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
+              state->re_read_data_after_ascp = true;
+            }
           }
           else
           {
-            AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
-            state->re_read_data_after_ascp = true;
+            AK0991X_INST_PRINT(LOW, this, "DRDY is NOT ready. Skip.");
           }
         }
       }
@@ -260,6 +275,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
 
+        AK0991X_INST_PRINT(LOW, this, "got ASCP event");
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
 
         state->ascp_xfer_in_progress--;
@@ -306,11 +322,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
+          state->system_time = sns_get_system_time();
+
           // for regular polling mode
           if (!state->mag_info.use_dri && state->reg_event_done)
           {
             state->force_fifo_read_till_wm = true;
-            state->system_time = sns_get_system_time();
             AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now=%u",
                                (uint32_t)state->system_time);
             ak0991x_read_mag_samples(this);

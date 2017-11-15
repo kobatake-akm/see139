@@ -21,6 +21,7 @@
 #include "sns_request.h"
 #include "sns_time.h"
 #include "sns_sensor_event.h"
+#include "sns_sensor_util.h"
 #include "sns_types.h"
 
 #include "sns_ak0991x_hal.h"
@@ -278,7 +279,11 @@ static void process_response(
     {
     case SNS_DAE_MSGID_SNS_DAE_SET_STATIC_CONFIG:
       AK0991X_INST_PRINT(LOW, this,"DAE_SET_STATIC_CONFIG");
-      if(SNS_STD_ERROR_NO_ERROR != resp.err)
+      if(SNS_STD_ERROR_NO_ERROR == resp.err)
+      {
+        dae_stream->state = IDLE;
+      }
+      else
       {
         /* DAE sensor does not have support for this driver */
         dae_stream->stream_usable = false;
@@ -467,14 +472,7 @@ sns_rc ak0991x_dae_if_init(
   sns_dae_set_static_config config_req = sns_dae_set_static_config_init_default;
 
 #ifdef AK0991X_DAE_FORCE_NOT_AVAILABLE
-  if( dae_if->mag.stream != NULL )
-  {
-    sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-    sns_stream_service *stream_mgr =
-      (sns_stream_service*)service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-    stream_mgr->api->remove_stream(stream_mgr, dae_if->mag.stream);
-    dae_if->mag.stream = NULL;
-  }
+  sns_sensor_util_remove_sensor_instance_stream(this, &dae_if->mag.stream);
   dae_if->mag.stream_usable = false;
   return rc;
 #endif
@@ -536,7 +534,7 @@ sns_rc ak0991x_dae_if_init(
 
   if(SNS_RC_SUCCESS != rc)
   {
-    ak0991x_dae_if_deinit(state, stream_mgr);
+    ak0991x_dae_if_deinit(this);
   }
   else
   {
@@ -554,14 +552,12 @@ sns_rc ak0991x_dae_if_init(
 }
 
 /* ------------------------------------------------------------------------------------ */
-void ak0991x_dae_if_deinit(ak0991x_instance_state *state, sns_stream_service *stream_mgr)
+void ak0991x_dae_if_deinit(sns_sensor_instance *this)
 {
 #ifdef AK0991X_ENABLE_DAE
-  if(NULL != state->dae_if.mag.stream)
-  {
-    stream_mgr->api->remove_stream(stream_mgr, state->dae_if.mag.stream);
-    state->dae_if.mag.stream = NULL;
-  }
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  sns_sensor_util_remove_sensor_instance_stream(this, &state->dae_if.mag.stream);
+  state->dae_if.mag.state = PRE_INIT;
 #else
   UNUSED_VAR(state);
   UNUSED_VAR(stream_mgr);
@@ -596,9 +592,10 @@ bool ak0991x_dae_if_start_streaming(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info    *dae_if = &state->dae_if;
 
-  if(stream_usable(&state->dae_if.mag) &&
+  if(stream_usable(&state->dae_if.mag) && state->dae_if.mag.state > PRE_INIT &&
      (0 < state->mag_info.desired_odr))
   {
+    AK0991X_INST_PRINT(LOW, this,"starting mag stream=0x%x", &dae_if->mag.stream);
     cmd_sent |= send_mag_config(&dae_if->mag, &state->mag_info);
   }
 
@@ -656,15 +653,12 @@ void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 
   process_events(this, &state->dae_if.mag);
 
-  if(NULL == state->dae_if.mag.stream)
+  if(!state->dae_if.mag.stream_usable)
   {
-    sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-    sns_stream_service *stream_mgr =
-      (sns_stream_service*)service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-
-    ak0991x_dae_if_deinit(state, stream_mgr);
+    ak0991x_dae_if_deinit(this);
   }
 #else
   UNUSED_VAR(this);
 #endif
 }
+

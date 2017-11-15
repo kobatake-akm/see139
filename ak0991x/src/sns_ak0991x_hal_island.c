@@ -570,11 +570,13 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 #endif
 
   // Force 100Hz DRI measurement starts to get the clock error.
-  if(!force_off && state->mag_info.use_dri && (state->mag_info.irq_event_count == 0))
+  if(!force_off && state->mag_info.use_dri && (state->mag_info.irq_event_count == 0) && !state->is_running_clock_error_procedure)
   {
     buffer[0] = 0x0;
     buffer[1] = (uint8_t)AK0991X_MAG_ODR100 | (state->mag_info.sdr << 6);
     AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement start.");
+
+    state->is_running_clock_error_procedure = true;
   }
 
   return ak0991x_com_write_wrapper(this,
@@ -628,7 +630,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   state->system_time = sns_get_system_time();
-  state->pre_timestamp = state->system_time;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
@@ -636,12 +637,16 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->force_fifo_read_till_wm = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = state->system_time;
-  state->previous_irq_time = state->system_time;
   state->irq_event_time = state->system_time;
   state->reg_event_done = false;
   state->is_temp_average = false;
 
+  state->measurement_time = (sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+  state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+
+  state->pre_timestamp = state->system_time + state->measurement_time - state->averaged_interval;
+  state->previous_irq_time = state->pre_timestamp;
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u", (uint32_t)state->system_time);
 
@@ -1460,9 +1465,6 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
 
   if(state->this_is_first_data) // come into DRI and flush request
   {
-    // the previous interrupt is not the interrupt. Then use nomina_interval
-    state->averaged_interval = (sns_time)((state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION);
-
     if(state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
     {
       AK0991X_INST_PRINT(LOW, instance, "this is the first data. avg_intvl %u clk_err %u",
@@ -1514,7 +1516,6 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     {
       state->first_data_ts_of_batch = state->interrupt_timestamp -
         (state->averaged_interval * state->mag_info.cur_wmk);
-
       ak0991x_check_neagative_timestamp_for_dri(instance);
     }
     else
@@ -1559,7 +1560,7 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
   state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
 }
 
-static void ak0991x_get_st1_status(sns_sensor_instance *const instance)
+void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint8_t st1_buf;
@@ -1657,21 +1658,35 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
+  sns_time estimated_irq_time;
+  int32_t diff;
 
   // is ASCP is still during in the process, skip flush
   if(state->ascp_xfer_in_progress > 0)
   {
-    state->re_read_data_after_ascp = true;
     AK0991X_INST_PRINT(LOW, instance, "#ascp_xfer=%u", state->ascp_xfer_in_progress);
     rc |= SNS_RC_FAILED;
   }
 
 #ifdef AK0991X_ENABLE_DRI
-  if( !state->irq_info.detect_irq_event &&
-      (state->mag_info.irq_event_count < AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC) )
+  if(state->mag_info.use_dri)
   {
-    AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
-    rc |= SNS_RC_FAILED;
+    // if the flash request is during the clock error procedure, then wait...
+    if( !state->irq_info.detect_irq_event && state->is_running_clock_error_procedure )
+    {
+      AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
+      rc |= SNS_RC_FAILED;
+    }
+
+    estimated_irq_time = state->pre_timestamp + state->averaged_interval * (state->mag_info.cur_wmk + 1);
+    diff = (int32_t)(estimated_irq_time - state->system_time);
+
+    // if the flash request almost same as the interrupt, then wait.
+    if( !state->irq_info.detect_irq_event && (diff < state->averaged_interval) )
+    {
+      AK0991X_INST_PRINT(LOW, instance, "flush request time is almost same as the next coming irq. wait...");
+      rc |= SNS_RC_FAILED;
+    }
   }
 #endif
 
@@ -1791,7 +1806,10 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
     // get num_samples, DRDY and data over run status from ST1
-    ak0991x_get_st1_status(instance);
+    if(!state->irq_info.detect_irq_event)
+    {
+      ak0991x_get_st1_status(instance);
+    }
 
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
     ak0991x_read_fifo_buffer(instance);
@@ -1806,6 +1824,9 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       }
       else if (state->mag_info.irq_event_count == AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
       {
+        // got clock error rate.
+        state->is_running_clock_error_procedure = false;
+
         // restart sensor
         AK0991X_INST_PRINT(LOW, instance, "re-start for actual ODR.");
 

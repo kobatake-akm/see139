@@ -207,6 +207,7 @@ typedef struct ak0991x_instance_state
   bool this_is_the_last_flush;
   bool reg_event_done;
   bool is_temp_average;
+  bool is_running_clock_error_procedure;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
   sns_time pre_timestamp;
@@ -218,6 +219,7 @@ typedef struct ak0991x_instance_state
   sns_time heart_beat_timestamp;
   sns_time heart_beat_timeout_period;
   sns_time nominal_intvl;
+  sns_time measurement_time;
   uint8_t  heart_beat_sample_count;
   uint8_t  heart_beat_attempt_count;
   sns_timer_sensor_config req_payload;
