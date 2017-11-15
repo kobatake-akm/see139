@@ -1516,7 +1516,6 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     {
       state->first_data_ts_of_batch = state->interrupt_timestamp -
         (state->averaged_interval * state->mag_info.cur_wmk);
-
       ak0991x_check_neagative_timestamp_for_dri(instance);
     }
     else
@@ -1659,6 +1658,8 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
+  sns_time estimated_irq_time;
+  int32_t diff;
 
   // is ASCP is still during in the process, skip flush
   if(state->ascp_xfer_in_progress > 0)
@@ -1668,11 +1669,24 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
   }
 
 #ifdef AK0991X_ENABLE_DRI
-  if( !state->irq_info.detect_irq_event &&
-      (state->mag_info.irq_event_count < AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC) )
+  if(state->mag_info.use_dri)
   {
-    AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
-    rc |= SNS_RC_FAILED;
+    // if the flash request is during the clock error procedure, then wait...
+    if( !state->irq_info.detect_irq_event && state->is_running_clock_error_procedure )
+    {
+      AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
+      rc |= SNS_RC_FAILED;
+    }
+
+    estimated_irq_time = state->pre_timestamp + state->averaged_interval * (state->mag_info.cur_wmk + 1);
+    diff = (int32_t)(estimated_irq_time - state->system_time);
+
+    // if the flash request almost same as the interrupt, then wait.
+    if( !state->irq_info.detect_irq_event && (diff < state->averaged_interval) )
+    {
+      AK0991X_INST_PRINT(LOW, instance, "flush request time is almost same as the next coming irq. wait...");
+      rc |= SNS_RC_FAILED;
+    }
   }
 #endif
 
