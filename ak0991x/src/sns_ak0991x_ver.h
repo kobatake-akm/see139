@@ -23,6 +23,8 @@
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
  * 11/15/17     010043     AKM              Fixed delayed Flush response
+ * 11/15/17                AKM              Fixed self test
+ * 11/15/17                AKM              Modified to use 2 x 100Hz DRI measurements to calculate the clock error
  * 11/15/17                Qualcomm         Fixed race condition in DAE interface module
  * 11/09/17     010042     AKM              Fine tuned average interval calculation
  * 11/09/17                Qualcomm         Changed to disallow Flush requests without Config requests
