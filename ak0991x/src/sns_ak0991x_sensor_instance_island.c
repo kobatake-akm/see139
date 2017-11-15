@@ -226,7 +226,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             state->mag_info.irq_event_count++;
             state->system_time = sns_get_system_time();
 
-            if(state->mag_info.irq_event_count < AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC ||
+            if( state->is_running_clock_error_procedure ||
                (state->system_time > irq_event.timestamp + state->averaged_interval))
             {
               AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
@@ -263,7 +263,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
     }
   }
+#endif // AK0991X_ENABLE_DRI
 
+#ifdef AK0991X_ENABLE_FIFO
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
@@ -305,7 +307,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->async_com_port_data_stream);
     }
   }
-#endif // AK0991X_ENABLE_DRI
+#endif // AK0991X_ENABLE_FIFO
 
   // Handle timer event
   if (NULL != state->timer_data_stream)
