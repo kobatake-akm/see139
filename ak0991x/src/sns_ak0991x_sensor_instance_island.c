@@ -216,22 +216,32 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          state->irq_event_time = irq_event.timestamp;
-          state->irq_info.detect_irq_event = true; // detect interrupt
-          state->mag_info.irq_event_count++;
-          state->system_time = sns_get_system_time();
-          AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
-                             (uint32_t)irq_event.timestamp,
-                             (uint32_t)state->system_time);
+          // check DRDY status.
+          ak0991x_get_st1_status(this);
 
-          if(state->ascp_xfer_in_progress == 0)
+          if(state->data_is_ready)
           {
-            ak0991x_read_mag_samples(this);
+            state->irq_event_time = irq_event.timestamp;
+            state->irq_info.detect_irq_event = true; // detect interrupt
+            state->mag_info.irq_event_count++;
+            state->system_time = sns_get_system_time();
+            AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
+                               (uint32_t)irq_event.timestamp,
+                               (uint32_t)state->system_time);
+
+            if(state->ascp_xfer_in_progress == 0)
+            {
+              ak0991x_read_mag_samples(this);
+            }
+            else
+            {
+              AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
+              state->re_read_data_after_ascp = true;
+            }
           }
           else
           {
-            AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
-            state->re_read_data_after_ascp = true;
+            AK0991X_INST_PRINT(LOW, this, "DRDY is NOT ready. Skip.");
           }
         }
       }

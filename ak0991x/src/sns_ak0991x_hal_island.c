@@ -1560,7 +1560,7 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
   state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
 }
 
-static void ak0991x_get_st1_status(sns_sensor_instance *const instance)
+void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint8_t st1_buf;
@@ -1806,7 +1806,10 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
     // get num_samples, DRDY and data over run status from ST1
-    ak0991x_get_st1_status(instance);
+    if(!state->irq_info.detect_irq_event)
+    {
+      ak0991x_get_st1_status(instance);
+    }
 
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
     ak0991x_read_fifo_buffer(instance);

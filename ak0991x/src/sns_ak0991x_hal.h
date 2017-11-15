@@ -519,6 +519,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                                      uint8_t             *fifo,
                                      size_t              num_bytes);
 
+
+void ak0991x_get_st1_status(sns_sensor_instance *const instance);
+
 /**
  * Sends a FIFO complete event.
  *
