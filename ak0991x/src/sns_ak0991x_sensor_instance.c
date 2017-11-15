@@ -383,13 +383,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, false);
   }
 
-#ifdef AK0991X_ENABLE_DAE
-  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service  *stream_mgr =
-    (sns_stream_service *)service_mgr->get_service(service_mgr,
-                                                   SNS_STREAM_SERVICE);
-  ak0991x_dae_if_deinit(state, stream_mgr);
-#endif
+  ak0991x_dae_if_deinit(this);
 
   sns_sensor_util_remove_sensor_instance_stream(this,&state->timer_data_stream);
   //Deinit for S4S

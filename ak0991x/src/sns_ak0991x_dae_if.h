@@ -26,6 +26,7 @@ struct ak0991x_instance_state;
 
 typedef enum
 {
+  PRE_INIT,
   IDLE,
   STREAM_STARTING,
   STREAMING,
@@ -59,9 +60,7 @@ sns_rc ak0991x_dae_if_init(
   sns_sensor_uid             *dae_suid,
   sns_sensor_uid const       *parent_suid);
 
-void ak0991x_dae_if_deinit(
-  struct ak0991x_instance_state *state,
-  struct sns_stream_service     *stream_mgr);
+void ak0991x_dae_if_deinit(sns_sensor_instance *this);
 
 bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this);
 
