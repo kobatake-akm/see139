@@ -227,7 +227,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             state->system_time = sns_get_system_time();
 
             if(state->mag_info.irq_event_count < AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC ||
-               (state->system_time - irq_event.timestamp > state->averaged_interval))
+               (state->system_time > irq_event.timestamp + state->averaged_interval))
             {
               AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
                                  (uint32_t)irq_event.timestamp,

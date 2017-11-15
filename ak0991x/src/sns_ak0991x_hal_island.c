@@ -648,9 +648,12 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->pre_timestamp = state->system_time + state->measurement_time - state->averaged_interval;
   state->previous_irq_time = state->pre_timestamp;
 
-  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u", (uint32_t)state->system_time);
+  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u", 
+                     (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,
+                     (uint32_t)state->averaged_interval);
 
 #ifdef AK0991X_ENABLE_DRI
+  // QC - is it not possible to miss any of the interrupts during dummy measurement?
   if(state->mag_info.use_dri &&
       (state->mag_info.irq_event_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC))
   {
@@ -1358,11 +1361,14 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   log_mag_state_raw_info.diag = diag;
   log_mag_state_raw_info.instance = instance;
   log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
-  ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
   if(state->mag_info.irq_event_count > AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
+    ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
+#endif
+
     for(i = 0; i < num_bytes; i += 8)
     {
       timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
@@ -1431,6 +1437,12 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 #endif // AK0991X_ENABLE_FIFO
 }
 
+static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time intvl)
+{
+  state->internal_clock_error = ((state->interrupt_timestamp - state->previous_irq_time) << 
+                                 AK0991X_CALC_BIT_RESOLUTION) / intvl;
+}
+
 #ifdef AK0991X_ENABLE_DRI
 static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const instance)
 {
@@ -1446,20 +1458,15 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
       if( !state->this_is_first_data )
       {
         // keep re-calculating for clock frequency drifting.
-        state->internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
-            (state->nominal_intvl * state->mag_info.data_count);
+        ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
 
-        // QC - This should be dividing by the WM samples, not the actual number of samples read from the FIFO
-        // AKM - mag_info.data_count is not equal to the FIFO  num. It is # of samples from the PREVIOUS irq.
-        // AKM - It can be more than WM if there are flushs between the current irq and previous.
         state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
       }
     }
     else    // during OSC error rate calculation after init
     {
       // 100Hz Fixed. calculate internal clock error from time between the previous inq and the current
-      state->internal_clock_error = ( (state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION ) /
-          ak0991x_get_sample_interval(AK0991X_MAG_ODR100);
+      ak0991x_calc_clock_error(state, ak0991x_get_sample_interval(AK0991X_MAG_ODR100));
     }
   }
 
@@ -1524,9 +1531,6 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
       state->first_data_ts_of_batch = state->interrupt_timestamp;
     }
 
-    // QC - what's the difference between state->mag_info.data_count and state->num_samples?
-    // AKM - mag_info.data_count is not equal to the FIFO  num. It is # of samples from the PREVIOUS irq.
-    // AKM - It can be more than WM if there are flushs between the current irq and previous.
     state->mag_info.data_count = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
   }
@@ -1658,8 +1662,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
-  sns_time estimated_irq_time;
-  int32_t diff;
 
   // is ASCP is still during in the process, skip flush
   if(state->ascp_xfer_in_progress > 0)
@@ -1669,23 +1671,36 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
   }
 
 #ifdef AK0991X_ENABLE_DRI
-  if(state->mag_info.use_dri)
+  if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
   {
-    // if the flash request is during the clock error procedure, then wait...
-    if( !state->irq_info.detect_irq_event && state->is_running_clock_error_procedure )
+    // if the flush request is during the clock error procedure, then wait...
+    if(state->is_running_clock_error_procedure)
     {
       AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
       rc |= SNS_RC_FAILED;
     }
-
-    estimated_irq_time = state->pre_timestamp + state->averaged_interval * (state->mag_info.cur_wmk + 1);
-    diff = (int32_t)(estimated_irq_time - state->system_time);
-
-    // if the flash request almost same as the interrupt, then wait.
-    if( !state->irq_info.detect_irq_event && (diff < state->averaged_interval) )
+    else if(state->system_time < state->pre_timestamp + state->averaged_interval)
     {
-      AK0991X_INST_PRINT(LOW, instance, "flush request time is almost same as the next coming irq. wait...");
+      AK0991X_INST_PRINT(LOW, instance, "FIFO empty");
       rc |= SNS_RC_FAILED;
+      if(state->fifo_flush_in_progress)
+      {
+        state->fifo_flush_in_progress = false;
+        ak0991x_send_fifo_flush_done(instance);
+      } 
+    }
+    else
+    {
+      sns_time estimated_irq_time = 
+        state->pre_timestamp + state->averaged_interval * (state->mag_info.cur_wmk + 1);
+
+      // if the flush request almost same as the interrupt, then wait.
+      if(estimated_irq_time > state->system_time &&
+         estimated_irq_time < state->system_time + state->averaged_interval)
+      {
+        AK0991X_INST_PRINT(LOW, instance, "irq firing soon. wait...");
+        rc |= SNS_RC_FAILED;
+      }
     }
   }
 #endif
