@@ -520,6 +520,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                                      size_t              num_bytes);
 
 
+// QC -  Please add function header
 void ak0991x_get_st1_status(sns_sensor_instance *const instance);
 
 /**

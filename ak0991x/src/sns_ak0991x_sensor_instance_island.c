@@ -216,18 +216,24 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          // check DRDY status.
-          ak0991x_get_st1_status(this);
+          if(!state->in_clock_error_procedure)
+          {
+            // check DRDY status.
+            ak0991x_get_st1_status(this);
+          }
+          else
+          {
+            state->data_is_ready = true; // in order to skip duplicate ST1 read. ignore here.
+          }
 
           if(state->data_is_ready)
           {
             state->irq_event_time = irq_event.timestamp;
             state->irq_info.detect_irq_event = true; // detect interrupt
-            state->mag_info.irq_event_count++;
             state->system_time = sns_get_system_time();
 
-            if(state->mag_info.irq_event_count < AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC ||
-               (state->system_time - irq_event.timestamp > state->averaged_interval))
+            if( state->in_clock_error_procedure ||
+               (state->system_time > irq_event.timestamp + state->averaged_interval))
             {
               AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
                                  (uint32_t)irq_event.timestamp,
@@ -263,7 +269,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
     }
   }
+#endif // AK0991X_ENABLE_DRI
 
+#ifdef AK0991X_ENABLE_FIFO
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
@@ -305,7 +313,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->async_com_port_data_stream);
     }
   }
-#endif // AK0991X_ENABLE_DRI
+#endif // AK0991X_ENABLE_FIFO
 
   // Handle timer event
   if (NULL != state->timer_data_stream)
