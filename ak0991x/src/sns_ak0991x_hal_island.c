@@ -1566,18 +1566,28 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
   }
 }
 
-static void ak0991x_check_neagative_timestamp_for_dri(sns_sensor_instance *const instance)
+static void ak0991x_check_data_gap_for_dri(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  const sns_time few_ms = state->nominal_intvl >> 6; // 1/64 = 1.5% error
 
-  // check negative timestamp
-  if(state->first_data_ts_of_batch < state->pre_timestamp)
+  // data gap check timestamp
+  if(state->first_data_ts_of_batch + few_ms < state->pre_timestamp + state->averaged_interval)
   {
-    AK0991X_INST_PRINT(HIGH, instance, "Negative timestamp detected! pre %u first_ts %u avg %u",
+    state->is_temp_average = true;
+  }
+  else if(state->first_data_ts_of_batch > state->pre_timestamp + state->averaged_interval + few_ms)
+  {
+    state->is_temp_average = true;
+  }
+
+  if(state->is_temp_average)
+  {
+    AK0991X_INST_PRINT(HIGH, instance, "Data gap detected! pre %u first_ts %u avg %u",
                        (uint32_t)state->pre_timestamp,
                        (uint32_t)state->first_data_ts_of_batch,
                        (uint32_t)state->averaged_interval);
-    state->is_temp_average = true;
+
     state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
 
     // QC - should use WM, not num_samples, in these 2 statements
@@ -1606,7 +1616,7 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * state->mag_info.cur_wmk);
-    ak0991x_check_neagative_timestamp_for_dri(instance);
+    ak0991x_check_data_gap_for_dri(instance);
 
     state->mag_info.data_count = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
@@ -1745,37 +1755,39 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 #ifdef AK0991X_ENABLE_DRI
   if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
   {
+    bool complete_flush = false;
+
     // if the flush request is during the clock error procedure, then wait...
     if(state->in_clock_error_procedure)
     {
       AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
       rc |= SNS_RC_FAILED;
+      complete_flush = true;
     }
     if(state->system_time < state->pre_timestamp + state->averaged_interval)
     {
       AK0991X_INST_PRINT(LOW, instance, "FIFO empty");
       rc |= SNS_RC_FAILED;
+      complete_flush = true;
     }
     else
     {
+      const sns_time few_ms = sns_convert_ns_to_ticks(5 * 1000 * 1000);
       sns_time estimated_irq_time = 
         state->pre_timestamp + state->averaged_interval * (state->mag_info.cur_wmk + 1);
 
-      // if the flush request almost same as the interrupt, then wait.
+      // irq expected to fire within a few ms?
       if(estimated_irq_time > state->system_time &&
-         estimated_irq_time < state->system_time + state->averaged_interval)
+         estimated_irq_time < state->system_time + few_ms)
       {
-        AK0991X_INST_PRINT(LOW, instance, "irq firing soon. wait...");
+        AK0991X_INST_PRINT(LOW, instance, "estimated irq %u. wait...", (uint32_t)estimated_irq_time);
         rc |= SNS_RC_FAILED;
       }
     }
 
-    if(rc != SNS_RC_SUCCESS)
+    if(state->fifo_flush_in_progress && complete_flush)
     {
-      if(state->fifo_flush_in_progress)
-      {
-        ak0991x_send_fifo_flush_done(instance);
-      }
+      ak0991x_send_fifo_flush_done(instance);
     }
   }
 #endif
@@ -1821,9 +1833,12 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
   {
     // check clock stability
     int64_t diff = state->internal_clock_error - previous_error;
+    AK0991X_INST_PRINT(LOW, instance, "clock error calc: %u and %u.",
+        (uint32_t)previous_error,
+        (uint32_t)state->internal_clock_error);
     if(diff < -(AK0991X_CALC_BIT_ERROR) || diff > AK0991X_CALC_BIT_ERROR) // 0.24% with 2^13
     {
-      AK0991X_INST_PRINT(LOW, instance, "clock is not stable. %d. restart clock error measurement");
+      AK0991X_INST_PRINT(LOW, instance, "clock error is too big. restart clock error measurement");
       state->mag_info.clock_error_meas_count = 0; // measurement failed. Try again.
     }
     else
