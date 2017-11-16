@@ -1695,8 +1695,6 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     SNS_INST_PRINTF(HIGH, instance, "DOR detected");
   }
-
-  SNS_INST_PRINTF(LOW, instance, "num_samples: %d", state->num_samples);
 }
 
 #ifdef AK0991X_ENABLE_FIFO
