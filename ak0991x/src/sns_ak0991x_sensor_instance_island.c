@@ -216,17 +216,23 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          // check DRDY status.
-          ak0991x_get_st1_status(this);
+          if(!state->in_clock_error_procedure)
+          {
+            // check DRDY status.
+            ak0991x_get_st1_status(this);
+          }
+          else
+          {
+            state->data_is_ready = true; // in order to skip duplicate ST1 read. ignore here.
+          }
 
           if(state->data_is_ready)
           {
             state->irq_event_time = irq_event.timestamp;
             state->irq_info.detect_irq_event = true; // detect interrupt
-            state->mag_info.irq_event_count++;
             state->system_time = sns_get_system_time();
 
-            if( state->is_running_clock_error_procedure ||
+            if( state->in_clock_error_procedure ||
                (state->system_time > irq_event.timestamp + state->averaged_interval))
             {
               AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",

@@ -623,13 +623,13 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 #endif
 
   // Force 100Hz DRI measurement starts to get the clock error.
-  if(!force_off && state->mag_info.use_dri && (state->mag_info.irq_event_count == 0) && !state->is_running_clock_error_procedure)
+  if(!force_off && state->mag_info.use_dri && (state->mag_info.clock_error_meas_count == 0) && !state->in_clock_error_procedure)
   {
     buffer[0] = 0x0;
     buffer[1] = (uint8_t)AK0991X_MAG_ODR100 | (state->mag_info.sdr << 6);
     AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement start.");
 
-    state->is_running_clock_error_procedure = true;
+    state->in_clock_error_procedure = true;
   }
 
   return ak0991x_com_write_wrapper(this,
@@ -693,6 +693,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->irq_event_time = state->system_time;
   state->reg_event_done = false;
   state->is_temp_average = false;
+  state->irq_info.detect_irq_event = false;
 
   state->measurement_time = (sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
@@ -707,7 +708,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
 #ifdef AK0991X_ENABLE_DRI
   // QC - is it not possible to miss any of the interrupts during dummy measurement?
-  if(state->mag_info.use_dri && !state->is_running_clock_error_procedure)
+  if(state->mag_info.use_dri && !state->in_clock_error_procedure)
   {
     AK0991X_INST_PRINT(HIGH, this, "register heart beat timer for DRI");
     ak0991x_set_timer_request_payload(this);
@@ -1157,11 +1158,41 @@ static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
 }
 
 /**
+ * Read ST1(10h) to ST2(18h) register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[o] buffer                   register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
+                                   uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_ST1,
+                                buffer,
+                                (uint32_t)(AK0991X_NUM_DATA_ST1_TO_ST2),
+                                &xfer_bytes);
+
+  if (xfer_bytes != (uint32_t)(AK0991X_NUM_DATA_ST1_TO_ST2))
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+/**
  * Read HXL(11h) to ST2(18h) register data.
  *
  * @param[i] state                    Instance state
  * @param[i] num_samples              number of samples
- * @param[o] buffer                   st1 register data
+ * @param[o] buffer                   register data
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
@@ -1415,7 +1446,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
 #endif
 
-  if(!state->is_running_clock_error_procedure)
+  if(!state->in_clock_error_procedure)
   {
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
     ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
@@ -1444,6 +1475,10 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     }
     // store previous timestamp
     state->pre_timestamp = timestamp;
+  }
+  else
+  {
+    AK0991X_INST_PRINT(LOW, instance, "still in clock error calc... %d", state->mag_info.clock_error_meas_count);
   }
 
   // reset flags
@@ -1504,25 +1539,16 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
   if(state->irq_info.detect_irq_event)  // DRI
   {
     state->interrupt_timestamp = state->irq_event_time;
-
-    if(!state->is_running_clock_error_procedure)
+    if( !state->this_is_first_data )
     {
-      if( !state->this_is_first_data )
-      {
-        // keep re-calculating for clock frequency drifting.
-        ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
+      // keep re-calculating for clock frequency drifting.
+      ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
 
-        state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
-      }
-    }
-    else    // during OSC error rate calculation after init
-    {
-      // 100Hz Fixed. calculate internal clock error from time between the previous inq and the current
-      ak0991x_calc_clock_error(state, ak0991x_get_sample_interval(AK0991X_MAG_ODR100));
+      state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
     }
   }
 
-  if(state->this_is_first_data && !state->is_running_clock_error_procedure) // come into DRI and flush request
+  if(state->this_is_first_data) // come into DRI and flush request
   {
     AK0991X_INST_PRINT(LOW, instance, "this is the first data. avg_intvl %u clk_err %u",
                        (uint32_t)state->averaged_interval,
@@ -1568,17 +1594,9 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
 
   if(state->irq_info.detect_irq_event)  // DRI
   {
-    if(!state->is_running_clock_error_procedure)
-    {
-      state->first_data_ts_of_batch = state->interrupt_timestamp -
-        (state->averaged_interval * state->mag_info.cur_wmk);
-      ak0991x_check_neagative_timestamp_for_dri(instance);
-    }
-    else
-    {
-      // Because fixed 100Hz + DRI mode
-      state->first_data_ts_of_batch = state->interrupt_timestamp;
-    }
+    state->first_data_ts_of_batch = state->interrupt_timestamp -
+      (state->averaged_interval * state->mag_info.cur_wmk);
+    ak0991x_check_neagative_timestamp_for_dri(instance);
 
     state->mag_info.data_count = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
@@ -1625,7 +1643,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 
 #ifdef AK0991X_ENABLE_FIFO
 
-  if(state->mag_info.use_dri && state->is_running_clock_error_procedure)
+  if(state->mag_info.use_dri && state->in_clock_error_procedure)
   {
     state->num_samples = 1;
   }
@@ -1722,7 +1740,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
   if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
   {
     // if the flush request is during the clock error procedure, then wait...
-    if(state->is_running_clock_error_procedure)
+    if(state->in_clock_error_procedure)
     {
       AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
       rc |= SNS_RC_FAILED;
@@ -1763,70 +1781,131 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
 #ifdef AK0991X_ENABLE_FIFO
 
-  // FIFO mode
-  if(state->mag_info.use_fifo && !state->is_running_clock_error_procedure )
+  if(!state->in_clock_error_procedure)
   {
-    if(state->mag_info.device_select == AK09917)    // AK09917
+    // FIFO mode
+    if(state->mag_info.use_fifo)
     {
-      if(state->num_samples > 2 && !state->this_is_the_last_flush)
+      if(state->mag_info.device_select == AK09917)    // AK09917
       {
-        ak0991x_ascp_request(instance);  // ASCP request
-      }
-      else
-      {
-        if(state->num_samples > 0)
+        if(state->num_samples > 2 && !state->this_is_the_last_flush)
         {
-          // Read fifo buffer(HXL to ST2 register)
-          if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state, state->num_samples, &buffer[0]))  // SYNC read
+          ak0991x_ascp_request(instance);  // ASCP request
+        }
+        else
+        {
+          if(state->num_samples > 0)
           {
-            state->num_samples = 0;
-            SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
+            // Read fifo buffer(HXL to ST2 register)
+            if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state, state->num_samples, &buffer[0]))  // SYNC read
+            {
+              state->num_samples = 0;
+              SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
+            }
           }
         }
       }
-    }
-    else // AK09912C / AK09915C / AK09915D
-    {
-      // sync flush
-      //Continue reading until fifo buffer is clear
-      //because there is no way to check FIFO samples for AK09915C/D.
-      // QC - we recommend reading WM+1 samples then verifying that the last sample is
-      // INV_FIFO_DATA; if the last sample is valid THEN start reading one sample at a time
-      uint32_t i;
-      state->num_samples = 0;
-      for (i = 0; i < state->mag_info.max_fifo_size; i++)
+      else // AK09912C / AK09915C / AK09915D
       {
-        //Read fifo buffer(HXL to ST2 register)
-        if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state,
-                                                   1,
-                                                   &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]))
+        // sync flush
+        //Continue reading until fifo buffer is clear
+        //because there is no way to check FIFO samples for AK09915C/D.
+        // QC - we recommend reading WM+1 samples then verifying that the last sample is
+        // INV_FIFO_DATA; if the last sample is valid THEN start reading one sample at a time
+        uint32_t i;
+        state->num_samples = 0;
+        for (i = 0; i < state->mag_info.max_fifo_size; i++)
         {
-          SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
-        }
+          //Read fifo buffer(HXL to ST2 register)
+          if (SNS_RC_SUCCESS != ak0991x_read_hxl_st2(state,
+                                                     1,
+                                                     &buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2]))
+          {
+            SNS_INST_PRINTF(ERROR, instance, "Error in reading the FIFO buffer");
+          }
 
-        if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
-        {
-          if( state->mag_info.use_fifo && state->force_fifo_read_till_wm ){
-            if(i >= state->mag_info.cur_wmk + 1){
+          if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
+          {
+            if( state->mag_info.use_fifo && state->force_fifo_read_till_wm ){
+              if(i >= state->mag_info.cur_wmk + 1){
+                state->num_samples = i;
+                break;
+              }
+            }else{
+              //fifo buffer is clear
               state->num_samples = i;
               break;
             }
-          }else{
-            //fifo buffer is clear
-            state->num_samples = i;
-            break;
           }
         }
       }
     }
+    else  // Non FIFO mode, read one data
+    {
+      state->num_samples = 1;
+      ak0991x_read_hxl_st2(state,
+                           1,
+                           &buffer[0]);
+    }
   }
-  else  // Non FIFO mode, read one data
+  else  // clock error procedure
   {
-    state->num_samples = 1;
-    ak0991x_read_hxl_st2(state,
-                         1,
-                         &buffer[0]);
+    if(state->irq_info.detect_irq_event)
+    {
+      ak0991x_read_st1_st2(state, &buffer[0]);
+
+      state->data_over_run = (buffer[0] & AK0991X_DOR_BIT) ? true : false;  // check data over run
+      state->data_is_ready = (buffer[0] & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
+
+      if(state->data_over_run)
+      {
+        state->mag_info.clock_error_meas_count = 0; // measurement failed. Try again.
+        AK0991X_INST_PRINT(LOW, instance, "DOR. restart clock error measurement");
+      }
+      else if(!state->data_is_ready)
+      {
+        state->mag_info.clock_error_meas_count = 0; // measurement failed. Try again.
+        AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. restart clock error measurement");
+      }
+      else
+      {
+        state->mag_info.clock_error_meas_count++;
+        state->previous_irq_time = state->interrupt_timestamp;
+        state->interrupt_timestamp = state->irq_event_time;
+      }
+
+      if(state->mag_info.clock_error_meas_count == AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
+      {
+        ak0991x_calc_clock_error(state, ak0991x_get_sample_interval(AK0991X_MAG_ODR100));
+
+        // got clock error rate.
+        state->in_clock_error_procedure = false;
+
+        // restart sensor
+        AK0991X_INST_PRINT(LOW, instance, "re-start with actual ODR. clk_err= %u",
+            (uint32_t)state->internal_clock_error);
+
+        // Reset device
+        sns_rc rv = ak0991x_device_sw_reset(instance,
+                                     state->scp_service,
+                                     state->com_port_info.port_handle);
+        if(rv != SNS_RC_SUCCESS)
+        {
+          AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+        }
+        ak0991x_reconfig_hw(instance);
+      }
+    }
+    else
+    {
+      AK0991X_INST_PRINT(ERROR, instance, "not a interrupt during clock error measurement.");
+      state->mag_info.clock_error_meas_count = 0; // measurement failed. Try again.
+    }
+    state->num_samples = 0; // to ignore following sequences
+    state->irq_info.detect_irq_event = false;
+    state->this_is_first_data = false;
   }
+
 #else
       state->num_samples = 1;
       ak0991x_read_hxl_st2(state,
@@ -1836,7 +1915,6 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
   if(state->num_samples > 0)
   {
-
     state->mag_info.data_count+=state->num_samples;
 
     // adjust timestamp and interval if needed.
@@ -1858,6 +1936,14 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
                                       buffer,
                                       AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
     }
+
+#ifdef AK0991X_ENABLE_DRI
+    if( state->mag_info.use_dri )
+    {
+      ak0991x_register_heart_beat_timer(instance);
+    }
+#endif
+
   }
 }
 
@@ -1870,7 +1956,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 
 #ifndef AK0991X_ENABLE_SEE_LITE
     // get num_samples, DRDY and data over run status from ST1
-    if(!state->irq_info.detect_irq_event)
+    if(!state->irq_info.detect_irq_event && !state->in_clock_error_procedure)
     {
       ak0991x_get_st1_status(instance);
     }
@@ -1879,41 +1965,6 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
     ak0991x_read_fifo_buffer(instance);
 
-#ifdef AK0991X_ENABLE_DRI
-    if( state->mag_info.use_dri )
-    {
-      if( !state->is_running_clock_error_procedure )
-      {
-        // restart timer to enable heart beat function
-        ak0991x_register_heart_beat_timer(instance);
-      }
-      else
-      {
-        if (state->mag_info.irq_event_count == AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
-        {
-          // got clock error rate.
-          state->is_running_clock_error_procedure = false;
-
-          // restart sensor
-          AK0991X_INST_PRINT(LOW, instance, "re-start with actual ODR. clk_err= %u",
-              (uint32_t)state->internal_clock_error);
-
-          // Reset device
-          sns_rc rv = ak0991x_device_sw_reset(instance,
-                                       state->scp_service,
-                                       state->com_port_info.port_handle);
-          if(rv != SNS_RC_SUCCESS)
-          {
-            AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
-          }
-          ak0991x_reconfig_hw(instance);
-
-          state->mag_info.irq_event_count++; // to prevent for duplicate starts.
-        }
-      }
-    }
-
-#endif
     state->heart_beat_attempt_count = 0;
   }
 }
