@@ -338,7 +338,7 @@
  */
 #define AK0991X_CALC_BIT_RESOLUTION                 13
 #define AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC          3
-#define AK0991X_CALC_BIT_ERROR                      20
+#define AK0991X_CALC_BIT_ERROR                      40
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************

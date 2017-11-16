@@ -1616,6 +1616,7 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * state->mag_info.cur_wmk);
+
     ak0991x_check_data_gap_for_dri(instance);
 
     state->mag_info.data_count = 0; // reset only for DRI mode
@@ -1836,7 +1837,7 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
     AK0991X_INST_PRINT(LOW, instance, "clock error calc: %u and %u.",
         (uint32_t)previous_error,
         (uint32_t)state->internal_clock_error);
-    if(diff < -(AK0991X_CALC_BIT_ERROR) || diff > AK0991X_CALC_BIT_ERROR) // 0.24% with 2^13
+    if(diff < -(AK0991X_CALC_BIT_ERROR) || diff > AK0991X_CALC_BIT_ERROR) // 0.5% with 2^13
     {
       AK0991X_INST_PRINT(LOW, instance, "clock error is too big. restart clock error measurement");
       state->mag_info.clock_error_meas_count = 0; // measurement failed. Try again.
@@ -1845,6 +1846,7 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
     {
       // got clock error rate.
       state->in_clock_error_procedure = false;
+      state->internal_clock_error = (state->internal_clock_error >> 1) + (previous_error >> 1);
 
       AK0991X_INST_PRINT(LOW, instance, "INT %u PRE %u diff %u clk_err %d Re-Start with actual ODR.",
           (uint32_t)state->interrupt_timestamp,
@@ -1861,10 +1863,29 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
         AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
       }
 
-      // measurement restart.
+      // actual ODR measurement start.
       ak0991x_reconfig_hw(instance);
     }
   }
+
+  // when failed restart clock error procedure.
+  if(state->mag_info.clock_error_meas_count == 0)
+  {
+    // Reset device
+    sns_rc rv = ak0991x_device_sw_reset(instance,
+                                 state->scp_service,
+                                 state->com_port_info.port_handle);
+    if(rv != SNS_RC_SUCCESS)
+    {
+      AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+    }
+
+    state->in_clock_error_procedure = false;
+
+    // restart clock error procedure.
+    ak0991x_reconfig_hw(instance);
+  }
+
   state->irq_info.detect_irq_event = false;
 }
 #endif
