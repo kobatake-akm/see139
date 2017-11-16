@@ -223,6 +223,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           }
           else
           {
+            // check if the flush is in progress.
             if(!state->fifo_flush_in_progress)
             {
               // check DRDY status.

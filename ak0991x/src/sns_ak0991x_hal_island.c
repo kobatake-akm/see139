@@ -1653,11 +1653,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 
 #ifdef AK0991X_ENABLE_FIFO
 
-  if(state->mag_info.use_dri && state->in_clock_error_procedure)
-  {
-    state->num_samples = 1;
-  }
-  else if( state->mag_info.use_fifo )
+  if( state->mag_info.use_fifo )
   {
     if(state->mag_info.device_select == AK09917 && !state->force_fifo_read_till_wm )
     {
@@ -1778,7 +1774,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     {
       if(state->fifo_flush_in_progress)
       {
-        state->fifo_flush_in_progress = false;
         ak0991x_send_fifo_flush_done(instance);
       }
     }
@@ -1793,6 +1788,7 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint8_t buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
+  int64_t previous_error;
 
   ak0991x_read_st1_st2(state, &buffer[0]);
 
@@ -1801,12 +1797,14 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
 
   if(state->data_over_run)
   {
-    state->mag_info.clock_error_meas_count = 0; // measurement failed. Try again.
+    // measurement failed. Try again.
+    state->mag_info.clock_error_meas_count = 0;
     AK0991X_INST_PRINT(LOW, instance, "DOR. restart clock error measurement");
   }
   else if(!state->data_is_ready)
   {
-    state->mag_info.clock_error_meas_count = 0; // measurement failed. Try again.
+    // measurement failed. Try again.
+    state->mag_info.clock_error_meas_count = 0;
     AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. restart clock error measurement");
   }
   else
@@ -1814,32 +1812,43 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
     state->mag_info.clock_error_meas_count++;
     state->previous_irq_time = state->interrupt_timestamp;
     state->interrupt_timestamp = state->irq_event_time;
+
+    previous_error = state->internal_clock_error;
+    ak0991x_calc_clock_error(state, ak0991x_get_sample_interval(AK0991X_MAG_ODR100));
   }
 
   if(state->mag_info.clock_error_meas_count == AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
-    ak0991x_calc_clock_error(state, ak0991x_get_sample_interval(AK0991X_MAG_ODR100));
-
-    // got clock error rate.
-    state->in_clock_error_procedure = false;
-
-    AK0991X_INST_PRINT(LOW, instance, "INT %u PRE %u diff %u clk_err %d Re-Start with actual ODR.",
-        (uint32_t)state->interrupt_timestamp,
-        (uint32_t)state->previous_irq_time,
-        (uint32_t)(state->interrupt_timestamp - state->previous_irq_time),
-        (uint32_t)state->internal_clock_error);
-
-    // Reset device
-    sns_rc rv = ak0991x_device_sw_reset(instance,
-                                 state->scp_service,
-                                 state->com_port_info.port_handle);
-    if(rv != SNS_RC_SUCCESS)
+    // check clock stability
+    int64_t diff = state->internal_clock_error - previous_error;
+    if(diff < -(AK0991X_CALC_BIT_ERROR) || diff > AK0991X_CALC_BIT_ERROR) // 0.24% with 2^13
     {
-      AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+      AK0991X_INST_PRINT(LOW, instance, "clock is not stable. %d. restart clock error measurement");
+      state->mag_info.clock_error_meas_count = 0; // measurement failed. Try again.
     }
+    else
+    {
+      // got clock error rate.
+      state->in_clock_error_procedure = false;
 
-    // measurement restart.
-    ak0991x_reconfig_hw(instance);
+      AK0991X_INST_PRINT(LOW, instance, "INT %u PRE %u diff %u clk_err %d Re-Start with actual ODR.",
+          (uint32_t)state->interrupt_timestamp,
+          (uint32_t)state->previous_irq_time,
+          (uint32_t)(state->interrupt_timestamp - state->previous_irq_time),
+          (uint32_t)state->internal_clock_error);
+
+      // Reset device
+      sns_rc rv = ak0991x_device_sw_reset(instance,
+                                   state->scp_service,
+                                   state->com_port_info.port_handle);
+      if(rv != SNS_RC_SUCCESS)
+      {
+        AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+      }
+
+      // measurement restart.
+      ak0991x_reconfig_hw(instance);
+    }
   }
   state->irq_info.detect_irq_event = false;
 }

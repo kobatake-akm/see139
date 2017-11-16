@@ -223,7 +223,7 @@ typedef struct ak0991x_instance_state
   uint8_t  heart_beat_sample_count;
   uint8_t  heart_beat_attempt_count;
   sns_timer_sensor_config req_payload;
-  uint64_t internal_clock_error;
+  int64_t internal_clock_error;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
