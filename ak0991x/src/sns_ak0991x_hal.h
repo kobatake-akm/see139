@@ -675,3 +675,13 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *instance,
  */
 void ak0991x_run_self_test(sns_sensor_instance *instance);
 
+#ifdef AK0991X_ENABLE_DRI
+/**
+ * Clock error procedure for DRI mode.
+ *
+ * @param instance     reference to the instance
+ *
+ * @return none
+ */
+void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance);
+#endif
