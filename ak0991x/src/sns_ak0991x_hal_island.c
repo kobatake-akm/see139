@@ -579,13 +579,14 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     return rv;
   }
 
+  akm_device_type device_select = state->mag_info.device_select;
+
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || \
     defined(AK0991X_TARGET_AK09912) || \
     defined(AK0991X_TARGET_AK09915C) || \
     defined(AK0991X_TARGET_AK09915D) || \
     defined(AK0991X_TARGET_AK09917)
 
-  akm_device_type device_select = state->mag_info.device_select;
   uint16_t cur_wmk = state->mag_info.cur_wmk;
 
   // Configure control register 1
@@ -626,7 +627,20 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   if(!force_off && state->mag_info.use_dri && (state->mag_info.clock_error_meas_count == 0) && !state->in_clock_error_procedure)
   {
     buffer[0] = 0x0;
-    buffer[1] = (uint8_t)AK0991X_MAG_ODR100 | (state->mag_info.sdr << 6);
+    if (device_select == AK09917)
+    {
+      buffer[1] = 0x0
+        | (0x01 << 7)                              // FIFO bit, FIFO enable for AK09917 RevA Bug
+        | (state->mag_info.sdr << 6)               // SDR bit
+        | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
+    }
+    else
+    {
+      buffer[1] = 0x0
+        | (state->mag_info.sdr << 6)               // SDR bit
+        | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
+    }
+
     AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement start.");
 
     state->in_clock_error_procedure = true;
@@ -1167,6 +1181,7 @@ static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
+#ifdef AK0991X_ENABLE_DRI
 static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
                                    uint8_t *buffer)
 {
@@ -1187,6 +1202,8 @@ static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
 
   return rv;
 }
+#endif
+
 /**
  * Read HXL(11h) to ST2(18h) register data.
  *
@@ -1524,13 +1541,13 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 #endif // AK0991X_ENABLE_FIFO
 }
 
+#ifdef AK0991X_ENABLE_DRI
 static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time intvl)
 {
   state->internal_clock_error = ((state->interrupt_timestamp - state->previous_irq_time) << 
                                  AK0991X_CALC_BIT_RESOLUTION) / intvl;
 }
 
-#ifdef AK0991X_ENABLE_DRI
 static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;

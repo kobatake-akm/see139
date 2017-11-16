@@ -559,8 +559,7 @@ void ak0991x_dae_if_deinit(sns_sensor_instance *this)
   sns_sensor_util_remove_sensor_instance_stream(this, &state->dae_if.mag.stream);
   state->dae_if.mag.state = PRE_INIT;
 #else
-  UNUSED_VAR(state);
-  UNUSED_VAR(stream_mgr);
+  UNUSED_VAR(this);
 #endif
 }
 

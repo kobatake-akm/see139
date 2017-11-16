@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/15/17                AKM              Refactor for clock error measurement.
+ * 11/15/17                AKM              Debugged for SEE-Lite compile.
  * 11/15/17     010043     AKM              Fixed delayed Flush response
  * 11/15/17                AKM              Fixed self test
  * 11/15/17                AKM              Modified to use 2 x 100Hz DRI measurements to calculate the clock error
