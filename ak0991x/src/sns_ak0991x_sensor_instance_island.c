@@ -82,7 +82,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
 
   if (AKM_AK0991X_REG_HXL == vector->reg_addr)
   {
-    if(state->num_samples != 0){
+    if(vector->bytes != 0){
       ak0991x_process_mag_data_buffer(instance,
                                       state->first_data_ts_of_batch,
                                       state->averaged_interval,
@@ -90,7 +90,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                       vector->bytes);
     }
     else{
-      AK0991X_INST_PRINT(LOW, instance, "skip ak0991x_process_mag_data_buffer because num_samples=%d detected.", state->num_samples);
+      AK0991X_INST_PRINT(LOW, instance, "skip ak0991x_process_mag_data_buffer because vector->bytes=%d detected.", vector->bytes);
     }
   }
 }
@@ -223,43 +223,35 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           }
           else
           {
-            // check if the flush is in progress.
-            if(!state->fifo_flush_in_progress)
+            // check DRDY status.
+            ak0991x_get_st1_status(this);
+
+            if(state->data_is_ready)
             {
-              // check DRDY status.
-              ak0991x_get_st1_status(this);
+              state->irq_event_time = irq_event.timestamp;
+              state->irq_info.detect_irq_event = true; // detect interrupt
+              state->system_time = sns_get_system_time();
 
-              if(state->data_is_ready)
+              if(state->system_time > irq_event.timestamp + state->averaged_interval)
               {
-                state->irq_event_time = irq_event.timestamp;
-                state->irq_info.detect_irq_event = true; // detect interrupt
-                state->system_time = sns_get_system_time();
+                AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
+                                   (uint32_t)irq_event.timestamp,
+                                   (uint32_t)state->system_time);
+              }
 
-                if(state->system_time > irq_event.timestamp + state->averaged_interval)
-                {
-                  AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
-                                     (uint32_t)irq_event.timestamp,
-                                     (uint32_t)state->system_time);
-                }
-
-                if(state->ascp_xfer_in_progress == 0)
-                {
-                  ak0991x_read_mag_samples(this);
-                }
-                else
-                {
-                  AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
-                  state->re_read_data_after_ascp = true;
-                }
+              if(state->ascp_xfer_in_progress == 0)
+              {
+                ak0991x_read_mag_samples(this);
               }
               else
               {
-                AK0991X_INST_PRINT(LOW, this, "DRDY is NOT ready. Skip.");
+                AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
+                state->re_read_data_after_ascp = true;
               }
             }
             else
             {
-              AK0991X_INST_PRINT(LOW, this, "flush is in progress. Skip.");
+              AK0991X_INST_PRINT(LOW, this, "DRDY is NOT ready. Skip.");
             }
           }
         }

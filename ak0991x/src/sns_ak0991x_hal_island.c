@@ -1478,14 +1478,14 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                               &log_mag_state_raw_info);
 
     // QC - prints only first/last/only sample of the batch
-    if(num_samples_sets == 1 || num_samples_sets == state->num_samples)
+    if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
       AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u ave %u #sample %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
           (uint32_t)state->averaged_interval,
-          state->num_samples);
+          num_bytes>>3);
     }
   }
   // store previous timestamp
@@ -1695,6 +1695,8 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     SNS_INST_PRINTF(HIGH, instance, "DOR detected");
   }
+
+  SNS_INST_PRINTF(LOW, instance, "num_samples: %d", state->num_samples);
 }
 
 #ifdef AK0991X_ENABLE_FIFO
@@ -1754,10 +1756,10 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
   }
 
 #ifdef AK0991X_ENABLE_DRI
+  bool complete_flush = false;
+
   if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
   {
-    bool complete_flush = false;
-
     // if the flush request is during the clock error procedure, then wait...
     if(state->in_clock_error_procedure)
     {
@@ -1765,7 +1767,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
       rc |= SNS_RC_FAILED;
       complete_flush = true;
     }
-    if(state->system_time < state->pre_timestamp + state->averaged_interval)
+    else if(state->system_time < state->pre_timestamp + state->averaged_interval)
     {
       AK0991X_INST_PRINT(LOW, instance, "FIFO empty");
       rc |= SNS_RC_FAILED;
