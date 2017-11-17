@@ -337,8 +337,8 @@
  * Measurement time calculation bit resolution
  */
 #define AK0991X_CALC_BIT_RESOLUTION                 13
-
-#define AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC          2
+#define AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC          3
+#define AK0991X_CALC_BIT_ERROR                      40
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************
@@ -675,3 +675,13 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *instance,
  */
 void ak0991x_run_self_test(sns_sensor_instance *instance);
 
+#ifdef AK0991X_ENABLE_DRI
+/**
+ * Clock error procedure for DRI mode.
+ *
+ * @param instance     reference to the instance
+ *
+ * @return none
+ */
+void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance);
+#endif
