@@ -82,7 +82,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
 
   if (AKM_AK0991X_REG_HXL == vector->reg_addr)
   {
-    if(state->num_samples != 0){
+    if(vector->bytes != 0){
       ak0991x_process_mag_data_buffer(instance,
                                       state->first_data_ts_of_batch,
                                       state->averaged_interval,
@@ -90,7 +90,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                       vector->bytes);
     }
     else{
-      AK0991X_INST_PRINT(LOW, instance, "skip ak0991x_process_mag_data_buffer because num_samples=%d detected.", state->num_samples);
+      AK0991X_INST_PRINT(LOW, instance, "skip ak0991x_process_mag_data_buffer because vector->bytes=%d detected.", vector->bytes);
     }
   }
 }
@@ -216,37 +216,43 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          // check DRDY status.
-          ak0991x_get_st1_status(this);
-
-          if(state->data_is_ready)
+          if(!state->in_clock_error_procedure)
           {
-            state->irq_event_time = irq_event.timestamp;
-            state->irq_info.detect_irq_event = true; // detect interrupt
-            state->mag_info.irq_event_count++;
-            state->system_time = sns_get_system_time();
+            // check DRDY status.
+            ak0991x_get_st1_status(this);
 
-            if(state->mag_info.irq_event_count < AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC ||
-               (state->system_time > irq_event.timestamp + state->averaged_interval))
+            if(state->data_is_ready)
             {
-              AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
-                                 (uint32_t)irq_event.timestamp,
-                                 (uint32_t)state->system_time);
-            }
+              state->irq_event_time = irq_event.timestamp;
+              state->irq_info.detect_irq_event = true; // detect interrupt
+              state->system_time = sns_get_system_time();
 
-            if(state->ascp_xfer_in_progress == 0)
-            {
-              ak0991x_read_mag_samples(this);
+              if(state->system_time > irq_event.timestamp + state->averaged_interval)
+              {
+                AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
+                                   (uint32_t)irq_event.timestamp,
+                                   (uint32_t)state->system_time);
+              }
+
+              if(state->ascp_xfer_in_progress == 0)
+              {
+                ak0991x_read_mag_samples(this);
+              }
+              else
+              {
+                AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
+                state->re_read_data_after_ascp = true;
+              }
             }
             else
             {
-              AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
-              state->re_read_data_after_ascp = true;
+              AK0991X_INST_PRINT(LOW, this, "DRDY is NOT ready. Skip.");
             }
           }
           else
           {
-            AK0991X_INST_PRINT(LOW, this, "DRDY is NOT ready. Skip.");
+            state->irq_event_time = irq_event.timestamp;
+            ak0991x_clock_error_calc_procedure(this);
           }
         }
       }
@@ -263,7 +269,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
     }
   }
+#endif // AK0991X_ENABLE_DRI
 
+#ifdef AK0991X_ENABLE_FIFO
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
@@ -275,7 +283,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
 
-        AK0991X_INST_PRINT(LOW, this, "got ASCP event");
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
 
         state->ascp_xfer_in_progress--;
@@ -305,7 +312,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->async_com_port_data_stream);
     }
   }
-#endif // AK0991X_ENABLE_DRI
+#endif // AK0991X_ENABLE_FIFO
 
   // Handle timer event
   if (NULL != state->timer_data_stream)

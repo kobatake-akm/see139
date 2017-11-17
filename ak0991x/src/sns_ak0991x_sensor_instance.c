@@ -237,10 +237,10 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
-  state->is_running_clock_error_procedure = false;
+  state->in_clock_error_procedure = false;
 
-  // for polling, set to AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC+1 in or to ignore always.
-  state->mag_info.irq_event_count = state->mag_info.use_dri ? 0 : AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC+1;
+  state->mag_info.clock_error_meas_count = 0;
+  state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -589,7 +589,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                        (int)state->config_step);
 
 #ifdef AK0991X_ENABLE_DRI
-    if(state->is_running_clock_error_procedure)
+    if(state->in_clock_error_procedure)
     {
       // Save request, but not set HW config -- return success
       AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement is still running. save request.");
