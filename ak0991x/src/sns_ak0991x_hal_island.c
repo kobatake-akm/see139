@@ -630,7 +630,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     if (device_select == AK09917)
     {
       buffer[1] = 0x0
-        | (0x01 << 7)                              // FIFO bit, FIFO enable for AK09917 RevA Bug
+//        | (0x01 << 7)                              // FIFO bit, FIFO enable for AK09917 RevA Bug
         | (state->mag_info.sdr << 6)               // SDR bit
         | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
     }
@@ -1461,9 +1461,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   log_mag_state_raw_info.diag = diag;
   log_mag_state_raw_info.instance = instance;
   log_mag_state_raw_info.sensor_uid = &state->mag_info.suid;
-#endif
-
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
   ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
@@ -1477,7 +1474,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                               state,
                               &log_mag_state_raw_info);
 
-    // QC - prints only first/last/only sample of the batch
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
       AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u ave %u #sample %d",
@@ -1590,7 +1586,6 @@ static void ak0991x_check_data_gap_for_dri(sns_sensor_instance *const instance)
 
     state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
 
-    // QC - should use WM, not num_samples, in these 2 statements
     state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / (state->mag_info.cur_wmk + 1);
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * state->mag_info.cur_wmk);
@@ -1745,6 +1740,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
+  bool complete_flush = false;
 
   // is ASCP is still during in the process, skip flush
   if(state->ascp_xfer_in_progress > 0)
@@ -1753,19 +1749,20 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     rc |= SNS_RC_FAILED;
   }
 
+  if(state->fifo_flush_in_progress && state->in_clock_error_procedure)
+  {
+    // whether IRQ detected or not, no flushing can be done during clock error procedure
+    AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
+    rc |= SNS_RC_FAILED;
+    complete_flush = true;
+  }
+
 #ifdef AK0991X_ENABLE_DRI
   bool complete_flush = false;
 
   if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
   {
-    // if the flush request is during the clock error procedure, then wait...
-    if(state->in_clock_error_procedure)
-    {
-      AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
-      rc |= SNS_RC_FAILED;
-      complete_flush = true;
-    }
-    else if(state->system_time < state->pre_timestamp + state->averaged_interval)
+    if(state->system_time < state->pre_timestamp + state->averaged_interval)
     {
       AK0991X_INST_PRINT(LOW, instance, "FIFO empty");
       rc |= SNS_RC_FAILED;
@@ -1792,6 +1789,11 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     }
   }
 #endif
+
+  if(state->fifo_flush_in_progress && complete_flush)
+  {
+    ak0991x_send_fifo_flush_done(instance);
+  }
 
   return rc;
 }

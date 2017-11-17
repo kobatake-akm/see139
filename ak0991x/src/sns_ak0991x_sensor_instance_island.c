@@ -216,12 +216,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(pb_decode(&stream, sns_interrupt_event_fields, &irq_event))
         {
-          if(state->in_clock_error_procedure)
-          {
-            state->irq_event_time = irq_event.timestamp;
-            ak0991x_clock_error_calc_procedure(this);
-          }
-          else
+          if(!state->in_clock_error_procedure)
           {
             // check DRDY status.
             ak0991x_get_st1_status(this);
@@ -254,6 +249,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               AK0991X_INST_PRINT(LOW, this, "DRDY is NOT ready. Skip.");
             }
           }
+          else
+          {
+            state->irq_event_time = irq_event.timestamp;
+            ak0991x_clock_error_calc_procedure(this);
+          }
         }
       }
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
@@ -283,7 +283,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         pb_istream_t stream = pb_istream_from_buffer((uint8_t *)event->event, event->event_len);
 
-        AK0991X_INST_PRINT(LOW, this, "got ASCP event");
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
 
         state->ascp_xfer_in_progress--;
