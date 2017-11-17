@@ -66,6 +66,8 @@
 #define AK0991X_ENABLE_DRI
 #define AK0991X_ENABLE_FIFO
 #define AK0991X_ENABLE_S4S
+#elif   defined(AK0991X_TARGET_AK09916C)
+#define AK0991X_FORCE_MAX_ODR_50HZ
 #elif   defined(AK0991X_TARGET_AK09916D)
 #define AK0991X_ENABLE_DRI
 #elif   defined(AK0991X_TARGET_AK09917)
@@ -103,5 +105,5 @@
 #define AK0991X_ENABLE_FUSE               // Enable fuse rom
 #define AK0991X_ENABLE_DRI                // Enable DRI
 #define AK0991X_ENABLE_FIFO               // Enable FIFO
-
+//#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
 #endif	// AK0991X_ENABLE_SEE_LITE

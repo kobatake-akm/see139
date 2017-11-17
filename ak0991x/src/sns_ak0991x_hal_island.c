@@ -2009,15 +2009,15 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
 
-#ifndef AK0991X_ENABLE_SEE_LITE // for reducing I2C access => reduce CPU power
     // get num_samples, DRDY and data over run status from ST1
-    if(!state->irq_info.detect_irq_event)
+    if(!state->irq_info.detect_irq_event && state->mag_info.use_fifo)
     {
       ak0991x_get_st1_status(instance);
     }
-#else
-    UNUSED_VAR(state);
-#endif // AK0991X_ENABLE_SEE_LITE
+    else
+    {
+      state->num_samples = 1; // for Polling, no checking ST1 status.
+    }
 
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
     ak0991x_read_fifo_buffer(instance);
