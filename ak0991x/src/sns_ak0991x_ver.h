@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/17/17                AKM              Added AK0991X_FORCE_MAX_ODR_50HZ macro.
  * 11/17/17     010043     AKM              Refactor for clock error measurement.
  * 11/17/17                AKM              Debugged for SEE-Lite compile.
  * 11/17/17                AKM              Fixed delayed Flush response

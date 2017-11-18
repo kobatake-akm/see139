@@ -1758,7 +1758,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
   }
 
 #ifdef AK0991X_ENABLE_DRI
-  bool complete_flush = false;
 
   if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
   {
