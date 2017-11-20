@@ -105,5 +105,5 @@
 #define AK0991X_ENABLE_FUSE               // Enable fuse rom
 #define AK0991X_ENABLE_DRI                // Enable DRI
 #define AK0991X_ENABLE_FIFO               // Enable FIFO
-//#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
+#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
 #endif	// AK0991X_ENABLE_SEE_LITE
