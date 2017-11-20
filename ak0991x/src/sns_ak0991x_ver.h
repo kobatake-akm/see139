@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/20/17     010045     AKM              Fixed averaged interval for Polling.
  * 11/17/17                AKM              Added AK0991X_FORCE_MAX_ODR_50HZ macro.
  * 11/17/17     010043     AKM              Refactor for clock error measurement.
  * 11/17/17                AKM              Debugged for SEE-Lite compile.
@@ -97,4 +98,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10043  // major:01 minor:00 revision:43
+#define AK0991X_DRIVER_VERSION 10045  // major:01 minor:00 revision:45
