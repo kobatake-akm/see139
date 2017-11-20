@@ -700,6 +700,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
+  state->mag_info.first_num_samples = 0;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->force_fifo_read_till_wm = false;
   state->heart_beat_sample_count = 0;
@@ -1642,9 +1643,19 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
 #endif // AK0991X_ENABLE_S4S
 
   state->interrupt_timestamp = state->system_time;
-  state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time)
-      / (state->mag_info.data_count);
-  state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
+
+  if (state->this_is_first_data)
+  {
+    state->previous_irq_time = state->system_time;
+    state->first_data_ts_of_batch = state->system_time;
+    state->mag_info.first_num_samples = state->num_samples;
+  }
+  else
+  {
+    state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time)
+      / (state->mag_info.data_count - state->mag_info.first_num_samples);
+    state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
+  }
 }
 
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
