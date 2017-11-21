@@ -96,7 +96,7 @@
 #define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
 #define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
 //#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
-#define AK0991X_ENABLE_DAE                // Enable DAE
+//#define AK0991X_ENABLE_DAE                // Enable DAE
 #define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
 #define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 #define AK0991X_ENABLE_DEINIT             // Enable deinit call
