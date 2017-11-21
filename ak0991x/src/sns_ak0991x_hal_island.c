@@ -710,11 +710,10 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->is_temp_average = false;
   state->irq_info.detect_irq_event = false;
 
-  state->measurement_time = (sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+  state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
   state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-
-  state->pre_timestamp = state->system_time + state->measurement_time - state->averaged_interval;
+  state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
   state->previous_irq_time = state->pre_timestamp;
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u", 
@@ -1469,7 +1468,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     ak0991x_handle_mag_sample(&fifo_start[i],
-                              timestamp,
+                              timestamp - state->half_measurement_time,
                               instance,
                               event_service,
                               state,
@@ -1477,12 +1476,13 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u ave %u #sample %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u ave %u #sample %d meas_ts/2 %u",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
           (uint32_t)state->averaged_interval,
-          num_bytes>>3);
+          num_bytes>>3,
+          (uint32_t)(state->half_measurement_time));
     }
   }
   // store previous timestamp
