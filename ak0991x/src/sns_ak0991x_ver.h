@@ -23,6 +23,7 @@
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
  * 11/20/17     010045     AKM              Fixed averaged interval for Polling.
+ * 11/20/17                AKM              Debugged limited to select 50Hz ODR in ak0991x_mag_match_odr()
  * 11/17/17                AKM              Added AK0991X_FORCE_MAX_ODR_50HZ macro.
  * 11/17/17     010043     AKM              Refactor for clock error measurement.
  * 11/17/17                AKM              Debugged for SEE-Lite compile.
