@@ -1469,7 +1469,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     ak0991x_handle_mag_sample(&fifo_start[i],
-                              timestamp,
+                              timestamp - (state->measurement_time / 2),
                               instance,
                               event_service,
                               state,
@@ -1477,12 +1477,13 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u ave %u #sample %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u ave %u #sample %d meas_ts/2 %u",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
           (uint32_t)state->averaged_interval,
-          num_bytes>>3);
+          num_bytes>>3,
+          (uint32_t)(state->measurement_time / 2));
     }
   }
   // store previous timestamp
