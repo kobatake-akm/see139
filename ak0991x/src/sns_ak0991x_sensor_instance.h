@@ -158,7 +158,6 @@ typedef struct ak0991x_mag_info
   bool                   use_sync_stream;
   uint32_t      data_count;
   uint32_t      clock_error_meas_count;
-  uint16_t      first_num_samples;
 
 #ifdef AK0991X_ENABLE_S4S
   ak0991x_s4s_state      s4s_sync_state;

@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/21/17     010046     AKM              Use requested_timeout_time for Polling system_time.
  * 11/20/17     010045     AKM              Fixed averaged interval for Polling.
  * 11/20/17                AKM              Debugged limited to select 50Hz ODR in ak0991x_mag_match_odr()
  * 11/17/17                AKM              Added AK0991X_FORCE_MAX_ODR_50HZ macro.
@@ -99,4 +100,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10045  // major:01 minor:00 revision:45
+#define AK0991X_DRIVER_VERSION 10046  // major:01 minor:00 revision:46
