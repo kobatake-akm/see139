@@ -64,7 +64,11 @@ static char *ak09913_ope_mode_table[] = {AK0991X_NORMAL};
 
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
 float ak09915_odr_table[] =
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
+#else
 {AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+#endif
 static char *ak09915_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 #endif
 
@@ -80,7 +84,11 @@ static char *ak09916_ope_mode_table[] = {AK0991X_NORMAL};
 
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
 float ak09917_odr_table[] =
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
+#else
 {AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+#endif
 static char *ak09917_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 #endif
 
@@ -1163,8 +1171,10 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
      values[2].flt = ak09915_odr_table[2];
      values[3].has_flt = true;
      values[3].flt = ak09915_odr_table[3];
+#ifndef AK0991X_FORCE_MAX_ODR_50HZ
      values[4].has_flt = true;
      values[4].flt = ak09915_odr_table[4];
+#endif
      value_len = ARR_SIZE(ak09915_odr_table);
    }
    else if(state->device_select == AK09917)
@@ -1177,8 +1187,10 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
      values[2].flt = ak09917_odr_table[2];
      values[3].has_flt = true;
      values[3].flt = ak09917_odr_table[3];
+#ifndef AK0991X_FORCE_MAX_ODR_50HZ
      values[4].has_flt = true;
      values[4].flt = ak09917_odr_table[4];
+#endif
      value_len = ARR_SIZE(ak09917_odr_table);
    }
    else // Other parts use same ODR as ak09911
@@ -1249,8 +1261,10 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
      values[2].flt = ak09915_odr_table[2];
      values[3].has_flt = true;
      values[3].flt = ak09915_odr_table[3];
+#ifndef AK0991X_FORCE_MAX_ODR_50HZ
      values[4].has_flt = true;
      values[4].flt = ak09915_odr_table[4];
+#endif
      value_len = ARR_SIZE(ak09915_odr_table);
    }
 #elif defined(AK0991X_TARGET_AK09916C) || defined(AK0991X_TARGET_AK09916D)
@@ -1277,8 +1291,10 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
      values[2].flt = ak09917_odr_table[2];
      values[3].has_flt = true;
      values[3].flt = ak09917_odr_table[3];
+#ifndef AK0991X_FORCE_MAX_ODR_50HZ
      values[4].has_flt = true;
      values[4].flt = ak09917_odr_table[4];
+#endif
      value_len = ARR_SIZE(ak09917_odr_table);
    }
 #elif defined(AK0991X_TARGET_AK09918)

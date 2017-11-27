@@ -333,7 +333,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->system_time = timer_event.requested_timeout_time;
           if(state->system_time + state->nominal_intvl < now )
           {
-            AK0991X_INST_PRINT(ERROR, this, "Timer delay is too big!!!");
+            SNS_INST_PRINTF(ERROR, this, "Timer delay is too big!!!");
           }
 
           // for regular polling mode

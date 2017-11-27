@@ -1791,11 +1791,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
         rc |= SNS_RC_FAILED;
       }
     }
-
-    if(state->fifo_flush_in_progress && complete_flush)
-    {
-      ak0991x_send_fifo_flush_done(instance);
-    }
   }
 #endif
 
@@ -2019,15 +2014,23 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
-
-    // get num_samples, DRDY and data over run status from ST1
-    if(!state->irq_info.detect_irq_event && state->mag_info.use_fifo)
+    if(state->mag_info.use_dri) // DRI mode
     {
-      ak0991x_get_st1_status(instance);
+      if(!state->irq_info.detect_irq_event) // flush request received.
+      {
+        ak0991x_get_st1_status(instance);
+      }
     }
-    else
+    else  // Polling mode
     {
-      state->num_samples = 1; // for Polling, no checking ST1 status.
+      if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)  // FIFO mode, always use WM value.
+      {
+        state->num_samples = state->mag_info.cur_wmk+1;
+      }
+      else // no FIFO or S4S
+      {
+        state->num_samples = 1;
+      }
     }
 
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
