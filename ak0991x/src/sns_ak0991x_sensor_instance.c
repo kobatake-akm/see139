@@ -375,7 +375,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   sns_sensor_uid dae_suid;
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
-  AK0991X_INST_PRINT(LOW, this, "before dae_if init" );
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, &mag_suid);
 
   return SNS_RC_SUCCESS;
