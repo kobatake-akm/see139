@@ -682,29 +682,38 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
-    state->fifo_flush_in_progress = true;
-    if(!ak0991x_dae_if_flush_samples(this))
+    state->system_time = sns_get_system_time();
+
+    if(state->mag_info.use_fifo)
     {
-      state->system_time = sns_get_system_time();
-      AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
+      state->fifo_flush_in_progress = true;
+      if(!ak0991x_dae_if_flush_samples(this))
+      {
+        AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
 
 #ifdef AK0991X_ENABLE_DRI
-      if (NULL != state->interrupt_data_stream)
-      {
-        sns_sensor_event *event = 
-          state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
-        if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
+        if (NULL != state->interrupt_data_stream)
+        {
+          sns_sensor_event *event =
+            state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
+          if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
+          {
+            ak0991x_read_mag_samples(this);
+          }
+        }
+        else
         {
           ak0991x_read_mag_samples(this);
         }
-      }
-      else
-      {
-        ak0991x_read_mag_samples(this);
-      }
 #else
-      ak0991x_read_mag_samples(this);
+        ak0991x_read_mag_samples(this);
 #endif
+      }
+    }
+    else
+    {
+      AK0991X_INST_PRINT(LOW, this, "Flush request received at %u . Wait for the next commming evnet or interrupt.", (uint32_t)state->system_time);
+      ak0991x_send_fifo_flush_done(this);
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
