@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 11/27/17                AKM              Apply 50Hz limitation to AK09915C/D and AK09917. Fixed for DRI+FIFO mode.
+ * 11/30/17     010047     AKM              Apply 50Hz limitation to AK09915C/D and AK09917. Fixed for DRI+FIFO mode.
+ * 11/30/17                Qualcomm         When not streaming on DAE only flushes when FIFO is in use
  * 11/21/17     010046     AKM              Use requested_timeout_time for Polling system_time.
  * 11/20/17     010045     AKM              Fixed averaged interval for Polling.
  * 11/20/17                AKM              Debugged limited to select 50Hz ODR in ak0991x_mag_match_odr()
@@ -101,4 +102,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10046  // major:01 minor:00 revision:46
+#define AK0991X_DRIVER_VERSION 10047  // major:01 minor:00 revision:47

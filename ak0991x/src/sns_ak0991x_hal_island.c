@@ -2020,6 +2020,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       {
         ak0991x_get_st1_status(instance);
       }
+      // QC - else, use state->num_samples from previous interrupt? that could be wrong
     }
     else  // Polling mode
     {

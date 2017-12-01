@@ -691,10 +691,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
 
+      if(state->mag_info.use_fifo)
+      {
 #ifdef AK0991X_ENABLE_DRI
         if (NULL != state->interrupt_data_stream)
         {
-          sns_sensor_event *event =
+          sns_sensor_event *event = 
             state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
           if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
           {
@@ -708,6 +710,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 #else
         ak0991x_read_mag_samples(this);
 #endif
+      }
+      else
+      {
+        ak0991x_send_fifo_flush_done(this);
       }
     }
     else
