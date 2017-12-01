@@ -709,11 +709,18 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->is_temp_average = false;
   state->irq_info.detect_irq_event = false;
 
-  state->measurement_time = (sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+  state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
   state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
-  state->pre_timestamp = state->system_time + state->measurement_time - state->averaged_interval;
+  if(state->mag_info.use_dri)
+  {
+    state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
+  }
+  else
+  {
+    state->pre_timestamp = state->system_time;
+  }
   state->previous_irq_time = state->pre_timestamp;
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u", 
@@ -1468,7 +1475,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     ak0991x_handle_mag_sample(&fifo_start[i],
-                              timestamp,
+                              timestamp - state->half_measurement_time,
                               instance,
                               event_service,
                               state,
@@ -1476,12 +1483,14 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u ave %u #sample %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d meas_ts/2 %u",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
+          (uint32_t)state->system_time,
           (uint32_t)state->averaged_interval,
-          num_bytes>>3);
+          num_bytes>>3,
+          (uint32_t)(state->half_measurement_time));
     }
   }
   // store previous timestamp
@@ -1644,7 +1653,8 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
   state->interrupt_timestamp = state->system_time;
   state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time)
       / (state->mag_info.data_count);
-  state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
+//  state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
+  state->first_data_ts_of_batch = state->system_time;
 }
 
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
@@ -1758,6 +1768,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
   }
 
 #ifdef AK0991X_ENABLE_DRI
+
   if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
   {
     if(state->system_time < state->pre_timestamp + state->averaged_interval)
@@ -2003,16 +2014,25 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
-
-#ifndef AK0991X_ENABLE_SEE_LITE // for reducing I2C access => reduce CPU power
-    // get num_samples, DRDY and data over run status from ST1
-    if(!state->irq_info.detect_irq_event)
+    if(state->mag_info.use_dri) // DRI mode
     {
-      ak0991x_get_st1_status(instance);
+      if(!state->irq_info.detect_irq_event) // flush request received.
+      {
+        ak0991x_get_st1_status(instance);
+      }
+      // QC - else, use state->num_samples from previous interrupt? that could be wrong
     }
-#else
-    UNUSED_VAR(state);
-#endif // AK0991X_ENABLE_SEE_LITE
+    else  // Polling mode
+    {
+      if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)  // FIFO mode, always use WM value.
+      {
+        state->num_samples = state->mag_info.cur_wmk+1;
+      }
+      else // no FIFO or S4S
+      {
+        state->num_samples = 1;
+      }
+    }
 
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
     ak0991x_read_fifo_buffer(instance);

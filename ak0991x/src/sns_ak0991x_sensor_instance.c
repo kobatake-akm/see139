@@ -71,14 +71,24 @@ static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   }
   else if (desired_sample_rate <= AK0991X_ODR_100)
   {
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+    *chosen_sample_rate = AK0991X_ODR_50;
+    *chosen_reg_value = AK0991X_MAG_ODR50;
+#else
     *chosen_sample_rate = AK0991X_ODR_100;
     *chosen_reg_value = AK0991X_MAG_ODR100;
+#endif
   }
   else if ((desired_sample_rate <= AK0991X_ODR_200) &&
            ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
   {
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+    *chosen_sample_rate = AK0991X_ODR_50;
+    *chosen_reg_value = AK0991X_MAG_ODR50;
+#else
     *chosen_sample_rate = AK0991X_ODR_200;
     *chosen_reg_value = AK0991X_MAG_ODR200;
+#endif
   }
   else
   {
@@ -679,23 +689,30 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->system_time = sns_get_system_time();
       AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
 
-#ifdef AK0991X_ENABLE_DRI
-      if (NULL != state->interrupt_data_stream)
+      if(state->mag_info.use_fifo)
       {
-        sns_sensor_event *event = 
-          state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
-        if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
+#ifdef AK0991X_ENABLE_DRI
+        if (NULL != state->interrupt_data_stream)
+        {
+          sns_sensor_event *event = 
+            state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
+          if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
+          {
+            ak0991x_read_mag_samples(this);
+          }
+        }
+        else
         {
           ak0991x_read_mag_samples(this);
         }
+#else
+        ak0991x_read_mag_samples(this);
+#endif
       }
       else
       {
-        ak0991x_read_mag_samples(this);
+        ak0991x_send_fifo_flush_done(this);
       }
-#else
-      ak0991x_read_mag_samples(this);
-#endif
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
