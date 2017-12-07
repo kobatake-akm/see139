@@ -532,14 +532,15 @@ sns_rc ak0991x_dae_if_init(
     }
   }
 
-  if(SNS_RC_SUCCESS == rc)
+  if(SNS_RC_SUCCESS != rc)
   {
-    dae_if->mag.suid            = parent_suid;
-    dae_if->mag.stream_usable   = true;
+    ak0991x_dae_if_deinit(this);
   }
   else
   {
-    ak0991x_dae_if_deinit(this);
+    dae_if->mag.suid            = parent_suid;
+    dae_if->mag.stream_usable   = true;
+
   }
 #else
   UNUSED_VAR(this);
