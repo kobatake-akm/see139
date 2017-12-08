@@ -378,6 +378,37 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   AK0991X_INST_PRINT(LOW, this, "before dae_if init" );
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, &mag_suid);
 
+#ifdef AK0991X_ENABLE_DC
+  /* TODO: set pdc parameter */
+  state->pdc_parameter[0]  = 32;
+  state->pdc_parameter[1]  = 82;
+  state->pdc_parameter[2]  = 186;
+  state->pdc_parameter[3]  = 174;
+  state->pdc_parameter[4]  = 49;
+  state->pdc_parameter[5]  = 255;
+  state->pdc_parameter[6]  = 255;
+  state->pdc_parameter[7]  = 96;
+  state->pdc_parameter[8]  = 214;
+  state->pdc_parameter[9]  = 55;
+  state->pdc_parameter[10] = 231;
+  state->pdc_parameter[11] = 85;
+  state->pdc_parameter[12] = 38;
+  state->pdc_parameter[13] = 206;
+  state->pdc_parameter[14] = 255;
+  state->pdc_parameter[15] = 242;
+  state->pdc_parameter[16] = 255;
+  state->pdc_parameter[17] = 255;
+  state->pdc_parameter[18] = 127;
+  state->pdc_parameter[19] = 154;
+  state->pdc_parameter[20] = 191;
+  state->pdc_parameter[21] = 252;
+  state->pdc_parameter[22] = 255;
+  state->pdc_parameter[23] = 255;
+  state->pdc_parameter[24] = 9;
+  state->pdc_parameter[25] = 38;
+  state->pdc_parameter[26] = 255;
+#endif
+
   return SNS_RC_SUCCESS;
 }
 
