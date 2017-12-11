@@ -683,13 +683,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
   {
     state->system_time = sns_get_system_time();
+    state->fifo_flush_in_progress = true;
 
-    if(state->mag_info.use_fifo)
+    if(!ak0991x_dae_if_flush_samples(this))
     {
-      state->fifo_flush_in_progress = true;
-      if(!ak0991x_dae_if_flush_samples(this))
-      {
-        AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
+      AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
 
       if(state->mag_info.use_fifo)
       {

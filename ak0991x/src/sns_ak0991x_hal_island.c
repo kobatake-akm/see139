@@ -1514,7 +1514,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 /** See ak0991x_hal.h */
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 {
-#ifdef AK0991X_ENABLE_FIFO
   sns_service_manager *mgr = instance->cb->get_service_manager(instance);
   sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr,SNS_EVENT_SERVICE);
   sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
@@ -1533,10 +1532,6 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
   }
 
   state->fifo_flush_in_progress = false;
-
-#else
-  UNUSED_VAR(instance);
-#endif // AK0991X_ENABLE_FIFO
 }
 
 #ifdef AK0991X_ENABLE_DRI
