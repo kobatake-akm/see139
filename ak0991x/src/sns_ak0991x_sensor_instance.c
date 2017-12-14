@@ -124,6 +124,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   sns_sensor_uid mag_suid = (sensor_state->hardware_id == 0)? (sns_sensor_uid)MAG_SUID1 :
                                                               (sns_sensor_uid)MAG_SUID2;
+  AK0991X_INST_PRINT(LOW, this, "hardware_id=%d", sensor_state->hardware_id);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif
