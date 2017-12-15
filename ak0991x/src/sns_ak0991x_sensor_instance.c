@@ -122,9 +122,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
   batch_sample.sample.arg = &arg;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
-  sns_sensor_uid mag_suid = (sensor_state->hardware_id == 0)? (sns_sensor_uid)MAG_SUID1 :
+  sns_sensor_uid mag_suid = (sensor_state->registration_idx == 0)? (sns_sensor_uid)MAG_SUID1 :
                                                               (sns_sensor_uid)MAG_SUID2;
-  AK0991X_INST_PRINT(LOW, this, "hardware_id=%d", sensor_state->hardware_id);
+  AK0991X_INST_PRINT(LOW, this, "hardware_id=%d registration_idx=%d", sensor_state->hardware_id, sensor_state->registration_idx);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif

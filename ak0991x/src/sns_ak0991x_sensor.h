@@ -216,6 +216,9 @@ typedef struct ak0991x_state
   uint8_t sdr;
   uint8_t resolution_idx;
   int64_t hardware_id;
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+  uint32_t registration_idx;
+#endif
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   // registry sensor config
