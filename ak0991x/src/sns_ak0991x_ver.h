@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/18/17                AKM              Use timer_event.timeout_time instead using timer_event.requested_timeout_time
  * 12/11/17                AKM              Debugged for sending SNS_STD_MSGID_SNS_STD_FLUSH_EVENT
  * 11/30/17     010047     AKM              Apply 50Hz limitation to AK09915C/D and AK09917. Fixed for DRI+FIFO mode.
  * 11/30/17                Qualcomm         When not streaming on DAE only flushes when FIFO is in use
