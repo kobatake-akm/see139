@@ -308,6 +308,8 @@ static void ak0991x_get_mag_config(
     sns_std_request decoded_request;
     sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
 
+    AK0991X_PRINT(LOW, this, "get client req: mag_suid[0]=%x",mag_suid.sensor_uid[0]);
+
     if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
       if(ak0991x_get_decoded_mag_request(
@@ -320,6 +322,10 @@ static void ak0991x_get_mag_config(
 
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
+
+        AK0991X_PRINT(
+              MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate,
+              decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
 
         if (decoded_request.has_batching
             &&
