@@ -12,6 +12,7 @@
  *
  **/
 
+#include "sns_island_service.h"
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
@@ -72,6 +73,14 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
+static void ak0991x_inst_exit_island(sns_sensor_instance *this)
+{
+  sns_service_manager *smgr = this->cb->get_service_manager(this);
+  sns_island_service  *island_svc  =
+    (sns_island_service *)smgr->get_service(smgr, SNS_ISLAND_SERVICE);
+  island_svc->api->sensor_instance_island_exit(island_svc, this);
+}
+
 #ifdef AK0991X_ENABLE_FIFO
 static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                      void *user_arg)
@@ -104,12 +113,14 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 
   if (state->mag_info.use_dri)
   {
-    AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
+    AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB=%u",
+                       state->heart_beat_attempt_count);
     // Streaming is unable to resume after 4 attempts
     if (state->heart_beat_attempt_count >= 4)
     {
-     AK0991X_INST_PRINT(ERROR, this, "Streming is unable to resume after 3 attempts");
-     rv = SNS_RC_INVALID_STATE;
+      ak0991x_inst_exit_island(this);
+      SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
+      rv = SNS_RC_INVALID_STATE;
     }
     // Perform a reset operation in an attempt to revive the sensor
     else
@@ -119,12 +130,13 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 
       if(state->heart_beat_attempt_count >= 3)
       {
+        ak0991x_inst_exit_island(this);
         rv = ak0991x_device_sw_reset(this,
                                      state->scp_service,
                                      state->com_port_info.port_handle);
         if (rv != SNS_RC_SUCCESS)
         {
-          AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
+          SNS_INST_PRINTF(ERROR, this, "soft reset failed");
         }
         // Indicate streaming error
         rv = SNS_RC_NOT_AVAILABLE;
@@ -153,19 +165,21 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
         // Streaming is unable to resume after 3 attempts
         if (state->heart_beat_attempt_count >= 3)
         {
-         AK0991X_INST_PRINT(ERROR, this, "Streming is unable to resume after 3 attempts");
-         rv = SNS_RC_INVALID_STATE;
+          ak0991x_inst_exit_island(this);
+          SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
+          rv = SNS_RC_INVALID_STATE;
         }
         // Perform a reset operation in an attempt to revive the sensor
         else
         {
+          ak0991x_inst_exit_island(this);
           rv = ak0991x_device_sw_reset(this,
                                        state->scp_service,
                                        state->com_port_info.port_handle);
           if (rv == SNS_RC_SUCCESS) {
             AK0991X_INST_PRINT(LOW, this, "soft reset called");
           } else {
-            AK0991X_INST_PRINT(ERROR, this, "soft reset failed");
+            SNS_INST_PRINTF(ERROR, this, "soft reset failed");
           }
           // Indicate streaming error
           rv = SNS_RC_NOT_AVAILABLE;
@@ -255,6 +269,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             ak0991x_clock_error_calc_procedure(this);
           }
         }
+        else
+        {
+          SNS_INST_PRINTF(ERROR, this, "Failed decoding interrupt event");
+        }
       }
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
@@ -305,7 +323,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       }
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)
       {
-        AK0991X_INST_PRINT(LOW, this, "Received ASYNC_COM_PORT_ERROR");
+        SNS_INST_PRINTF(ERROR, this, "Received ASYNC_COM_PORT_ERROR");
       }
 
       event = state->async_com_port_data_stream->api->get_next_input(
@@ -349,7 +367,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         }
         else
         {
-          AK0991X_INST_PRINT(ERROR, this, "Failed decoding event");
+          SNS_INST_PRINTF(ERROR, this, "Failed decoding timer event");
         }
       }
       else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)

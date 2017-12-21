@@ -443,6 +443,7 @@ static void ak0991x_clear_old_events(sns_sensor_instance *const instance)
     while (NULL != event && SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
     {
       AK0991X_INST_PRINT(LOW, instance, "Old ASCP event detected. Cleared.");
+      state->ascp_xfer_in_progress--;
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
     }
@@ -1443,6 +1444,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     opdata_raw,
     timestamp,
     status);
+  state->total_samples++;
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -1514,7 +1516,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 /** See ak0991x_hal.h */
 void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 {
-#ifdef AK0991X_ENABLE_FIFO
   sns_service_manager *mgr = instance->cb->get_service_manager(instance);
   sns_event_service *e_service = (sns_event_service*)mgr->get_service(mgr,SNS_EVENT_SERVICE);
   sns_sensor_event *event = e_service->api->alloc_event(e_service, instance, 0);
@@ -1533,10 +1534,6 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
   }
 
   state->fifo_flush_in_progress = false;
-
-#else
-  UNUSED_VAR(instance);
-#endif // AK0991X_ENABLE_FIFO
 }
 
 #ifdef AK0991X_ENABLE_DRI
@@ -1741,7 +1738,7 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
   }
   else
   {
-    AK0991X_INST_PRINT(ERROR, instance, "Failed sending request to ASCP");
+    SNS_INST_PRINTF(ERROR, instance, "Failed sending request to ASCP");
   }
 }
 #endif
@@ -1866,7 +1863,7 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
                                    state->com_port_info.port_handle);
       if(rv != SNS_RC_SUCCESS)
       {
-        AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+        SNS_INST_PRINTF(ERROR, instance, "soft reset failed.");
       }
 
       // actual ODR measurement start.
@@ -1883,7 +1880,7 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
                                  state->com_port_info.port_handle);
     if(rv != SNS_RC_SUCCESS)
     {
-      AK0991X_INST_PRINT(ERROR, instance, "soft reset failed.");
+      SNS_INST_PRINTF(ERROR, instance, "soft reset failed.");
     }
 
     state->in_clock_error_procedure = false;
@@ -2304,7 +2301,7 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
   sns_stream_service *stream_mgr = (sns_stream_service *)
       service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
   sns_request             timer_req;
-  size_t                  req_len;
+  size_t                  req_len = 0;
   uint8_t                 buffer[20];
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
@@ -2318,23 +2315,25 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
                                                      );
     }
 
-    req_len = pb_encode_request(buffer,
-                                sizeof(buffer),
-                                &state->req_payload,
-                                sns_timer_sensor_config_fields,
-                                NULL);
-
-    if (req_len > 0)
+    if (NULL != state->timer_data_stream)
     {
-      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
-      timer_req.request_len = req_len;
-      timer_req.request = buffer;
-      /** Send encoded request to Timer Sensor */
-      state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+      req_len = pb_encode_request(buffer,
+                                  sizeof(buffer),
+                                  &state->req_payload,
+                                  sns_timer_sensor_config_fields,
+                                  NULL);
+      if (req_len > 0)
+      {
+        timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
+        timer_req.request_len = req_len;
+        timer_req.request = buffer;
+        /** Send encoded request to Timer Sensor */
+        state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+      }
     }
-    else
+    if (req_len == 0)
     {
-      AK0991X_INST_PRINT(ERROR, this, "Fail to send request to Timer Sensor");
+      SNS_INST_PRINTF(ERROR, this, "Fail to send request to Timer Sensor");
     }
   }
 }
@@ -2362,7 +2361,13 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     // or 5 FIFO buffers time for FIFO+DRI
     if (state->mag_info.use_fifo)
     {
+      sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
       req_payload.timeout_period = sample_period * 5 * (state->mag_info.cur_wmk + 1);
+      if(req_payload.timeout_period > max_timeout)
+      {
+        req_payload.timeout_period = max_timeout; // to avoid large data gap
+        AK0991X_INST_PRINT(MED, this, "HB timeout kept at %u", (uint32_t)max_timeout);
+      }
     }
     else
     {
