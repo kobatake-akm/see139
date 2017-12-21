@@ -65,9 +65,9 @@ static char *ak09913_ope_mode_table[] = {AK0991X_NORMAL};
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
 float ak09915_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
-{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
 #else
-{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 #endif
 static char *ak09915_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 #endif
@@ -85,9 +85,9 @@ static char *ak09916_ope_mode_table[] = {AK0991X_NORMAL};
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
 float ak09917_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
-{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
 #else
-{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 #endif
 static char *ak09917_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 #endif
@@ -264,7 +264,7 @@ static bool ak0991x_get_decoded_mag_request(
 
   if (!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-    AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+    SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
 
@@ -418,6 +418,20 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                          &is_flush_only,
                          &m_sensor_client_present);
 
+  if(chosen_report_rate == chosen_sample_rate)
+  {
+    ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
+    ak0991x_mag_match_odr(chosen_sample_rate,
+                          &chosen_sample_rate,
+                          &mag_chosen_sample_rate_reg_value,
+                          state->device_select);
+    chosen_report_rate = chosen_sample_rate;
+  }
+
+  AK0991X_PRINT(LOW, this, "RR=%u/100 SR=%u/100 fl_per=%u", 
+                (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
+                chosen_flush_period);
+
   sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
       state->fac_cal_bias, sizeof(state->fac_cal_bias));
 
@@ -460,7 +474,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
     }
     else
     {
-      AK0991X_PRINT(ERROR, this, "sns_scp_register_com_port fail rc:%u",rv);
+      SNS_PRINTF(ERROR, this, "sns_scp_register_com_port fail rc:%u",rv);
     }
   }
   return rv;
@@ -537,7 +551,7 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   }
   else
   {
-    AK0991X_PRINT(ERROR, this, "AK0991x timer req encode error");
+    SNS_PRINTF(ERROR, this, "AK0991x timer req encode error");
   }
 }
 
@@ -692,7 +706,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
  
     if(!pb_decode(&stream, sns_registry_read_event_fields, &read_event))
     {
-      AK0991X_PRINT(ERROR, this, "Error decoding registry event");
+      SNS_PRINTF(ERROR, this, "Error decoding registry event");
     }
     else
     {
@@ -1067,7 +1081,7 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
       SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
-    for(uint8_t i =0; i < 12; i++)
+    for(uint8_t i = 0; i < ARR_SIZE(values); i++)
     {
       values[i].has_flt = true;
       values[i].flt = state->placement[i];
@@ -1176,160 +1190,100 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  }
  {
    uint32_t value_len = 0;
-   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR,
-       SNS_ATTR};
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
 
 #ifdef AK0991X_ENABLE_ALL_DEVICES
    if((state->device_select == AK09915C) || (state->device_select == AK09915D))
    {
-     values[0].has_flt = true;
-     values[0].flt = ak09915_odr_table[0];
-     values[1].has_flt = true;
-     values[1].flt = ak09915_odr_table[1];
-     values[2].has_flt = true;
-     values[2].flt = ak09915_odr_table[2];
-     values[3].has_flt = true;
-     values[3].flt = ak09915_odr_table[3];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-     values[4].has_flt = true;
-     values[4].flt = ak09915_odr_table[4];
-#endif
      value_len = ARR_SIZE(ak09915_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09915_odr_table[i];
+     }
    }
    else if(state->device_select == AK09917)
    {
-     values[0].has_flt = true;
-     values[0].flt = ak09917_odr_table[0];
-     values[1].has_flt = true;
-     values[1].flt = ak09917_odr_table[1];
-     values[2].has_flt = true;
-     values[2].flt = ak09917_odr_table[2];
-     values[3].has_flt = true;
-     values[3].flt = ak09917_odr_table[3];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-     values[4].has_flt = true;
-     values[4].flt = ak09917_odr_table[4];
-#endif
      value_len = ARR_SIZE(ak09917_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09917_odr_table[i];
+     }
    }
    else // Other parts use same ODR as ak09911
    {
-     values[0].has_flt = true;
-     values[0].flt = ak09911_odr_table[0];
-     values[1].has_flt = true;
-     values[1].flt = ak09911_odr_table[1];
-     values[2].has_flt = true;
-     values[2].flt = ak09911_odr_table[2];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-     values[3].has_flt = true;
-     values[3].flt = ak09911_odr_table[3];
-#endif
      value_len = ARR_SIZE(ak09911_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09911_odr_table[i];
+     }
    }
 #else
-
 #if defined(AK0991X_TARGET_AK09911)
    {
-      values[0].has_flt = true;
-      values[0].flt = ak09911_odr_table[0];
-      values[1].has_flt = true;
-      values[1].flt = ak09911_odr_table[1];
-      values[2].has_flt = true;
-      values[2].flt = ak09911_odr_table[2];
-      values[3].has_flt = true;
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-      values[3].flt = ak09911_odr_table[3];
-      value_len = ARR_SIZE(ak09911_odr_table);
-#endif
+     value_len = ARR_SIZE(ak09911_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09911_odr_table[i];
+     }
    }
 #elif defined(AK0991X_TARGET_AK09912)
    {
-      values[0].has_flt = true;
-      values[0].flt = ak09912_odr_table[0];
-      values[1].has_flt = true;
-      values[1].flt = ak09912_odr_table[1];
-      values[2].has_flt = true;
-      values[2].flt = ak09912_odr_table[2];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-      values[3].has_flt = true;
-      values[3].flt = ak09912_odr_table[3];
-#endif
-      value_len = ARR_SIZE(ak09912_odr_table);
-    }
+     value_len = ARR_SIZE(ak09912_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09912_odr_table[i];
+     }
+   }
 #elif defined(AK0991X_TARGET_AK09913)
    {
-      values[0].has_flt = true;
-      values[0].flt = ak09913_odr_table[0];
-      values[1].has_flt = true;
-      values[1].flt = ak09913_odr_table[1];
-      values[2].has_flt = true;
-      values[2].flt = ak09913_odr_table[2];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-      values[3].has_flt = true;
-      values[3].flt = ak09913_odr_table[3];
-#endif
-      value_len = ARR_SIZE(ak09913_odr_table);
-    }
+     value_len = ARR_SIZE(ak09913_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09913_odr_table[i];
+     }
+   }
 #elif defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
    {
-     values[0].has_flt = true;
-     values[0].flt = ak09915_odr_table[0];
-     values[1].has_flt = true;
-     values[1].flt = ak09915_odr_table[1];
-     values[2].has_flt = true;
-     values[2].flt = ak09915_odr_table[2];
-     values[3].has_flt = true;
-     values[3].flt = ak09915_odr_table[3];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-     values[4].has_flt = true;
-     values[4].flt = ak09915_odr_table[4];
-#endif
      value_len = ARR_SIZE(ak09915_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09915_odr_table[i];
+     }
    }
 #elif defined(AK0991X_TARGET_AK09916C) || defined(AK0991X_TARGET_AK09916D)
    {
-      values[0].has_flt = true;
-      values[0].flt = ak09916_odr_table[0];
-      values[1].has_flt = true;
-      values[1].flt = ak09916_odr_table[1];
-      values[2].has_flt = true;
-      values[2].flt = ak09916_odr_table[2];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-      values[3].has_flt = true;
-      values[3].flt = ak09916_odr_table[3];
-#endif
-      value_len = ARR_SIZE(ak09916_odr_table);
-    }
+     value_len = ARR_SIZE(ak09916_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09916_odr_table[i];
+     }
+   }
 #elif defined(AK0991X_TARGET_AK09917)
    {
-     values[0].has_flt = true;
-     values[0].flt = ak09917_odr_table[0];
-     values[1].has_flt = true;
-     values[1].flt = ak09917_odr_table[1];
-     values[2].has_flt = true;
-     values[2].flt = ak09917_odr_table[2];
-     values[3].has_flt = true;
-     values[3].flt = ak09917_odr_table[3];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-     values[4].has_flt = true;
-     values[4].flt = ak09917_odr_table[4];
-#endif
      value_len = ARR_SIZE(ak09917_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09917_odr_table[i];
+     }
    }
 #elif defined(AK0991X_TARGET_AK09918)
    {
-      values[0].has_flt = true;
-      values[0].flt = ak09918_odr_table[0];
-      values[1].has_flt = true;
-      values[1].flt = ak09918_odr_table[1];
-      values[2].has_flt = true;
-      values[2].flt = ak09918_odr_table[2];
-#ifndef AK0991X_FORCE_MAX_ODR_50HZ
-      values[3].has_flt = true;
-      values[3].flt = ak09918_odr_table[3];
-#endif
-      value_len = ARR_SIZE(ak09918_odr_table);
-    }
+     value_len = ARR_SIZE(ak09918_odr_table);
+     for(uint8_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = ak09918_odr_table[i];
+     }
+   }
 #endif
 
 #endif //  AK0991X_ENABLE_ALL_DEVICES
@@ -1539,7 +1493,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
             if (rv != SNS_RC_SUCCESS)
             {
-              AK0991X_PRINT(LOW, this, "Read WHO-AM-I error");
+              SNS_PRINTF(ERROR, this, "Read WHO-AM-I error");
               rv = SNS_RC_INVALID_LIBRARY_STATE;
             }
             else
@@ -1589,7 +1543,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 }
                 else
                 {
-                  AK0991X_PRINT(ERROR, this, "Unsupported Sensor");
+                  SNS_PRINTF(ERROR, this, "Unsupported Sensor");
                   rv = SNS_RC_INVALID_STATE;
                 }
 #else
@@ -1639,14 +1593,14 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 }
 #endif
                 else{
-                  AK0991X_PRINT(ERROR, this, "Unsupported Sensor");
+                  SNS_PRINTF(ERROR, this, "Unsupported Sensor");
                   rv = SNS_RC_INVALID_STATE;
                 }
 #endif
               }
               else
               {
-                AK0991X_PRINT(ERROR, this, "Unsupported Sensor");
+                SNS_PRINTF(ERROR, this, "Unsupported Sensor");
                 rv = SNS_RC_INVALID_STATE;
               }
             }
@@ -1745,7 +1699,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
         }
         else
         {
-          AK0991X_PRINT(ERROR, this, "pb_decode error");
+          SNS_PRINTF(ERROR, this, "pb_decode error");
           rv = SNS_RC_INVALID_STATE;
         }
       }
@@ -1986,8 +1940,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         state->remove_timer_stream = false;
         if(NULL == state->timer_stream)
         {
-          AK0991X_PRINT(ERROR, this, __FILENAME__, __LINE__,
-                    "Failed to create timer stream");
+          SNS_PRINTF(ERROR, this, "Failed to create timer stream");
         }
       }
     }
@@ -2045,5 +1998,66 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   }
 
   return rv;
+}
+
+sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
+                             float *chosen_sample_rate,
+                             ak0991x_mag_odr *chosen_reg_value,
+                             akm_device_type device_select)
+{
+  if (NULL == chosen_sample_rate
+      ||
+      NULL == chosen_reg_value)
+  {
+    return SNS_RC_NOT_SUPPORTED;
+  }
+
+  if (desired_sample_rate <= AK0991X_ODR_0)
+  {
+    *chosen_sample_rate = AK0991X_ODR_0;
+    *chosen_reg_value = AK0991X_MAG_ODR_OFF;
+  }
+  else if (desired_sample_rate <= AK0991X_ODR_10)
+  {
+    *chosen_sample_rate = AK0991X_ODR_10;
+    *chosen_reg_value = AK0991X_MAG_ODR10;
+  }
+  else if (desired_sample_rate <= AK0991X_ODR_20)
+  {
+    *chosen_sample_rate = AK0991X_ODR_20;
+    *chosen_reg_value = AK0991X_MAG_ODR20;
+  }
+  else if (desired_sample_rate <= AK0991X_ODR_50)
+  {
+    *chosen_sample_rate = AK0991X_ODR_50;
+    *chosen_reg_value = AK0991X_MAG_ODR50;
+  }
+  else if (desired_sample_rate <= AK0991X_ODR_100)
+  {
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+    *chosen_sample_rate = AK0991X_ODR_50;
+    *chosen_reg_value = AK0991X_MAG_ODR50;
+#else
+    *chosen_sample_rate = AK0991X_ODR_100;
+    *chosen_reg_value = AK0991X_MAG_ODR100;
+#endif
+  }
+  else if ((desired_sample_rate <= AK0991X_ODR_200) &&
+           ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
+  {
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+    *chosen_sample_rate = AK0991X_ODR_50;
+    *chosen_reg_value = AK0991X_MAG_ODR50;
+#else
+    *chosen_sample_rate = AK0991X_ODR_200;
+    *chosen_reg_value = AK0991X_MAG_ODR200;
+#endif
+  }
+  else
+  {
+    return SNS_RC_FAILED;
+  }
+
+  return SNS_RC_SUCCESS;
 }
 

@@ -37,67 +37,6 @@
 #include "sns_sync_com_port_service.h"
 #include "sns_sensor_util.h"
 
-static sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
-                                    float *chosen_sample_rate,
-                                    ak0991x_mag_odr *chosen_reg_value,
-                                    akm_device_type device_select)
-{
-  if (NULL == chosen_sample_rate
-      ||
-      NULL == chosen_reg_value)
-  {
-    return SNS_RC_NOT_SUPPORTED;
-  }
-
-  if (desired_sample_rate <= AK0991X_ODR_0)
-  {
-    *chosen_sample_rate = AK0991X_ODR_0;
-    *chosen_reg_value = AK0991X_MAG_ODR_OFF;
-  }
-  else if (desired_sample_rate <= AK0991X_ODR_10)
-  {
-    *chosen_sample_rate = AK0991X_ODR_10;
-    *chosen_reg_value = AK0991X_MAG_ODR10;
-  }
-  else if (desired_sample_rate <= AK0991X_ODR_20)
-  {
-    *chosen_sample_rate = AK0991X_ODR_20;
-    *chosen_reg_value = AK0991X_MAG_ODR20;
-  }
-  else if (desired_sample_rate <= AK0991X_ODR_50)
-  {
-    *chosen_sample_rate = AK0991X_ODR_50;
-    *chosen_reg_value = AK0991X_MAG_ODR50;
-  }
-  else if (desired_sample_rate <= AK0991X_ODR_100)
-  {
-#ifdef AK0991X_FORCE_MAX_ODR_50HZ
-    *chosen_sample_rate = AK0991X_ODR_50;
-    *chosen_reg_value = AK0991X_MAG_ODR50;
-#else
-    *chosen_sample_rate = AK0991X_ODR_100;
-    *chosen_reg_value = AK0991X_MAG_ODR100;
-#endif
-  }
-  else if ((desired_sample_rate <= AK0991X_ODR_200) &&
-           ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
-  {
-#ifdef AK0991X_FORCE_MAX_ODR_50HZ
-    *chosen_sample_rate = AK0991X_ODR_50;
-    *chosen_reg_value = AK0991X_MAG_ODR50;
-#else
-    *chosen_sample_rate = AK0991X_ODR_200;
-    *chosen_reg_value = AK0991X_MAG_ODR200;
-#endif
-  }
-  else
-  {
-    return SNS_RC_FAILED;
-  }
-
-  return SNS_RC_SUCCESS;
-}
-
 /** See sns_sensor_instance_api::init */
 sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
                                 sns_sensor_state const *sstate)
@@ -140,7 +79,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &mag_suid,
               sizeof(state->mag_info.suid));
 
-  AK0991X_INST_PRINT(LOW, this, "ak0991x inst init" );
+  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init" );
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -385,6 +324,8 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
+
+  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
 
   if(NULL != state->com_port_info.port_handle)
   {
@@ -639,7 +580,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if(rv == SNS_RC_SUCCESS){
         AK0991X_INST_PRINT(LOW, this, "soft reset called.");
       }else{
-        AK0991X_INST_PRINT(ERROR, this, "soft reset failed.");
+        SNS_INST_PRINTF(ERROR, this, "soft reset failed.");
       }
 
       // hardware setting for measurement mode

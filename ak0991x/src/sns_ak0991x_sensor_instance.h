@@ -192,6 +192,7 @@ typedef struct ak0991x_instance_state
 {
   /** mag HW config details*/
   ak0991x_mag_info mag_info;
+  uint32_t total_samples; /* throughout the life of this instance */
 
   /** sampling info. */
   uint8_t num_samples;
