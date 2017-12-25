@@ -216,6 +216,9 @@ typedef struct ak0991x_state
   uint8_t sdr;
   uint8_t resolution_idx;
   int64_t hardware_id;
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+  uint32_t registration_idx;
+#endif
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   // registry sensor config
@@ -295,3 +298,9 @@ sns_rc ak0991x_mag_init(sns_sensor *const this);
 #ifdef AK0991X_ENABLE_DEINIT
 sns_rc ak0991x_mag_deinit(sns_sensor *const this);
 #endif
+
+sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
+                             float *chosen_sample_rate,
+                             ak0991x_mag_odr *chosen_reg_value,
+                             akm_device_type device_select);
+

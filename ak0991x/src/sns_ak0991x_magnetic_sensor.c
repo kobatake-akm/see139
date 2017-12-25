@@ -138,6 +138,11 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->hw_is_present = false;
   state->sensor_client_present = false;
 
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+  state->registration_idx = this->cb->get_registration_index(this);
+  AK0991X_PRINT(LOW, this, "registration_idx=%d",state->registration_idx);
+#endif
+
 #ifdef AK0991X_ENABLE_ALL_DEVICES
   uint8_t i = 0;
 

@@ -496,13 +496,14 @@ sns_rc ak0991x_dae_if_init(
     sns_strlcpy(config_req.func_table_name,
                 dae_if->mag.nano_hal_vtable_name,
                 sizeof(config_req.func_table_name));
-    config_req.interrupt              = true;
-    config_req.axis_map_count         = 3;
-    config_req.has_irq_config         = true;
 #ifdef AK0991X_DAE_FORCE_POLLING
     config_req.interrupt              = false;
     config_req.has_irq_config         = false;
+#else
+    config_req.interrupt              = state->mag_info.use_dri;
+    config_req.has_irq_config         = state->mag_info.use_dri;
 #endif /* AK0991X_DAE_FORCE_POLLING */
+    config_req.axis_map_count         = 3;
     config_req.irq_config             = state->irq_info.irq_config;
 #ifdef AK0991X_ENABLE_S4S
     config_req.has_s4s_config         = state->mag_info.use_sync_stream;
@@ -540,7 +541,6 @@ sns_rc ak0991x_dae_if_init(
   {
     dae_if->mag.suid            = parent_suid;
     dae_if->mag.stream_usable   = true;
-
   }
 #else
   UNUSED_VAR(this);

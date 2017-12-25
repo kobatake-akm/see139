@@ -22,7 +22,13 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 12/08/17     010048     AKM              Modified for DC-Lib.
+ * 12/20/17     010049     Qualcomm/AKM     Merged the version 010048 and dual sensor modification
+ * 12/18/17                Qualcomm/AKM     Fixed dual sensor for simultaneous streaming.
+ * 12/11/17                AKM              Debugged for sending SNS_STD_MSGID_SNS_STD_FLUSH_EVENT
+ * 12/20/17     010048     AKM              Featurization fix for Flush
+ * 12/20/17                Qualcomm         Fixed issue of unexpected stopping of streaming
+ * 12/20/17                Qualcomm         Fixed to stream instead of batch when requested rate is lower than MIN ODR
+ * 12/20/17                Qualcomm         Always print ERROR messages
  * 11/30/17     010047     AKM              Apply 50Hz limitation to AK09915C/D and AK09917. Fixed for DRI+FIFO mode.
  * 11/30/17                Qualcomm         When not streaming on DAE only flushes when FIFO is in use
  * 11/21/17     010046     AKM              Use requested_timeout_time for Polling system_time.
@@ -103,4 +109,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10047  // major:01 minor:00 revision:47
+#define AK0991X_DRIVER_VERSION 10049  // major:01 minor:00 revision:49
