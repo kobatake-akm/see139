@@ -22,6 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/25/17     010050     AKM              Modified for DC-Lib.
+ * 12/20/17     010049     Qualcomm/AKM     Merged the version 010048 and dual sensor modification
+ * 12/18/17                Qualcomm/AKM     Fixed dual sensor for simultaneous streaming.
+ * 12/11/17                AKM              Debugged for sending SNS_STD_MSGID_SNS_STD_FLUSH_EVENT
  * 12/20/17     010048     AKM              Featurization fix for Flush
  * 12/20/17                Qualcomm         Fixed issue of unexpected stopping of streaming
  * 12/20/17                Qualcomm         Fixed to stream instead of batch when requested rate is lower than MIN ODR
@@ -106,4 +110,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10048  // major:01 minor:00 revision:48
+#define AK0991X_DRIVER_VERSION 10050  // major:01 minor:00 revision:50

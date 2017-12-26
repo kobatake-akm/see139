@@ -286,7 +286,8 @@ static void ak0991x_get_mag_config(
 {
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   ak0991x_state *state = (ak0991x_state *)this->state->state;
-  sns_sensor_uid mag_suid = (state->hardware_id == 0)? (sns_sensor_uid)MAG_SUID1 : (sns_sensor_uid)MAG_SUID2;
+  sns_sensor_uid mag_suid = (state->registration_idx == 0)? (sns_sensor_uid)MAG_SUID1 : (sns_sensor_uid)MAG_SUID2;
+  AK0991X_PRINT(LOW, this, "hw_id=%d registration_idx=%d", state->hardware_id, state->registration_idx);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif
@@ -307,6 +308,8 @@ static void ak0991x_get_mag_config(
     sns_std_request decoded_request;
     sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
 
+    AK0991X_PRINT(LOW, this, "get client req: mag_suid[0]=%x",mag_suid.sensor_uid[0]);
+
     if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
       if(ak0991x_get_decoded_mag_request(
@@ -319,6 +322,10 @@ static void ak0991x_get_mag_config(
 
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
+
+        AK0991X_PRINT(
+              MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate,
+              decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
 
         if (decoded_request.has_batching
             &&
@@ -430,6 +437,9 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
 
   sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
       &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
+
+  AK0991X_PRINT(LOW, this, "chosen_sample_rate=%d chosen_report_rate=%d",
+      (int)chosen_sample_rate, (int)chosen_report_rate);
 
   ak0991x_set_mag_inst_config(this,
                               instance,
@@ -598,7 +608,9 @@ static void ak0991x_request_registry(sns_sensor *const this)
     // the case is "true" to register for ak0991x_dri_0.json and msm8996_ak9911x_0.json.
     // hw_id = 1 is considered another library,
     // the case is "false" to register for a0991x_dri_1.json and msm8996_ak9911x_1.json.
-    if(this->cb->get_registration_index(this) == 0)
+    AK0991X_PRINT(LOW, this, "get_registration_index=%d registration_idx = %d",
+        this->cb->get_registration_index(this), state->registration_idx);
+    if(state->registration_idx == 0)
     {
       ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PF_CONFIG);
       ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PLACE);
@@ -718,6 +730,10 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       faccal = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_FACCAL,
                              group_name.buf_len));
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
+      AK0991X_PRINT(LOW, this,
+        "mag_config=%d reg_config=%d pf_config=%d place=%d orient=%d faccal=%d",
+        (int)mag_config,(int)reg_config,(int)pf_config,(int)place,(int)orient,(int)faccal);
+
       mag_config |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_MAG_CONFIG,
                            group_name.buf_len));
       reg_config |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_REG_CONFIG,
@@ -730,6 +746,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                            group_name.buf_len));
       faccal |= (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_1_FACCAL,
                             group_name.buf_len));
+      AK0991X_PRINT(LOW, this,
+        "mag_config=%d reg_config=%d pf_config=%d place=%d orient=%d faccal=%d",
+        (int)mag_config,(int)reg_config,(int)pf_config,(int)place,(int)orient,(int)faccal);
 #endif
       if(mag_config)
       {
@@ -1705,7 +1724,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
   ak0991x_state *state = (ak0991x_state *)this->state->state;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
-  sns_sensor_uid mag_suid = (state->hardware_id == 0)? (sns_sensor_uid)MAG_SUID1: (sns_sensor_uid)MAG_SUID2;
+  sns_sensor_uid mag_suid = (state->registration_idx == 0)? (sns_sensor_uid)MAG_SUID1 : (sns_sensor_uid)MAG_SUID2;
+  AK0991X_PRINT(LOW, this, "hw_id=%d registration_idx=%d", state->hardware_id, state->registration_idx);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif

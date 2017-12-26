@@ -61,8 +61,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
   batch_sample.sample.arg = &arg;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
-  sns_sensor_uid mag_suid = (sensor_state->hardware_id == 0)? (sns_sensor_uid)MAG_SUID1 :
+  sns_sensor_uid mag_suid = (sensor_state->registration_idx == 0)? (sns_sensor_uid)MAG_SUID1 :
                                                               (sns_sensor_uid)MAG_SUID2;
+  AK0991X_INST_PRINT(LOW, this, "hardware_id=%d registration_idx=%d", sensor_state->hardware_id, sensor_state->registration_idx);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif
@@ -315,6 +316,37 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_sensor_uid dae_suid;
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, &mag_suid);
+
+#ifdef AK0991X_ENABLE_DC
+  /* TODO: set pdc parameter */
+  state->pdc_parameter[0]  = 32;
+  state->pdc_parameter[1]  = 82;
+  state->pdc_parameter[2]  = 186;
+  state->pdc_parameter[3]  = 174;
+  state->pdc_parameter[4]  = 49;
+  state->pdc_parameter[5]  = 255;
+  state->pdc_parameter[6]  = 255;
+  state->pdc_parameter[7]  = 96;
+  state->pdc_parameter[8]  = 214;
+  state->pdc_parameter[9]  = 55;
+  state->pdc_parameter[10] = 231;
+  state->pdc_parameter[11] = 85;
+  state->pdc_parameter[12] = 38;
+  state->pdc_parameter[13] = 206;
+  state->pdc_parameter[14] = 255;
+  state->pdc_parameter[15] = 242;
+  state->pdc_parameter[16] = 255;
+  state->pdc_parameter[17] = 255;
+  state->pdc_parameter[18] = 127;
+  state->pdc_parameter[19] = 154;
+  state->pdc_parameter[20] = 191;
+  state->pdc_parameter[21] = 252;
+  state->pdc_parameter[22] = 255;
+  state->pdc_parameter[23] = 255;
+  state->pdc_parameter[24] = 9;
+  state->pdc_parameter[25] = 38;
+  state->pdc_parameter[26] = 255;
+#endif
 
   return SNS_RC_SUCCESS;
 }
@@ -654,6 +686,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_send_fifo_flush_done(this);
       }
+    }
+    else
+    {
+      AK0991X_INST_PRINT(LOW, this, "Flush request received at %u . Wait for the next commming evnet or interrupt.", (uint32_t)state->system_time);
+      ak0991x_send_fifo_flush_done(this);
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
