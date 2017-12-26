@@ -1438,17 +1438,19 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   temp_flt[1] = opdata_raw[1];
   temp_flt[2] = opdata_raw[2];
 
-  AK0991X_INST_PRINT(LOW, instance, "akm,Q16,X,Y,Z before DC: %d %d %d end", FX_FLTTOFIX_Q16(temp_flt[0]), FX_FLTTOFIX_Q16(temp_flt[1]), FX_FLTTOFIX_Q16(temp_flt[2]));
+  AK0991X_INST_PRINT(LOW, instance, "akm,Q16,X,Y,Z before DC: %d %d %d end",
+      FX_FLTTOFIX_Q16(temp_flt[0]),
+      FX_FLTTOFIX_Q16(temp_flt[1]),
+      FX_FLTTOFIX_Q16(temp_flt[2]));
 
   if ((temp_ret = AKSC_DistCompen(state->pdc_parameter, temp_flt)) != SNS_RC_SUCCESS) {
       AK0991X_INST_PRINT(LOW, instance, "DC error (%d).", temp_ret);
   }
 
-  AK0991X_INST_PRINT(LOW, instance, "akm,Q16,X,Y,Z after  DC: %d %d %d end", FX_FLTTOFIX_Q16(temp_flt[0]), FX_FLTTOFIX_Q16(temp_flt[1]), FX_FLTTOFIX_Q16(temp_flt[2]));
-
-  //AK0991X_INST_PRINT(LOW, instance, "AKM Test before a, b, c %d,%d,%d", a, b, c);
-  //c = sum_test(a, b);
-  //AK0991X_INST_PRINT(LOW, instance, "AKM Test after  a, b, c %d,%d,%d", a, b, c);
+  AK0991X_INST_PRINT(LOW, instance, "akm,Q16,X,Y,Z after  DC: %d %d %d end",
+      FX_FLTTOFIX_Q16(temp_flt[0]),
+      FX_FLTTOFIX_Q16(temp_flt[1]),
+      FX_FLTTOFIX_Q16(temp_flt[2]));
 
   opdata_cal.data[0] = temp_flt[0];
   opdata_cal.data[1] = temp_flt[1];

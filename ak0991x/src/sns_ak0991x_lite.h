@@ -22,6 +22,9 @@
 // Enable below macro to set dual sensor support mode
 //#define AK0991X_ENABLE_DUAL_SENSOR
 
+// Enable DC-Lib
+//#define AK0991X_ENABLE_DC
+
 /*
  * For SEE-Lite Mode, please follow the procedure.
  * TODO1: define the AK0991X_ENABLE_SEE_LITE.
@@ -106,5 +109,4 @@
 #define AK0991X_ENABLE_DRI                // Enable DRI
 #define AK0991X_ENABLE_FIFO               // Enable FIFO
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
-//#define AK0991X_ENABLE_DC                 // Enable DC-Lib
 #endif	// AK0991X_ENABLE_SEE_LITE
