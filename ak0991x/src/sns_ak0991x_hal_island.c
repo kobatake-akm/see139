@@ -44,6 +44,11 @@
 #include "sns_cal.pb.h"
 #include "sns_sensor_util.h"
 
+#ifdef AK0991X_ENABLE_DC
+#include "sns_ak0991x_dist_compen.h"
+#define FX_FLTTOFIX_Q16(x)  ((int)(x * 65535.0f))
+#endif
+
 //#define AK0991X_VERBOSE_DEBUG             // Define to enable extra debugging
 
 /** Need to use ODR table. */
@@ -1383,6 +1388,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
 
+#ifdef AK0991X_ENABLE_DC 
+  float temp_flt[3];
+  sns_rc temp_ret = SNS_RC_INVALID_STATE;
+#endif
+
   /*
   AK0991X_INST_PRINT(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
         (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e00,
@@ -1423,11 +1433,35 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       ipdata[state->axis_map[i].ipaxis];
   }
 
+#ifdef AK0991X_ENABLE_DC
+  temp_flt[0] = opdata_raw[0];
+  temp_flt[1] = opdata_raw[1];
+  temp_flt[2] = opdata_raw[2];
+
+  AK0991X_INST_PRINT(LOW, instance, "akm,Q16,X,Y,Z before DC: %d %d %d end",
+      FX_FLTTOFIX_Q16(temp_flt[0]),
+      FX_FLTTOFIX_Q16(temp_flt[1]),
+      FX_FLTTOFIX_Q16(temp_flt[2]));
+
+  if ((temp_ret = AKSC_DistCompen(state->pdc_parameter, temp_flt)) != SNS_RC_SUCCESS) {
+      AK0991X_INST_PRINT(LOW, instance, "DC error (%d).", temp_ret);
+  }
+
+  AK0991X_INST_PRINT(LOW, instance, "akm,Q16,X,Y,Z after  DC: %d %d %d end",
+      FX_FLTTOFIX_Q16(temp_flt[0]),
+      FX_FLTTOFIX_Q16(temp_flt[1]),
+      FX_FLTTOFIX_Q16(temp_flt[2]));
+
+  opdata_cal.data[0] = temp_flt[0];
+  opdata_cal.data[1] = temp_flt[1];
+  opdata_cal.data[2] = temp_flt[2];
+#else
   // factory calibration
   opdata_cal = sns_apply_calibration_correction_3(
       make_vector3_from_array(opdata_raw),
       make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
       state->mag_registry_cfg.fac_cal_corr_mat);
+#endif
 
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,

@@ -38,6 +38,10 @@
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
 
+#ifdef AK0991X_ENABLE_DC
+#include "sns_ak0991x_dist_compen.h"
+#endif
+
 /** Forward Declaration of Instance API */
 extern sns_sensor_instance_api ak0991x_sensor_instance_api;
 
@@ -270,6 +274,12 @@ typedef struct ak0991x_instance_state
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
   size_t           log_raw_encoded_size;
+
+#ifdef AK0991X_ENABLE_DC
+  /* parameters for DC */
+    uint8_t pdc_parameter[AKSC_PDC_SIZE];
+#endif
+
 } ak0991x_instance_state;
 
 typedef struct odr_reg_map
