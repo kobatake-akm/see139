@@ -207,10 +207,18 @@ typedef struct lsm6ds3_fifo_info
 
   /** fifo cur rate index */
   lsm6ds3_accel_odr fifo_rate;
-
+  /*Actual ODR running on H/W*/
+  lsm6ds3_accel_odr  configured_odr;
+  // Number of samples need to be discarded
+  uint8_t num_samples_to_discard;
   /** FIFO watermark levels for accel and gyro*/
   uint16_t cur_wmk;
-
+  // True, If only WMK changed with new request
+  bool wmk_change;
+  /** number of interrupts fired without reconfig*/
+  uint16_t  interrupt_cnt;
+  /** True, If it is first interrupt */
+  bool first_interrupt;
   /** max requested FIFO watermark levels; possibly larger than max HW FIFO */
   uint32_t max_requested_wmk;
 
@@ -323,13 +331,21 @@ typedef struct lsm6ds3_instance_state
   lsm6ds3_config_step       config_step;
 
   sns_time             interrupt_timestamp;
-
+  /** timestamp of last sample sent to framework*/
+  sns_time last_timestamp; 
+  /** timestamp at which heart beat timer should start*/
+  sns_time heart_beat_timestamp;
+  /** avg sampling interval without reconfiguring*/
+  sns_time  avg_sampling_intvl;  
+  /* sample time stamp should be less than this time stamp. Otherwise, skip sample*/
+  sns_time sample_timestamp_check;
   /** Data streams from dependentcies. */
   sns_sensor_uid       timer_suid;
   sns_data_stream      *interrupt_data_stream;
   sns_data_stream      *timer_data_stream;
+  sns_data_stream      *timer_heart_beat_data_stream;
   sns_data_stream      *async_com_port_data_stream;
-
+  
   /**----------Axis Conversion----------*/
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
@@ -343,17 +359,23 @@ typedef struct lsm6ds3_instance_state
   sns_diag_service *diag_service;
   sns_sync_com_port_service * scp_service;
   sns_island_service *island_service;
-
   bool instance_is_ready_to_configure;
   bool fifo_flush_in_progress;
   bool new_self_test_request;
   bool fac_test_in_progress;
+  bool fifo_flush_client_present;
+  // True, If ascp transation is ongoing
+  bool ascp_in_progress;
+  // True, If interrupt fired
+  bool interrupt_fired;
   lsm6ds3_factory_test_info fac_test_info;
   lsm6ds3_sensor_type fac_test_sensor;
   bool update_fac_cal_in_registry;
-
+  sns_time heart_beat_timeout;
+  float fifo_running_odr;
+  
   size_t log_interrupt_encoded_size;
-  size_t           log_raw_encoded_size;
+  size_t log_raw_encoded_size;
   size_t encoded_imu_event_len;
   size_t encoded_sensor_temp_event_len;
 

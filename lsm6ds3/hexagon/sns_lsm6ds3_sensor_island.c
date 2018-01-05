@@ -230,15 +230,16 @@ sns_rc lsm6ds3_sensor_notify_event(sns_sensor *const this)
     }
   }
 
-  if(sns_suid_lookup_get(&state->common.suid_lookup_data, "timer", NULL) &&
-     state->common.registry_pf_cfg_received && state->common.registry_cfg_received &&
+  if(state->common.registry_pf_cfg_received && state->common.registry_cfg_received &&
      state->common.registry_orient_received && state->common.registry_placement_received)
   {
     /** Initial HW detection sequence is OK to run in normal mode. */
     state->island_service->api->sensor_island_exit(state->island_service, this);
-
-    lsm6ds3_start_hw_detect_sequence(this);
+    if(sns_suid_lookup_get(&state->common.suid_lookup_data, "timer", NULL))
+    {
+      lsm6ds3_start_hw_detect_sequence(this);
     }
+  }
   return rv;
 }
 
@@ -421,20 +422,20 @@ static void lsm6ds3_get_imu_config(sns_sensor *this,
         *chosen_report_rate = SNS_MAX(*chosen_report_rate,
                                       report_rate);
 
-        if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
-        {
-          *non_gated_sensor_client_present = true;
-        }
-        else
-        {
-          if(gated_sensor_client_present)
+          if(request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
           {
-            *gated_sensor_client_present = true;
+            *non_gated_sensor_client_present = true;
+          }
+          else
+          {
+            if(gated_sensor_client_present)
+            {
+              *gated_sensor_client_present = true;
+            }
           }
         }
       }
     }
-  }
 
   /** If there is a client for the sensor and
    *  if max_batch is set in all requests then choose the largest WM. */
@@ -467,8 +468,7 @@ static void lsm6ds3_get_motion_detect_config(sns_sensor *this,
                                              bool *chosen_md_enable,
                                              bool *md_client_present)
 {
-  lsm6ds3_state *state =
-     (lsm6ds3_state*)this->state->state;
+  UNUSED_VAR(this);
   sns_sensor_uid suid = MOTION_DETECT_SUID;
   lsm6ds3_instance_state *inst_state =
      (lsm6ds3_instance_state*)instance->state->state;
@@ -489,15 +489,9 @@ static void lsm6ds3_get_motion_detect_config(sns_sensor *this,
       // Introduced for power measurement testing,
       // Disable md interrupt using registry setting and send Disable event to md client, 
       // if disable flag is true and client is present
-      if(!state->md_config.disable)
+      if(!inst_state->md_info.md_config.disable)
       {
-      *chosen_md_enable = ((inst_state->md_info.md_new_req &&
-                           (inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_FIRED
-                            || inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_DISABLED))
-                           ||
-                           (inst_state->md_info.md_client_present &&
-                            (inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_ENABLED
-                             || inst_state->md_info.md_state.motion_detect_event_type == SNS_MOTION_DETECT_EVENT_TYPE_DISABLED)));
+        *chosen_md_enable = true;
       }
 
       *md_client_present = true;
@@ -671,6 +665,33 @@ static void lsm6ds3_turn_rails_off(sns_sensor *this)
                                                                       NULL);
     }
   }
+}
+/**
+ * Copy sensor specfic registry info into instance state (Ex: md_config)
+ *
+ * @param[i] this        Sensor reference
+ * @param[i] inst_state  Sensor Instance state reference
+ *
+ * @return None
+ */
+static void lsm6ds3_save_sensor_specific_registry_info_into_instance_state(
+	sns_sensor *const this,lsm6ds3_instance_state *inst_state)
+{
+	   
+  sns_sensor *sensor = NULL;
+  for(sensor = this->cb->get_library_sensor(this, true);
+      NULL != sensor;
+      sensor = this->cb->get_library_sensor(this, false))
+  {
+    lsm6ds3_state *sensor_state = (lsm6ds3_state*)sensor->state->state;
+    /*Save md sensor registry config into instance state */
+    if(LSM6DS3_MOTION_DETECT == sensor_state->sensor)
+    {             
+	  sns_memscpy(&inst_state->md_info.md_config, sizeof(inst_state->md_info.md_config),
+	    &sensor_state->md_config, sizeof(sensor_state->md_config));
+	  break;
+    }
+  }	
 }
 
 /**
@@ -937,11 +958,15 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
        /** create_instance() calls init() for the Sensor Instance */
        instance = this->cb->create_instance(this,
                                             sizeof(lsm6ds3_instance_state));
+
+	   lsm6ds3_instance_state *inst_state =
+          (lsm6ds3_instance_state*)instance->state->state;
+
+	   /** save sensor specific info into instance state*/
+	   lsm6ds3_save_sensor_specific_registry_info_into_instance_state(this,inst_state);	   	   
        /* If rail is already ON then flag instance OK to configure */
        if(reval_config)
        {
-         lsm6ds3_instance_state *inst_state =
-          (lsm6ds3_instance_state*)instance->state->state;
 
          inst_state->instance_is_ready_to_configure = true;
        }
@@ -1002,9 +1027,37 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
           if(new_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_ON_CHANGE_CONFIG
              &&
              state->sensor == LSM6DS3_MOTION_DETECT)
-          {
-            inst_state->md_info.md_new_req = true;
-          }
+          {                        
+            if(inst_state->fifo_info.publish_sensors & LSM6DS3_ACCEL) 
+			{
+              //send event as MD disabled since non-gated client is active
+              //no need of this as we alreay set md_info state
+              sns_motion_detect_event md_state;
+              md_state.motion_detect_event_type = SNS_MOTION_DETECT_EVENT_TYPE_DISABLED;           
+              pb_send_event(instance,
+                sns_motion_detect_event_fields,
+                &md_state,
+                sns_get_system_time(),
+                SNS_MOTION_DETECT_MSGID_SNS_MOTION_DETECT_EVENT,
+                  &inst_state->md_info.suid);
+              reval_config = false;			  
+            }
+	        else if (inst_state->md_info.enable_md_int)
+            {
+              reval_config = false;
+			  //there is exsisting md client already present, just send event
+              pb_send_event(instance,
+                sns_motion_detect_event_fields,
+                &inst_state->md_info.md_state,
+                sns_get_system_time(),
+                SNS_MOTION_DETECT_MSGID_SNS_MOTION_DETECT_EVENT,
+                &inst_state->md_info.suid);                
+	          LSM6DS3_PRINTF(LOW,this,"there is exsisting md client already present");
+            }else
+            {
+              inst_state->md_info.md_new_req = true;          
+            }
+          }          
           if(new_request->message_id ==
              SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
           {
@@ -1047,6 +1100,7 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
       lsm6ds3_update_registry(this, instance, LSM6DS3_GYRO);
       lsm6ds3_update_sensor_state(this, instance);
     }
+    LSM6DS3_PRINTF(LOW,this,"Instance is in removal state");
     this->cb->remove_instance(instance);
     lsm6ds3_turn_rails_off(this);
   }
