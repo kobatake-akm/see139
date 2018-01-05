@@ -22,7 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/04/18     010051     AKM              Modified a self test bug
  * 12/25/17     010050     AKM              Modified for DC-Lib.
+ * 12/25/17                AKM              Fixed comparison of the timestamp for heart_beat_timer_event.
  * 12/20/17     010049     Qualcomm/AKM     Merged the version 010048 and dual sensor modification
  * 12/18/17                Qualcomm/AKM     Fixed dual sensor for simultaneous streaming.
  * 12/11/17                AKM              Debugged for sending SNS_STD_MSGID_SNS_STD_FLUSH_EVENT
@@ -110,4 +112,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10050  // major:01 minor:00 revision:50
+#define AK0991X_DRIVER_VERSION 10051  // major:01 minor:00 revision:51

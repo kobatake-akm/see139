@@ -159,7 +159,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
         (uint32_t)((state->interrupt_timestamp-state->heart_beat_timestamp)/19200),
         (uint32_t)(state->heart_beat_timeout_period/19200));
       // Detect streaming has stopped
-      if (state->interrupt_timestamp - state->heart_beat_timestamp > state->heart_beat_timeout_period)
+      if (state->interrupt_timestamp > state->heart_beat_timestamp + state->heart_beat_timeout_period)
       {
         AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
         // Streaming is unable to resume after 3 attempts
