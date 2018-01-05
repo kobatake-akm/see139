@@ -695,6 +695,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
+    // If the sensor is streaming and there is a client_request to run self-test,
+    // the existing stream can be temporarily paused.
+    // When the self-test completes, the paused stream shall be restarted.
     if (state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
     {
       AK0991X_INST_PRINT(LOW, this, "pause the stream for self-test.");

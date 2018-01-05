@@ -1850,17 +1850,9 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             {
               AK0991X_PRINT(LOW, this, "new_self_test_request = true");
               inst_state->new_self_test_request = true;
-              // if the sensor is streaming and there is a client request to run self-test,
-              // avoid to reconfigure the settings by self-test.
-              if (inst_state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF)
-              {
-                AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
-                ak0991x_set_self_test_inst_config(this, instance);
-              }
-              else
-              {
-                AK0991X_PRINT(LOW, this, "the sensor is streaming.");
-              }
+
+              AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
+              ak0991x_set_self_test_inst_config(this, instance);
             }
           }
           else if(AK0991X_POWER_RAIL_PENDING_NONE == state->power_rail_pend_state)
