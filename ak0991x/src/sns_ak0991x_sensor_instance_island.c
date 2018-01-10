@@ -3,10 +3,10 @@
  *
  * AK0991X Mag virtual Sensor Instance implementation.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -351,7 +351,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->system_time = timer_event.requested_timeout_time;
           if(state->system_time + state->nominal_intvl < now )
           {
-            SNS_INST_PRINTF(ERROR, this, "Timer delay is too big!!!");
+            SNS_INST_PRINTF(ERROR, this, "req_to=%u now=%u", 
+                            (uint32_t)timer_event.requested_timeout_time, (uint32_t)now);
           }
 
           // for regular polling mode

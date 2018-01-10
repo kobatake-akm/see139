@@ -1,11 +1,11 @@
 /**
  * @file sns_ak0991x_hal_island.c
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -1438,6 +1438,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   temp_flt[1] = opdata_raw[1];
   temp_flt[2] = opdata_raw[2];
 
+  // QC - consider replacing FX_FLTTOFIX_Q16(x) with x*10000 to make it more human readable
   AK0991X_INST_PRINT(LOW, instance, "akm,Q16,X,Y,Z before DC: %d %d %d end",
       FX_FLTTOFIX_Q16(temp_flt[0]),
       FX_FLTTOFIX_Q16(temp_flt[1]),
@@ -2107,6 +2108,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     sns_std_sensor_physical_config_event_init_default;
   char *operating_mode;
   pb_buffer_arg op_mode_args;
+
+  if(AK0991X_ODR_0 == state->mag_req.sample_rate)
+  {
+    return SNS_RC_SUCCESS;
+  }
 
   switch (state->mag_info.device_select)
   {
