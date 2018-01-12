@@ -32,7 +32,7 @@
 #include "pb_encode.h"
 #include "pb_decode.h"
 #include "sns_pb_util.h"
-#if(SNS_ENABLE_DIAG==1)
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_diag_service.h"
 #include "sns_diag.pb.h"
 #endif

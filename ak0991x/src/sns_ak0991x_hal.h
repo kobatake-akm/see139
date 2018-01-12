@@ -21,7 +21,7 @@
 #include "sns_diag.pb.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
-#if(SNS_ENABLE_DIAG==1)
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_std.pb.h"
 #endif
 #include "sns_std_sensor.pb.h"
