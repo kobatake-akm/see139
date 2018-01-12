@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/11/18     010052     AKM              Modify to avoid sending ASCP request by heart beat timer
  * 01/09/18     010051     Qualcomm         No longer sending Config event when deleting
  * 01/09/18                Qualcomm         Fixed DAE flush commands
  * 12/25/17     010050     AKM              Modified for DC-Lib.
@@ -113,4 +114,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10051  // major:01 minor:00 revision:51
+#define AK0991X_DRIVER_VERSION 10052  // major:01 minor:00 revision:52

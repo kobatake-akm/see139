@@ -138,6 +138,10 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
         {
           SNS_INST_PRINTF(ERROR, this, "soft reset failed");
         }
+        else
+        {
+          AK0991X_INST_PRINT(LOW, this, "soft reset called");
+        }
         // Indicate streaming error
         rv = SNS_RC_NOT_AVAILABLE;
         ak0991x_reconfig_hw(this);

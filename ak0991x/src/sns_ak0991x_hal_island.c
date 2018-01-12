@@ -1939,7 +1939,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   {
     if(state->mag_info.device_select == AK09917)    // AK09917
     {
-      if(state->num_samples > 2 && !state->this_is_the_last_flush)
+      if(state->num_samples > 2 && !state->this_is_the_last_flush && state->heart_beat_attempt_count == 0)
       {
         ak0991x_ascp_request(instance);  // ASCP request
       }
