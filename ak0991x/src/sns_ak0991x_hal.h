@@ -21,7 +21,9 @@
 #include "sns_diag.pb.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
+#if(SNS_ENABLE_DIAG==1)
 #include "sns_std.pb.h"
+#endif
 #include "sns_std_sensor.pb.h"
 #include "sns_registry_util.h"
 
@@ -551,11 +553,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance);
 /**
  * Submit the Sensor State Raw Log Packet
  *
- * @param[i] log_raw_info   Pointer to logging information 
+ * @param[i] log_raw_info   Pointer to logging information
  *       pertaining to the sensor
- * @param[i] batch_complete true if submit request is for end 
+ * @param[i] batch_complete true if submit request is for end
  *       of batch
- *  */ 
+ *  */
 void ak0991x_log_sensor_state_raw_submit(
   log_sensor_state_raw_info *log_raw_info,
   bool batch_complete);
@@ -581,10 +583,10 @@ sns_rc ak0991x_log_sensor_state_raw_add(
   sns_std_sensor_sample_status status);
 
 /**
- * Allocate Sensor State Raw Log Packet 
+ * Allocate Sensor State Raw Log Packet
  *
- * @param[i] diag       Pointer to diag service 
- * @param[i] log_size   Optional size of log packet to 
+ * @param[i] diag       Pointer to diag service
+ * @param[i] log_size   Optional size of log packet to
  *    be allocated. If not provided by setting to 0, will
  *    default to using maximum supported log packet size
  */

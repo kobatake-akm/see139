@@ -36,9 +36,11 @@
 #include "pb_decode.h"
 #include "sns_pb_util.h"
 #include "sns_async_com_port_pb_utils.h"
-#include "sns_diag_service.h"
 #include "sns_sync_com_port_service.h"
+#if(SNS_ENABLE_DIAG==1)
+#include "sns_diag_service.h"
 #include "sns_diag.pb.h"
+#endif
 
 extern log_sensor_state_raw_info log_mag_state_raw_info;
 

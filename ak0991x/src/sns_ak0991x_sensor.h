@@ -208,7 +208,7 @@ typedef struct ak0991x_state
   akm_device_type device_select; // store the current connected device
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
 
-  // sensor configuration 
+  // sensor configuration
   bool is_dri;
   bool supports_sync_stream;
   bool use_fifo;
@@ -242,7 +242,7 @@ typedef struct ak0991x_state
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
 
-  // placement 
+  // placement
   bool                    registry_placement_received;
   float                   placement[12];
 

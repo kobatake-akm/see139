@@ -428,7 +428,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
     chosen_report_rate = chosen_sample_rate;
   }
 
-  AK0991X_PRINT(LOW, this, "RR=%u/100 SR=%u/100 fl_per=%u", 
+  AK0991X_PRINT(LOW, this, "RR=%u/100 SR=%u/100 fl_per=%u",
                 (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
                 chosen_flush_period);
 
@@ -703,7 +703,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
     pb_buffer_arg group_name = {0,0};
     read_event.name.arg = &group_name;
     read_event.name.funcs.decode = pb_decode_string_cb;
- 
+
     if(!pb_decode(&stream, sns_registry_read_event_fields, &read_event))
     {
       SNS_PRINTF(ERROR, this, "Error decoding registry event");
@@ -1482,7 +1482,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
-          AK0991X_PRINT(LOW, this, "process_timer_events: state=%u", 
+          AK0991X_PRINT(LOW, this, "process_timer_events: state=%u",
                         state->power_rail_pend_state);
 
           if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_INIT)
@@ -1605,7 +1605,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               }
             }
             if (rv == SNS_RC_SUCCESS)
-            {               
+            {
               // Set sensitivity adjustment data
               rv = ak0991x_set_sstvt_adj(
                                          state->scp_service,
@@ -1768,7 +1768,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     //     a. Perform flush on the instance.
     //     b. Return NULL.
 
-    if (NULL == instance && 
+    if (NULL == instance &&
         // first request cannot be a Flush request
         SNS_STD_MSGID_SNS_STD_FLUSH_REQ != new_request->message_id)
     {
@@ -1833,17 +1833,17 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           {
             sns_std_request decoded_request;
             sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
-            ak0991x_get_decoded_mag_request(this, new_request, &decoded_request, 
+            ak0991x_get_decoded_mag_request(this, new_request, &decoded_request,
                                             &decoded_payload);
             AK0991X_PRINT(
-              MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate, 
+              MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate,
               decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
           }
 
           AK0991X_PRINT(LOW, this, "Add the new request to list");
           instance->cb->add_client_request(instance, new_request);
 
-          if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG == 
+          if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
              new_request->message_id)
           {
             if(ak0991x_extract_self_test_info(this, instance, new_request))

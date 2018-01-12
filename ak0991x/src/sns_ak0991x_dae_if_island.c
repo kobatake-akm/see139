@@ -91,7 +91,7 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
 #ifdef AK0991X_ENABLE_S4S
     }
 #endif // AK0991X_ENABLE_S4S
-    //TODO: it looks like the polling offset will not be adjusted for S4S. 
+    //TODO: it looks like the polling offset will not be adjusted for S4S.
     //So it won't be synced with any other sensors
     config_req.polling_config.polling_offset =
       sns_get_system_time() + sns_convert_ns_to_ticks( meas_usec * 1000ULL );

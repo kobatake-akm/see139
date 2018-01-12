@@ -37,8 +37,10 @@
 
 #include "sns_std_sensor.pb.h"
 
+#if(SNS_ENABLE_DIAG==1)
 #include "sns_diag_service.h"
 #include "sns_diag.pb.h"
+#endif
 
 #include "sns_cal_util.h"
 #include "sns_cal.pb.h"
@@ -729,7 +731,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
   state->previous_irq_time = state->pre_timestamp;
 
-  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u", 
+  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u",
                      (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,
                      (uint32_t)state->averaged_interval);
 
@@ -1388,7 +1390,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
 
-#ifdef AK0991X_ENABLE_DC 
+#ifdef AK0991X_ENABLE_DC
   float temp_flt[3];
   sns_rc temp_ret = SNS_RC_INVALID_STATE;
 #endif
@@ -1573,7 +1575,7 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 #ifdef AK0991X_ENABLE_DRI
 static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time intvl)
 {
-  state->internal_clock_error = ((state->interrupt_timestamp - state->previous_irq_time) << 
+  state->internal_clock_error = ((state->interrupt_timestamp - state->previous_irq_time) <<
                                  AK0991X_CALC_BIT_RESOLUTION) / intvl;
 }
 
@@ -1811,7 +1813,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     else
     {
       const sns_time few_ms = sns_convert_ns_to_ticks(5 * 1000 * 1000);
-      sns_time estimated_irq_time = 
+      sns_time estimated_irq_time =
         state->pre_timestamp + state->averaged_interval * (state->mag_info.cur_wmk + 1);
 
       // irq expected to fire within a few ms?
@@ -2074,11 +2076,11 @@ static void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_cal_event cal_event = sns_cal_event_init_default;
-  pb_buffer_arg buff_arg_bias = { 
-    .buf     = &state->mag_registry_cfg.fac_cal_bias, 
+  pb_buffer_arg buff_arg_bias = {
+    .buf     = &state->mag_registry_cfg.fac_cal_bias,
     .buf_len = ARR_SIZE(state->mag_registry_cfg.fac_cal_bias) };
-  pb_buffer_arg buff_arg_comp_matrix = { 
-    .buf     = &state->mag_registry_cfg.fac_cal_corr_mat.data, 
+  pb_buffer_arg buff_arg_comp_matrix = {
+    .buf     = &state->mag_registry_cfg.fac_cal_corr_mat.data,
     .buf_len = ARR_SIZE(state->mag_registry_cfg.fac_cal_corr_mat.data) };
 
   cal_event.bias.funcs.encode        = &pb_encode_float_arr_cb;
