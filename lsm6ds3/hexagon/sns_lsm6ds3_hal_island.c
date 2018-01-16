@@ -385,6 +385,55 @@ sns_rc lsm6ds3_log_sensor_state_raw_add(
 
   return rc;
 }
+void lsm6ds3_inst_create_heart_beat_timer(sns_sensor_instance *this, sns_time timeout_ticks)
+{
+  lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
+  //  sns_diag_service* diag = state->diag_service;
+
+  sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
+  size_t req_len;
+  uint8_t buffer[50];
+  req_payload.is_periodic = true;
+  req_payload.start_time = state->heart_beat_timestamp;
+  req_payload.timeout_period = timeout_ticks;
+
+  LSM6DS3_INST_PRINTF(LOW,this,"creat HB timer-EN: cur_time = %u",(uint32_t)req_payload.start_time);
+  LSM6DS3_INST_PRINTF(LOW,this,"heart beat time_out ms = %u",(uint32_t)(timeout_ticks/19200));
+  req_len = pb_encode_request(buffer, sizeof(buffer), &req_payload,
+      sns_timer_sensor_config_fields, NULL);
+  if(req_len > 0)
+  {
+    if(state->timer_heart_beat_data_stream == NULL)
+    {
+      sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+      sns_stream_service *stream_mgr = (sns_stream_service*)
+        service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+          this,
+          state->timer_suid,
+          &state->timer_heart_beat_data_stream);
+      LSM6DS3_INST_PRINTF(LOW,this,"creating Heart Beat timer stream!");
+    }
+    if(state->timer_heart_beat_data_stream == NULL)
+    {
+      SNS_INST_PRINTF(ERROR, this,
+          "Error creating Heart Beat timer stream!");
+      return;
+    } else {
+      sns_request timer_req =
+      {  .message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG,
+        .request = buffer, .request_len = req_len  };
+      state->timer_heart_beat_data_stream->api->send_request(state->timer_heart_beat_data_stream, &timer_req);
+      LSM6DS3_INST_PRINTF(LOW,this,"set heart_beat timer start_time=%u timeout_period=%u",
+	  	(uint32_t)req_payload.start_time, (uint32_t)req_payload.timeout_period);
+    }
+  }
+  else
+  {
+    //DBG_INST_PRINT(diag, this, SNS_ERROR, __FILENAME__, __LINE__,
+    //                         "LSM timer req encode error");
+  }
+}
 
 /** See sns_lsm6ds3_hal.h */
 void lsm6ds3_read_gpio(sns_sensor_instance *instance, uint32_t gpio, bool is_chip_pin)
@@ -972,7 +1021,7 @@ void lsm6ds3_stop_fifo_streaming(lsm6ds3_instance_state *state)
                               &xfer_bytes,
                               false);
   }
-
+    state->fifo_info.configured_odr = LSM6DS3_ACCEL_ODR_OFF;
     lsm6ds3_set_accel_config(
                            state->scp_service,
                            state->com_port_info.port_handle,
@@ -1011,7 +1060,7 @@ void lsm6ds3_set_fifo_config(lsm6ds3_instance_state *state,
 /**
  * see sns_lsm6ds3_hal.h
  */
-void lsm6ds3_set_fifo_wmk(lsm6ds3_instance_state *state)
+void lsm6ds3_set_fifo_wmk(sns_sensor_instance *const instance)
 {
   uint16_t wmk_words = 0;
   uint8_t wmkL = 0;
@@ -1019,7 +1068,8 @@ void lsm6ds3_set_fifo_wmk(lsm6ds3_instance_state *state)
   uint32_t xfer_bytes;
   uint8_t buffer;
   uint8_t decimation = 0;
-
+  lsm6ds3_instance_state *state =
+     (lsm6ds3_instance_state*)instance->state->state;
   //convert samples to words
   if((state->accel_info.curr_odr > LSM6DS3_ACCEL_ODR_OFF)
      &&
@@ -1036,8 +1086,8 @@ void lsm6ds3_set_fifo_wmk(lsm6ds3_instance_state *state)
   {
     wmk_words += state->fifo_info.cur_wmk * 3;
     decimation |= 0x8;
-  }
-
+  }  
+  lsm6ds3_inst_create_heart_beat_timer(instance,state->heart_beat_timeout);
   // Set Accel decimation to no decimation
   buffer = decimation;
   lsm6ds3_read_modify_write(state->scp_service,
@@ -1082,7 +1132,17 @@ void lsm6ds3_start_fifo_streaming(lsm6ds3_instance_state *state)
 
   uint8_t rw_buffer = 0x00;
   uint32_t xfer_bytes;
-
+  state->fifo_info.interrupt_cnt = 0;
+  if(state->fifo_info.fifo_rate == LSM6DS3_ACCEL_ODR_OFF)
+  {
+    state->last_timestamp = 0;
+  }
+  else
+  {  	
+	state->last_timestamp = sns_get_system_time();
+  }  
+  state->accel_info.num_samples_to_discard = state->fifo_info.num_samples_to_discard;
+  state->gyro_info.num_samples_to_discard = state->fifo_info.num_samples_to_discard;;
   //start streaming,stream mode
   rw_buffer = 0x06 | (uint8_t)(state->fifo_info.fifo_rate >> 1);
   lsm6ds3_read_modify_write(state->scp_service,
@@ -1093,7 +1153,7 @@ void lsm6ds3_start_fifo_streaming(lsm6ds3_instance_state *state)
                             &xfer_bytes,
                             false,
                             0xFF);
-
+  state->fifo_info.configured_odr = state->accel_info.curr_odr;
   lsm6ds3_set_accel_config(state->scp_service,
                            state->com_port_info.port_handle,
                            state->accel_info.curr_odr,
@@ -1104,13 +1164,46 @@ void lsm6ds3_start_fifo_streaming(lsm6ds3_instance_state *state)
                           state->com_port_info.port_handle,
                           state->gyro_info.curr_odr,
                           state->gyro_info.sstvt,
-                          state->gyro_info.range);
-
+                          state->gyro_info.range);  
   if(state->gyro_info.curr_odr > LSM6DS3_GYRO_ODR_OFF)
   {
     lsm6ds3_set_gyro_sleep(state->scp_service,state->com_port_info.port_handle, false);
     state->gyro_info.is_in_sleep = false;
   }
+}
+
+/**
+ * Read regs using sync com port
+ *
+ * @param[i] state              Instance state
+ * @param[i] addr              address to read
+ * @param[i] num_of_bytes       num of bytes to read
+ * @param[o] buffer             status registers
+ *
+ * @return SNS_RC_SUCCESS if successful else SNS_RC_FAILED
+ */
+sns_rc lsm6ds3_read_regs_scp(sns_sensor_instance *const instance,
+                                     uint8_t addr, uint16_t num_of_bytes, uint8_t *buffer)
+{
+  sns_rc rc = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+  lsm6ds3_instance_state *state =
+    (lsm6ds3_instance_state*)instance->state->state;
+
+  rc = lsm6ds3_com_read_wrapper(state->scp_service,
+                       state->com_port_info.port_handle,
+                       addr,
+                       buffer,
+                       num_of_bytes,
+                       &xfer_bytes);
+
+  if(rc != SNS_RC_SUCCESS)
+  {
+    SNS_INST_PRINTF(ERROR, instance,
+                             "lsm6ds3_read_regs_scp FAILED");
+  }
+
+  return rc;
 }
 
 /**
@@ -1122,7 +1215,6 @@ void lsm6ds3_enable_fifo_intr(lsm6ds3_instance_state *state,
   UNUSED_VAR(sensor);
   uint8_t rw_buffer = 0;
   uint32_t xfer_bytes;
-
   if(state->fifo_info.fifo_enabled)
   {
     if(state->fifo_info.cur_wmk > 0)
@@ -1149,6 +1241,9 @@ void lsm6ds3_enable_fifo_intr(lsm6ds3_instance_state *state,
                                   &xfer_bytes,
                                   false,
                                   0x38);
+		
+	    // Make it true, If interrupt enabled 
+	    state->fifo_info.first_interrupt = true;
       }
     }
     else
@@ -1238,11 +1333,8 @@ void lsm6ds3_set_polling_config(sns_sensor_instance *const this)
   lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
 
   if(state->sensor_temp_info.sampling_intvl > 0)
-  {
-    if(!state->sensor_temp_info.timer_is_active)
-    {
-      lsm6ds3_start_sensor_temp_polling_timer(this);
-    }
+  {    
+    lsm6ds3_start_sensor_temp_polling_timer(this);    
   }
   else if(state->sensor_temp_info.timer_is_active)
   {
@@ -1445,6 +1537,7 @@ static void lsm6ds3_handle_accel_sample(const uint8_t fifo_sample[6],
       status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
       state->accel_info.num_samples_to_discard--;
     }
+	
     pb_send_sensor_stream_event(instance,
                                 &state->accel_info.suid,
                                 timestamp,
@@ -1462,6 +1555,70 @@ static void lsm6ds3_handle_accel_sample(const uint8_t fifo_sample[6],
       status);
   }
 }
+//estimate average sample time
+static void lsm6ds3_estimate_avg_st(sns_sensor_instance *const instance, sns_time irq_timestamp,
+  uint16_t num_samples)
+{
+  lsm6ds3_instance_state *state =
+    (lsm6ds3_instance_state*)instance->state->state;
+  sns_time sampling_intvl = 0;
+  uint16_t samples = num_samples;
+  if(state->interrupt_fired)
+  {
+    // If interrupt doesn't fire at wmk level, time stamp calculation should be same as flush
+    if(num_samples < state->fifo_info.cur_wmk)
+    {
+      state->interrupt_fired = false;
+    }
+	else if((num_samples > state->fifo_info.cur_wmk) && (state->interrupt_fired))
+    {
+      samples = state->fifo_info.cur_wmk;
+    }
+  }  
+  // Calculate sampling interval based on running ODR
+  sampling_intvl = lsm6ds3_get_sample_interval(state->fifo_info.configured_odr);    
+  if((true == state->fifo_info.first_interrupt) && (state->interrupt_fired)){
+    state->fifo_info.first_interrupt = false;
+    state->interrupt_timestamp = irq_timestamp;
+    state->avg_sampling_intvl = sampling_intvl;
+    LSM6DS3_INST_PRINTF(LOW,instance, "First interrupt",(uint32_t)((irq_timestamp-state->last_timestamp)/(19200*num_samples)));     
+  }else{
+    if(state->interrupt_fired)
+    {      
+	  float averaging_weight = (state->fifo_info.interrupt_cnt > 5 ) ? 0.95 : 0.05;
+	  state->avg_sampling_intvl = (state->avg_sampling_intvl * averaging_weight) +
+		((irq_timestamp - state->last_timestamp)/samples) * (1.0 - averaging_weight);
+	  LSM6DS3_INST_PRINTF(LOW,instance, "Expected sampling_intvl:%u, avg_sampling_intvl ms:%d",
+	  	(uint32_t)(sampling_intvl/19200),(uint32_t)(state->avg_sampling_intvl/19200));     
+	  /*Average sample timestamp should be within this limit. Otherwise CTS test cases fails because of jitter*/
+	  if((sampling_intvl < (0.98 * state->avg_sampling_intvl)) ||
+        (sampling_intvl > (1.05 * state->avg_sampling_intvl)))
+      {
+        state->avg_sampling_intvl = sampling_intvl;
+  	    LSM6DS3_INST_PRINTF(LOW,instance, "average sampling period is not in expected range");     
+      }
+      state->interrupt_timestamp = state->last_timestamp + state->avg_sampling_intvl*num_samples;	  
+    }
+    else
+    {
+      // Enabled interrupt. But, it is not yet fired. 
+      // Either qheart timer or flush request has arrived
+      if(true == state->fifo_info.first_interrupt)
+      {
+        state->interrupt_timestamp = sns_get_system_time();
+        state->avg_sampling_intvl = sampling_intvl;	  
+      }
+      else	  
+      {
+        state->avg_sampling_intvl = sampling_intvl;
+	    state->interrupt_timestamp = state->last_timestamp + sampling_intvl*num_samples;  	  
+      }
+    }
+  }
+  state->interrupt_fired = false;
+  // TODO: Need to check, If we can use last sample timestamp instead sns_get_system_time()
+  state->heart_beat_timestamp = sns_get_system_time();//state->last_timestamp + (state->avg_sampling_intvl*state->fifo_info.cur_wmk);
+}
 
 void lsm6ds3_process_fifo_data_buffer(
   sns_sensor_instance *instance,
@@ -1472,15 +1629,14 @@ void lsm6ds3_process_fifo_data_buffer(
   size_t              num_bytes
 )
 {
-  uint16_t num_sample_sets = 0;
   uint32_t i;
+  sns_time timestamp;
   lsm6ds3_instance_state *state = (lsm6ds3_instance_state *)instance->state->state;
   sns_service_manager *service_manager = instance->cb->get_service_manager(instance);
   sns_event_service *event_service =
      (sns_event_service*)service_manager->get_service(service_manager, SNS_EVENT_SERVICE);
   sns_diag_service* diag = state->diag_service;
   log_sensor_state_raw_info log_accel_state_raw_info, log_gyro_state_raw_info;
-
   // Allocate Sensor State Raw log packets for accel and gyro
   sns_memzero(&log_accel_state_raw_info, sizeof(log_accel_state_raw_info));
   log_accel_state_raw_info.encoded_sample_size = state->log_raw_encoded_size;
@@ -1498,34 +1654,76 @@ void lsm6ds3_process_fifo_data_buffer(
     log_gyro_state_raw_info.sensor_uid = &state->gyro_info.suid;
     lsm6ds3_log_sensor_state_raw_alloc(&log_gyro_state_raw_info, 0);
   }
-
+  //calculate timestamps for the batch and validate, instead for each sample
+  uint8_t sample_size = (gyro_enabled) ? 12 : 6;
+  uint16_t num_sample_sets = num_bytes / sample_size;
+  sns_time end_timestamp = first_timestamp + ((num_sample_sets-1) * sample_interval_ticks);  
   for(i = 0; i < num_bytes; i += 6)
   {
-    sns_time timestamp = first_timestamp + (num_sample_sets++ * sample_interval_ticks);
-    if(gyro_enabled)
-    {
-       // First sample belongs to Gyro
-      lsm6ds3_handle_gyro_sample(&fifo_start[i],
-                                 timestamp,
-                                 instance,
-                                 event_service,
-                                 state,
-                                 &log_gyro_state_raw_info);
-      i += 6;
+    timestamp = end_timestamp - ((num_sample_sets-- - 1) * sample_interval_ticks);	
+	#ifdef LSM6DS3_ENABLE_DEBUG_MSG 
+  	  static sns_time prev_time = 0;
+	  LSM6DS3_INST_PRINTF(LOW,instance, "Time period ms:%d",(uint32_t)((timestamp-prev_time)/19200));     
+	  prev_time = timestamp;
+	#endif
+	if(timestamp <= state->sample_timestamp_check)
+	{
+      if(gyro_enabled)
+      {
+       
+        // First sample belongs to Gyro
+        lsm6ds3_handle_gyro_sample(&fifo_start[i],
+                                   timestamp,
+                                   instance,
+                                   event_service,
+                                   state,
+                                   &log_gyro_state_raw_info);
+        i += 6;
+      }
+      lsm6ds3_handle_accel_sample(&fifo_start[i],
+                                  timestamp,
+                                  instance,
+                                  event_service,
+                                  state,
+                                  &log_accel_state_raw_info);
+   	  state->last_timestamp = timestamp;	  
     }
-    lsm6ds3_handle_accel_sample(&fifo_start[i],
-                                timestamp,
-                                instance,
-                                event_service,
-                                state,
-                                &log_accel_state_raw_info);
+	else
+	{
+      if(gyro_enabled)
+      {
+        i += 6;
+      }
+	  LSM6DS3_INST_PRINTF(HIGH,instance, "sample skipping");       
+	}
   }
-
   lsm6ds3_log_sensor_state_raw_submit(&log_accel_state_raw_info, true);
 
   if(gyro_enabled)
   {
     lsm6ds3_log_sensor_state_raw_submit(&log_gyro_state_raw_info, true);
+  }
+}
+void lsm6ds3_process_com_port_vector(sns_port_vector *vector, void *user_arg)
+{
+  sns_sensor_instance *instance = (sns_sensor_instance *)user_arg;
+  lsm6ds3_instance_state *state = (lsm6ds3_instance_state *)instance->state->state;
+  if(STM_LSM6DS3_REG_FIFO_DATA_OUT_L == vector->reg_addr)
+  {
+    // Vector contains a FIFO buffer read
+    bool gyro_enabled = (state->gyro_info.curr_odr > 0);
+    uint16_t num_sample_sets = gyro_enabled ? (vector->bytes / 12) : (vector->bytes / 6);
+    sns_time first_timestamp=0;	
+    if(num_sample_sets > 0)
+    {
+      first_timestamp = state->interrupt_timestamp - (num_sample_sets-1)*state->avg_sampling_intvl;
+      lsm6ds3_process_fifo_data_buffer(instance,
+                                       gyro_enabled,
+                                       first_timestamp,
+                                       state->avg_sampling_intvl,
+                                       vector->buffer,
+                                       vector->bytes);
+    }
   }
 }
 
@@ -1546,18 +1744,27 @@ void lsm6ds3_send_fifo_flush_done(sns_sensor_instance *const instance,
     e_service->api->publish_event(e_service, instance, event, suid);
   }
 }
-
-void lsm6ds3_handle_interrupt_event(sns_sensor_instance *const instance)
+void lsm6ds3_handle_fifo_data(sns_sensor_instance *const instance, sns_time irq_time)
 {
 
   uint8_t fifo_status[4] = {0, 0, 0, 0};
   uint8_t buffer[100];
   uint32_t enc_len;
-
+  sns_rc rc = SNS_RC_FAILED;
   lsm6ds3_instance_state *state =
      (lsm6ds3_instance_state*)instance->state->state;
   sns_port_vector async_read_msg;
-
+  uint16_t num_sample_sets = 0;
+  bool gyro_enabled = (state->gyro_info.curr_odr > 0);
+  uint8_t sample_size = (gyro_enabled) ? 12 : 6;  
+  //If there is only wmk change
+  if(true == state->fifo_info.wmk_change)
+  {
+    state->fifo_info.wmk_change = false;
+    lsm6ds3_set_fifo_wmk(instance);	
+    lsm6ds3_send_config_event(instance);	
+    LSM6DS3_INST_PRINTF(LOW, instance, "Only WMK change");
+  }
   // Read the FIFO Status register
   lsm6ds3_read_fifo_status(state, &fifo_status[0]);
 
@@ -1565,42 +1772,84 @@ void lsm6ds3_handle_interrupt_event(sns_sensor_instance *const instance)
   uint16_t countH = fifo_status[1] & 0x0F;
   uint16_t countL = fifo_status[0] & 0xFF;
   uint16_t num_of_bytes =  (((countH << 8) & 0xFF00) | countL) * 2;
+  if(num_of_bytes < sample_size){
+    // Reset FIFO state if there are no samples to flush
+    if(state->fifo_flush_in_progress)
+    {
+      if(state->fifo_flush_client_present) {
 
-  if(num_of_bytes > 0)
-  {
+        state->fifo_flush_client_present = false;
+		if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL)
+          lsm6ds3_send_fifo_flush_done(instance,&state->accel_info.suid);
+		if(state->fifo_info.publish_sensors & LSM6DS3_GYRO)
+		  lsm6ds3_send_fifo_flush_done(instance,&state->gyro_info.suid);	
+      }
+      state->fifo_flush_in_progress = false;
+  	  LSM6DS3_INST_PRINTF(LOW, instance, "Resetting fifo state");
+    }
+  }  
+  LSM6DS3_INST_PRINTF(LOW, instance, "number of bytes:%u, sample_size:%u, ascp status:%u",
+  	num_of_bytes,sample_size,state->ascp_in_progress);
+  num_sample_sets = num_of_bytes/sample_size;
+  if((num_sample_sets > 0) && (!state->ascp_in_progress))
+  { 
+    // Check at the time of delivery, 
+    // None of the sample time stamp should be greater than this time_stamp
+    state->sample_timestamp_check = irq_time;    
+    // Time-stamp calculaion
+    lsm6ds3_estimate_avg_st(instance, irq_time, num_sample_sets);
+	// Reset Heart beat timer with new start time
+	lsm6ds3_inst_create_heart_beat_timer(instance,state->heart_beat_timeout);
     // Compose the async com port message
     async_read_msg.bytes = num_of_bytes;
     async_read_msg.reg_addr = STM_LSM6DS3_REG_FIFO_DATA_OUT_L;
     async_read_msg.is_write = false;
-    async_read_msg.buffer = NULL;
+    async_read_msg.buffer = NULL;		
+	if(num_sample_sets <= LSM6DS3_SAMPLES_LIMIT)
+	{	  
+      uint8_t fifo_data[async_read_msg.bytes];
+      sns_memset(fifo_data, 0, sizeof(fifo_data));
+      rc = lsm6ds3_read_regs_scp(instance, async_read_msg.reg_addr, async_read_msg.bytes, fifo_data);
+	  if(rc == SNS_RC_SUCCESS) {
+        sns_port_vector vector;
+        vector.reg_addr = async_read_msg.reg_addr;
+        vector.bytes = async_read_msg.bytes;
+        vector.buffer = fifo_data;
+        lsm6ds3_process_com_port_vector(&vector, instance);
 
-    sns_ascp_create_encoded_vectors_buffer(&async_read_msg, 1, true, buffer, sizeof(buffer), &enc_len);
-
-    // Send message to Async Com Port
-    sns_request async_com_port_request =
-    (sns_request)
+        // reset FIFO state if there are no samples to flush
+        if(state->fifo_flush_in_progress)
+        {
+          state->fifo_flush_in_progress = false;
+	      if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL)
+          {
+            lsm6ds3_send_fifo_flush_done(instance, &state->accel_info.suid);
+          }
+          if(state->fifo_info.publish_sensors & LSM6DS3_GYRO)
+          {
+            lsm6ds3_send_fifo_flush_done(instance, &state->gyro_info.suid);
+          }
+        }
+		
+      }
+	  else
+	  {
+	    SNS_INST_PRINTF(ERROR, instance, "lsm6ds3 register read FAILED");
+	  }
+	}
+    else if(sns_ascp_create_encoded_vectors_buffer(&async_read_msg, 1, true, buffer, sizeof(buffer), &enc_len))
     {
-      .message_id = SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW,
-      .request_len = enc_len,
-      .request = buffer
-    };
-    state->async_com_port_data_stream->api->send_request(
+      state->ascp_in_progress = true;
+      // Send message to Async Com Port
+      sns_request async_com_port_request =
+      (sns_request)
+      {
+        .message_id = SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW,
+        .request_len = enc_len,
+        .request = buffer
+      };
+      state->async_com_port_data_stream->api->send_request(
           state->async_com_port_data_stream, &async_com_port_request);
-  }
-  else
-  {
-    // reset FIFO state if there are no samples to flush
-    if(state->fifo_flush_in_progress)
-    {
-      state->fifo_flush_in_progress = false;
-      if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL)
-      {
-        lsm6ds3_send_fifo_flush_done(instance, &state->accel_info.suid);
-      }
-      if(state->fifo_info.publish_sensors & LSM6DS3_GYRO)
-      {
-        lsm6ds3_send_fifo_flush_done(instance, &state->gyro_info.suid);
-      }
     }
   }
 }
@@ -1684,8 +1933,9 @@ void lsm6ds3_set_md_config(lsm6ds3_instance_state *state, bool enable)
   uint8_t dur_set = 0x60; // wake up duration bits 5,6 set to 1
   uint8_t thresh_set = 0x3F; // thresh bits 0 to 5 set to 1
   uint32_t xfer_bytes;
-  lsm6ds3_accel_odr accel_odr = enable ? LSM6DS3_MD_ODR : LSM6DS3_ACCEL_ODR_OFF;
-
+  lsm6ds3_accel_odr accel_odr = state->accel_info.curr_odr;
+  if(enable && (accel_odr == LSM6DS3_ACCEL_ODR_OFF))
+    accel_odr = LSM6DS3_MD_ODR;
   if(enable && state->md_info.md_config.thresh <= LSM6DS3_MD_THRESH_MAX &&
      state->md_info.md_config.thresh >= 0.0)
   {
@@ -1721,13 +1971,17 @@ void lsm6ds3_set_md_config(lsm6ds3_instance_state *state, bool enable)
                             &xfer_bytes,
                             false,
                             0x60);
-
-  lsm6ds3_set_accel_config(state->scp_service,
-                           state->com_port_info.port_handle,
-                           accel_odr,
-                           LSM6DS3_ACCEL_SSTVT_8G,
-                           LSM6DS3_ACCEL_RANGE_8G,
-                           LSM6DS3_ACCEL_BW50);
+  //If there is no ODR change, No need to change accel ODR
+  if(state->fifo_info.configured_odr !=accel_odr)
+  {
+    lsm6ds3_set_accel_config(state->scp_service,
+                             state->com_port_info.port_handle,
+                             accel_odr,
+                             LSM6DS3_ACCEL_SSTVT_8G,
+                             LSM6DS3_ACCEL_RANGE_8G,
+                             LSM6DS3_ACCEL_BW50);
+    state->fifo_info.configured_odr = accel_odr;
+  }
 }
 
 void lsm6ds3_update_md_intr(sns_sensor_instance *const instance,
@@ -2110,27 +2364,28 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
   lsm6ds3_instance_state *state = (lsm6ds3_instance_state*)this->state->state;
 
   bool enable_fifo_stream = true;
-
+  state->heart_beat_timestamp = sns_get_system_time();
   if(state->md_info.enable_md_int)
   {
-     if(state->fifo_info.fifo_rate > LSM6DS3_ACCEL_ODR_OFF
-        && !(state->fifo_info.publish_sensors & (LSM6DS3_GYRO | LSM6DS3_SENSOR_TEMP | LSM6DS3_ACCEL)))
-     {
-       lsm6ds3_set_fifo_config(state,
-                               0,
-                               LSM6DS3_ACCEL_ODR_OFF,
-                               LSM6DS3_GYRO_ODR_OFF,
-                               state->fifo_info.fifo_enabled);
-       lsm6ds3_stop_fifo_streaming(state);
-       lsm6ds3_set_fifo_wmk(state);
-       lsm6ds3_disable_fifo_intr(state);
+    if(state->fifo_info.fifo_rate > LSM6DS3_ACCEL_ODR_OFF
+       && !(state->fifo_info.publish_sensors & (LSM6DS3_GYRO | LSM6DS3_SENSOR_TEMP | LSM6DS3_ACCEL)))
+    {
+      lsm6ds3_set_fifo_config(state,
+                              0,
+                              LSM6DS3_ACCEL_ODR_OFF,
+                              LSM6DS3_GYRO_ODR_OFF,
+                              state->fifo_info.fifo_enabled);
+      lsm6ds3_stop_fifo_streaming(state);
+      lsm6ds3_set_fifo_wmk(this);
+      lsm6ds3_disable_fifo_intr(state);
+      sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_heart_beat_data_stream);
+      enable_fifo_stream = false;
     }
-       enable_fifo_stream = false;
-     lsm6ds3_set_md_config(state, true);
-     if(state->irq_info.irq_ready)
-     {
-       lsm6ds3_update_md_intr(this, true, false);
-     }
+    lsm6ds3_set_md_config(state, true);
+    if(state->irq_info.irq_ready)
+    {
+      lsm6ds3_update_md_intr(this, true, false);
+    }
   }
   else
   {
@@ -2145,9 +2400,9 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
 
   if(enable_fifo_stream)
   {
-    //lsm6ds3_flush_fifo(this);
+    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_heart_beat_data_stream);
     lsm6ds3_stop_fifo_streaming(state);
-    lsm6ds3_set_fifo_wmk(state);
+    lsm6ds3_set_fifo_wmk(this);
     lsm6ds3_start_fifo_streaming(state);
 
     // Enable interrupt only for accel, gyro and motion accel clients
@@ -2156,20 +2411,19 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
     {
       lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
     }
-    // Enable timer in case of sensor temp clients
-    if(state->fifo_info.publish_sensors & LSM6DS3_SENSOR_TEMP &&
-       !lsm6ds3_dae_if_available(this))
-    {
-      lsm6ds3_set_polling_config(this);
-    }
   }
-
+  // Enable timer in case of sensor temp clients
+  if(state->fifo_info.publish_sensors & LSM6DS3_SENSOR_TEMP &&
+    !lsm6ds3_dae_if_available(this))
+  {
+    lsm6ds3_set_polling_config(this);	
+  }
   if(state->fifo_info.publish_sensors != 0)
   {
     lsm6ds3_dae_if_start_streaming(this);
   }
   state->config_step = LSM6DS3_CONFIG_IDLE; /* done with reconfig */
-
+  lsm6ds3_send_config_event(this);
   lsm6ds3_dump_reg(this, state->fifo_info.fifo_enabled);
 }
 

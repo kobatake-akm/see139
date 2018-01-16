@@ -925,7 +925,8 @@ void lsm6ds3_start_hw_detect_sequence(sns_sensor *const this)
     /**---------------------Turn Power Rails ON----------------------------*/
     state->common.rail_config.rail_vote = state->common.registry_rail_on_state;
 
-    if(rv == SNS_RC_SUCCESS)
+    if(rv == SNS_RC_SUCCESS
+       && NULL != state->pwr_rail_service)
     {
       rv = state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                                this,

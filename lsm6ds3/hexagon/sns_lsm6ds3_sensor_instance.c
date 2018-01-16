@@ -55,6 +55,7 @@ static void inst_cleanup(sns_sensor_instance *const this, sns_stream_service *st
   sns_sensor_util_remove_sensor_instance_stream(this, &state->async_com_port_data_stream);
   sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
   sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+  sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_heart_beat_data_stream);
 
   if(NULL != state->scp_service)
   {
@@ -229,7 +230,6 @@ sns_rc lsm6ds3_inst_init(sns_sensor_instance *const this,
   /** Copy down MD configuration */
   sns_memscpy(&state->md_info.md_config, sizeof(state->md_info.md_config),
               &sensor_state->md_config, sizeof(sensor_state->md_config));
-
   /** Determine sizes of encoded logs */
   sns_diag_sensor_state_interrupt sensor_state_interrupt =
         sns_diag_sensor_state_interrupt_init_default;

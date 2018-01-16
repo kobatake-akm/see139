@@ -103,11 +103,17 @@
 /** Default values loaded in probe function */
 #define LSM6DS3_WHOAMI_VALUE              (0x69)  /** Who Am I default value */
 
+// Actual H/w supported max FIFO is 1365
+// Temporily reduced to fix CTS failures
+
 /** fifo paramters */
-#define LSM6DS3_MAX_FIFO            1365 // Max fifo samples 8K bytes to samples
+#define LSM6DS3_MAX_FIFO            208 // Max fifo samples 8K bytes to samples
 
 /** Off to idle time */
 #define LSM6DS3_OFF_TO_IDLE_MS      100  //ms
+
+#define LSM6DS3_HEART_BEAT_ODR_COUNT 3
+
 
 /** Motion detect configuration */
 #define LSM6DS3_MD_THRESH          (0.6132f)             // m/s2
@@ -120,6 +126,7 @@
 
 #define LSM6DS3_NUM_AXES           3
 
+#define LSM6DS3_SAMPLES_LIMIT      5
 /******************* Function Declarations ***********************************/
 
 /**
@@ -166,11 +173,11 @@ void lsm6ds3_stop_fifo_streaming(lsm6ds3_instance_state *state);
 /**
  * Sets FIFO WM and decimation config registers.
  *
- * @param[i] state         Instance state
+ * @param[i] instance         Instance
  *
  * @return none
  */
-void lsm6ds3_set_fifo_wmk(lsm6ds3_instance_state *state);
+void lsm6ds3_set_fifo_wmk(sns_sensor_instance *const instance);
 
 /**
  * Enable FIFO streaming. Also enables FIFO sensors with
@@ -373,12 +380,14 @@ void lsm6ds3_process_fifo_data_buffer(sns_sensor_instance *instance,
 ;
 
 /**
- * Handle an interrupt by reading the Fifo status register and sending out
- * appropriate requests to the asynchronous com port sensor to read the fifo.
+ * Handle an interrupt/FLush by reading the Fifo status register and sending out
+ * appropriate requests to the asynchronous/syncromous com port sensor to read the fifo.
  *
- * @param instance       Sensor Instance
+ * @param[i]        Sensor Instance
+ * @param[i]        irq_time
  */
-void lsm6ds3_handle_interrupt_event(sns_sensor_instance *const instance);
+void lsm6ds3_handle_fifo_data(sns_sensor_instance *const instance,
+  sns_time irq_time);
 
 /**
  * Sends config update event for the chosen sample_rate
@@ -469,3 +478,6 @@ void lsm6ds3_write_gpio(sns_sensor_instance *instance, uint32_t gpio,
 void lsm6ds3_register_interrupt(sns_sensor_instance *this);
 
 void lsm6ds3_set_polling_config(sns_sensor_instance *const this);
+void lsm6ds3_process_com_port_vector(sns_port_vector *vector, void *user_arg);
+void lsm6ds3_inst_create_heart_beat_timer(sns_sensor_instance *this, sns_time timeout_ticks);
+

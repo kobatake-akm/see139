@@ -111,7 +111,7 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C)
   case AK09915C:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
-    phy_sensor_config->stream_is_synchronous = 
+    phy_sensor_config->stream_is_synchronous =
        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
     //TODO: What value should be set?
     //RESP: This value should be a timestamp(ideally in the nearby future) of a valid synchronized sample

@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/16/18     010053     AKM              Merged the version 010052 and self test bug modification
+ * 01/04/18                AKM              Modified a self test bug
  * 01/11/18     010052     AKM              Modify to avoid sending ASCP request by heart beat timer
  * 01/09/18     010051     Qualcomm         No longer sending Config event when deleting
  * 01/09/18                Qualcomm         Fixed DAE flush commands
@@ -50,14 +52,14 @@
  * 11/09/17                Qualcomm         Changed to disallow Flush requests without Config requests
  * 11/09/17                Qualcomm         When DAE is unavailable reconfig HW after interrupt is ready
  * 11/07/17     010041     Qualcomm         Remove 1Hz ODR. Don't delete timer stream while processing it.
- * 11/04/17     010040     Qualcomm         Added Calibration event. 
+ * 11/04/17     010040     Qualcomm         Added Calibration event.
  * 11/03/17     010039     AKM              Removed AK09917_REV_A flag. Calculate averaged_interval.
  * 11/03/17                Qualcomm         Fixed flush request handling during power up
- * 10/31/17     010038     AKM              Refactor to use ASCP in flush. Added AK09917_REV_A flag. 
+ * 10/31/17     010038     AKM              Refactor to use ASCP in flush. Added AK09917_REV_A flag.
  * 10/31/17                AKM              Added dual sensor support
  * 10/25/17     010037     AKM              Removed averaging filter for DRI mode
  * 10/23/17     010036     Qualcomm         Sends config event to new clients immediately if already streaming
- * 10/20/17     010035     AKM              Modified for SEE-Lite. 
+ * 10/20/17     010035     AKM              Modified for SEE-Lite.
  * 10/20/17                AKM              Fixed negavite timestamp intervals
  * 10/19/17     010034     Qualcomm/AKM     Debugged timestamp issue. Added 1[sec] delay power rail when off. Removed GPIO check.
  * 10/18/17                AKM(M)           Modified for SEE-Lite except using new SUID handler utility
@@ -114,4 +116,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10052  // major:01 minor:00 revision:52
+#define AK0991X_DRIVER_VERSION 10053  // major:01 minor:00 revision:53

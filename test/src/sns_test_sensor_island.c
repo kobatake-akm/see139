@@ -7,9 +7,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor_island.c#3 $
- * $DateTime: 2017/06/09 11:09:54 $
- * $Change: 13540340 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor_island.c#4 $
+ * $DateTime: 2017/11/22 13:54:12 $
+ * $Change: 14904870 $
  *
  **/
 
@@ -131,16 +131,10 @@ sns_test_handle_sensor_event(sns_sensor* const this)
 {
   sns_test_state* s = (sns_test_state*)this->state->state;
 
-  for (; s->sensor_stream->api->get_input_cnt(s->sensor_stream) != 0 &&
-       s->remaining_events > 0;
-       s->sensor_stream->api->get_next_input(s->sensor_stream))
+  for(sns_sensor_event *e = s->sensor_stream->api->peek_input(s->sensor_stream);
+      NULL != e && s->remaining_events > 0;
+      e = s->sensor_stream->api->get_next_input(s->sensor_stream))
   {
-    sns_sensor_event* e = s->sensor_stream->api->peek_input(s->sensor_stream);
-    if (e == NULL)
-    {
-      SNS_PRINTF(ERROR, this, "event is NULL");
-      continue;
-    }
     s->test_sensor_process_event(this, e->event, e->event_len, s->test_data,
                                  e->message_id, e->timestamp);
     s->remaining_events--;

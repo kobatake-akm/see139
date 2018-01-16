@@ -11,9 +11,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/rel/ssc.slpi/3.0/sensors/lsm6ds3/build/sns_lsm6ds3.scons#14 $
-#  $DateTime: 2017/09/19 11:28:11 $
-#  $Change: 14416919 $
+#  $Id: //components/rel/ssc.slpi/3.0/sensors/lsm6ds3/build/sns_lsm6ds3.scons#15 $
+#  $DateTime: 2017/12/06 16:02:35 $
+#  $Change: 14999652 $
 #
 #===============================================================================
 Import('env')
@@ -44,5 +44,6 @@ if 'USES_SSC_STATIC_LIB_BUILDER' in env:
                flavor = ["hexagon"],
                register_func_name = "sns_register_lsm6ds3",
                binary_lib = False,
-               add_island_files = lsm6ds3_island_enable)
+               add_island_files = lsm6ds3_island_enable,
+               diag_ssid = "MSG_SSID_SNS_SENSOR_EXT")
 

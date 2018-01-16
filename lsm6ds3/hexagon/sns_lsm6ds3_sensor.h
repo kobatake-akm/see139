@@ -89,14 +89,14 @@ sns_sensor_api lsm6ds3_sensor_temp_sensor_api;
 /**
  * Accelerometer ranges
  */
-#define LSM6DS3_ACCEL_RANGE_2G_MIN    (-2*G)
-#define LSM6DS3_ACCEL_RANGE_2G_MAX    (2*G)
-#define LSM6DS3_ACCEL_RANGE_4G_MIN    (-4*G)
-#define LSM6DS3_ACCEL_RANGE_4G_MAX    (4*G)
-#define LSM6DS3_ACCEL_RANGE_8G_MIN    (-8*G)
-#define LSM6DS3_ACCEL_RANGE_8G_MAX    (8*G)
-#define LSM6DS3_ACCEL_RANGE_16G_MIN   (-16*G)
-#define LSM6DS3_ACCEL_RANGE_16G_MAX   (16*G)
+#define LSM6DS3_ACCEL_RANGE_2G_MIN    (-2)
+#define LSM6DS3_ACCEL_RANGE_2G_MAX    (2)
+#define LSM6DS3_ACCEL_RANGE_4G_MIN    (-4)
+#define LSM6DS3_ACCEL_RANGE_4G_MAX    (4)
+#define LSM6DS3_ACCEL_RANGE_8G_MIN    (-8)
+#define LSM6DS3_ACCEL_RANGE_8G_MAX    (8)
+#define LSM6DS3_ACCEL_RANGE_16G_MIN   (-16)
+#define LSM6DS3_ACCEL_RANGE_16G_MAX   (16)
 
 /**
  * Accelerometer resolutions
@@ -109,22 +109,22 @@ sns_sensor_api lsm6ds3_sensor_temp_sensor_api;
 /**
  * Gyroscope ranges
  */
-#define LSM6DS3_GYRO_RANGE_245_MIN    (-245 * PI /180)
-#define LSM6DS3_GYRO_RANGE_245_MAX    (245 * PI /180)
-#define LSM6DS3_GYRO_RANGE_500_MIN    (-500 * PI /180)
-#define LSM6DS3_GYRO_RANGE_500_MAX    (500 * PI /180)
-#define LSM6DS3_GYRO_RANGE_1000_MIN   (-1000 * PI /180)
-#define LSM6DS3_GYRO_RANGE_1000_MAX   (1000 * PI /180)
-#define LSM6DS3_GYRO_RANGE_2000_MIN   (-2000 * PI /180)
-#define LSM6DS3_GYRO_RANGE_2000_MAX   (2000 * PI /180)
+#define LSM6DS3_GYRO_RANGE_245_MIN    (-245)
+#define LSM6DS3_GYRO_RANGE_245_MAX    (245)
+#define LSM6DS3_GYRO_RANGE_500_MIN    (-500)
+#define LSM6DS3_GYRO_RANGE_500_MAX    (500)
+#define LSM6DS3_GYRO_RANGE_1000_MIN   (-1000)
+#define LSM6DS3_GYRO_RANGE_1000_MAX   (1000)
+#define LSM6DS3_GYRO_RANGE_2000_MIN   (-2000)
+#define LSM6DS3_GYRO_RANGE_2000_MAX   (2000)
 
 /**
- * LSM6DS3 sensitivity for gyro in (mrad/sec)/LSB
+ * LSM6DS3 sensitivity for gyro in dps/LSB
  */
-#define LSM6DS3_GYRO_SSTVT_245DPS   (8.75*PI/180)
-#define LSM6DS3_GYRO_SSTVT_500DPS   (17.50*PI/180)
-#define LSM6DS3_GYRO_SSTVT_1000DPS  (35.00*PI/180)
-#define LSM6DS3_GYRO_SSTVT_2000DPS  (70.00*PI/180)
+#define LSM6DS3_GYRO_SSTVT_245DPS   (0.008750)
+#define LSM6DS3_GYRO_SSTVT_500DPS   (0.017500)
+#define LSM6DS3_GYRO_SSTVT_1000DPS  (0.035000)
+#define LSM6DS3_GYRO_SSTVT_2000DPS  (0.070000)
 
 /**
  * LSM6DS3 Sensor Temperature ODR (Hz) definitions

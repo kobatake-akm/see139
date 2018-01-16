@@ -11,9 +11,9 @@
 #
 #-------------------------------------------------------------------------------
 #
-#  $Id: //components/rel/ssc.slpi/3.0/sensors/test/build/sns_test.scons#32 $
-#  $DateTime: 2017/09/13 19:12:37 $
-#  $Change: 14365661 $
+#  $Id: //components/rel/ssc.slpi/3.0/sensors/test/build/sns_test.scons#33 $
+#  $DateTime: 2017/11/16 16:18:00 $
+#  $Change: 14865011 $
 #
 #===============================================================================
 Import('env')
@@ -159,7 +159,7 @@ if "SENSORS_DD_DEV_FLAG" in env:
 
 REMOVE_FILES =  env.FindFiles(files_to_remove, MY_ROOT)
 
-env.CleanPack(['CORE_QDSP6_SENSOR_SW'], REMOVE_FILES)
+env.CleanPack(['SSC_BUILD_TAGS'], REMOVE_FILES)
 #print '\n'.join(["%s" % i for i in REMOVE_FILES])
 #print "-*-*-*-*-*-*-*-*-*-*-*-*"
 

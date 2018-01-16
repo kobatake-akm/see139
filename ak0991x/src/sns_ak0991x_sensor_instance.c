@@ -32,8 +32,10 @@
 #include "pb_encode.h"
 #include "pb_decode.h"
 #include "sns_pb_util.h"
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_diag_service.h"
 #include "sns_diag.pb.h"
+#endif
 #include "sns_sync_com_port_service.h"
 #include "sns_sensor_util.h"
 
@@ -52,7 +54,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   uint64_t buffer[10];
   pb_ostream_t stream = pb_ostream_from_buffer((pb_byte_t *)buffer, sizeof(buffer));
-#endif
   sns_diag_batch_sample batch_sample = sns_diag_batch_sample_init_default;
   uint8_t arr_index = 0;
   float diag_temp[AK0991X_NUM_AXES];
@@ -60,6 +61,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     .arr_index = &arr_index};
   batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
   batch_sample.sample.arg = &arg;
+#endif
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   sns_sensor_uid mag_suid = (sensor_state->registration_idx == 0)? (sns_sensor_uid)MAG_SUID1 :
                                                               (sns_sensor_uid)MAG_SUID2;
@@ -182,7 +184,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   default:
     return SNS_RC_FAILED;
   }
- 
+
   state->pre_timestamp = sns_get_system_time();
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
@@ -667,7 +669,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
         if (NULL != state->interrupt_data_stream)
         {
-          sns_sensor_event *event = 
+          sns_sensor_event *event =
             state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
           if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
           {
@@ -690,6 +692,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
+    // If the sensor is streaming and there is a client_request to run self-test,
+    // the existing stream can be temporarily paused.
+    // When the self-test completes, the paused stream shall be restarted.
     if (state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
     {
       AK0991X_INST_PRINT(LOW, this, "pause the stream for self-test.");
