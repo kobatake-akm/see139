@@ -3,11 +3,11 @@
  *
  * AK0991X - DAE sensor interface
  *
- * Copyright (c) 2017 Asahi Kasei Microdevices
+ * Copyright (c) 2017-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2017-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -324,7 +324,11 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       if(state->fifo_flush_in_progress)
       {
-        ak0991x_send_fifo_flush_done(this);
+        if(SNS_STD_ERROR_NO_ERROR != resp.err)
+        {
+          ak0991x_send_fifo_flush_done(this);
+        }
+        // else, wait for DATA_EVENT
       }
       break;
 #endif
@@ -503,7 +507,6 @@ sns_rc ak0991x_dae_if_init(
     config_req.interrupt              = state->mag_info.use_dri;
     config_req.has_irq_config         = state->mag_info.use_dri;
 #endif /* AK0991X_DAE_FORCE_POLLING */
-    config_req.axis_map_count         = 3;
     config_req.irq_config             = state->irq_info.irq_config;
 #ifdef AK0991X_ENABLE_S4S
     config_req.has_s4s_config         = state->mag_info.use_sync_stream;
@@ -513,14 +516,6 @@ sns_rc ak0991x_dae_if_init(
 #endif // AK0991X_ENABLE_S4S
     config_req.ascp_config            = state->ascp_config;
     config_req.has_accel_info         = false;
-
-    uint8_t i = 0;
-
-    for(i = 0; i < TRIAXIS_NUM; i++)
-    {
-      config_req.axis_map[i] = (state->axis_map[i].invert ? -1.0 : 1.0) *
-        (state->axis_map[i].ipaxis + 1);
-    }
 
     req.request_len = pb_encode_request(encoded_msg,
                                         sizeof(encoded_msg),
@@ -541,6 +536,7 @@ sns_rc ak0991x_dae_if_init(
   {
     dae_if->mag.suid            = parent_suid;
     dae_if->mag.stream_usable   = true;
+
   }
 #else
   UNUSED_VAR(this);
@@ -612,7 +608,8 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if(stream_usable(&state->dae_if.mag) && !dae_if->mag.flushing_hw)
+  if(stream_usable(&state->dae_if.mag) && state->dae_if.mag.state > PRE_INIT &&
+     !dae_if->mag.flushing_hw)
   {
     cmd_sent |= flush_hw(&dae_if->mag);
   }
@@ -630,7 +627,8 @@ bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this)
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if(stream_usable(&state->dae_if.mag) && !dae_if->mag.flushing_data)
+  if(stream_usable(&state->dae_if.mag) && state->dae_if.mag.state > PRE_INIT && 
+     !dae_if->mag.flushing_data)
   {
     if(!dae_if->mag.flushing_data)
     {

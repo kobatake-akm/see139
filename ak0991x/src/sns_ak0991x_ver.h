@@ -4,11 +4,11 @@
  *
  * Driver version
  *
- * Copyright (c) 2017 Asahi Kasei Microdevices
+ * Copyright (c) 2017-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2017-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -22,7 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 01/04/18     010051     AKM              Modified a self test bug
+ * 01/11/18     010052     AKM              Modify to avoid sending ASCP request by heart beat timer
+ * 01/09/18     010051     Qualcomm         No longer sending Config event when deleting
+ * 01/09/18                Qualcomm         Fixed DAE flush commands
  * 12/25/17     010050     AKM              Modified for DC-Lib.
  * 12/25/17                AKM              Fixed comparison of the timestamp for heart_beat_timer_event.
  * 12/20/17     010049     Qualcomm/AKM     Merged the version 010048 and dual sensor modification
@@ -112,4 +114,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10051  // major:01 minor:00 revision:51
+#define AK0991X_DRIVER_VERSION 10052  // major:01 minor:00 revision:52

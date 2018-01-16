@@ -324,8 +324,8 @@ static void ak0991x_get_mag_config(
                                       decoded_payload.sample_rate);
 
         AK0991X_PRINT(
-              MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate,
-              decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
+          MED, this, "SR=%u/100 batch_per=%d", (uint32_t)(decoded_payload.sample_rate*100),
+          decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
 
         if (decoded_request.has_batching
             &&

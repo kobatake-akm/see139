@@ -3,10 +3,10 @@
  *
  * AK0991X Mag virtual Sensor Instance implementation.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -320,6 +320,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, &mag_suid);
 
 #ifdef AK0991X_ENABLE_DC
+  // QC - These constants should be #defines in a header file and/or stored in registry
   /* TODO: set pdc parameter */
   state->pdc_parameter[0]  = 32;
   state->pdc_parameter[1]  = 82;
@@ -505,7 +506,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_info.flush_only = payload->is_flush_only;
 
     // If already streaming, send out existing config before the next data events are sent
-    if (!state->this_is_first_data)
+    if (!state->this_is_first_data && desired_sample_rate > 0)
     {
       ak0991x_send_config_event(this);
     }
@@ -659,11 +660,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   {
     state->system_time = sns_get_system_time();
     state->fifo_flush_in_progress = true;
+    AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
 
     if(!ak0991x_dae_if_flush_samples(this))
     {
-      AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
-
       if(state->mag_info.use_fifo)
       {
 #ifdef AK0991X_ENABLE_DRI
@@ -688,11 +688,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         ak0991x_send_fifo_flush_done(this);
       }
-    }
-    else
-    {
-      AK0991X_INST_PRINT(LOW, this, "Flush request received at %u . Wait for the next commming evnet or interrupt.", (uint32_t)state->system_time);
-      ak0991x_send_fifo_flush_done(this);
     }
   }
   else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
