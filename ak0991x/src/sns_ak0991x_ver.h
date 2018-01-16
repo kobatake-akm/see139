@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/16/18     010053     AKM              Merged the version 010052 and self test bug modification
+ * 01/04/18                AKM              Modified a self test bug
  * 01/11/18     010052     AKM              Modify to avoid sending ASCP request by heart beat timer
  * 01/09/18     010051     Qualcomm         No longer sending Config event when deleting
  * 01/09/18                Qualcomm         Fixed DAE flush commands
@@ -114,4 +116,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10052  // major:01 minor:00 revision:52
+#define AK0991X_DRIVER_VERSION 10053  // major:01 minor:00 revision:53
