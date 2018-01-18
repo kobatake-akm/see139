@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/18/18                AKM              Modified for Case# 03314109. Added checking ST1 status on polling mode.
  * 01/16/18     010053     AKM              Merged the version 010052 and self test bug modification
  * 01/04/18                AKM              Modified a self test bug
  * 01/11/18     010052     AKM              Modify to avoid sending ASCP request by heart beat timer

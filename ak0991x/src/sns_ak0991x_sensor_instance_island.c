@@ -368,6 +368,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now %u req_timeout_time %u",
                                (uint32_t)now,
                                (uint32_t)state->system_time);
+
+            // check DRDY status.
+            ak0991x_get_st1_status(this);
+
+            // mag data read
             ak0991x_read_mag_samples(this);
           }
           rv = ak0991x_heart_beat_timer_event(this);
