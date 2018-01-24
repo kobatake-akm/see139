@@ -1420,7 +1420,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   else if(!state->mag_info.use_dri && !state->data_is_ready)
   {
     AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. Use previous data");
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
+    status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
     lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
     lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
     lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];

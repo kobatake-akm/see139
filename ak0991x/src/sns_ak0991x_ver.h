@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/24/18     010054     AKM              Modified for Case# 03314109. Always uses SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH for polling mode.
  * 01/18/18                AKM              Modified for Case# 03314109. Added checking ST1 status on polling mode.
  * 01/16/18     010053     AKM              Merged the version 010052 and self test bug modification
  * 01/04/18                AKM              Modified a self test bug
@@ -117,4 +118,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10053  // major:01 minor:00 revision:53
+#define AK0991X_DRIVER_VERSION 10054  // major:01 minor:00 revision:54
