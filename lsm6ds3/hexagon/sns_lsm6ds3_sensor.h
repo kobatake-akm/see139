@@ -293,4 +293,3 @@ void lsm6ds3_start_power_rail_timer(sns_sensor *const this,
                     lsm6ds3_power_rail_pending_state pwr_rail_pend_state);
 void lsm6ds3_common_init(sns_sensor *const this);
 
-

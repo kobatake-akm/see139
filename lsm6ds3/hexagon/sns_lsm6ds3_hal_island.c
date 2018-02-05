@@ -36,6 +36,8 @@
 #include "sns_std.pb.h"
 #include "sns_std_event_gated_sensor.pb.h"
 #include "sns_timer.pb.h"
+#include "sns_cal.pb.h"
+
 
 #include "sns_cal_util.h"
 #include "sns_printf.h"
@@ -1086,8 +1088,9 @@ void lsm6ds3_set_fifo_wmk(sns_sensor_instance *const instance)
   {
     wmk_words += state->fifo_info.cur_wmk * 3;
     decimation |= 0x8;
-  }  
-  lsm6ds3_inst_create_heart_beat_timer(instance,state->heart_beat_timeout);
+  } 
+  if(state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO))
+    lsm6ds3_inst_create_heart_beat_timer(instance,state->heart_beat_timeout);
   // Set Accel decimation to no decimation
   buffer = decimation;
   lsm6ds3_read_modify_write(state->scp_service,
@@ -1152,14 +1155,15 @@ void lsm6ds3_start_fifo_streaming(lsm6ds3_instance_state *state)
                             1,
                             &xfer_bytes,
                             false,
-                            0xFF);
-  state->fifo_info.configured_odr = state->accel_info.curr_odr;
+                            0xFF);  
   lsm6ds3_set_accel_config(state->scp_service,
                            state->com_port_info.port_handle,
                            state->accel_info.curr_odr,
                            state->accel_info.sstvt,
                            state->accel_info.range,
                            state->accel_info.bw);
+  if(state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO))
+    state->fifo_info.configured_odr = state->accel_info.curr_odr;
   lsm6ds3_set_gyro_config(state->scp_service,
                           state->com_port_info.port_handle,
                           state->gyro_info.curr_odr,
@@ -1980,7 +1984,6 @@ void lsm6ds3_set_md_config(lsm6ds3_instance_state *state, bool enable)
                              LSM6DS3_ACCEL_SSTVT_8G,
                              LSM6DS3_ACCEL_RANGE_8G,
                              LSM6DS3_ACCEL_BW50);
-    state->fifo_info.configured_odr = accel_odr;
   }
 }
 
@@ -2046,6 +2049,8 @@ void lsm6ds3_update_md_intr(sns_sensor_instance *const instance,
 static void lsm6ds3_convert_accel_gated_req_to_non_gated(
    sns_sensor_instance *const instance)
 {
+  lsm6ds3_instance_state *state =
+     (lsm6ds3_instance_state*)instance->state->state;
   sns_request *request;
   bool req_converted_to_non_gated = false;
 
@@ -2058,6 +2063,7 @@ static void lsm6ds3_convert_accel_gated_req_to_non_gated(
     if(request->message_id == SNS_STD_EVENT_GATED_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
     {
       request->message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
+	  state->fifo_info.publish_sensors |= LSM6DS3_ACCEL;
       req_converted_to_non_gated = true;
     }
   }
@@ -2192,7 +2198,7 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
 
   if(state->fifo_info.publish_sensors & LSM6DS3_ACCEL
      ||
-     state->accel_info.gated_client_present)
+    (state->accel_info.gated_client_present && !state->md_info.enable_md_int))
   {
     pb_send_event(instance,
                   sns_std_sensor_physical_config_event_fields,
@@ -2200,6 +2206,7 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
                   sns_get_system_time(),
                   SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                   &state->accel_info.suid);
+	lsm6ds3_send_cal_event(instance,LSM6DS3_ACCEL);
   }
 
   if(state->fifo_info.publish_sensors & LSM6DS3_GYRO)
@@ -2228,6 +2235,7 @@ void lsm6ds3_send_config_event(sns_sensor_instance *const instance)
                   sns_get_system_time(),
                   SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                   &state->gyro_info.suid);
+	lsm6ds3_send_cal_event(instance,LSM6DS3_GYRO);
   }
 
 
@@ -2367,8 +2375,7 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
   state->heart_beat_timestamp = sns_get_system_time();
   if(state->md_info.enable_md_int)
   {
-    if(state->fifo_info.fifo_rate > LSM6DS3_ACCEL_ODR_OFF
-       && !(state->fifo_info.publish_sensors & (LSM6DS3_GYRO | LSM6DS3_SENSOR_TEMP | LSM6DS3_ACCEL)))
+    if(!(state->fifo_info.publish_sensors & (LSM6DS3_GYRO | LSM6DS3_SENSOR_TEMP | LSM6DS3_ACCEL)))
     {
       lsm6ds3_set_fifo_config(state,
                               0,
@@ -2397,18 +2404,16 @@ void lsm6ds3_reconfig_hw(sns_sensor_instance *this)
       lsm6ds3_set_md_config(state, false);
     }
   }
-
   if(enable_fifo_stream)
   {
     sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_heart_beat_data_stream);
     lsm6ds3_stop_fifo_streaming(state);
     lsm6ds3_set_fifo_wmk(this);
     lsm6ds3_start_fifo_streaming(state);
-
     // Enable interrupt only for accel, gyro and motion accel clients
     if(((state->fifo_info.publish_sensors & (LSM6DS3_ACCEL | LSM6DS3_GYRO)) || state->fac_test_in_progress)
        && state->irq_info.irq_ready )
-    {
+    {      
       lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
     }
   }
@@ -2452,3 +2457,107 @@ void lsm6ds3_register_interrupt(sns_sensor_instance *this)
     }
   }
 }
+/** See sns_lsm6ds3_hal.h */
+void lsm6ds3_send_cal_event(sns_sensor_instance *const instance, lsm6ds3_sensor_type sensor_type)
+{
+
+  lsm6ds3_instance_state *state =
+     (lsm6ds3_instance_state*)instance->state->state;
+
+  sns_cal_event new_calibration_event = sns_cal_event_init_default;
+  float bias_data[] = {0,0,0};
+  float comp_matrix_data[] = {0,0,0,0,0,0,0,0,0};
+
+  if(sensor_type == LSM6DS3_ACCEL)
+  {
+    bias_data[0] = state->accel_registry_cfg.fac_cal_bias[0];
+    bias_data[1] = state->accel_registry_cfg.fac_cal_bias[1];
+    bias_data[2] = state->accel_registry_cfg.fac_cal_bias[2];
+    comp_matrix_data[0] = state->accel_registry_cfg.fac_cal_corr_mat.data[0];
+    comp_matrix_data[1] = state->accel_registry_cfg.fac_cal_corr_mat.data[1];
+    comp_matrix_data[2] = state->accel_registry_cfg.fac_cal_corr_mat.data[2];
+    comp_matrix_data[3] = state->accel_registry_cfg.fac_cal_corr_mat.data[3];
+    comp_matrix_data[4] = state->accel_registry_cfg.fac_cal_corr_mat.data[4];
+    comp_matrix_data[5] = state->accel_registry_cfg.fac_cal_corr_mat.data[5];
+    comp_matrix_data[6] = state->accel_registry_cfg.fac_cal_corr_mat.data[6];
+    comp_matrix_data[7] = state->accel_registry_cfg.fac_cal_corr_mat.data[7];
+    comp_matrix_data[8] = state->accel_registry_cfg.fac_cal_corr_mat.data[8];
+  }
+  else
+  {
+    bias_data[0] = state->gyro_registry_cfg.fac_cal_bias[0];
+    bias_data[1] = state->gyro_registry_cfg.fac_cal_bias[1];
+    bias_data[2] = state->gyro_registry_cfg.fac_cal_bias[2];
+    comp_matrix_data[0] = state->gyro_registry_cfg.fac_cal_corr_mat.data[0];
+    comp_matrix_data[1] = state->gyro_registry_cfg.fac_cal_corr_mat.data[1];
+    comp_matrix_data[2] = state->gyro_registry_cfg.fac_cal_corr_mat.data[2];
+    comp_matrix_data[4] = state->gyro_registry_cfg.fac_cal_corr_mat.data[4];
+    comp_matrix_data[5] = state->gyro_registry_cfg.fac_cal_corr_mat.data[5];
+    comp_matrix_data[6] = state->gyro_registry_cfg.fac_cal_corr_mat.data[6];
+    comp_matrix_data[7] = state->gyro_registry_cfg.fac_cal_corr_mat.data[7];
+    comp_matrix_data[8] = state->gyro_registry_cfg.fac_cal_corr_mat.data[8];
+  }
+
+  pb_buffer_arg buff_arg_bias = (pb_buffer_arg)
+      { .buf = &bias_data, .buf_len = ARR_SIZE(bias_data) };
+  pb_buffer_arg buff_arg_comp_matrix = (pb_buffer_arg)
+      { .buf = &comp_matrix_data, .buf_len = ARR_SIZE(comp_matrix_data) };
+  sns_sensor_uid *suid_current;
+
+  //update suid
+  if(sensor_type == LSM6DS3_ACCEL)
+  {
+    suid_current = &state->accel_info.suid;
+  }
+  else
+  {
+    suid_current = &state->gyro_info.suid;
+  }
+
+  new_calibration_event.bias.funcs.encode = &pb_encode_float_arr_cb;
+  new_calibration_event.bias.arg = &buff_arg_bias;
+  new_calibration_event.comp_matrix.funcs.encode = &pb_encode_float_arr_cb;
+  new_calibration_event.comp_matrix.arg = &buff_arg_comp_matrix;
+  new_calibration_event.status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
+  SNS_INST_PRINTF(ERROR, instance, "Calibration event");
+  pb_send_event(instance,
+                sns_cal_event_fields,
+                &new_calibration_event,
+                sns_get_system_time(),
+                SNS_CAL_MSGID_SNS_CAL_EVENT,
+                suid_current);
+}
+/** See sns_lsm6ds3_hal.h */
+void lsm6ds3_reset_cal_data(sns_sensor_instance *const instance,lsm6ds3_sensor_type sensor_type)
+{
+  lsm6ds3_instance_state *state =
+     (lsm6ds3_instance_state*)instance->state->state;
+  float bias_data[] = {0,0,0};
+  float comp_matrix_data[] = {1,0,0,0,1,0,0,0,1};
+  if(sensor_type == LSM6DS3_ACCEL)
+  {
+    for (int i = 0; i < ARR_SIZE(bias_data); i++)
+    {
+      state->accel_registry_cfg.fac_cal_bias[i] = bias_data[i];
+    }
+    for (int i = 0; i < ARR_SIZE(comp_matrix_data); i++)
+    {
+      state->accel_registry_cfg.fac_cal_corr_mat.data[i] = comp_matrix_data[i];
+    }
+	state->accel_registry_cfg.version++;
+  }
+  if(sensor_type == LSM6DS3_GYRO)
+  {
+    for (int i = 0; i < ARR_SIZE(bias_data); i++)
+    {
+      state->gyro_registry_cfg.fac_cal_bias[i] = bias_data[i];
+    }
+    for (int i = 0; i < ARR_SIZE(comp_matrix_data); i++)
+    {
+      state->gyro_registry_cfg.fac_cal_corr_mat.data[i] = comp_matrix_data[i];
+    }
+	state->gyro_registry_cfg.version++;
+  }
+
+}
+

@@ -3,7 +3,7 @@
  *
  * LSM6DS3 Accel virtual Sensor implementation.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -108,6 +108,19 @@ lsm6ds3_publish_attributes(sns_sensor *const this)
     values[5].flt = LSM6DS3_ODR_416;
     sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
         values, ARR_SIZE(values), false);
+  }
+  {
+   // Low latency channel use same ODR as traditional channel, no additional 
+   // rate to publish, if any additional rate to be supported by low latency
+   // channel, please publish here. 
+
+   // Following is for example only and exercising low latency path via LSM6DS3 is TBD
+   //sns_std_attr_value_data values[] = {SNS_ATTR};
+   //values[0].has_flt = true;
+   //values[0].flt = LSM6DS3_ODR_833;
+   
+   //sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_ADDITIONAL_LOW_LATENCY_RATES,
+   //    values, value_len, false);
   }
   {
     sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};

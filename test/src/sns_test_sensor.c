@@ -7,10 +7,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor.c#64 $
- * $DateTime: 2017/09/07 16:15:13 $
- * $Change: 14306243 $
- *
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/src/sns_test_sensor.c#65 $
+ * $DateTime: 2017/12/21 21:24:48 $
+ * $Change: 15116455 $
  **/
 
 #include "pb_decode.h"
@@ -36,14 +35,6 @@
 #include "sns_test_sensor_instance.h"
 #include "sns_types.h"
 #include "sns_printf.h"
-
-typedef struct sns_test_implementation
-{
-  char* datatype;
-  uint32_t datatype_len;
-  sns_test_create_request_func create_request_func;
-  sns_test_process_event_func process_event_func;
-} sns_test_implementation;
 
 /*
  * select a test implementation based on compile-time flag
@@ -387,8 +378,8 @@ const sns_test_implementation test_sensor_impl = {
 /**
  * Publish all saved attributes for test_sensor.
  */
- void
-publish_attributes(sns_sensor* const this)
+void
+publish_attributes(sns_sensor *const this)
 {
   {
     char const name[] = "test";
@@ -434,14 +425,13 @@ publish_attributes(sns_sensor* const this)
 }
 
 /* See sns_sensor::init */
- sns_rc
-sns_test_init(sns_sensor* const this)
+sns_rc
+sns_test_init(sns_sensor *const this)
 {
-  sns_rc rc = SNS_RC_FAILED;
-  sns_test_state* state = (sns_test_state*)this->state->state;
+  sns_test_state *state = (sns_test_state*)this->state->state;
   publish_attributes(this);
 
-  sns_service_manager *smgr= this->cb->get_service_manager(this);
+  sns_service_manager * smgr= this->cb->get_service_manager(this);
   state->diag_service = (sns_diag_service *)
     smgr->get_service(smgr, SNS_DIAG_SERVICE);
 
@@ -455,38 +445,26 @@ sns_test_init(sns_sensor* const this)
       test_sensor_impl.process_event_func : sns_test_std_sensor_process_event;
 
   /* if test implementation is enabled, initiate the test */
-  if (test_sensor_impl.datatype != NULL)
+  if(NULL != test_sensor_impl.datatype)
   {
     state->remaining_events = NUM_EVENTS_TO_PROCESS;
     state->remaining_iterations = NUM_TEST_ITERATIONS;
     state->num_events_received = 0;
     sns_memset(state->test_data, 0x00, sizeof(state->test_data));
 
-    //SENSOR_PRINTF_MED_FULL(this, "test_sensor type = %s", test_sensor_impl.datatype);
-    state->suid_search[state->search_count].data_type_str = test_sensor_impl.datatype;
-    state->suid_search[state->search_count].suid = state->uid1_list;
-    state->search_count++;
-
-    if (strcmp("resampler", test_sensor_impl.datatype) == 0)
-    {
-      state->suid_search[state->search_count].data_type_str = "gyro";
-      state->suid_search[state->search_count].suid = state->uid2_list;
-      state->search_count++;
-    }
-    rc = sns_search_suids(this, state->suid_search, state->search_count, &state->suid_stream);
-    if (rc != SNS_RC_SUCCESS)
-    {
-      SNS_PRINTF(ERROR, this, "sns_search_suids() failed");
-    }
+    SNS_SUID_LOOKUP_INIT(state->suid_lookup_data, NULL);
+    sns_suid_lookup_add(this, &state->suid_lookup_data, test_sensor_impl.datatype);
+    // Only used if Resampler is under test
+    sns_suid_lookup_add(this, &state->suid_lookup_data, "gyro");
   }
 
   SNS_PRINTF(MED, this, "sns_test_init done");
 
-  return rc;
+  return SNS_RC_SUCCESS;
 }
 
 sns_rc
-sns_test_deinit(sns_sensor* const this)
+sns_test_deinit(sns_sensor *const this)
 {
   UNUSED_VAR(this);
   return SNS_RC_SUCCESS;

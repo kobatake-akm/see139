@@ -474,10 +474,26 @@ void lsm6ds3_write_gpio(sns_sensor_instance *instance, uint32_t gpio,
                         sns_gpio_pull_type pull,
                         sns_gpio_state state);
 #endif
+/**
+ * Send Calibration event to client
+ *
+ * @param[i] instance        instance reference
+ * @param[i] sensor          bit mask for sensors to handle
+ * @return none
+ */
+void lsm6ds3_send_cal_event(sns_sensor_instance * const instance, lsm6ds3_sensor_type sensor_type);
+/**
+ * Reset Calibration values
+ *
+ * @param[i] instance        instance reference
+ * @param[i] sensor          bit mask for sensors to handle
+ * @return none
+ */
+
+void lsm6ds3_reset_cal_data(sns_sensor_instance *const instance,lsm6ds3_sensor_type sensor_type);
 
 void lsm6ds3_register_interrupt(sns_sensor_instance *this);
 
 void lsm6ds3_set_polling_config(sns_sensor_instance *const this);
 void lsm6ds3_process_com_port_vector(sns_port_vector *vector, void *user_arg);
 void lsm6ds3_inst_create_heart_beat_timer(sns_sensor_instance *this, sns_time timeout_ticks);
-

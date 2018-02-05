@@ -3,7 +3,7 @@
  *
  * Common implementation for LSM6DS3 Sensors.
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -42,6 +42,7 @@ typedef struct pb_arg_reg_group_arg
   sns_sensor_instance* instance;
   const char*          name;
   lsm6ds3_sensor_type sensor;
+  uint32_t version;
 }pb_arg_reg_group_arg;
 
 static const range_attr lsm6ds3_accel_ranges[] =
@@ -286,6 +287,7 @@ void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
                          LSM6DS3_PLATFORM_FAC_CAL_TEMP,
                          group_name.buf_len))
       {
+        uint32_t fac_cal_version;
         {
           uint8_t bias_arr_index = 0, scale_arr_index = 0;
           pb_float_arr_arg bias_arr_arg = {
@@ -324,11 +326,13 @@ void lsm6ds3_sensor_process_registry_event(sns_sensor *const this,
           read_event.data.items.arg = &arg;
 
           rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+          fac_cal_version = arg.version;
         }
 
         if(rv)
         {
           state->registry_fac_cal_received = true;
+          state->fac_cal_version = fac_cal_version;
           if(state->fac_cal_scale[0] != 0.0)
           {
             state->fac_cal_corr_mat.e00 = state->fac_cal_scale[0];
@@ -555,6 +559,8 @@ lsm6ds3_encode_registry_cb(struct pb_ostream_s *stream, struct pb_field_s const 
       .name = NULL,.instance = instance, .sensor = reg_arg->sensor
     };
 
+    pb_item.has_version = true;
+    pb_item.version = reg_arg->version;
     pb_item.name.arg = &name_data;
     pb_item.name.funcs.encode = &pb_encode_string_cb;
 
@@ -596,6 +602,9 @@ void lsm6ds3_update_registry(sns_sensor *const this,
   lsm6ds3_state *state = (lsm6ds3_state*)this->state->state;
   pb_arg_reg_group_arg arg = {.instance = instance };
 
+  lsm6ds3_instance_state *inst_state =
+            (lsm6ds3_instance_state*)instance->state->state;
+
   uint8_t buffer[1000];
   int32_t encoded_len;
   char accel_name[] = LSM6DS3_PLATFORM_FAC_CAL_ACCEL;
@@ -608,12 +617,14 @@ void lsm6ds3_update_registry(sns_sensor *const this,
     name_data = (pb_buffer_arg)
           { .buf = accel_name, .buf_len = strlen(accel_name) + 1 };
     arg.sensor = LSM6DS3_ACCEL;
+    arg.version = inst_state->accel_registry_cfg.version;
   }
   else if(sensor == LSM6DS3_GYRO)
   {
     name_data = (pb_buffer_arg)
           { .buf = gyro_name, .buf_len = strlen(gyro_name) + 1 };
     arg.sensor = LSM6DS3_GYRO;
+    arg.version = inst_state->gyro_registry_cfg.version;
   }
   else
   {
@@ -671,6 +682,7 @@ void lsm6ds3_update_sensor_state(sns_sensor *const this,
       sns_memscpy(&sensor_state->fac_cal_corr_mat, sizeof(sensor_state->fac_cal_corr_mat),
                   &inst_state->accel_registry_cfg.fac_cal_corr_mat,
                   sizeof(inst_state->accel_registry_cfg.fac_cal_corr_mat));
+	  sensor_state->fac_cal_version = inst_state->accel_registry_cfg.version;
     }
     else if(sensor_state->sensor == LSM6DS3_GYRO
             && sensor_state->fac_cal_version < inst_state->gyro_registry_cfg.version)
@@ -682,6 +694,7 @@ void lsm6ds3_update_sensor_state(sns_sensor *const this,
       sns_memscpy(&sensor_state->fac_cal_corr_mat, sizeof(sensor_state->fac_cal_corr_mat),
                   &inst_state->gyro_registry_cfg.fac_cal_corr_mat,
                   sizeof(inst_state->gyro_registry_cfg.fac_cal_corr_mat));
+	  sensor_state->fac_cal_version = inst_state->gyro_registry_cfg.version;
     }
     else if(sensor_state->sensor == LSM6DS3_SENSOR_TEMP
             && sensor_state->fac_cal_version < inst_state->sensor_temp_registry_cfg.version)
@@ -693,6 +706,7 @@ void lsm6ds3_update_sensor_state(sns_sensor *const this,
       sns_memscpy(&sensor_state->fac_cal_corr_mat, sizeof(sensor_state->fac_cal_corr_mat),
                   &inst_state->sensor_temp_registry_cfg.fac_cal_corr_mat,
                   sizeof(inst_state->sensor_temp_registry_cfg.fac_cal_corr_mat));
+	  sensor_state->fac_cal_version = inst_state->sensor_temp_registry_cfg.version;
     }
   }
 }

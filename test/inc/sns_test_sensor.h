@@ -8,9 +8,9 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
- * $Id: //components/rel/ssc.slpi/3.0/sensors/test/inc/sns_test_sensor.h#13 $
- * $DateTime: 2017/05/16 15:59:42 $
- * $Change: 13327771 $
+ * $Id: //components/rel/ssc.slpi/3.0/sensors/test/inc/sns_test_sensor.h#14 $
+ * $DateTime: 2017/12/21 21:24:48 $
+ * $Change: 15116455 $
  *
  **/
 
@@ -21,6 +21,7 @@
 #include "sns_std.pb.h"
 #include "sns_std_sensor.pb.h"
 #include "sns_test_std_sensor.h"
+#include "sns_suid_util.h"
 
 #define SNS_TEST_REQ_PAYLOAD_SIZE 128
 #define SNS_TEST_DATA_SIZE 256
@@ -42,32 +43,30 @@
 /** Forward Declaration of Sensor API */
 sns_sensor_api sns_test_sensor_api;
 
-sns_rc sns_test_init(sns_sensor* const this);
-sns_rc sns_test_deinit(sns_sensor* const this);
-sns_sensor_instance* sns_test_set_client_request(sns_sensor* const this,
+sns_rc sns_test_init(sns_sensor *const this);
+sns_rc sns_test_deinit(sns_sensor *const this);
+sns_sensor_instance* sns_test_set_client_request(sns_sensor *const this,
                                                  struct sns_request const *exist_request,
                                                  struct sns_request const *new_request,
                                                  bool remove);
 
-typedef void (* sns_test_create_request_func)(const sns_sensor *sensor,
+typedef void (*sns_test_create_request_func)(const sns_sensor *sensor,
                                               void*, const pb_field_t**,
                                               uint32_t*, sns_std_request*);
-typedef void (* sns_test_process_event_func)(const sns_sensor *sensor,
+typedef void (*sns_test_process_event_func)(const sns_sensor *sensor,
                                              void*, uint32_t, void*,
                                              uint32_t, sns_time);
 
 typedef struct _sns_test_state
 {
-  sns_data_stream* sensor_stream;
-  sns_data_stream* suid_stream;
+  sns_data_stream *sensor_stream;
+  sns_data_stream *suid_stream;
   sns_diag_service *diag_service;
   int32_t remaining_events;
   int32_t remaining_iterations;
   uint32_t num_events_received;
-  sns_suid_search suid_search[2];  /* resampler uses 2, others use just 1 */
-  sns_sensor_uid uid1_list[5];
-  sns_sensor_uid uid2_list[5];
-  uint8_t         search_count;
+  /* Sensor-specific */
+  SNS_SUID_LOOKUP_DATA(2) suid_lookup_data;
   bool test_in_progress;
   uint64_t sns_pb_req_payload[SNS_TEST_REQ_PAYLOAD_SIZE/8];
   uint64_t test_data[SNS_TEST_DATA_SIZE/8];
@@ -75,3 +74,10 @@ typedef struct _sns_test_state
   sns_test_process_event_func test_sensor_process_event;
 } sns_test_state;
 
+typedef struct sns_test_implementation
+{
+  char *datatype;
+  uint32_t datatype_len;
+  sns_test_create_request_func create_request_func;
+  sns_test_process_event_func process_event_func;
+} sns_test_implementation;

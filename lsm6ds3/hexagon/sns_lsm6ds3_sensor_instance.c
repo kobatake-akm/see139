@@ -514,7 +514,7 @@ void lsm6ds3_process_fac_test(sns_sensor_instance *instance)
 
     /** update_fac_cal_in_registry if test is successful.*/
     state->update_fac_cal_in_registry = test_pass;
-
+    lsm6ds3_send_cal_event(instance, state->fac_test_sensor);
     lsm6ds3_send_self_test_event(instance, uid,
                                  test_pass, SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY, err_code);
   }

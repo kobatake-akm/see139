@@ -36,6 +36,8 @@
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
 #include "sns_registry.pb.h"
+#include "sns_cal.pb.h"
+
 
 static sns_sensor_uid const* lsm6ds3_accel_get_sensor_uid(sns_sensor const *const this)
 {
@@ -1028,21 +1030,7 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
              &&
              state->sensor == LSM6DS3_MOTION_DETECT)
           {                        
-            if(inst_state->fifo_info.publish_sensors & LSM6DS3_ACCEL) 
-			{
-              //send event as MD disabled since non-gated client is active
-              //no need of this as we alreay set md_info state
-              sns_motion_detect_event md_state;
-              md_state.motion_detect_event_type = SNS_MOTION_DETECT_EVENT_TYPE_DISABLED;           
-              pb_send_event(instance,
-                sns_motion_detect_event_fields,
-                &md_state,
-                sns_get_system_time(),
-                SNS_MOTION_DETECT_MSGID_SNS_MOTION_DETECT_EVENT,
-                  &inst_state->md_info.suid);
-              reval_config = false;			  
-            }
-	        else if (inst_state->md_info.enable_md_int)
+            if (inst_state->md_info.enable_md_int)
             {
               reval_config = false;
 			  //there is exsisting md client already present, just send event
@@ -1057,7 +1045,15 @@ sns_sensor_instance* lsm6ds3_set_client_request(sns_sensor *const this,
             {
               inst_state->md_info.md_new_req = true;          
             }
-          }          
+          }
+          if(new_request->message_id == SNS_CAL_MSGID_SNS_CAL_RESET) {
+            LSM6DS3_PRINTF(LOW,this,"Request for resetting cal data");
+            lsm6ds3_reset_cal_data(instance,state->sensor);
+            lsm6ds3_update_sensor_state(this, instance);
+            lsm6ds3_update_registry(this, instance, LSM6DS3_ACCEL);
+            lsm6ds3_update_registry(this, instance, LSM6DS3_GYRO);
+            lsm6ds3_send_cal_event(instance, state->sensor);
+          }
           if(new_request->message_id ==
              SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
           {

@@ -36,6 +36,7 @@
 #include "sns_diag.pb.h"
 #include "sns_diag_service.h"
 #include "sns_pb_util.h"
+#include "sns_sensor_util.h"
 #include "sns_std_event_gated_sensor.pb.h"
 #include "sns_sync_com_port_service.h"
 #include "sns_printf.h"
@@ -284,16 +285,16 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
                                         state->md_info.desired_odr,
                                         state->gyro_info.curr_odr,//LSM6DS3_GYRO_ODR_OFF,
                                         state->fifo_info.fifo_enabled);
-				// No need to reconfigure H/W, When FIFO streaming is in progress and MD fires
-				if(!(state->fifo_info.publish_sensors & (LSM6DS3_GYRO | LSM6DS3_ACCEL)))
-				{
+		// No need to reconfigure H/W, When there was a gyro streaming
+	        if(!((state->fifo_info.publish_sensors&LSM6DS3_GYRO) == LSM6DS3_GYRO))
+	        {
                   lsm6ds3_stop_fifo_streaming(state);
                   lsm6ds3_set_fifo_wmk(this);
                   lsm6ds3_start_fifo_streaming(state);
-                  lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);
-                  lsm6ds3_send_config_event(this);
+                  lsm6ds3_enable_fifo_intr(state, state->fifo_info.fifo_enabled);                
                   lsm6ds3_dae_if_start_streaming(this);
-				}
+		}
+                lsm6ds3_send_config_event(this);
               }
               lsm6ds3_dump_reg(this, state->fifo_info.fifo_enabled);
             }
@@ -427,9 +428,18 @@ static sns_rc lsm6ds3_inst_notify_event(sns_sensor_instance *const this)
       {
         if(event->message_id == SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT)
         { 
-		  LSM6DS3_INST_PRINTF(LOW, this, "Heart beat timer fired");
-		  if(!state->ascp_in_progress)
-            lsm6ds3_handle_fifo_data(this,sns_get_system_time());
+          LSM6DS3_INST_PRINTF(LOW, this, "Heart beat timer fired");
+          if(!state->ascp_in_progress)
+          {
+            if(!(state->fifo_info.publish_sensors & (LSM6DS3_GYRO | LSM6DS3_ACCEL)))
+            {
+              lsm6ds3_handle_fifo_data(this,sns_get_system_time());
+            }else
+            {
+              sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_heart_beat_data_stream);
+              break;
+            }
+          }
         }
         else
         {
@@ -569,10 +579,11 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
         //return rv;
       }
     }
-    LSM6DS3_INST_PRINTF(LOW, this, "accel odr %u,running odr %u",
-	  accel_chosen_sample_rate_reg_value,state->accel_info.curr_odr);
+    LSM6DS3_INST_PRINTF(LOW, this, "accel odr %u,running odr %u,fifo running odr:%u",
+	  accel_chosen_sample_rate_reg_value,state->accel_info.curr_odr,
+	  state->fifo_info.configured_odr);
 	 
-    if(((state->accel_info.curr_odr != accel_chosen_sample_rate_reg_value)&&
+    if(((state->fifo_info.configured_odr != accel_chosen_sample_rate_reg_value)&&
 	   (!state->md_info.enable_md_int)) || 
       (state->gyro_info.curr_odr != gyro_chosen_sample_rate_reg_value))
     {
@@ -617,8 +628,8 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
 	  if(state->md_info.md_state.motion_detect_event_type 
 	  	 != SNS_MOTION_DETECT_EVENT_TYPE_ENABLED)
 	  {
-            fifo_odr_change = true;
-          }
+        fifo_odr_change = true;
+      }
     }
     lsm6ds3_set_fifo_config(state,
                             desired_wmk,
@@ -652,7 +663,11 @@ static sns_rc lsm6ds3_inst_set_client_config(sns_sensor_instance *const this,
       LSM6DS3_INST_PRINTF(HIGH, this, "choosen_wmk %u,choosen_sample_rate %d",
 	    state->fifo_info.cur_wmk, (uint32_t)state->accel_info.curr_odr);
       lsm6ds3_reconfig_hw(this);      
-    }	    
+    }
+	
+    LSM6DS3_INST_PRINTF(LOW, this, "accel odr %u,running odr %u,fifo running odr:%u",
+	  accel_chosen_sample_rate_reg_value,state->accel_info.curr_odr,
+	  state->fifo_info.configured_odr);
     // update registry configuration
     if(LSM6DS3_ACCEL == payload->registry_cfg.sensor_type
        && payload->registry_cfg.version >= state->accel_registry_cfg.version)
