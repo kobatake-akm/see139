@@ -1417,6 +1417,14 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
     lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
   }
+  else if(!state->mag_info.use_dri && !state->data_is_ready)
+  {
+    AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. Use previous data");
+    status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
+    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
+    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
+    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
+  }
   else
   {
     status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
@@ -1996,15 +2004,21 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   else  // Non FIFO mode, read one data
   {
     state->num_samples = 1;
+    if(state->data_is_ready)
+    {
+      ak0991x_read_hxl_st2(state,
+                           1,
+                           &buffer[0]);
+    }
+  }
+#else
+  state->num_samples = 1;
+  if(state->data_is_ready)
+  {
     ak0991x_read_hxl_st2(state,
                          1,
                          &buffer[0]);
   }
-#else
-      state->num_samples = 1;
-      ak0991x_read_hxl_st2(state,
-                           1,
-                           &buffer[0]);
 #endif
 
   if(state->num_samples > 0)
