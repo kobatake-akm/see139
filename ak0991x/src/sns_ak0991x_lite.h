@@ -25,6 +25,9 @@
 // Enable DC-Lib
 //#define AK0991X_ENABLE_DC
 
+// Target board HDK820 (DragonBoard820)
+//#define AK0991X_BOARD_HDK820
+
 /*
  * For SEE-Lite Mode, please follow the procedure.
  * TODO1: define the AK0991X_ENABLE_SEE_LITE.

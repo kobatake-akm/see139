@@ -340,7 +340,12 @@
  */
 #define AK0991X_CALC_BIT_RESOLUTION                 13
 #define AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC          3
+
+#ifdef AK0991X_BOARD_HDK820
+#define AK0991X_CALC_BIT_ERROR                      4000  // HDK820 (huge jitter observed)
+#else
 #define AK0991X_CALC_BIT_ERROR                      40
+#endif
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************
