@@ -375,6 +375,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             // mag data read
             ak0991x_read_mag_samples(this);
           }
+          else
+          {
+            // reset system time for heart beat timer on the DRI mode
+            state->system_time = now;
+          }
           rv = ak0991x_heart_beat_timer_event(this);
         }
         else
