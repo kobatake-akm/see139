@@ -450,7 +450,7 @@ static void ak0991x_clear_old_events(sns_sensor_instance *const instance)
     while (NULL != event && SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
     {
       AK0991X_INST_PRINT(LOW, instance, "Old ASCP event detected. Cleared.");
-      state->ascp_xfer_in_progress--;
+      state->ascp_xfer_in_progress = 0;
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
     }
@@ -2392,9 +2392,6 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
         timer_req.request = buffer;
         /** Send encoded request to Timer Sensor */
         state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
-        AK0991X_INST_PRINT(LOW, this,
-            "Success to send request to Timer Sensor, timeout_period=%u",
-            (uint32_t)state->req_payload.timeout_period);
       }
     }
     if (req_len == 0)
@@ -2490,6 +2487,8 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   state->req_payload.start_time = state->system_time;
+    AK0991X_INST_PRINT(LOW, this, "hb timer register %u",
+        (uint32_t)state->req_payload.start_time);
   ak0991x_send_timer_request(this);
 }
 
