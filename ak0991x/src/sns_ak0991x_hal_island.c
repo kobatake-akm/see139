@@ -450,7 +450,7 @@ static void ak0991x_clear_old_events(sns_sensor_instance *const instance)
     while (NULL != event && SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
     {
       AK0991X_INST_PRINT(LOW, instance, "Old ASCP event detected. Cleared.");
-      state->ascp_xfer_in_progress--;
+      state->ascp_xfer_in_progress = 0;
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
     }
@@ -1601,7 +1601,14 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
       // keep re-calculating for clock frequency drifting.
       ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
 
-      state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
+      if(state->mag_info.use_fifo)
+      {
+        state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / (state->mag_info.cur_wmk + 1);
+      }
+      else
+      {
+        state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
+      }
     }
   }
 
@@ -2407,7 +2414,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_DRI
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
-    req_payload.is_periodic = true;
+    req_payload.is_periodic = false;
     req_payload.start_time = state->system_time;
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
@@ -2480,6 +2487,8 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   state->req_payload.start_time = state->system_time;
+    AK0991X_INST_PRINT(LOW, this, "hb timer register %u",
+        (uint32_t)state->req_payload.start_time);
   ak0991x_send_timer_request(this);
 }
 

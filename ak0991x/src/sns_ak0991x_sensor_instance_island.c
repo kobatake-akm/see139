@@ -115,8 +115,10 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 
   if (state->mag_info.use_dri)
   {
-    AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB=%u",
-                       state->heart_beat_attempt_count);
+    AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB= %u payload.start_time= %u now= %u",
+                       state->heart_beat_attempt_count,
+                       (uint32_t)state->req_payload.start_time,
+                       (uint32_t)state->system_time);
     // Streaming is unable to resume after 4 attempts
     if (state->heart_beat_attempt_count >= 4)
     {
@@ -249,7 +251,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
               if(state->system_time > irq_event.timestamp + state->averaged_interval)
               {
-                AK0991X_INST_PRINT(MED, this, "irq_event %u, now=%u",
+                AK0991X_INST_PRINT(MED, this, "Delayed interrupt event. irq_event %u, now=%u",
                                    (uint32_t)irq_event.timestamp,
                                    (uint32_t)state->system_time);
               }
@@ -309,7 +311,15 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         sns_ascp_for_each_vector_do(&stream, ak0991x_process_com_port_vector, (void *)this);
 
-        state->ascp_xfer_in_progress--;
+        if(state->ascp_xfer_in_progress>0)
+        {
+          state->ascp_xfer_in_progress--;
+        }
+        else
+        {
+          AK0991X_INST_PRINT(ERROR, this, "ascp_xfer_in_progress is already 0. Can't decriment.");
+        }
+
         if(state->ascp_xfer_in_progress != 0)
         {
           AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress = %d", state->ascp_xfer_in_progress);
@@ -374,6 +384,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
             // mag data read
             ak0991x_read_mag_samples(this);
+          }
+          else
+          {
+            // reset system time for heart beat timer on the DRI mode
+            state->system_time = now;
           }
           rv = ak0991x_heart_beat_timer_event(this);
         }
