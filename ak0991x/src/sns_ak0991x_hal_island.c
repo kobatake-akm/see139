@@ -2414,7 +2414,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_DRI
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
-    req_payload.is_periodic = true;
+    req_payload.is_periodic = false;
     req_payload.start_time = state->system_time;
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
