@@ -2487,8 +2487,13 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   state->req_payload.start_time = state->system_time;
-    AK0991X_INST_PRINT(LOW, this, "hb timer register %u",
-        (uint32_t)state->req_payload.start_time);
+    AK0991X_INST_PRINT(LOW, this, "hb timer register %u, is_periodic %u, timeout_period %u",
+        (uint32_t)state->req_payload.start_time, (uint32_t)state->req_payload.is_periodic, (uint32_t)state->req_payload.timeout_period);
+  if (NULL != state->timer_data_stream)
+  {
+    AK0991X_INST_PRINT(LOW, this, "Remove timer stream");
+    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+  }
   ak0991x_send_timer_request(this);
 }
 
