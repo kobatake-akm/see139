@@ -298,6 +298,7 @@ static void ak0991x_get_mag_config(
   *chosen_flush_period = 0;
   *is_flush_only = true;
   *sensor_client_present = false;
+  bool is_streaming = false;
 
   /** Parse through existing requests and get fastest sample
    *  rate, report rate, and longest flush period requests. */
@@ -329,7 +330,9 @@ static void ak0991x_get_mag_config(
 
         if (decoded_request.has_batching
             &&
-            decoded_request.batching.batch_period > 0)
+            decoded_request.batching.batch_period > 0
+            &&
+            is_streaming == false)
         {
           report_rate = 1000000.0f / (float)decoded_request.batching.batch_period;
           if( decoded_request.batching.has_flush_period )
@@ -343,6 +346,7 @@ static void ak0991x_get_mag_config(
         }
         else
         {
+          is_streaming = true;
           report_rate = *chosen_sample_rate;
           flush_period = UINT32_MAX;
         }
