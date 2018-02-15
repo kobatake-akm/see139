@@ -215,7 +215,7 @@ typedef struct ak0991x_instance_state
   bool reg_event_done;
   bool is_temp_average;
   bool in_clock_error_procedure;
-  bool previous_meas_is_irq_and_correct_wm;
+  bool reset_in_progress;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
   sns_time pre_timestamp;

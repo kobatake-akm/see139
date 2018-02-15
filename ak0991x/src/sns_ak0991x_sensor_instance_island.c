@@ -145,6 +145,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
         else
         {
           AK0991X_INST_PRINT(LOW, this, "soft reset called");
+		  state->reset_in_progress = true;
         }
         // Indicate streaming error
         rv = SNS_RC_NOT_AVAILABLE;
@@ -293,11 +294,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                                       event->message_id);
       }
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
-
-      if(NULL != event)
-      {
-        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue...");
-      }
     }
   }
 #endif // AK0991X_ENABLE_DRI
@@ -372,30 +368,35 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->system_time = timer_event.requested_timeout_time;
           if (1) //(state->system_time + state->nominal_intvl < now )
           {
-            SNS_INST_PRINTF(ERROR, this, "req_to=%u now=%u", 
+            SNS_INST_PRINTF(ERROR, this, "last_req_hb_time=%u, req_to=%u now=%u", 
+			                (uint32_t)state->last_req_hb_time,
                             (uint32_t)timer_event.requested_timeout_time, (uint32_t)now);
           }
 		  
-          // for regular polling mode
-          if (!state->mag_info.use_dri && state->reg_event_done)
-          {
-            state->force_fifo_read_till_wm = true;
-            AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now %u req_timeout_time %u",
-                       (uint32_t)now,
-                       (uint32_t)state->system_time);
+		  if( (int64_t)(timer_event.requested_timeout_time-state->last_req_hb_time) >= 0    )
+          {  
+	        SNS_INST_PRINTF(ERROR, this, "req_to>=last_req_hb_time" );
+		    // for regular polling mode
+			if (!state->mag_info.use_dri && state->reg_event_done)
+			{
+			  state->force_fifo_read_till_wm = true;
+			  AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now %u req_timeout_time %u",
+							   (uint32_t)now,
+							   (uint32_t)state->system_time);
 
-            // check DRDY status.
-            ak0991x_get_st1_status(this);
+			  // check DRDY status.
+			  ak0991x_get_st1_status(this);
 
-            // mag data read
-            ak0991x_read_mag_samples(this);
-          }
-          else
-          {
-            // reset system time for heart beat timer on the DRI mode
-            state->system_time = now;
-          }
-          rv = ak0991x_heart_beat_timer_event(this);
+			  // mag data read
+			  ak0991x_read_mag_samples(this);
+			}
+			else
+			{
+			  // reset system time for heart beat timer on the DRI mode
+			  state->system_time = now;
+			}
+			rv = ak0991x_heart_beat_timer_event(this);
+          }		  
         }
         else
         {
@@ -422,7 +423,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
       if(NULL != event)
       {
-        AK0991X_INST_PRINT(ERROR, this, "Still have timer event in the queue...");
+        AK0991X_INST_PRINT(ERROR, this, "Still have event in the queue...");
       }
     }
   }
