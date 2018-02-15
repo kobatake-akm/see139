@@ -2074,7 +2074,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
 #ifdef AK0991X_ENABLE_DRI
     if( state->mag_info.use_dri &&
-        (state->system_time + state->averaged_interval > state->last_req_hb_time) )
+        (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->last_req_hb_time) )
     {
       ak0991x_register_heart_beat_timer(instance);
     }

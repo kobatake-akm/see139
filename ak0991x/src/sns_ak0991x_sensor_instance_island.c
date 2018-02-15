@@ -134,6 +134,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 
       if(state->heart_beat_attempt_count >= 3)
       {
+        state->ascp_xfer_in_progress = 0;
         ak0991x_inst_exit_island(this);
         rv = ak0991x_device_sw_reset(this,
                                      state->scp_service,
