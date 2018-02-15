@@ -445,12 +445,13 @@ static void ak0991x_clear_old_events(sns_sensor_instance *const instance)
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
+    state->ascp_xfer_in_progress = 0;
+
     event = state->async_com_port_data_stream->api->peek_input(state->async_com_port_data_stream);
 
     while (NULL != event && SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
     {
       AK0991X_INST_PRINT(LOW, instance, "Old ASCP event detected. Cleared.");
-      state->ascp_xfer_in_progress = 0;
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
     }
