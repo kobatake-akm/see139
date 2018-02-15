@@ -1520,6 +1520,18 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
+  // store previous measurement is irq and also right WM
+  if(state->mag_info.use_dri &&
+     state->irq_info.detect_irq_event &&
+     (state->mag_info.cur_wmk + 1 == state->num_samples) )
+  {
+    state->previous_meas_is_irq_and_correct_wm = true;
+  }
+  else
+  {
+    state->previous_meas_is_irq_and_correct_wm = false;
+  }
+
   for(i = 0; i < num_bytes; i += 8)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
@@ -1532,30 +1544,19 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d meas_ts/2 %u",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d prev_ok %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
           (uint32_t)state->system_time,
           (uint32_t)state->averaged_interval,
           num_bytes>>3,
-          (uint32_t)(state->half_measurement_time));
+          (state->mag_info.cur_wmk + 1),
+          state->previous_meas_is_irq_and_correct_wm);
     }
   }
   // store previous timestamp
   state->pre_timestamp = timestamp;
-
-  // store previous measurement is irq and also right WM
-  if(state->mag_info.use_dri &&
-     state->irq_info.detect_irq_event &&
-     (state->mag_info.cur_wmk + 1 == state->num_samples) )
-  {
-    state->previous_meas_is_irq_and_correct_wm = true;
-  }
-  else
-  {
-    state->previous_meas_is_irq_and_correct_wm = false;
-  }
 
   // reset flags
   state->irq_info.detect_irq_event = false;
