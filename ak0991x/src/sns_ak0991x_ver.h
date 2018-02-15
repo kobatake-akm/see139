@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 02/14/18     010056     AKM              Change to keep report rate equals max sample rate while streaming is running.
+ * 02/14/18     010055     AKM              Change to remove timer_data_stream on each registering heart beat timer.
  * 01/24/18     010054     AKM              Modified for Case# 03314109. Always uses SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH for polling mode.
  * 01/18/18                AKM              Modified for Case# 03314109. Added checking ST1 status on polling mode.
  * 01/16/18     010053     AKM              Merged the version 010052 and self test bug modification
