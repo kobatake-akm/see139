@@ -215,6 +215,7 @@ typedef struct ak0991x_instance_state
   bool reg_event_done;
   bool is_temp_average;
   bool in_clock_error_procedure;
+  bool previous_meas_is_irq_and_correct_wm;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
   sns_time pre_timestamp;
@@ -227,6 +228,7 @@ typedef struct ak0991x_instance_state
   sns_time heart_beat_timeout_period;
   sns_time nominal_intvl;
   sns_time half_measurement_time;
+  sns_time last_req_hb_time;
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
 

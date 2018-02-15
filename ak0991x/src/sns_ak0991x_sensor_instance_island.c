@@ -293,6 +293,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                                       event->message_id);
       }
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
+
+      if(NULL != event)
+      {
+        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue...");
+      }
     }
   }
 #endif // AK0991X_ENABLE_DRI
@@ -370,14 +375,14 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             SNS_INST_PRINTF(ERROR, this, "req_to=%u now=%u", 
                             (uint32_t)timer_event.requested_timeout_time, (uint32_t)now);
           }
-
+		  
           // for regular polling mode
           if (!state->mag_info.use_dri && state->reg_event_done)
           {
             state->force_fifo_read_till_wm = true;
             AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now %u req_timeout_time %u",
-                               (uint32_t)now,
-                               (uint32_t)state->system_time);
+                       (uint32_t)now,
+                       (uint32_t)state->system_time);
 
             // check DRDY status.
             ak0991x_get_st1_status(this);
@@ -414,6 +419,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d", event->message_id);
       }
       event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
+
+      if(NULL != event)
+      {
+        AK0991X_INST_PRINT(ERROR, this, "Still have timer event in the queue...");
+      }
     }
   }
 
