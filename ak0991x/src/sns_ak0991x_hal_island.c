@@ -445,12 +445,13 @@ static void ak0991x_clear_old_events(sns_sensor_instance *const instance)
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
+    state->ascp_xfer_in_progress = 0;
+
     event = state->async_com_port_data_stream->api->peek_input(state->async_com_port_data_stream);
 
     while (NULL != event && SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
     {
       AK0991X_INST_PRINT(LOW, instance, "Old ASCP event detected. Cleared.");
-      state->ascp_xfer_in_progress = 0;
       event = state->async_com_port_data_stream->api->get_next_input(
           state->async_com_port_data_stream);
     }
@@ -677,20 +678,12 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");
 
-   if ( state->reset_in_progress != true )
-   {	   
-     if(state->ascp_xfer_in_progress)
-     {
-       AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming skipped. wait for the ASCP done.");
-       state->config_mag_after_ascp_xfer = true;
-       return SNS_RC_SUCCESS;
-     } 
-   }
-   else
-   {
-	 state->reset_in_progress = false;
-     state->ascp_xfer_in_progress = 0;	 
-   }	   
+  if(state->ascp_xfer_in_progress)
+  {
+    AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming skipped. wait for the ASCP done.");
+    state->config_mag_after_ascp_xfer = true;
+    return SNS_RC_SUCCESS;
+  }
 
   // Enable Mag Streaming
 
@@ -724,6 +717,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->reg_event_done = false;
   state->is_temp_average = false;
   state->irq_info.detect_irq_event = false;
+  state->previous_meas_is_irq_and_correct_wm = false;
 
   state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
@@ -1551,6 +1545,18 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   // store previous timestamp
   state->pre_timestamp = timestamp;
 
+  // store previous measurement is irq and also right WM
+  if(state->mag_info.use_dri &&
+     state->irq_info.detect_irq_event &&
+     (state->mag_info.cur_wmk + 1 == state->num_samples) )
+  {
+    state->previous_meas_is_irq_and_correct_wm = true;
+  }
+  else
+  {
+    state->previous_meas_is_irq_and_correct_wm = false;
+  }
+
   // reset flags
   state->irq_info.detect_irq_event = false;
   state->this_is_first_data = false;
@@ -1609,13 +1615,20 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
       // keep re-calculating for clock frequency drifting.
       ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
 
-      if(state->mag_info.use_fifo)
+      if( state->previous_meas_is_irq_and_correct_wm )
       {
-        state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / (state->mag_info.cur_wmk + 1);
+        if(state->mag_info.use_fifo)
+        {
+          state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / (state->mag_info.cur_wmk + 1);
+        }
+        else
+        {
+          state->averaged_interval = state->interrupt_timestamp - state->previous_irq_time;
+        }
       }
       else
       {
-        state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / state->mag_info.data_count;
+        AK0991X_INST_PRINT(LOW, instance, "previous is not reliable timestamp");
       }
     }
   }
@@ -1828,8 +1841,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 
   if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
   {
-	// saw FIFO empty msg after HB count >0 , ther eis delay between bhtimeout time and current time, so need to flush
-    if( (state->heart_beat_attempt_count==0) && (state->system_time < state->pre_timestamp + state->averaged_interval))
+    if(state->system_time < state->pre_timestamp + state->averaged_interval)
     {
       AK0991X_INST_PRINT(LOW, instance, "FIFO empty");
       rc |= SNS_RC_FAILED;
@@ -2062,7 +2074,8 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     }
 
 #ifdef AK0991X_ENABLE_DRI
-    if( state->mag_info.use_dri )
+    if( state->mag_info.use_dri &&
+        (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->last_req_hb_time) )
     {
       ak0991x_register_heart_beat_timer(instance);
     }
@@ -2496,16 +2509,15 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   state->req_payload.start_time = state->system_time;
-//  if (NULL != state->timer_data_stream)
-//  {
-//    AK0991X_INST_PRINT(LOW, this, "timer_data_stream is not NULL. Removed.");
-//    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
-//  }
 
-  state->last_req_hb_time=	state->req_payload.start_time+ state->req_payload.timeout_period;
-  AK0991X_INST_PRINT(LOW, this, "hb timer reregister TO %u, is_periodic %u, timeout_period %u",
-      (uint32_t)state->last_req_hb_time, (uint32_t)state->req_payload.is_periodic, (uint32_t)state->req_payload.timeout_period);
+  if (NULL != state->timer_data_stream)
+  {
+    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+  }
+  state->last_req_hb_time = state->req_payload.start_time + state->req_payload.timeout_period;
 
+  AK0991X_INST_PRINT(LOW, this, "hb_timer start %u",
+      (uint32_t)state->req_payload.start_time);
    
   ak0991x_send_timer_request(this);
 }
