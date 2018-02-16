@@ -370,7 +370,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           sns_time now = sns_get_system_time();
           state->system_time = timer_event.requested_timeout_time;
-          if (1) //(state->system_time + state->nominal_intvl < now )
+          if(state->system_time + state->nominal_intvl < now )
           {
             SNS_INST_PRINTF(ERROR, this, "req_to=%u now=%u", 
                             (uint32_t)timer_event.requested_timeout_time, (uint32_t)now);
@@ -419,11 +419,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d", event->message_id);
       }
       event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
-
-      if(NULL != event)
-      {
-        AK0991X_INST_PRINT(ERROR, this, "Still have timer event in the queue...");
-      }
     }
   }
 

@@ -22,7 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 02/14/18     010056     AKM              Modified for Case# 03325581. Change to keep report rate equals max sample rate while streaming is running.
+ * 02/16/18     010057     AKM              Remove some comments after checked in.
+ * 02/14/18     010056     Qualcomm/AKM     Qualcomm checked in version.
+ * 02/14/18                Qualcomm/AKM     Fixed mag stops streams when system is busy and heartbeat timer expires
+ * 02/14/18                AKM              Modified for Case# 03325581. Change to keep report rate equals max sample rate while streaming is running.
  * 02/14/18     010055     AKM              Change to remove timer_data_stream on each registering heart beat timer.
  * 01/24/18     010054     AKM              Modified for Case# 03314109. Always uses SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH for polling mode.
  * 01/18/18                AKM              Modified for Case# 03314109. Added checking ST1 status on polling mode.
@@ -120,4 +123,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10056  // major:01 minor:00 revision:56
+#define AK0991X_DRIVER_VERSION 10057  // major:01 minor:00 revision:57
