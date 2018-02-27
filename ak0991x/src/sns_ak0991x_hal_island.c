@@ -543,7 +543,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   } odr_debug_string_map[] =
     {
       {AK0991X_MAG_ODR_OFF, "off" },
-      {AK0991X_MAG_ODR_SNG_MEAS, "single measurment" },
+      {AK0991X_MAG_ODR_SNG_MEAS, "single measurement" },
       {AK0991X_MAG_ODR10, "10Hz" },
       {AK0991X_MAG_ODR20, "20Hz" },
       {AK0991X_MAG_ODR50, "50Hz" },
@@ -760,6 +760,12 @@ sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
 
   // Disable Mag Streaming
   AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
+
+  // remove timer instance stream
+  if (NULL != state->timer_data_stream)
+  {
+    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+  }
 
   rv = ak0991x_set_mag_config(this, true );
 
