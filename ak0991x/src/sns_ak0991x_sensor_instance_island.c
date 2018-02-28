@@ -430,6 +430,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
       }
+      else
+      {
+        event = NULL; // timer_data_stream is removed, exit while loop
+      }
     }
   }
 
