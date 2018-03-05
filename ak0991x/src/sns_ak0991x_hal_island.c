@@ -1715,7 +1715,8 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
   // for S4S, no need to validate timestamp????
   if(state->mag_info.use_sync_stream){
     state->interrupt_timestamp = state->system_time;
-    state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / state->num_samples;
+    state->averaged_interval = state->req_payload.timeout_period / (state->mag_info.cur_wmk + 1);
+    state->first_data_ts_of_batch = state->system_time - (state->averaged_interval * state->mag_info.cur_wmk);
     return;
   }
 #endif // AK0991X_ENABLE_S4S
@@ -2464,10 +2465,32 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
   else if (state->mag_info.use_sync_stream)
   {
 #ifdef AK0991X_ENABLE_S4S
+    req_payload.has_priority = true;
+    req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
+    req_payload.is_periodic = true;
     sample_period = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS / (float)state->mag_info.s4s_t_ph * 1000 * 1000);
     req_payload.start_time = state->system_time - sample_period;
     req_payload.start_config.early_start_delta = 0;
     req_payload.start_config.late_start_delta = sample_period * 2;
+
+    if (state->mag_info.use_fifo)
+    {
+      req_payload.timeout_period = sample_period * (state->mag_info.cur_wmk + 1);
+    }
+    else
+    {
+      req_payload.timeout_period = sample_period;
+    }
+
+    //TODO: start time calculation should be similar to above use_sync_stream case
+    //If this sensor is doing polling, it would be good to synchronize the Mag polling timer,
+    //with other polling timers on the system.
+    //For example, that the pressure sensor is polling at 20Hz.
+    //It would be good to make sure the mag polling timer and the pressure polling timer are synchronized if possible.
+    state->heart_beat_timeout_period =
+      (state->mag_info.use_fifo)? req_payload.timeout_period * 2 + sample_period * 2
+      : req_payload.timeout_period * 5 * sample_period;
+ 
 #endif // AK0991X_ENABLE_S4S
   }
   // for polling timer
