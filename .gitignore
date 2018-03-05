@@ -48,3 +48,5 @@ md_test/
 # Debug files
 *.dSYM/
 *.su
+
+*.zip
