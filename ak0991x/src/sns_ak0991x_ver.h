@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/08/18                AKM              Modified for Case# 03380028. TBD
+ * 03/08/18                AKM              Removed sns_sensor_util_remove_sensor_instance_stream() call in the ak0991x_register_heart_beat_timer
  * 02/27/18     010058     AKM              Added unregister heart beat stream in ak0991x_stop_mag_streaming
  * 02/16/18     010057     AKM              Remove some comments after checked in.
  * 02/14/18     010056     Qualcomm/AKM     Qualcomm checked in version.

@@ -2117,7 +2117,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   }
 }
 
-static void ak0991x_send_cal_event(sns_sensor_instance *const instance)
+void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_cal_event cal_event = sns_cal_event_init_default;
@@ -2142,6 +2142,23 @@ static void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                 sns_get_system_time(),
                 SNS_CAL_MSGID_SNS_CAL_EVENT,
                 &state->mag_info.suid);
+}
+
+void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  float bias_data[] = {0,0,0};
+  float comp_matrix_data[] = {1,0,0,0,1,0,0,0,1};
+
+  for (int i = 0; i < ARR_SIZE(bias_data); i++)
+  {
+    state->mag_registry_cfg.fac_cal_bias[i] = bias_data[i];
+  }
+  for (int i = 0; i < ARR_SIZE(comp_matrix_data); i++)
+  {
+    state->mag_registry_cfg.fac_cal_corr_mat.data[i] = comp_matrix_data[i];
+  }
+  state->mag_registry_cfg.version++;
 }
 
 /** See sns_ak0991x_hal.h */
@@ -2533,10 +2550,6 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   state->req_payload.start_time = state->system_time;
 
-  if (NULL != state->timer_data_stream)
-  {
-    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
-  }
   state->last_req_hb_time = state->req_payload.start_time + state->req_payload.timeout_period;
 
   AK0991X_INST_PRINT(LOW, this, "hb_timer start %u",

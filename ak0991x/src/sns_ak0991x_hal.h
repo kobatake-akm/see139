@@ -692,3 +692,19 @@ void ak0991x_run_self_test(sns_sensor_instance *instance);
  */
 void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance);
 #endif
+
+/**
+ * Send Calibration event to client
+ *
+ * @param[i] instance        instance reference
+ * @return none
+ */
+void ak0991x_send_cal_event(sns_sensor_instance * const instance);
+/**
+ * Reset Calibration values
+ *
+ * @param[i] instance        instance reference
+ * @return none
+ */
+
+void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
