@@ -165,7 +165,6 @@ typedef struct ak0991x_mag_info
 
 #ifdef AK0991X_ENABLE_S4S
   ak0991x_s4s_state      s4s_sync_state;
-  uint16_t               s4s_t_ph;
   uint8_t                s4s_rr;
   bool                   s4s_dt_abort;
 #endif // AK0991X_ENABLE_S4S
@@ -256,7 +255,7 @@ typedef struct ak0991x_instance_state
 #ifdef AK0991X_ENABLE_DRI
   sns_data_stream       *interrupt_data_stream;
   sns_data_stream       *async_com_port_data_stream;
-#endif // AK0991X_ENABLE_S4S
+#endif // AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_S4S
   sns_data_stream       *s4s_timer_data_stream;
 #endif // AK0991X_ENABLE_S4S

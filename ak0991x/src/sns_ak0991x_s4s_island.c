@@ -40,12 +40,14 @@ sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
   {
     uint8_t buf_s4s[3];
     uint32_t xfer_bytes;
+    uint16_t t_ph_cnt;
+    t_ph_cnt = (uint16_t)state->mag_req.sample_rate * (AK0991X_S4S_INTERVAL_MS / 1000);
 
     buf_s4s[0] = 0x0
       | (1 << 7)                                   // TPH
-      | ((state->mag_info.s4s_t_ph >> 1) & 0x7F);  // TPH1
+      | ((t_ph_cnt >> 1) & 0x7F);                  // TPH1
     buf_s4s[1] = 0x0
-      | ((state->mag_info.s4s_t_ph >> 9) & 0xFF);  // TPH2
+      | ((t_ph_cnt >> 9) & 0xFF);                  // TPH2
     if(state->mag_info.device_select == AK09917)
     {
       buf_s4s[2] = 0x0
@@ -58,8 +60,6 @@ sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
     }
 
     AK0991X_INST_PRINT(LOW, this, "bf[0]=%d bf[2]=%d",buf_s4s[0], buf_s4s[1]);
-    //TODO: optimize comport write calls
-    //Instead of calling multiple writes, write in a single scp write
     rv = ak0991x_com_write_wrapper(this,
                                    state->scp_service,
                                    state->com_port_info.port_handle,
@@ -113,12 +113,11 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    //TODO: What value should be set?
-    //RESP: This value should be a timestamp(ideally in the nearby future) of a valid synchronized sample
+    //This value should be a timestamp(ideally in the nearby future) of a valid synchronized sample
     //Example: if running at exactly 100Hz, samples will be 10ms apart.
     //If the stream is synchronized to time 1234ms -- ,
     //then valid values to put into here would be "1234ms + (10ms * N)" for any (reasonable) value of N.
-    phy_sensor_config->sync_ts_anchor = sns_get_system_time();
+    phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915D)
@@ -126,8 +125,7 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
         (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    //TODO: What value should be set?
-    phy_sensor_config->sync_ts_anchor = sns_get_system_time();
+    phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
@@ -147,8 +145,7 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
         (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    //TODO: What value should be set?
-    phy_sensor_config->sync_ts_anchor = sns_get_system_time();
+    phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
@@ -176,7 +173,6 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
 
   /** Init Mag State */
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->mag_info.s4s_t_ph       = AK0991X_S4S_T_PH;
   state->mag_info.s4s_rr         = AK0991X_S4S_RR;
   state->mag_info.s4s_dt_abort   = false;
 
@@ -199,16 +195,12 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C)
   case AK09915C:
-    // QC: Disbale S4S here. Should use registry to gate enabling S4S
-    //state->mag_info.use_sync_stream = sensor_state->supports_sync_stream;
-    state->mag_info.use_sync_stream = false;
+    state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915D)
   case AK09915D:
-    // QC: Disbale S4S here. Should use registry to gate enabling S4S
-    //state->mag_info.use_sync_stream = sensor_state->supports_sync_stream;
-    state->mag_info.use_sync_stream = false;
+    state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
@@ -223,10 +215,7 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
   case AK09917:
-    // QC: Disbale S4S here. Should use registry to gate enabling S4S
-    //state->mag_info.use_sync_stream = sensor_state->supports_sync_stream;
-    //state->mag_info.use_sync_stream = false;
-    state->mag_info.use_sync_stream = sensor_state->supports_sync_stream;
+    state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
@@ -416,12 +405,11 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   /* Processes DT abort */
   if (dt_count >= 0x80)
   {
-    //TODO: Even after sending a DT Abort command, the hardware will still stay synchronized using the previous ST/DT pairs.
+    //Even after sending a DT Abort command, the hardware will still stay synchronized using the previous ST/DT pairs.
     //If there are many DT Aborts in a row, the synchronization will slowly drift until it is no longer good.
     //However, just sending one DT Abort due to missing the timeline will probably not impact the timing significantly
-    state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-    ak0991x_send_config_event(instance);
-    return SNS_RC_FAILED;
+    AK0991X_INST_PRINT(LOW, instance, "DT abort");
+    return rv;
   }
 
   /* Checks the S4S synchronization state */

@@ -152,7 +152,6 @@
 #ifdef AK0991X_ENABLE_S4S
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
-#define AK0991X_S4S_T_PH                            40
 #define AK0991X_S4S_RR                              1
 #endif // AK0991X_ENABLE_S4S
 
