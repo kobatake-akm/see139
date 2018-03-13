@@ -1425,7 +1425,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
     lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
   }
-  else if(!state->mag_info.use_dri && !state->data_is_ready)
+  else if(!state->mag_info.use_dri && !state->mag_info.use_fifo && !state->data_is_ready)
   {
     AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. Use previous data");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
@@ -2102,9 +2102,16 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
     }
     else  // Polling mode
     {
-      if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)  // FIFO mode, always use WM value.
+      if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)
       {
-        state->num_samples = state->mag_info.cur_wmk+1;
+        if(state->fifo_flush_in_progress) // flush request received.
+        {
+          ak0991x_get_st1_status(instance);
+        }
+        else
+        {
+          state->num_samples = state->mag_info.cur_wmk+1;
+        }
       }
       else // no FIFO or S4S
       {
