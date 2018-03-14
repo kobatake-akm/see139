@@ -1397,6 +1397,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
+  bool unreliable = false;
 
 #ifdef AK0991X_ENABLE_DC
   float temp_flt[3];
@@ -1417,29 +1418,38 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   // Check magnetic sensor overflow (and invalid data for FIFO)
   inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
-  if ((mag_sample[7] & (AK0991X_HOFL_BIT | inv_fifo_bit)) != 0)
+
+  status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
+
+  if ((mag_sample[7] & (inv_fifo_bit)) != 0)
   {
-    AK0991X_INST_PRINT(LOW, instance, "HOFL_BIT=1 or INV=1, use previous data.");
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
-    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
-    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
-    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
+    AK0991X_INST_PRINT(LOW, instance, "INV=1, use previous data.");
+    unreliable = true;
+  }
+  else if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0)
+  {
+    AK0991X_INST_PRINT(LOW, instance, "HOFL_BIT=1, use previous data.");
+    unreliable = true;
   }
   else if(!state->mag_info.use_dri && !state->mag_info.use_fifo && !state->data_is_ready)
   {
     AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. Use previous data");
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
-    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
-    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
-    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
+    unreliable = true;
   }
   else
   {
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
     state->pre_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
     state->pre_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
     state->pre_lsbdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z];
   }
+
+  if(unreliable)
+  {
+    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
+    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
+    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
+  }
+
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.resolution;
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.resolution;
   ipdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z] * state->mag_info.resolution;
@@ -1568,6 +1578,14 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->irq_info.detect_irq_event = false;
   state->this_is_first_data = false;
   state->force_fifo_read_till_wm = false;
+  if(state->this_is_the_last_flush || state->fifo_flush_in_progress)
+  {
+    state->this_is_data_after_flush = true;
+  }
+  else
+  {
+    state->this_is_data_after_flush = false;
+  }
   state->this_is_the_last_flush = false;
   if(state->fifo_flush_in_progress)
   {
@@ -1711,21 +1729,28 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
+  if(state->fifo_flush_in_progress || state->this_is_the_last_flush || state->this_is_data_after_flush)
+  {
+    state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples; // from flush request
+  }
+  else
+  {
+    state->interrupt_timestamp = state->system_time; // from timer event
+  }
+
 #ifdef AK0991X_ENABLE_S4S
   // for S4S, no need to validate timestamp????
   if(state->mag_info.use_sync_stream){
-    state->interrupt_timestamp = state->system_time;
     state->averaged_interval = state->req_payload.timeout_period / (state->mag_info.cur_wmk + 1);
-    state->first_data_ts_of_batch = state->system_time - (state->averaged_interval * state->mag_info.cur_wmk);
+    state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
     return;
   }
 #endif // AK0991X_ENABLE_S4S
 
-  state->interrupt_timestamp = state->system_time;
   state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time)
       / (state->mag_info.data_count);
 //  state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
-  state->first_data_ts_of_batch = state->system_time;
+  state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
 }
 
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
@@ -1744,7 +1769,14 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     if(state->mag_info.device_select == AK09917 && !state->force_fifo_read_till_wm )
     {
-      state->num_samples = st1_buf >> 2;
+      if(!state->mag_info.use_dri && !state->fifo_flush_in_progress && state->this_is_the_last_flush && state->this_is_data_after_flush)
+      {
+        state->num_samples = state->mag_info.cur_wmk + 1;
+      }
+      else
+      {
+        state->num_samples = st1_buf >> 2;
+      }
     }
     else
     {
@@ -2104,14 +2136,14 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
     {
       if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)
       {
-        if(state->fifo_flush_in_progress) // flush request received.
-        {
+//        if(state->fifo_flush_in_progress) // flush request received.
+//        {
           ak0991x_get_st1_status(instance);
-        }
-        else
-        {
-          state->num_samples = state->mag_info.cur_wmk+1;
-        }
+//        }
+//        else
+//        {
+//          state->num_samples = state->mag_info.cur_wmk+1;
+//        }
       }
       else // no FIFO or S4S
       {
