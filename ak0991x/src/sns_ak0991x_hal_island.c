@@ -710,7 +710,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
-  state->force_fifo_read_till_wm = false;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = state->system_time;
   state->irq_event_time = state->system_time;
@@ -1599,15 +1598,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   // reset flags
   state->irq_info.detect_irq_event = false;
   state->this_is_first_data = false;
-  state->force_fifo_read_till_wm = false;
-  if(state->this_is_the_last_flush || state->fifo_flush_in_progress)
-  {
-    state->this_is_data_after_flush = true;
-  }
-  else
-  {
-    state->this_is_data_after_flush = false;
-  }
+
   state->this_is_the_last_flush = false;
   if(state->fifo_flush_in_progress)
   {
@@ -1809,7 +1800,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 
   if( state->mag_info.use_fifo )
   {
-    if(state->mag_info.device_select == AK09917 && !state->force_fifo_read_till_wm )
+    if(state->mag_info.device_select == AK09917)
     {
 
       if(state->mag_info.use_dri)
@@ -1839,18 +1830,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
           if(state->flush_sample_count == 0) //both previous and current event are Polling
           {
             AK0991X_INST_PRINT(LOW, instance, "both pre and cur event is polling");
-            //option1
             state->num_samples = state->mag_info.cur_wmk + 1;
-
-            //option2
-            //if((st1_buf >> 2) > state->mag_info.cur_wmk + 1)
-            //{
-            //  state->num_samples = state->mag_info.cur_wmk + 1;
-            //}
-            //else
-            //{
-            //  state->num_samples = st1_buf >> 2;
-            //}
           }
           else //previous event is requested FLUSH and current event is Polling
           {
@@ -2153,16 +2133,9 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
         if ((buffer[i * AK0991X_NUM_DATA_HXL_TO_ST2 + 7] & AK0991X_INV_FIFO_DATA) != 0)
         {
-          if( state->mag_info.use_fifo && state->force_fifo_read_till_wm ){
-            if(i >= state->mag_info.cur_wmk + 1){
-              state->num_samples = i;
-              break;
-            }
-          }else{
-            //fifo buffer is clear
-            state->num_samples = i;
-            break;
-          }
+          //fifo buffer is clear
+          state->num_samples = i;
+          break;
         }
       }
     }
@@ -2289,6 +2262,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                 &state->mag_info.suid);
 }
 
+#ifdef AK0991X_ENABLE_SI_PARAM
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -2305,6 +2279,7 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
   }
   state->mag_registry_cfg.version++;
 }
+#endif
 
 /** See sns_ak0991x_hal.h */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)

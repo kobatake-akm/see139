@@ -30,7 +30,10 @@
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
 #include "sns_printf.h"
+
+#ifdef AK0991X_ENABLE_SI_PARAM
 #include "sns_cal.pb.h"
+#endif
 
 /* device specific information */
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09911)
@@ -410,7 +413,9 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   bool m_sensor_client_present;
   UNUSED_VAR(instance);
   ak0991x_state *state = (ak0991x_state*)this->state->state;
+#ifdef AK0991X_ENABLE_SI_PARAM
   ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
+#endif
 
   sns_ak0991x_registry_cfg registry_cfg;
 
@@ -439,14 +444,18 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                 (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
                 chosen_flush_period);
 
+#ifdef AK0991X_ENABLE_SI_PARAM
   if(state->fac_cal_version < inst_state->mag_registry_cfg.version)
+#endif
   {
     sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
         state->fac_cal_bias, sizeof(state->fac_cal_bias));
 
     sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
         &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
+#ifdef AK0991X_ENABLE_SI_PARAM
     registry_cfg.version = state->fac_cal_version;
+#endif
   }
 
   AK0991X_PRINT(LOW, this, "chosen_sample_rate=%d chosen_report_rate=%d",
@@ -977,7 +986,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       }
       else if (faccal)
       {
+#ifdef AK0991X_ENABLE_SI_PARAM
         uint32_t fac_cal_version;
+#endif
         {
           uint8_t bias_arr_index = 0, scale_arr_index = 0;
           pb_float_arr_arg bias_arr_arg = {
@@ -1016,13 +1027,18 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           read_event.data.items.arg = &arg;
 
           rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+#ifdef AK0991X_ENABLE_SI_PARAM
           fac_cal_version = arg.version;
-        }
+#endif
+
+       }
 
         if(rv)
         {
           state->registry_fac_cal_received = true;
+#ifdef AK0991X_ENABLE_SI_PARAM
           state->fac_cal_version = fac_cal_version;
+#endif
           if(state->fac_cal_scale[0] != 0.0)
           {
             state->fac_cal_corr_mat.e00 = state->fac_cal_scale[0];
@@ -1857,6 +1873,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "Add the new request to list");
           instance->cb->add_client_request(instance, new_request);
 
+#ifdef AK0991X_ENABLE_SI_PARAM
           if(new_request->message_id == SNS_CAL_MSGID_SNS_CAL_RESET) {
             AK0991X_PRINT(LOW,this,"Request for resetting cal data. TBD!!!!");
             ak0991x_reset_cal_data(instance);
@@ -1864,7 +1881,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             ak0991x_update_registry(this, instance);
             ak0991x_send_cal_event(instance);
           }
-
+#endif
           if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
              new_request->message_id)
           {
@@ -2080,7 +2097,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   return SNS_RC_SUCCESS;
 }
 
-
+#ifdef AK0991X_ENABLE_SI_PARAM
 void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance)
 {
@@ -2122,3 +2139,4 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
     }
   }
 }
+#endif

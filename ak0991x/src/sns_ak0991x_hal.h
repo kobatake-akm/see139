@@ -699,11 +699,13 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance);
  * @return none
  */
 void ak0991x_send_cal_event(sns_sensor_instance * const instance);
+
+#ifdef AK0991X_ENABLE_SI_PARAM
 /**
  * Reset Calibration values
  *
  * @param[i] instance        instance reference
  * @return none
  */
-
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
+#endif
