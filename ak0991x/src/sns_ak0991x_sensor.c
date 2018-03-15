@@ -30,6 +30,7 @@
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
 #include "sns_printf.h"
+#include "sns_cal.pb.h"
 
 /* device specific information */
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09911)
@@ -409,6 +410,8 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   bool m_sensor_client_present;
   UNUSED_VAR(instance);
   ak0991x_state *state = (ak0991x_state*)this->state->state;
+  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
+
   sns_ak0991x_registry_cfg registry_cfg;
 
   AK0991X_PRINT(LOW, this, "ak0991x_reval_instance_config");
@@ -436,11 +439,15 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                 (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
                 chosen_flush_period);
 
-  sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
-      state->fac_cal_bias, sizeof(state->fac_cal_bias));
+  if(state->fac_cal_version < inst_state->mag_registry_cfg.version)
+  {
+    sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
+        state->fac_cal_bias, sizeof(state->fac_cal_bias));
 
-  sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
-      &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
+    sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
+        &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
+    registry_cfg.version = state->fac_cal_version;
+  }
 
   AK0991X_PRINT(LOW, this, "chosen_sample_rate=%d chosen_report_rate=%d",
       (int)chosen_sample_rate, (int)chosen_report_rate);
@@ -970,6 +977,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       }
       else if (faccal)
       {
+        uint32_t fac_cal_version;
         {
           uint8_t bias_arr_index = 0, scale_arr_index = 0;
           pb_float_arr_arg bias_arr_arg = {
@@ -1008,11 +1016,13 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           read_event.data.items.arg = &arg;
 
           rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+          fac_cal_version = arg.version;
         }
 
         if(rv)
         {
           state->registry_fac_cal_received = true;
+          state->fac_cal_version = fac_cal_version;
           if(state->fac_cal_scale[0] != 0.0)
           {
             state->fac_cal_corr_mat.e00 = state->fac_cal_scale[0];
@@ -1847,6 +1857,14 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "Add the new request to list");
           instance->cb->add_client_request(instance, new_request);
 
+          if(new_request->message_id == SNS_CAL_MSGID_SNS_CAL_RESET) {
+            AK0991X_PRINT(LOW,this,"Request for resetting cal data. TBD!!!!");
+            ak0991x_reset_cal_data(instance);
+            ak0991x_update_sensor_state(this, instance);
+            ak0991x_update_registry(this, instance);
+            ak0991x_send_cal_event(instance);
+          }
+
           if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
              new_request->message_id)
           {
@@ -2062,3 +2080,45 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   return SNS_RC_SUCCESS;
 }
 
+
+void ak0991x_update_registry(sns_sensor *const this,
+        sns_sensor_instance *const instance)
+{
+  // TBD!!!
+  ak0991x_state *state = (ak0991x_state*)this->state->state;
+
+  ak0991x_instance_state *inst_state =
+            (ak0991x_instance_state*)instance->state->state;
+
+  UNUSED_VAR(this);
+  UNUSED_VAR(instance);
+  UNUSED_VAR(state);
+  UNUSED_VAR(inst_state);
+}
+
+void ak0991x_update_sensor_state(sns_sensor *const this,
+        sns_sensor_instance *const instance)
+{
+  ak0991x_state *sensor_state;
+  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
+  sns_sensor *sensor = NULL;
+
+  for(sensor = this->cb->get_library_sensor(this, true);
+      sensor != NULL;
+      sensor = this->cb->get_library_sensor(this, false))
+  {
+    sensor_state = (ak0991x_state*)sensor->state->state;
+
+    if(sensor_state->fac_cal_version < inst_state->mag_registry_cfg.version)
+    {
+      sns_memscpy(&sensor_state->fac_cal_bias, sizeof(sensor_state->fac_cal_bias),
+                  &inst_state->mag_registry_cfg.fac_cal_bias[0],
+                  sizeof(inst_state->mag_registry_cfg.fac_cal_bias));
+
+      sns_memscpy(&sensor_state->fac_cal_corr_mat, sizeof(sensor_state->fac_cal_corr_mat),
+                  &inst_state->mag_registry_cfg.fac_cal_corr_mat,
+                  sizeof(inst_state->mag_registry_cfg.fac_cal_corr_mat));
+    sensor_state->fac_cal_version = inst_state->mag_registry_cfg.version;
+    }
+  }
+}
