@@ -457,8 +457,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   sns_memscpy(&registry_cfg.dc_param, sizeof(registry_cfg.dc_param),
       &state->dc_param, sizeof(state->dc_param));
 #endif
-    sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
-        &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
+
 #ifdef AK0991X_ENABLE_SI_PARAM
     registry_cfg.version = state->fac_cal_version;
 #endif
