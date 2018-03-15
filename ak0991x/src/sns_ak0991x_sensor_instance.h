@@ -188,6 +188,9 @@ typedef struct sns_ak0991x_registry_cfg
 {
   matrix3             fac_cal_corr_mat;
   float               fac_cal_bias[3];
+#ifdef AK0991X_ENABLE_DC
+  uint8_t             dc_param[AKSC_PDC_SIZE];
+#endif
   uint32_t            version;
 }sns_ak0991x_registry_cfg;
 
@@ -277,11 +280,6 @@ typedef struct ak0991x_instance_state
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
   size_t           log_raw_encoded_size;
-
-#ifdef AK0991X_ENABLE_DC
-  /* parameters for DC */
-    uint8_t pdc_parameter[AKSC_PDC_SIZE];
-#endif
 
 } ak0991x_instance_state;
 

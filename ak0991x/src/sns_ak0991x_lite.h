@@ -23,7 +23,7 @@
 //#define AK0991X_ENABLE_DUAL_SENSOR
 
 // Enable DC-Lib
-//#define AK0991X_ENABLE_DC
+#define AK0991X_ENABLE_DC
 
 // Target board HDK820 (DragonBoard820)
 //#define AK0991X_BOARD_HDK820

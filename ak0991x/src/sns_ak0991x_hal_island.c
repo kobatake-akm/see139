@@ -1470,7 +1470,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       FX_FLTTOFIX_Q16(temp_flt[1]),
       FX_FLTTOFIX_Q16(temp_flt[2]));
 
-  if ((temp_ret = AKSC_DistCompen(state->pdc_parameter, temp_flt)) != SNS_RC_SUCCESS) {
+  if ((temp_ret = AKSC_DistCompen(state->mag_registry_cfg.dc_param, temp_flt)) != SNS_RC_SUCCESS) {
       AK0991X_INST_PRINT(LOW, instance, "DC error (%d).", temp_ret);
   }
 

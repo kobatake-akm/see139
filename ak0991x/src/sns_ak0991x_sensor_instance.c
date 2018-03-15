@@ -320,39 +320,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, &mag_suid);
 
-#ifdef AK0991X_ENABLE_DC
-  // QC - These constants should be #defines in a header file and/or stored in registry
-  /* TODO: set pdc parameter */
-  state->pdc_parameter[0]  = 32;
-  state->pdc_parameter[1]  = 82;
-  state->pdc_parameter[2]  = 186;
-  state->pdc_parameter[3]  = 174;
-  state->pdc_parameter[4]  = 49;
-  state->pdc_parameter[5]  = 255;
-  state->pdc_parameter[6]  = 255;
-  state->pdc_parameter[7]  = 96;
-  state->pdc_parameter[8]  = 214;
-  state->pdc_parameter[9]  = 55;
-  state->pdc_parameter[10] = 231;
-  state->pdc_parameter[11] = 85;
-  state->pdc_parameter[12] = 38;
-  state->pdc_parameter[13] = 206;
-  state->pdc_parameter[14] = 255;
-  state->pdc_parameter[15] = 242;
-  state->pdc_parameter[16] = 255;
-  state->pdc_parameter[17] = 255;
-  state->pdc_parameter[18] = 127;
-  state->pdc_parameter[19] = 154;
-  state->pdc_parameter[20] = 191;
-  state->pdc_parameter[21] = 252;
-  state->pdc_parameter[22] = 255;
-  state->pdc_parameter[23] = 255;
-  state->pdc_parameter[24] = 9;
-  state->pdc_parameter[25] = 38;
-  state->pdc_parameter[26] = 255;
-#endif
-
-  return SNS_RC_SUCCESS;
+return SNS_RC_SUCCESS;
 }
 
 sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
@@ -479,6 +447,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   sns_rc          rv = SNS_RC_SUCCESS;
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
+#ifdef AK0991X_ENABLE_DC
+  uint8_t *pdc_parameter = NULL;
+#endif
 
   AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
@@ -646,6 +617,24 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     fac_cal_bias = state->mag_registry_cfg.fac_cal_bias;
     fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
 
+#ifdef AK0991X_ENABLE_DC
+    pdc_parameter = state->mag_registry_cfg.dc_param;
+    //SNS_INST_PRINTF(LOW, this, "CHECK DC [0]:%d to [26]:%d", state->mag_registry_cfg.dc_param[0], state->mag_registry_cfg.dc_param[26]);
+    if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat && NULL != pdc_parameter)
+    {
+      sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
+                  payload->registry_cfg.fac_cal_bias,
+                  sizeof(payload->registry_cfg.fac_cal_bias));
+      sns_memscpy(fac_cal_corr_mat, sizeof(payload->registry_cfg.fac_cal_corr_mat),
+                  &payload->registry_cfg.fac_cal_corr_mat,
+                  sizeof(payload->registry_cfg.fac_cal_corr_mat));
+
+      sns_memscpy(pdc_parameter, sizeof(payload->registry_cfg.dc_param),
+                  &payload->registry_cfg.dc_param,
+                  sizeof(payload->registry_cfg.dc_param));
+    }
+    //SNS_INST_PRINTF(LOW, this, "CHECK DC2 [0]:%d to [26]:%d", pdc_parameter[0], pdc_parameter[26]);
+#endif
     if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat)
     {
       sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
