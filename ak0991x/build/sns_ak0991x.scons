@@ -24,13 +24,25 @@ import inspect
 
 ak0991x_island_enable = False
 
-sns_ak0991x_dc_lib = env.AddBinaryLibrary(env['SSC_BUILD_TAGS'], '${BUILDPATH}/src/sns_ak0991x_dc', '${BUILDPATH}/src/sns_ak0991x_dc.lib')
-
 if 'SNS_ISLAND_INCLUDE_AK0991X' in env:
   ak0991x_island_enable = True
-  env.AddIslandLibrary(env['SSC_BUILD_TAGS'], sns_ak0991x_dc_lib)
 
+################################################################
+# This doesn't work...
+#if ('AK0991X_ENABLE_DC' in env['CPPDEFINES']):
 
+################################################################
+# This works but you need to add the flag in the build command.
+# You also need to enable 'AK0991X_ENABLE_DC' in the sns_ak0991x_lite.h file
+if 'LOAD_AK0991X_DC_LIB' in env:
+  print "sns_ak0991x.scons comments: load sns_ak0991x_dc_lib"
+  sns_ak0991x_dc_lib = env.AddBinaryLibrary(env['SSC_BUILD_TAGS'],
+    '${BUILDPATH}/src/sns_ak0991x_dc',
+    '${BUILDPATH}/src/sns_ak0991x_dc.lib')
+  if ak0991x_island_enable:
+    env.AddIslandLibrary(env['SSC_BUILD_TAGS'], sns_ak0991x_dc_lib)
+    print "sns_ak0991x.scons comments: add island library sns_ak0991x_dc_lib"
+  
 if 'USES_SSC_STATIC_LIB_BUILDER' in env:
   if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):
     env.AddSSCSU(inspect.getfile(inspect.currentframe()),
