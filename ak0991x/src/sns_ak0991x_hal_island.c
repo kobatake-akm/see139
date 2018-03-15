@@ -717,7 +717,8 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->reg_event_done = false;
   state->is_temp_average = false;
   state->irq_info.detect_irq_event = false;
-  state->previous_meas_is_irq_and_correct_wm = false;
+  state->previous_meas_is_irq = false;
+  state->previous_meas_is_correct_wm = true;
 
   state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
@@ -1397,7 +1398,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
-  bool unreliable = false;
 
 #ifdef AK0991X_ENABLE_DC
   float temp_flt[3];
@@ -1424,30 +1424,29 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   if ((mag_sample[7] & (inv_fifo_bit)) != 0)
   {
     AK0991X_INST_PRINT(LOW, instance, "INV=1, use previous data.");
-    unreliable = true;
+    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
+    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
+    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
   }
   else if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0)
   {
     AK0991X_INST_PRINT(LOW, instance, "HOFL_BIT=1, use previous data.");
-    unreliable = true;
+    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
+    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
+    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
   }
   else if(!state->mag_info.use_dri && !state->mag_info.use_fifo && !state->data_is_ready)
   {
     AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. Use previous data");
-    unreliable = true;
+    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
+    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
+    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
   }
   else
   {
     state->pre_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
     state->pre_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
     state->pre_lsbdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z];
-  }
-
-  if(unreliable)
-  {
-    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
-    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
-    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
   }
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.resolution;
@@ -1536,18 +1535,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
-  // store previous measurement is irq and also right WM
-  if(state->mag_info.use_dri &&
-     state->irq_info.detect_irq_event &&
-     (state->mag_info.cur_wmk + 1 == state->num_samples) )
-  {
-    state->previous_meas_is_irq_and_correct_wm = true;
-  }
-  else
-  {
-    state->previous_meas_is_irq_and_correct_wm = false;
-  }
-
   for(i = 0; i < num_bytes; i += 8)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
@@ -1558,9 +1545,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                               state,
                               &log_mag_state_raw_info);
 
-    if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
-    {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d prev_ok %d",
+//    if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
+//    {
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d prev_irq %d prev_wm_ok %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
@@ -1568,9 +1555,30 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
           (uint32_t)state->averaged_interval,
           num_bytes>>3,
           (state->mag_info.cur_wmk + 1),
-          state->previous_meas_is_irq_and_correct_wm);
-    }
+          state->previous_meas_is_irq,
+          state->previous_meas_is_correct_wm);
+//    }
   }
+
+  // store previous measurement is irq and also right WM
+  if(state->mag_info.use_dri && state->irq_info.detect_irq_event)
+  {
+    state->previous_meas_is_irq = true;
+  }
+  else
+  {
+    state->previous_meas_is_irq = false;
+  }
+
+  if(state->mag_info.cur_wmk + 1 == state->num_samples)
+  {
+    state->previous_meas_is_correct_wm = true;
+  }
+  else
+  {
+    state->previous_meas_is_correct_wm = false;
+  }
+
   // store previous timestamp
   state->pre_timestamp = timestamp;
 
@@ -1578,6 +1586,14 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->irq_info.detect_irq_event = false;
   state->this_is_first_data = false;
   state->force_fifo_read_till_wm = false;
+  if(state->this_is_the_last_flush || state->fifo_flush_in_progress)
+  {
+    state->this_is_data_after_flush = true;
+  }
+  else
+  {
+    state->this_is_data_after_flush = false;
+  }
   state->this_is_the_last_flush = false;
   if(state->fifo_flush_in_progress)
   {
@@ -1632,7 +1648,7 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
       // keep re-calculating for clock frequency drifting.
       ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
 
-      if( state->previous_meas_is_irq_and_correct_wm )
+      if( (state->previous_meas_is_irq) && (state->previous_meas_is_correct_wm) )
       {
         state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time) / (state->mag_info.cur_wmk + 1);
       }
@@ -1721,28 +1737,48 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  if(state->fifo_flush_in_progress)
+  AK0991X_INST_PRINT(LOW, instance, "%d,%d,%d,%d sample= %d,%d",
+      state->fifo_flush_in_progress,
+      state->this_is_the_last_flush,
+      state->this_is_data_after_flush,
+      !state->previous_meas_is_correct_wm,
+      state->num_samples,
+      state->mag_info.cur_wmk+1);
+
+  if(state->fifo_flush_in_progress ||
+     state->this_is_the_last_flush ||
+//     state->this_is_data_after_flush ||
+     !state->previous_meas_is_correct_wm ||
+     (state->num_samples != state->mag_info.cur_wmk+1)
+     )
   {
-    state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples; // from flush request
+    // from flush request and when num_samples != wm+1
+    state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
   }
   else
   {
-    state->interrupt_timestamp = state->system_time; // from timer event
+    // from timer event and correct num_samples
+    state->interrupt_timestamp = state->system_time;
   }
 
-#ifdef AK0991X_ENABLE_S4S
-  // for S4S, no need to validate timestamp????
-  if(state->mag_info.use_sync_stream){
-    state->averaged_interval = state->req_payload.timeout_period / (state->mag_info.cur_wmk + 1);
-    state->first_data_ts_of_batch = state->interrupt_timestamp - (state->averaged_interval * state->mag_info.cur_wmk);
-    return;
-  }
-#endif // AK0991X_ENABLE_S4S
+//  state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time)
+//      / (state->mag_info.data_count);
 
-  state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time)
-      / (state->mag_info.data_count);
-//  state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
-  state->first_data_ts_of_batch = state->interrupt_timestamp;
+  state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
+/*
+  state->additional_sample = (uint8_t)((state->first_data_ts_of_batch - state->pre_timestamp + state->averaged_interval/2) / state->averaged_interval);
+  if(state->additional_sample>1)
+  {
+    state->additional_sample--;
+    AK0991X_INST_PRINT(LOW, instance, "Data gap detected! Add %d sample.", (state->additional_sample));
+    state->first_data_ts_of_batch = state->first_data_ts_of_batch - state->averaged_interval * (state->additional_sample);
+//    state->num_samples += (state->additional_sample);
+  }
+  else
+  {
+    state->additional_sample = 0;
+  }
+*/
 }
 
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
@@ -1761,9 +1797,17 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     if(state->mag_info.device_select == AK09917 && !state->force_fifo_read_till_wm )
     {
-      state->num_samples = st1_buf >> 2;
-      if(state->num_samples > state->mag_info.cur_wmk + 1){
+      if(!state->mag_info.use_dri && !state->fifo_flush_in_progress && state->this_is_the_last_flush && state->this_is_data_after_flush)
+      {
         state->num_samples = state->mag_info.cur_wmk + 1;
+      }
+      else
+      {
+        state->num_samples = st1_buf >> 2;
+        if(state->num_samples == 0)
+        {
+          AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
+        }
       }
     }
     else

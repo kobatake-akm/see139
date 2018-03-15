@@ -202,11 +202,13 @@ typedef struct ak0991x_instance_state
   uint8_t ascp_xfer_in_progress;
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
+  uint8_t additional_sample;
   bool this_is_first_data;
   bool data_over_run;
   bool data_is_ready;
   bool re_read_data_after_ascp;
   bool fifo_flush_in_progress;
+  bool this_is_data_after_flush;
   bool new_self_test_request;
   bool config_mag_after_ascp_xfer;
   bool force_fifo_read_till_wm;
@@ -214,7 +216,8 @@ typedef struct ak0991x_instance_state
   bool reg_event_done;
   bool is_temp_average;
   bool in_clock_error_procedure;
-  bool previous_meas_is_irq_and_correct_wm;
+  bool previous_meas_is_irq;
+  bool previous_meas_is_correct_wm;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
   sns_time pre_timestamp;
