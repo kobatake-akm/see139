@@ -189,6 +189,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
+  state->flush_sample_count = 0;
   state->in_clock_error_procedure = false;
 
   state->mag_info.clock_error_meas_count = 0;

@@ -1535,7 +1535,21 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   ak0991x_log_sensor_state_raw_alloc(&log_mag_state_raw_info, 0);
 #endif
 
-  for(i = 0; i < num_bytes; i += 8)
+  size_t num_bytes_to_report;
+  num_bytes_to_report = num_bytes;
+  int8_t over_sample;
+
+  //skip the data to adjust timing for Polling+FIFO
+  if(!state->mag_info.use_dri && state->mag_info.use_fifo)
+  {
+    over_sample = state->num_samples - (state->mag_info.cur_wmk + 1);
+    if(over_sample > 0)
+    {
+      num_bytes_to_report -= over_sample * 8;
+    }
+  }
+
+  for(i = 0; i < num_bytes_to_report; i += 8)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     ak0991x_handle_mag_sample(&fifo_start[i],
@@ -1553,7 +1567,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
           (uint32_t)state->irq_event_time,
           (uint32_t)state->system_time,
           (uint32_t)state->averaged_interval,
-          num_bytes>>3,
+          num_bytes_to_report>>3,
           (state->mag_info.cur_wmk + 1),
           state->fifo_flush_in_progress,
           state->previous_meas_is_correct_wm);
@@ -1797,21 +1811,75 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     if(state->mag_info.device_select == AK09917 && !state->force_fifo_read_till_wm )
     {
-      if(!state->mag_info.use_dri && !state->fifo_flush_in_progress && state->this_is_the_last_flush)
+
+      if(state->mag_info.use_dri)
       {
-        state->num_samples = state->mag_info.cur_wmk + 1;
+        state->num_samples = st1_buf >> 2;
       }
       else
       {
-        state->num_samples = st1_buf >> 2;
-        if(state->num_samples > state->mag_info.cur_wmk + 1)
+        // current event is requested flush or flush to change ODR
+        if(state->fifo_flush_in_progress || state->this_is_the_last_flush)
         {
-          AK0991X_INST_PRINT(LOW, instance, "num_samples %d is over than wm %d", state->num_samples, state->mag_info.cur_wmk + 1);
-          state->num_samples = state->mag_info.cur_wmk + 1;
+          AK0991X_INST_PRINT(LOW, instance, "requested flush or flush to change ODR");
+ 
+          state->num_samples = st1_buf >> 2;
+          if(state->fifo_flush_in_progress)
+          {
+            state->flush_sample_count += state->num_samples;
+          }
+          else
+          {
+            state->flush_sample_count = 0;
+          }
         }
-        if(state->num_samples == 0)
+        else
         {
-          AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
+          // check previous event
+          if(state->flush_sample_count == 0) //both previous and current event are Polling
+          {
+            AK0991X_INST_PRINT(LOW, instance, "both pre and cur event is polling");
+            //option1
+            state->num_samples = state->mag_info.cur_wmk + 1;
+
+            //option2
+            //if((st1_buf >> 2) > state->mag_info.cur_wmk + 1)
+            //{
+            //  state->num_samples = state->mag_info.cur_wmk + 1;
+            //}
+            //else
+            //{
+            //  state->num_samples = st1_buf >> 2;
+            //}
+          }
+          else //previous event is requested FLUSH and current event is Polling
+          {
+            int16_t calculated_samples;
+            calculated_samples = state->mag_info.cur_wmk + 1 - state->flush_sample_count;
+            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d", calculated_samples);
+ 
+            if(calculated_samples > 0)
+            {
+              state->num_samples = (uint8_t)calculated_samples;
+            }
+            else
+            {
+              state->num_samples = 0;
+            }
+          }
+          state->flush_sample_count = 0;
+        }
+      }
+
+      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
+ 
+      if(state->num_samples == 0)
+      {
+        AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
+        if(state->fifo_flush_in_progress)
+        {
+          state->fifo_flush_in_progress = false;
+          ak0991x_send_fifo_flush_done(instance);
         }
       }
     }
@@ -2184,6 +2252,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       }
       else // no FIFO or S4S
       {
+        ak0991x_get_st1_status(instance);
         state->num_samples = 1;
       }
     }
