@@ -1398,6 +1398,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
+  bool unreliable = false;
 
 #ifdef AK0991X_ENABLE_DC
   float temp_flt[3];
