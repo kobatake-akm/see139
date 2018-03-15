@@ -1547,7 +1547,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
 //    if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
 //    {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d prev_irq %d prev_wm_ok %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d flush %d prev_wm_ok %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
@@ -1555,7 +1555,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
           (uint32_t)state->averaged_interval,
           num_bytes>>3,
           (state->mag_info.cur_wmk + 1),
-          state->previous_meas_is_irq,
+          state->fifo_flush_in_progress,
           state->previous_meas_is_correct_wm);
 //    }
   }
@@ -1736,7 +1736,7 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
 static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-
+/*
   AK0991X_INST_PRINT(LOW, instance, "%d,%d,%d,%d sample= %d,%d",
       state->fifo_flush_in_progress,
       state->this_is_the_last_flush,
@@ -1744,20 +1744,20 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
       !state->previous_meas_is_correct_wm,
       state->num_samples,
       state->mag_info.cur_wmk+1);
-
+*/
   if(state->fifo_flush_in_progress ||
-     state->this_is_the_last_flush ||
+     state->this_is_the_last_flush
 //     state->this_is_data_after_flush ||
-     !state->previous_meas_is_correct_wm ||
-     (state->num_samples != state->mag_info.cur_wmk+1)
+//     !state->previous_meas_is_correct_wm ||
+//     (state->num_samples != state->mag_info.cur_wmk+1)
      )
   {
-    // from flush request and when num_samples != wm+1
+    // from flush request
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
   }
   else
   {
-    // from timer event and correct num_samples
+    // from timer event
     state->interrupt_timestamp = state->system_time;
   }
 
@@ -1797,13 +1797,18 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     if(state->mag_info.device_select == AK09917 && !state->force_fifo_read_till_wm )
     {
-      if(!state->mag_info.use_dri && !state->fifo_flush_in_progress && state->this_is_the_last_flush && state->this_is_data_after_flush)
+      if(!state->mag_info.use_dri && !state->fifo_flush_in_progress && state->this_is_the_last_flush)
       {
         state->num_samples = state->mag_info.cur_wmk + 1;
       }
       else
       {
         state->num_samples = st1_buf >> 2;
+        if(state->num_samples > state->mag_info.cur_wmk + 1)
+        {
+          AK0991X_INST_PRINT(LOW, instance, "num_samples %d is over than wm %d", state->num_samples, state->mag_info.cur_wmk + 1);
+          state->num_samples = state->mag_info.cur_wmk + 1;
+        }
         if(state->num_samples == 0)
         {
           AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
