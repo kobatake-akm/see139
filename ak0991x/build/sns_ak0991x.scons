@@ -24,8 +24,12 @@ import inspect
 
 ak0991x_island_enable = False
 
+sns_ak0991x_dc_lib = env.AddBinaryLibrary(env['SSC_BUILD_TAGS'], '${BUILDPATH}/src/sns_ak0991x_dc', '${BUILDPATH}/src/sns_ak0991x_dc.lib')
+
 if 'SNS_ISLAND_INCLUDE_AK0991X' in env:
   ak0991x_island_enable = True
+  env.AddIslandLibrary(env['SSC_BUILD_TAGS'], sns_ak0991x_dc_lib)
+
 
 if 'USES_SSC_STATIC_LIB_BUILDER' in env:
   if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):

@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 02/27/18     010059     AKM              Change to read dc-parameter from registry file.
  * 02/27/18     010058     AKM              Added unregister heart beat stream in ak0991x_stop_mag_streaming
  * 02/16/18     010057     AKM              Remove some comments after checked in.
  * 02/14/18     010056     Qualcomm/AKM     Qualcomm checked in version.
@@ -124,4 +125,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10058  // major:01 minor:00 revision:58
+#define AK0991X_DRIVER_VERSION 10059  // major:01 minor:00 revision:59
