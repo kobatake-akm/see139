@@ -2214,6 +2214,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint8_t num_count = 0;
 
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
@@ -2232,6 +2233,17 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 //        if(state->fifo_flush_in_progress) // flush request received.
 //        {
           ak0991x_get_st1_status(instance);
+
+          // check num_samples when the last fifo flush to prevent negative timestamp
+          if( state->this_is_the_last_flush )
+          {
+            while( state->pre_timestamp + state->averaged_interval * num_count < state->system_time || state->num_samples < num_count )
+            {
+              num_count++;
+            }
+            state->num_samples = num_count;
+          }
+
 //        }
 //        else
 //        {

@@ -407,10 +407,10 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this,
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  state->this_is_the_last_flush = true;
-  AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
-  ak0991x_read_mag_samples(this);
-  state->this_is_the_last_flush = false;
+    state->this_is_the_last_flush = true;
+    AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
+    ak0991x_read_mag_samples(this);
+    state->this_is_the_last_flush = false;
 
   // stop timer
   if (state->timer_data_stream != NULL)
