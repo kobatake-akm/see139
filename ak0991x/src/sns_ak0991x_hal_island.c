@@ -718,6 +718,9 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
   state->previous_meas_is_correct_wm = true;
+#ifdef AK0991X_ENABLE_S4S
+  state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+#endif
 
   state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
