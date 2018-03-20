@@ -23,6 +23,7 @@
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
  * 03/12/18     010059     AKM              Fixed S4S settings.
+ * 03/12/18                AKM              Change to read AKM's DC-parameter from registry file. Case# 03380124
  * 02/27/18     010058     AKM              Added unregister heart beat stream in ak0991x_stop_mag_streaming
  * 02/16/18     010057     AKM              Remove some comments after checked in.
  * 02/14/18     010056     Qualcomm/AKM     Qualcomm checked in version.

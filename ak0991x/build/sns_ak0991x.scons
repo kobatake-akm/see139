@@ -27,11 +27,31 @@ ak0991x_island_enable = False
 if 'SNS_ISLAND_INCLUDE_AK0991X' in env:
   ak0991x_island_enable = True
 
+akm_cflags = [
+  '-Wno-sign-compare',
+#  '-DAK0991X_ENABLE_DC'
+  ]
+
+header = 'sns_ak0991x.scons comments: '
+
+if ('-DAK0991X_ENABLE_DC' in akm_cflags):
+  print header + 'PDC is enabled. Load sns_ak0991x_dc_lib'
+  sns_ak0991x_dc_lib = env.AddBinaryLibrary(env['SSC_BUILD_TAGS'],
+      '${BUILDPATH}/src/sns_ak0991x_dc',
+      '${BUILDPATH}/src/sns_ak0991x_dc.lib')
+  if ak0991x_island_enable:
+    env.AddIslandLibrary(env['SSC_BUILD_TAGS'], sns_ak0991x_dc_lib)
+    print header + 'island enabled. Add island library sns_ak0991x_dc_lib'
+  else:
+    print header + 'big image mode, island disabled'
+    
 if 'USES_SSC_STATIC_LIB_BUILDER' in env:
   if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):
+    print header + 'AddSSCSU'
     env.AddSSCSU(inspect.getfile(inspect.currentframe()),
                register_func_name = "sns_register_ak0991x",
                binary_lib = False,
-               cflags = ['-Wno-sign-compare'],
+               cflags = akm_cflags,
                add_island_files = ak0991x_island_enable,
                diag_ssid = "MSG_SSID_SNS_SENSOR_EXT")
+

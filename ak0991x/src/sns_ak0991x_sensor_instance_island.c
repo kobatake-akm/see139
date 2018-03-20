@@ -376,7 +376,14 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
           sns_time now = sns_get_system_time();
-          state->system_time = timer_event.requested_timeout_time;
+//          if(!state->mag_info.use_sync_stream)
+//          {
+            state->system_time = timer_event.requested_timeout_time;
+//          }
+//          else
+//          {
+//            state->system_time = now;
+//          }
           if(state->system_time + state->nominal_intvl < now )
           {
             SNS_INST_PRINTF(ERROR, this, "req_to=%u now=%u", 
@@ -386,13 +393,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           // for regular polling mode
           if (!state->mag_info.use_dri && state->reg_event_done)
           {
-//            state->force_fifo_read_till_wm = true;
-//            AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now %u req_timeout_time %u",
-//                       (uint32_t)now,
-//                       (uint32_t)state->system_time);
+            AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now %u req_timeout_time %u",
+                       (uint32_t)now,
+                       (uint32_t)state->system_time);
 
             // check DRDY status.
-            ak0991x_get_st1_status(this);
+            //ak0991x_get_st1_status(this);
 
             // mag data read
             ak0991x_read_mag_samples(this);

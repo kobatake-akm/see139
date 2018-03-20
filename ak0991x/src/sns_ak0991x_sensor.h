@@ -28,6 +28,10 @@
 #include "sns_diag_service.h"
 #include "sns_registry_util.h"
 
+#ifdef AK0991X_ENABLE_DC
+#include "sns_ak0991x_dist_compen.h"
+#endif
+
 #define MAG_SUID1 \
   {  \
     .sensor_uid =  \
@@ -53,6 +57,7 @@
 #define AK0991X_REGISTRY_0_PLACE       "ak0991x_0_platform.placement"
 #define AK0991X_REGISTRY_0_ORIENT      "ak0991x_0_platform.orient"
 #define AK0991X_REGISTRY_0_FACCAL      "ak0991x_0_platform.mag.fac_cal"
+#define AK0991X_REGISTRY_0_DC_PARAM    "ak0991x_0_platform.mag.dc_param"
 #define AK0991X_REGISTRY_0_MAG_CONFIG  "ak0991x_0.mag.config"
 #define AK0991X_REGISTRY_0_REG_CONFIG  "ak0991x_0.mag.config_2"
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
@@ -178,6 +183,12 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
+#ifdef AK0991X_ENABLE_DC
+typedef struct ak0991x_dc_parameter
+{
+  uint8_t dc_param_arr[AKSC_PDC_SIZE];
+} ak0991x_dc_parameter;
+#endif
 #endif
 
 /** Interrupt Sensor State. */
@@ -241,7 +252,16 @@ typedef struct ak0991x_state
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
+#ifdef AK0991X_ENABLE_SI_PARAM
+  uint32_t                fac_cal_version;
+#endif
 
+#ifdef AK0991X_ENABLE_DC
+  // dc_parameter
+  uint8_t                 dc_param[AKSC_PDC_SIZE];
+  bool                    registry_dc_param_received;
+  ak0991x_dc_parameter    reg_dc_param;
+#endif
   // placement
   bool                    registry_placement_received;
   float                   placement[12];
@@ -303,4 +323,10 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
                              float *chosen_sample_rate,
                              ak0991x_mag_odr *chosen_reg_value,
                              akm_device_type device_select);
+#ifdef AK0991X_ENABLE_SI_PARAM
+void ak0991x_update_registry(sns_sensor *const this,
+        sns_sensor_instance *const instance);
 
+void ak0991x_update_sensor_state(sns_sensor *const this,
+        sns_sensor_instance *const instance);
+#endif

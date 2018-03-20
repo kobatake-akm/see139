@@ -188,6 +188,12 @@ typedef struct sns_ak0991x_registry_cfg
 {
   matrix3             fac_cal_corr_mat;
   float               fac_cal_bias[3];
+#ifdef AK0991X_ENABLE_DC
+  uint8_t             dc_param[AKSC_PDC_SIZE];
+#endif
+#ifdef AK0991X_ENABLE_SI_PARAM
+  uint32_t            version;
+#endif
 }sns_ak0991x_registry_cfg;
 
 /** Private state. */
@@ -202,20 +208,20 @@ typedef struct ak0991x_instance_state
   uint8_t ascp_xfer_in_progress;
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
+  uint8_t flush_sample_count;
   bool this_is_first_data;
   bool data_over_run;
   bool data_is_ready;
   bool re_read_data_after_ascp;
   bool fifo_flush_in_progress;
-  bool this_is_data_after_flush;
   bool new_self_test_request;
   bool config_mag_after_ascp_xfer;
-  bool force_fifo_read_till_wm;
   bool this_is_the_last_flush;
   bool reg_event_done;
   bool is_temp_average;
   bool in_clock_error_procedure;
-  bool previous_meas_is_irq_and_correct_wm;
+  bool previous_meas_is_irq;
+  bool previous_meas_is_correct_wm;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
   sns_time pre_timestamp;
@@ -276,11 +282,6 @@ typedef struct ak0991x_instance_state
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
   size_t           log_raw_encoded_size;
-
-#ifdef AK0991X_ENABLE_DC
-  /* parameters for DC */
-    uint8_t pdc_parameter[AKSC_PDC_SIZE];
-#endif
 
 } ak0991x_instance_state;
 
