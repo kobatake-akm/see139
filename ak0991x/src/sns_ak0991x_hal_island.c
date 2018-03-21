@@ -1873,7 +1873,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
  
       if(state->num_samples == 0)
       {
-//        AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
+        AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
         if(state->fifo_flush_in_progress)
         {
           state->fifo_flush_in_progress = false;
@@ -2206,17 +2206,16 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
                                       buffer,
                                       AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
     }
+  }
 
 #ifdef AK0991X_ENABLE_DRI
-    if( state->mag_info.use_dri &&
-        (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) )
-    {
-      ak0991x_register_heart_beat_timer(instance);
-    }
-#endif
-
-    state->heart_beat_attempt_count = 0;
+  if( state->mag_info.use_dri &&
+      (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) )
+  {
+    ak0991x_register_heart_beat_timer(instance);
   }
+#endif
+  state->heart_beat_attempt_count = 0;
 }
 
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)

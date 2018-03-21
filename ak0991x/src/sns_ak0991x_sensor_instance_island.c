@@ -117,9 +117,10 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
   {
     if (state->mag_info.use_dri)
     {
-      AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB= %u payload.start_time= %u now= %u",
+      AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u fire_time %u now= %u",
                          state->heart_beat_attempt_count,
                          (uint32_t)state->req_payload.start_time,
+                         (uint32_t)state->hb_timer_fire_time,
                          (uint32_t)state->system_time);
       // Streaming is unable to resume after 4 attempts
       if (state->heart_beat_attempt_count >= 4)
@@ -300,7 +301,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
       if(NULL != event)
       {
-        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue... DRDY= %d", state->data_is_ready);
+        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue... %u DRDY= %d", (uint32_t)sns_get_system_time(), state->data_is_ready);
 //        if(!state->data_is_ready)
 //        {
 //          AK0991X_INST_PRINT(ERROR, this, "DRDY is not ready, clear all event.");
@@ -426,8 +427,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
       if(NULL != state->timer_data_stream)
       {
-//        event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
-        event = NULL; // timer_data_stream is removed, exit while loop
+        event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
       }
     }
   }
