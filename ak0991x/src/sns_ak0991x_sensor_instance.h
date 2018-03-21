@@ -234,7 +234,7 @@ typedef struct ak0991x_instance_state
   sns_time heart_beat_timeout_period;
   sns_time nominal_intvl;
   sns_time half_measurement_time;
-  sns_time last_req_hb_time;
+  sns_time hb_timer_fire_time;
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
 
