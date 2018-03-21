@@ -1570,8 +1570,8 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                               state,
                               &log_mag_state_raw_info);
 
-//    if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
-//    {
+    if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
+    {
       AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d flush %d prev_wm_ok %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
@@ -1582,7 +1582,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
           (state->mag_info.cur_wmk + 1),
           state->fifo_flush_in_progress,
           state->previous_meas_is_correct_wm);
-//    }
+    }
   }
 
   // store previous measurement is irq and also right WM
