@@ -218,6 +218,9 @@ typedef struct ak0991x_instance_state
   bool config_mag_after_ascp_xfer;
   bool this_is_the_last_flush;
   bool reg_event_done;
+#ifdef AK0991X_ENABLE_S4S
+  bool s4s_reg_event_done;
+#endif
   bool is_temp_average;
   bool in_clock_error_procedure;
   bool previous_meas_is_irq;

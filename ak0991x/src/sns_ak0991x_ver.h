@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/21/18     010060     AKM              Fixed S4S to care timestamp.
  * 03/12/18     010059     AKM              Fixed S4S settings.
  * 03/12/18                AKM              Change to read AKM's DC-parameter from registry file. Case# 03380124
  * 02/27/18     010058     AKM              Added unregister heart beat stream in ak0991x_stop_mag_streaming
@@ -126,4 +127,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10059  // major:01 minor:00 revision:59
+#define AK0991X_DRIVER_VERSION 10060  // major:01 minor:00 revision:60
