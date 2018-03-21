@@ -719,6 +719,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->previous_meas_is_irq = false;
   state->previous_meas_is_correct_wm = true;
 #ifdef AK0991X_ENABLE_S4S
+  state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
 #endif
 
@@ -1752,21 +1753,8 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
 static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-/*
-  AK0991X_INST_PRINT(LOW, instance, "%d,%d,%d,%d sample= %d,%d",
-      state->fifo_flush_in_progress,
-      state->this_is_the_last_flush,
-      state->this_is_data_after_flush,
-      !state->previous_meas_is_correct_wm,
-      state->num_samples,
-      state->mag_info.cur_wmk+1);
-*/
-  if(state->fifo_flush_in_progress ||
-     state->this_is_the_last_flush
-//     state->this_is_data_after_flush ||
-//     !state->previous_meas_is_correct_wm ||
-//     (state->num_samples != state->mag_info.cur_wmk+1)
-     )
+
+  if(state->fifo_flush_in_progress || state->this_is_the_last_flush)
   {
     // from flush request
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
@@ -1777,24 +1765,7 @@ static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const in
     state->interrupt_timestamp = state->system_time;
   }
 
-//  state->averaged_interval = (state->interrupt_timestamp - state->previous_irq_time)
-//      / (state->mag_info.data_count);
-
   state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
-/*
-  state->additional_sample = (uint8_t)((state->first_data_ts_of_batch - state->pre_timestamp + state->averaged_interval/2) / state->averaged_interval);
-  if(state->additional_sample>1)
-  {
-    state->additional_sample--;
-    AK0991X_INST_PRINT(LOW, instance, "Data gap detected! Add %d sample.", (state->additional_sample));
-    state->first_data_ts_of_batch = state->first_data_ts_of_batch - state->averaged_interval * (state->additional_sample);
-//    state->num_samples += (state->additional_sample);
-  }
-  else
-  {
-    state->additional_sample = 0;
-  }
-*/
 }
 
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
@@ -1808,12 +1779,10 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
 
 #ifdef AK0991X_ENABLE_FIFO
-
   if( state->mag_info.use_fifo )
   {
     if(state->mag_info.device_select == AK09917)
     {
-
       if(state->mag_info.use_dri)
       {
         state->num_samples = st1_buf >> 2;
@@ -1841,14 +1810,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
           if(state->flush_sample_count == 0) //both previous and current event are Polling
           {
             AK0991X_INST_PRINT(LOW, instance, "both pre and cur event is polling");
-            //if((st1_buf >> 2) < (state->mag_info.cur_wmk + 1))
-            //{
-              state->num_samples = state->mag_info.cur_wmk + 1;
-            //}
-            //else
-            //{
-            //  state->num_samples = st1_buf >> 2;
-            //}
+            state->num_samples = state->mag_info.cur_wmk + 1;
           }
           else //previous event is requested FLUSH and current event is Polling
           {
@@ -2231,23 +2193,23 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       {
         ak0991x_get_st1_status(instance);
       }
-      // QC - else, use state->num_samples from previous interrupt? that could be wrong
+      // else, use state->num_samples when check DRDY status by INTERRUPT_EVENT
     }
     else  // Polling mode
     {
       if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)
       {
-          ak0991x_get_st1_status(instance);
+        ak0991x_get_st1_status(instance);
 
-          // check num_samples when the last fifo flush to prevent negative timestamp
-          if( state->this_is_the_last_flush )
+        // check num_samples when the last fifo flush to prevent negative timestamp
+        if( state->this_is_the_last_flush )
+        {
+          while( (state->pre_timestamp + state->averaged_interval * (num_count+1) < state->system_time) && (state->num_samples > num_count) )
           {
-            while( (state->pre_timestamp + state->averaged_interval * (num_count+1) < state->system_time) && (state->num_samples > num_count) )
-            {
-              num_count++;
-            }
-            state->num_samples = num_count;
+            num_count++;
           }
+          state->num_samples = num_count;
+        }
       }
       else // no FIFO or S4S
       {

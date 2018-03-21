@@ -59,7 +59,7 @@ sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
         | (state->mag_info.s4s_rr & 0x03);         // RR
     }
 
-    AK0991X_INST_PRINT(LOW, this, "bf[0]=%d bf[2]=%d",buf_s4s[0], buf_s4s[1]);
+    AK0991X_INST_PRINT(LOW, this, "bf[0]=%d bf[1]=%d",buf_s4s[0], buf_s4s[1]);
     rv = ak0991x_com_write_wrapper(this,
                                    state->scp_service,
                                    state->com_port_info.port_handle,
@@ -464,11 +464,15 @@ void ak0991x_s4s_handle_timer_data_stream(sns_sensor_instance *const this)
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
         {
-          ak0991x_s4s_handle_timer_event(this);
-          AK0991X_INST_PRINT(LOW, this, "Execute handle s4s timer event");
+          if(state->s4s_reg_event_done)
+          {
+            ak0991x_s4s_handle_timer_event(this);
+            AK0991X_INST_PRINT(LOW, this, "Execute handle s4s timer event");
+          }
         }
         else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
         {
+          state->s4s_reg_event_done = true;
           AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr s4s reg event");
         }
         else
