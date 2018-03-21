@@ -2200,7 +2200,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
         // check num_samples when the last fifo flush to prevent negative timestamp
         if( state->this_is_the_last_flush )
         {
-          while( (state->pre_timestamp + state->averaged_interval * (num_count+1) < state->system_time) || (state->num_samples < num_count) )
+          while( (state->pre_timestamp + state->averaged_interval * (num_count+1) < state->system_time) && (state->num_samples > num_count) )
           {
             num_count++;
           }
