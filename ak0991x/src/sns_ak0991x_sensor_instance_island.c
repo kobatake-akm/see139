@@ -117,10 +117,13 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
   {
     if (state->mag_info.use_dri)
     {
-      AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB= %u payload.start_time= %u now= %u",
+      AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
                          state->heart_beat_attempt_count,
                          (uint32_t)state->req_payload.start_time,
+                         (uint32_t)state->req_payload.timeout_period,
+                         (uint32_t)state->hb_timer_fire_time,
                          (uint32_t)state->system_time);
+
       // Streaming is unable to resume after 4 attempts
       if (state->heart_beat_attempt_count >= 4)
       {
@@ -152,7 +155,6 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
           rv = SNS_RC_NOT_AVAILABLE;
           ak0991x_reconfig_hw(this);
         }
-        ak0991x_register_heart_beat_timer(this);
       }
     }
     else
@@ -234,7 +236,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
   if (NULL != state->interrupt_data_stream)
   {
-    event = state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
+    event = state->interrupt_data_stream->api->peek_input(
+        state->interrupt_data_stream);
 
     while (NULL != event)
     {
@@ -273,10 +276,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                 state->re_read_data_after_ascp = true;
               }
             }
-            else
-            {
-              AK0991X_INST_PRINT(LOW, this, "DRDY is NOT ready. Skip.");
-            }
           }
           else
           {
@@ -303,7 +302,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
       if(NULL != event)
       {
-        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue...");
+        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue... %u DRDY= %d", (uint32_t)sns_get_system_time(), state->data_is_ready);
       }
     }
   }
@@ -398,7 +397,16 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             // reset system time for heart beat timer on the DRI mode
             state->system_time = now;
           }
-          rv = ak0991x_heart_beat_timer_event(this);
+
+          // check heart beat fire time
+          if(now > state->hb_timer_fire_time)
+          {
+            rv = ak0991x_heart_beat_timer_event(this);
+          }
+          else
+          {
+            SNS_INST_PRINTF(ERROR, this, "Wrong HB timer fired. fire_time %u now %u",(uint32_t)state->hb_timer_fire_time, (uint32_t)now );
+          }
         }
         else
         {
@@ -425,10 +433,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       if(NULL != state->timer_data_stream)
       {
         event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
-      }
-      else
-      {
-        event = NULL; // timer_data_stream is removed, exit while loop
       }
     }
   }

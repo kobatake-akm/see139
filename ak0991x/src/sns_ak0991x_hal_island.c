@@ -1572,13 +1572,13 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d flush %d prev_wm_ok %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d flush %d pre_wm_ok %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
           (uint32_t)state->system_time,
           (uint32_t)state->averaged_interval,
-          num_bytes_to_report>>3,
+          num_samples_sets,
           (state->mag_info.cur_wmk + 1),
           state->fifo_flush_in_progress,
           state->previous_meas_is_correct_wm);
@@ -1831,7 +1831,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
         }
       }
 
-      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
+//      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
  
       if(state->num_samples == 0)
       {
@@ -1848,7 +1848,8 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
       state->num_samples = state->mag_info.cur_wmk + 1;
     }
 
-    if ((state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2) > AK0991X_MAX_FIFO_SIZE)
+    if( (state->heart_beat_attempt_count==0) &&
+        (state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2) > AK0991X_MAX_FIFO_SIZE)
     {
       SNS_INST_PRINTF(ERROR, instance,
           "FIFO size should not be greater than AK0991X_MAX_FIFO_SIZE."
@@ -1937,7 +1938,9 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 
 #ifdef AK0991X_ENABLE_DRI
 
-  if(state->mag_info.use_dri && !state->irq_info.detect_irq_event)
+  if(state->mag_info.use_dri &&
+     !state->irq_info.detect_irq_event &&
+     state->heart_beat_attempt_count==0 )
   {
     if(state->system_time < state->pre_timestamp + state->averaged_interval)
     {
@@ -2075,7 +2078,9 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   {
     if(state->mag_info.device_select == AK09917)    // AK09917
     {
-      if(state->num_samples > 2 && !state->this_is_the_last_flush && state->heart_beat_attempt_count == 0)
+      if( state->num_samples > 2 &&
+          !state->this_is_the_last_flush &&
+          state->heart_beat_attempt_count == 0)
       {
         ak0991x_ascp_request(instance);  // ASCP request
       }
@@ -2163,17 +2168,16 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
                                       buffer,
                                       AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
     }
+  }
 
 #ifdef AK0991X_ENABLE_DRI
-    if( state->mag_info.use_dri &&
-        (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->last_req_hb_time) )
-    {
-      ak0991x_register_heart_beat_timer(instance);
-    }
-#endif
-
-    state->heart_beat_attempt_count = 0;
+  if( state->mag_info.use_dri &&
+      (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) )
+  {
+    ak0991x_register_heart_beat_timer(instance);
   }
+#endif
+  state->heart_beat_attempt_count = 0;
 }
 
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
@@ -2246,7 +2250,6 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                 &state->mag_info.suid);
 }
 
-#ifdef AK0991X_ENABLE_SI_PARAM
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -2263,7 +2266,6 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
   }
   state->mag_registry_cfg.version++;
 }
-#endif
 
 /** See sns_ak0991x_hal.h */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
@@ -2501,7 +2503,7 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
 #endif //A0991X_ENABLE_DRI
 }
 
-static void ak0991x_send_timer_request(sns_sensor_instance *const this)
+static sns_rc ak0991x_send_timer_request(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
@@ -2510,6 +2512,7 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
   sns_request             timer_req;
   size_t                  req_len = 0;
   uint8_t                 buffer[20];
+  sns_rc rv = SNS_RC_SUCCESS;
 
   if (state->mag_req.sample_rate != AK0991X_ODR_0)
   {
@@ -2535,14 +2538,15 @@ static void ak0991x_send_timer_request(sns_sensor_instance *const this)
         timer_req.request_len = req_len;
         timer_req.request = buffer;
         /** Send encoded request to Timer Sensor */
-        state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
+        rv = state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
       }
     }
     if (req_len == 0)
     {
-      SNS_INST_PRINTF(ERROR, this, "Fail to send request to Timer Sensor");
+      rv = SNS_RC_FAILED;
     }
   }
+  return rv;
 }
 
 void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
@@ -2654,13 +2658,16 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   state->req_payload.start_time = state->system_time;
+  state->hb_timer_fire_time = state->req_payload.start_time + state->req_payload.timeout_period;
 
-  state->last_req_hb_time = state->req_payload.start_time + state->req_payload.timeout_period;
+  if (SNS_RC_SUCCESS != ak0991x_send_timer_request(this))
+  {
+    AK0991X_INST_PRINT(LOW, this, "Failed send timer request");
+  }
 
-  AK0991X_INST_PRINT(LOW, this, "hb_timer start %u",
-      (uint32_t)state->req_payload.start_time);
+  AK0991X_INST_PRINT(LOW, this, "hb_timer start %u fire %u period %u",
+      (uint32_t)state->req_payload.start_time, (uint32_t)state->hb_timer_fire_time, (uint32_t)state->req_payload.timeout_period);
    
-  ak0991x_send_timer_request(this);
 }
 
 void ak0991x_register_timer(sns_sensor_instance *const this)

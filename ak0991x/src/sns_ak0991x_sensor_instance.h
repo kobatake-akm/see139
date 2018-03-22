@@ -191,9 +191,7 @@ typedef struct sns_ak0991x_registry_cfg
 #ifdef AK0991X_ENABLE_DC
   uint8_t             dc_param[AKSC_PDC_SIZE];
 #endif
-#ifdef AK0991X_ENABLE_SI_PARAM
   uint32_t            version;
-#endif
 }sns_ak0991x_registry_cfg;
 
 /** Private state. */
@@ -237,7 +235,7 @@ typedef struct ak0991x_instance_state
   sns_time heart_beat_timeout_period;
   sns_time nominal_intvl;
   sns_time half_measurement_time;
-  sns_time last_req_hb_time;
+  sns_time hb_timer_fire_time;
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
 
