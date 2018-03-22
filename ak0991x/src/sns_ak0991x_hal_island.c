@@ -1492,6 +1492,17 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       make_vector3_from_array(opdata_raw),
       make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
       state->mag_registry_cfg.fac_cal_corr_mat);
+/*
+  AK0991X_INST_PRINT(LOW, instance, "before ,X,Y,Z: %d %d %d end",
+      (int)opdata_raw[0],
+      (int)opdata_raw[1],
+      (int)opdata_raw[2]);
+
+  AK0991X_INST_PRINT(LOW, instance, "after ,X,Y,Z: %d %d %d end",
+      (int)opdata_cal.data[0],
+      (int)opdata_cal.data[1],
+      (int)opdata_cal.data[2]);
+*/
 #endif
 
   pb_send_sensor_stream_event(instance,

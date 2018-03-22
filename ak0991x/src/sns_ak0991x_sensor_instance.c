@@ -614,8 +614,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     }
 
     // update registry configuration
-    fac_cal_bias = state->mag_registry_cfg.fac_cal_bias;
-    fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
+    if(payload->registry_cfg.version >= state->mag_registry_cfg.version)
+    {
+      fac_cal_bias = state->mag_registry_cfg.fac_cal_bias;
+      fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
+      state->mag_registry_cfg.version = payload->registry_cfg.version;
+    }
 
 #ifdef AK0991X_ENABLE_DC
     pdc_parameter = state->mag_registry_cfg.dc_param;

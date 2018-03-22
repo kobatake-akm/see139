@@ -417,7 +417,6 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   bool m_sensor_client_present;
   UNUSED_VAR(instance);
   ak0991x_state *state = (ak0991x_state*)this->state->state;
-  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
 
   sns_ak0991x_registry_cfg registry_cfg;
 
@@ -446,10 +445,8 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                 (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
                 chosen_flush_period);
 
-  if(state->fac_cal_version < inst_state->mag_registry_cfg.version)
-  {
-    sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
-        state->fac_cal_bias, sizeof(state->fac_cal_bias));
+  sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
+      state->fac_cal_bias, sizeof(state->fac_cal_bias));
 
   sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
       &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
@@ -458,7 +455,11 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
       &state->dc_param, sizeof(state->dc_param));
 #endif
     registry_cfg.version = state->fac_cal_version;
-  }
+
+  AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100 ver=%d",
+      (int)(registry_cfg.fac_cal_bias[0]*100),
+      (int)(registry_cfg.fac_cal_corr_mat.e00*100),
+      registry_cfg.version);
 
   AK0991X_PRINT(LOW, this, "chosen_sample_rate=%d chosen_report_rate=%d",
       (int)chosen_sample_rate, (int)chosen_report_rate);
@@ -1101,6 +1102,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
           rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
           fac_cal_version = arg.version;
+          AK0991X_PRINT(ERROR, this, "fac_cal_version=%d",arg.version);
        }
 
         if(rv)
@@ -2292,7 +2294,6 @@ ak0991x_encode_registry_cb(struct pb_ostream_s *stream, struct pb_field_s const 
 void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance)
 {
-  // TBD!!!
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   pb_arg_reg_group_arg arg = {.instance = instance };
 
@@ -2301,7 +2302,11 @@ void ak0991x_update_registry(sns_sensor *const this,
 
   uint8_t buffer[1000];
   int32_t encoded_len;
+#ifdef AK0991X_ENABLE_DUAL_SENSOR
+  char name[] = (state->registration_idx == 0)? AK0991X_REGISTRY_0_FACCAL : AK0991X_REGISTRY_1_FACCAL;
+#else
   char name[] = AK0991X_REGISTRY_0_FACCAL;
+#endif
   pb_buffer_arg name_data;
   sns_registry_write_req write_req = sns_registry_write_req_init_default;
 
@@ -2358,7 +2363,7 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
       sns_memscpy(&sensor_state->fac_cal_corr_mat, sizeof(sensor_state->fac_cal_corr_mat),
                   &inst_state->mag_registry_cfg.fac_cal_corr_mat,
                   sizeof(inst_state->mag_registry_cfg.fac_cal_corr_mat));
-    sensor_state->fac_cal_version = inst_state->mag_registry_cfg.version;
+      sensor_state->fac_cal_version = inst_state->mag_registry_cfg.version;
     }
   }
 }
