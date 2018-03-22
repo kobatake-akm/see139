@@ -23,6 +23,7 @@
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
  * 03/21/18     010060     AKM              Fixed S4S to care timestamp.
+ * 03/21/18                AKM              Added registry item version number. Case# 03380028
  * 03/12/18     010059     AKM              Fixed S4S settings.
  * 03/20/18                AKM              Debugged for HB timer on DRI mode.
  * 03/12/18                AKM              Fixed S4S settings.
