@@ -117,6 +117,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
   {
     if (state->mag_info.use_dri)
     {
+#ifdef AK0991X_ENABLE_DRI
       AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
                          state->heart_beat_attempt_count,
                          (uint32_t)state->req_payload.start_time,
@@ -156,6 +157,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
           ak0991x_reconfig_hw(this);
         }
       }
+#endif // AK0991X_ENABLE_DRI
     }
     else
     {
