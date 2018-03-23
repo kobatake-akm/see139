@@ -623,23 +623,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
 #ifdef AK0991X_ENABLE_DC
     pdc_parameter = state->mag_registry_cfg.dc_param;
-    //SNS_INST_PRINTF(LOW, this, "CHECK DC [0]:%d to [26]:%d", state->mag_registry_cfg.dc_param[0], state->mag_registry_cfg.dc_param[26]);
-    if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat && NULL != pdc_parameter)
+    if(NULL != pdc_parameter)
     {
-      sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
-                  payload->registry_cfg.fac_cal_bias,
-                  sizeof(payload->registry_cfg.fac_cal_bias));
-      sns_memscpy(fac_cal_corr_mat, sizeof(payload->registry_cfg.fac_cal_corr_mat),
-                  &payload->registry_cfg.fac_cal_corr_mat,
-                  sizeof(payload->registry_cfg.fac_cal_corr_mat));
-
       sns_memscpy(pdc_parameter, sizeof(payload->registry_cfg.dc_param),
                   &payload->registry_cfg.dc_param,
                   sizeof(payload->registry_cfg.dc_param));
     }
-    //SNS_INST_PRINTF(LOW, this, "CHECK DC2 [0]:%d to [26]:%d", pdc_parameter[0], pdc_parameter[26]);
+    SNS_INST_PRINTF(LOW, this, "set DC parameter. dc[0]=%d ... dc[26]=%d", pdc_parameter[0], pdc_parameter[26]);
 #endif
-    if(NULL!= fac_cal_bias && NULL != fac_cal_corr_mat)
+
+    if(NULL != fac_cal_bias && NULL != fac_cal_corr_mat)
     {
       sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
                   payload->registry_cfg.fac_cal_bias,
