@@ -906,6 +906,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
         if(rv)
         {
+          state->registry_dc_param_received = true;
           for (uint8_t i=0; i<AKSC_PDC_SIZE; i++)
           {
             state->dc_param[i] = state->reg_dc_param.dc_param_arr[i];
