@@ -1827,11 +1827,18 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
           {
             int16_t calculated_samples;
             calculated_samples = state->mag_info.cur_wmk + 1 - state->flush_sample_count;
-            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d", calculated_samples);
- 
+            state->num_samples = st1_buf >> 2;
+            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d num_samples %d", calculated_samples,state->num_samples);
             if(calculated_samples > 0)
             {
               state->num_samples = (uint8_t)calculated_samples;
+
+              // check timestamp
+              if( ( state->system_time + (state->averaged_interval>>1) ) <= state->pre_timestamp + (state->averaged_interval * state->num_samples) )
+              {
+                state->num_samples--;
+                SNS_INST_PRINTF(LOW, instance, "interval is less than averaged_interval/2. num_sample is now %d", state->num_samples);
+              }
             }
             else
             {
