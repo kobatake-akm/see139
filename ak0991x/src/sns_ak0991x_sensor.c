@@ -2169,6 +2169,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   return SNS_RC_SUCCESS;
 }
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static bool
 ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s const *field,
     void *const *arg)
@@ -2290,10 +2291,13 @@ ak0991x_encode_registry_cb(struct pb_ostream_s *stream, struct pb_field_s const 
 
  return true;
 }
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
 void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance)
 {
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
+
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   pb_arg_reg_group_arg arg = {.instance = instance };
 
@@ -2339,6 +2343,10 @@ void ak0991x_update_registry(sns_sensor *const this,
           .message_id = SNS_REGISTRY_MSGID_SNS_REGISTRY_WRITE_REQ };
     state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
   }
+#else
+  UNUSED_VAR(this);
+  UNUSED_VAR(instance);
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 }
 
 void ak0991x_update_sensor_state(sns_sensor *const this,
