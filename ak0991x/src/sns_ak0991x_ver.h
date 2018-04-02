@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/30/18     010061     AKM              Modified HB timer setting for crash when system is busy.
  * 03/21/18     010060     AKM              Fixed S4S to care timestamp.
  * 03/21/18                AKM              Added registry item version number. Case# 03380028
  * 03/12/18     010059     AKM              Fixed S4S settings.
@@ -130,4 +131,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10060  // major:01 minor:00 revision:60
+#define AK0991X_DRIVER_VERSION 10061  // major:01 minor:00 revision:61
