@@ -403,7 +403,7 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   }
 
   /* Processes DT abort */
-  if (dt_count >= 0x80)
+  if (dt_count > 127 || state->mag_info.s4s_dt_abort)
   {
     //Even after sending a DT Abort command, the hardware will still stay synchronized using the previous ST/DT pairs.
     //If there are many DT Aborts in a row, the synchronization will slowly drift until it is no longer good.

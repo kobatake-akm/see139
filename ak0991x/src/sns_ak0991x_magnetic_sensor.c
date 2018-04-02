@@ -257,11 +257,11 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   SNS_SUID_LOOKUP_INIT(state->suid_lookup_data, NULL);
 #ifdef AK0991X_ENABLE_DAE
   sns_suid_lookup_add(this, &state->suid_lookup_data, "data_acquisition_engine");
-#endif
+#endif // AK0991X_ENABLE_DAE
 #ifdef AK0991X_ENABLE_DRI
   sns_suid_lookup_add(this, &state->suid_lookup_data, "interrupt");
   sns_suid_lookup_add(this, &state->suid_lookup_data, "async_com_port");
-#endif // AK0991X_ENABLE_DAE
+#endif // AK0991X_ENABLE_DRI
   sns_suid_lookup_add(this, &state->suid_lookup_data, "timer");
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   sns_suid_lookup_add(this, &state->suid_lookup_data, "registry");
