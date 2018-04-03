@@ -1845,7 +1845,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
         }
       }
 
-//      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
+      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
  
       if(state->num_samples == 0)
       {
@@ -1921,6 +1921,7 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
   if(rc == SNS_RC_SUCCESS)
   {
     state->ascp_xfer_in_progress++;
+    SNS_INST_PRINTF(LOW, instance, "Succeeded sending request to ASCP");
   }
   else
   {
@@ -2182,6 +2183,8 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
                                       buffer,
                                       AK0991X_NUM_DATA_HXL_TO_ST2 * state->num_samples);
     }
+
+    state->heart_beat_attempt_count = 0;
   }
 
 #ifdef AK0991X_ENABLE_DRI
@@ -2191,7 +2194,6 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     ak0991x_register_heart_beat_timer(instance);
   }
 #endif
-  state->heart_beat_attempt_count = 0;
 }
 
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
@@ -2578,7 +2580,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_DRI
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
-    req_payload.is_periodic = true;
+    req_payload.is_periodic = false;
     req_payload.start_time = state->system_time;
     sample_period = sns_convert_ns_to_ticks(
         1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);

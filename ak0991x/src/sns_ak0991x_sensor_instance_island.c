@@ -260,6 +260,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               state->irq_event_time = irq_event.timestamp;
               state->irq_info.detect_irq_event = true; // detect interrupt
               state->system_time = sns_get_system_time();
+              AK0991X_INST_PRINT(LOW, this, "Data is ready. Detect interrupt.");
 
               if(state->system_time > irq_event.timestamp + state->averaged_interval)
               {
