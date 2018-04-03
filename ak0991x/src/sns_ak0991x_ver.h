@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/03/18     010062     AKM              Implement for handling dual SI parameter using device_mode_sensor.
  * 03/21/18     010060     AKM              Fixed S4S to care timestamp.
  * 03/21/18                AKM              Added registry item version number. Case# 03380028
  * 03/12/18     010059     AKM              Fixed S4S settings.

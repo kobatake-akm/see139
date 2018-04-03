@@ -109,6 +109,9 @@
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
 
+// this is setting for enable DEVICE_MODE_SENSOR (NOT IMPLEMENTED YET)
+//#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
+
 // To enabe DC-Lib, Change scons file.
 // (uncomment '-DAK0991X_ENABLE_DC' in ".../ak0991x/build/sns_ak0991x.scons")
 

@@ -1464,6 +1464,9 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   }
 
 #ifdef AK0991X_ENABLE_DC
+  // AK0991X_INST_PRINT(LOW, instance, "current DC param : dc[0]=%d dc[26]=%d",
+  //                                                   state->mag_registry_cfg.dc_param[0], 
+  //                                                   state->mag_registry_cfg.dc_param[26]);
   temp_flt[0] = opdata_raw[0];
   temp_flt[1] = opdata_raw[1];
   temp_flt[2] = opdata_raw[2];
@@ -2250,7 +2253,9 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   cal_event.comp_matrix.funcs.encode = &pb_encode_float_arr_cb;
   cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
   cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
-
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  cal_event.cal_id                   = state->device_mode;
+#endif
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
 
   pb_send_event(instance,
