@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/09/18                AKM              Fixed AK09915C/D read samples
  * 04/03/18     010062     AKM              Implement for handling dual SI parameter using device_mode_sensor.
  * 03/30/18     010061     AKM              Modified HB timer setting for crash when system is busy.
  * 03/21/18     010060     AKM              Fixed S4S to care timestamp.
