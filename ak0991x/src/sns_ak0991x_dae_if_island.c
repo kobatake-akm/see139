@@ -69,18 +69,18 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
   config_req.has_data_age_limit_ticks = true;
   config_req.data_age_limit_ticks =
     sns_convert_ns_to_ticks((uint64_t)mag_info->flush_period*1000ULL);
+  sns_time meas_usec;
+  ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 
   config_req.has_polling_config  = !mag_info->use_dri;
   if( config_req.has_polling_config )
   {
-    sns_time meas_usec;
-    ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 #ifdef AK0991X_ENABLE_S4S
     if (mag_info->use_sync_stream)
     {
       config_req.polling_config.polling_interval_ticks =
-        sns_convert_ns_to_ticks( 1000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
-                                 * AK0991X_S4S_INTERVAL_MS / (uint64_t) mag_info->s4s_t_ph );
+        sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
+                                / (uint64_t) mag_info->curr_odr );
     }
     else
     {
@@ -137,15 +137,15 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
       .request_len = 0
     };
 
-    //TODO: Is this T_Ph start moment at the first time?
+    //This is T_Ph start moment at the first time
     s4s_config_req.ideal_sync_offset = sns_get_system_time();
     s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
     s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
-    //TODO: Is this minimum time between T_PH start and ST/DT? or I2C communication time during ST/DT?
-    //RESP: st_delay is defined in the sns_dae.proto file
+    //st_delay is defined in the sns_dae.proto file
     //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
 
-    s4s_config_req.st_delay = 0;
+    s4s_config_req.st_delay = sns_convert_ns_to_ticks( meas_usec / 2 * 1000ULL );
+
 
     if((s4s_req.request_len =
         pb_encode_request(s4s_encoded_msg,
@@ -154,8 +154,7 @@ static bool send_mag_config(ak0991x_dae_stream *dae_stream, ak0991x_mag_info* ma
                           sns_dae_s4s_dynamic_config_fields,
                           NULL)) > 0)
     {
-      //TODO: Can the driver receive SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG periodically?
-      // Resp: The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
+      //The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
       if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
       {
       }
@@ -291,8 +290,14 @@ static void process_response(
       break;
 #ifdef AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
+      //The DAE environment will send the ST/DT messages to the HW automatically
+      //without involvement of either the normal mag sensor driver,
+      //or the mag sensor driver in DAE environment.
+      //The ST/DT messages will continue to be sent automatically until the PAUSE_S4S
+      //message is sent by the mag driver to the DAE.
+      //
       //Send ST/DT command
-      ak0991x_s4s_handle_timer_event(this);
+      //ak0991x_s4s_handle_timer_event(this);
       break;
 #endif // AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
@@ -403,22 +408,14 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 
         if(state->mag_info.use_dri)
         {
-#ifdef AK0991X_ENABLE_DRI
           ak0991x_register_interrupt(this);
-#endif
         }
         else
         {
+          ak0991x_register_timer(this);
           if(state->mag_info.use_sync_stream)
           {
-#ifdef AK0991X_ENABLE_S4S
             ak0991x_s4s_register_timer(this);
-            AK0991X_INST_PRINT(LOW, this, "done register_s4s_timer");
-#endif
-          }
-          else
-          {
-            ak0991x_register_timer(this);
           }
         }
       }
