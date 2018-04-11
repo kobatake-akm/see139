@@ -2112,7 +2112,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
         }
       }
     }
-    else // AK09912C / AK09915C / AK09915D
+    else // AK09915C / AK09915D
     {
       // sync flush
       //Continue reading until fifo buffer is clear
@@ -2120,7 +2120,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
       // QC - we recommend reading WM+1 samples then verifying that the last sample is
       // INV_FIFO_DATA; if the last sample is valid THEN start reading one sample at a time
       uint32_t i;
-      state->num_samples = 0;
+      state->num_samples = state->mag_info.max_fifo_size;
       for (i = 0; i < state->mag_info.max_fifo_size; i++)
       {
         //Read fifo buffer(HXL to ST2 register)
