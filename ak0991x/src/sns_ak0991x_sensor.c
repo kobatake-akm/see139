@@ -670,13 +670,17 @@ static void ak0991x_request_registry(sns_sensor *const this)
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PF_CONFIG);
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PLACE);
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_ORIENT);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL_2);
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_MAG_CONFIG);
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_REG_CONFIG);
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL);
 #ifdef AK0991X_ENABLE_DC
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_DC_PARAM);
+#endif
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL_2);
+#ifdef AK0991X_ENABLE_DC
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_DC_PARAM_2);
+#endif
 #endif
 #endif // AK0991X_ENABLE_DUAL_SENSOR
   }
@@ -797,7 +801,6 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       bool place;
       bool orient;
       bool faccal;
-      bool faccal_2;
       mag_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_MAG_CONFIG,
                            group_name.buf_len));
       reg_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_REG_CONFIG,
@@ -810,15 +813,20 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                              group_name.buf_len));
       faccal = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_FACCAL,
                              group_name.buf_len));
+#ifdef AK0991X_ENABLE_DC
+      bool dc_param;
+      dc_param = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_DC_PARAM,
+                             group_name.buf_len));
+#endif
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+      bool faccal_2;
       faccal_2 = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_FACCAL_2,
                              group_name.buf_len));
 #ifdef AK0991X_ENABLE_DC
-      bool dc_param;
       bool dc_param_2;
-      dc_param = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_DC_PARAM,
-                             group_name.buf_len));
       dc_param_2 = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_DC_PARAM_2,
                              group_name.buf_len));
+#endif
 #endif
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
       AK0991X_PRINT(LOW, this,
@@ -1181,6 +1189,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           //       state->fac_cal_bias[2]);
         }
       }
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
       else if (faccal_2)
       {
         {
@@ -1241,6 +1250,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
         }
       }
+#endif
       else
       {
         rv = false;
@@ -1350,10 +1360,14 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
      && state->registry_pf_cfg_received
      && state->registry_orient_received
      && state->registry_fac_cal_1_received
-     && state->registry_fac_cal_2_received
 #ifdef AK0991X_ENABLE_DC
      && state->registry_dc_param_1_received
+#endif
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+     && state->registry_fac_cal_2_received
+#ifdef AK0991X_ENABLE_DC
      && state->registry_dc_param_2_received
+#endif
 #endif
      && state->registry_placement_received)
   {
