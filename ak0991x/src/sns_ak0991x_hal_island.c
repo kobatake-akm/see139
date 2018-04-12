@@ -721,9 +721,9 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->reg_event_done = false;
 #ifdef AK0991X_ENABLE_DRI
   state->is_temp_average = false;
-#endif
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
+#endif  //AK0991X_ENABLE_DRI
   state->previous_meas_is_correct_wm = true;
 #ifdef AK0991X_ENABLE_S4S
   state->s4s_reg_event_done = false;
@@ -1610,6 +1610,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   }
 
   // store previous measurement is irq and also right WM
+#ifdef AK0991X_ENABLE_DRI
   if(state->mag_info.use_dri && state->irq_info.detect_irq_event)
   {
     state->previous_meas_is_irq = true;
@@ -1618,7 +1619,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     state->previous_meas_is_irq = false;
   }
-
+#endif
   if(state->mag_info.cur_wmk + 1 == state->num_samples)
   {
     state->previous_meas_is_correct_wm = true;
@@ -1632,7 +1633,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->pre_timestamp = timestamp;
 
   // reset flags
+#ifdef AK0991X_ENABLE_DRI
   state->irq_info.detect_irq_event = false;
+#endif //AK0991X_ENABLE_DRI
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = false;
 #endif
@@ -2768,17 +2771,21 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
-
+#ifdef AK0991X_ENABLE_DRI
   AK0991X_INST_PRINT(LOW, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
-
+#endif
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
+#ifdef AK0991X_ENABLE_DRI
     if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
         (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
         (!state->mag_info.use_dri))
     {
       ak0991x_start_mag_streaming(this);
     }
+#else 
+    ak0991x_start_mag_streaming(this);
+#endif //AK0991X_ENABLE_DRI
   }
   else
   {

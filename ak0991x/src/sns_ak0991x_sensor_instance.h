@@ -177,7 +177,7 @@ typedef struct ak0991x_irq_info
   bool is_ready;
   bool detect_irq_event;
 } ak0991x_irq_info;
-#endif
+#endif //AK0991X_ENABLE_DRI
 
 typedef struct ak0991x_async_com_port_info
 {
@@ -224,8 +224,8 @@ typedef struct ak0991x_instance_state
 #ifdef AK0991X_ENABLE_DRI
   bool is_temp_average;
   bool in_clock_error_procedure;
-#endif
   bool previous_meas_is_irq;
+#endif
   bool previous_meas_is_correct_wm;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
@@ -246,9 +246,10 @@ typedef struct ak0991x_instance_state
   /** Timer info */
   sns_sensor_uid timer_suid;
 
+#ifdef AK0991X_ENABLE_DRI
   /** Interrupt dependency info. */
   ak0991x_irq_info irq_info;
-
+#endif // AK0991X_ENABLE_DRI
   /** COM port info */
   ak0991x_com_port_info com_port_info;
 

@@ -630,6 +630,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_s4s_register_timer(this);
         }       
 #endif //AK0991X_ENABLE_DAE
+      }
       if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
       {
         ak0991x_send_config_event(this);

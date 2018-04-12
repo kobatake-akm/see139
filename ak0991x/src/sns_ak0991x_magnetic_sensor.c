@@ -166,6 +166,8 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #else
   AK0991X_PRINT(LOW, this, "SEE-Lite Mode.");
 
+#ifdef AK0991X_ENABLE_DRI
+
 #ifdef AK0991X_STATE_IS_DRI
   state->is_dri = true;
 #else
@@ -186,6 +188,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 
   state->nsf = 0;
   state->sdr = 0;
+#endif
   state->resolution_idx = 0;
   state->hardware_id = 0;
 

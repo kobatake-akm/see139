@@ -734,7 +734,7 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
 
   return rv;
 }
-#endif
+#endif //AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_DC
 static bool ak0991x_registry_parse_dc_param(sns_registry_data_item *reg_item,
                                                   pb_buffer_arg *item_name,
@@ -769,7 +769,7 @@ static bool ak0991x_registry_parse_dc_param(sns_registry_data_item *reg_item,
   }
   return rv;
 }
-#endif
+#endif //AK0991X_ENABLE_DC
 
 static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                                   sns_sensor_event *event)
@@ -875,11 +875,15 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         if(rv)
         {
           state->registry_cfg_received = true;
+#ifdef AK0991X_ENABLE_DRI
           state->is_dri = state->registry_cfg.is_dri;
+#endif //AK0991X_ENABLE_DRI
           state->hardware_id = state->registry_cfg.hw_id;
           state->resolution_idx = state->registry_cfg.res_idx;
+#ifdef AK0991X_ENABLE_S4S
           state->supports_sync_stream = state->registry_cfg.sync_stream;
-
+#endif //AK0991X_ENABLE_S4S
+#ifdef AK0991X_ENABLE_DRI
           AK0991X_PRINT(LOW, this, "is_dri:%d, hardware_id:%d ",
                                    state->is_dri,
                                    (uint32_t)state->hardware_id);
@@ -887,6 +891,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "resolution_idx:%d, supports_sync_stream:%d ",
                                    state->resolution_idx,
                                    state->supports_sync_stream);
+#endif //AK0991X_ENABLE_DRI
         }
       }
 #ifdef AK0991X_ENABLE_DRI
@@ -924,7 +929,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                    state->sdr);
         }
       }
-#endif
+#endif //AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_DC
       else if (dc_param)
       {
@@ -982,7 +987,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "read dc-parameter2 [0]:%d to [26]:%d", state->dc_param_2[0], state->dc_param_2[26]);
         }
       }
-#endif
+#endif //AK0991X_ENABLE_DC
       else if (pf_config)
       {
         {
@@ -1017,7 +1022,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->irq_config.is_chip_pin = state->registry_pf_cfg.irq_is_chip_pin;
           state->irq_config.interrupt_drive_strength = state->registry_pf_cfg.irq_drive_strength;
           state->irq_config.interrupt_trigger_type = state->registry_pf_cfg.irq_trigger_type;
-#endif
+#endif //AK0991X_ENABLE_DRI
           state->rail_config.num_of_rails = state->registry_pf_cfg.num_rail;
           state->registry_rail_on_state = state->registry_pf_cfg.rail_on_state;
           sns_strlcpy(state->rail_config.rails[0].name,
@@ -1046,7 +1051,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                      state->irq_config.interrupt_drive_strength,
                      state->irq_config.interrupt_trigger_type,
                      state->registry_pf_cfg.rigid_body_type);
-#endif
+#endif //AK0991X_ENABLE_DRI
           AK0991X_PRINT(LOW, this, "num_rail:%d, rail_on_state:%d",
                      state->rail_config.num_of_rails,
                      state->registry_rail_on_state);
@@ -1260,7 +1265,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
         }
       }
-#endif
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
       else
       {
         rv = false;
@@ -1295,14 +1300,18 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_boolean = true;
+#ifdef AK0991X_ENABLE_DRI
     value.boolean = state->is_dri;
+#endif
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
   }
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_boolean = true;
+#ifdef AK0991X_ENABLE_S4S
     value.boolean = state->supports_sync_stream;
+#endif
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
   }
@@ -1410,8 +1419,9 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
                                 akm_device_type device_select)
 {
 #ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S)
  ak0991x_state *state = (ak0991x_state *)this->state->state;
-
+#endif
  {
    sns_std_attr_value_data values[] = {SNS_ATTR};
 
@@ -1562,14 +1572,18 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  {
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
    value.has_boolean = true;
+#ifdef AK0991X_ENABLE_DRI
    value.boolean = (state->is_dri ? ak0991x_dev_info_array[device_select].supports_dri : false);
+#endif
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
  }
  {
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
    value.has_boolean = true;
+#ifdef AK0991X_ENABLE_S4S
    value.boolean = (state->supports_sync_stream ? ak0991x_dev_info_array[device_select].supports_sync_stream : false);
+#endif
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
  }
