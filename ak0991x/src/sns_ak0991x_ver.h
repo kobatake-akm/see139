@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/12/18     010066     AKM              Modified for AK09918
+ * 04/12/18                AKM              Modified for 0 gap detection on MAG-024/025/026 with S4S mode.
  * 04/12/18     010065     AKM              Modified for SEE_LITE_MODE again.
  * 04/12/18     010064     AKM              Modified for SEE_LITE_MODE.
  * 04/09/18     010063     AKM              Modified DAE settings.
@@ -137,4 +139,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10065  // major:01 minor:00 revision:65
+#define AK0991X_DRIVER_VERSION 10066  // major:01 minor:00 revision:66
