@@ -2478,12 +2478,12 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_water_mark = false;
     phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09916_HI_PWR;
+    phy_sensor_config.active_current = AK09918_HI_PWR;
     phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09916_RESOLUTION;
+    phy_sensor_config.resolution = AK09918_RESOLUTION;
     phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09916_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+    phy_sensor_config.range[0] = AK09918_MIN_RANGE;
+    phy_sensor_config.range[1] = AK09918_MAX_RANGE;
     break;
 #endif
   default:

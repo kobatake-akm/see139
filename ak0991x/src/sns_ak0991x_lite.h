@@ -75,6 +75,8 @@
 #define AK0991X_ENABLE_DRI
 #define AK0991X_ENABLE_FIFO
 #define AK0991X_ENABLE_S4S
+#elif   defined(AK0991X_TARGET_AK09918)
+#define AK0991X_FORCE_MAX_ODR_50HZ
 #endif
 
 //TODO:3 Define macros for DRI/FIFO/S4S mode if the target device has the feature.
