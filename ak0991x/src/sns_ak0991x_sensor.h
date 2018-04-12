@@ -249,31 +249,34 @@ typedef struct ak0991x_state
 
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  uint8_t                 device_mode;
-#endif
   // factory calibration
   bool                    registry_fac_cal_1_received;
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
   uint32_t                fac_cal_version;
-
-  bool                    registry_fac_cal_2_received;
-  matrix3                 fac_cal_corr_mat_2;
-  float                   fac_cal_bias_2[TRIAXIS_NUM];
-  float                   fac_cal_scale_2[TRIAXIS_NUM];
-
 #ifdef AK0991X_ENABLE_DC
   // dc_parameter
   bool                    registry_dc_param_1_received;
   uint8_t                 dc_param[AKSC_PDC_SIZE];
   ak0991x_dc_parameter    reg_dc_param;
+#endif
 
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  uint8_t                 device_mode;
+
+  bool                    registry_fac_cal_2_received;
+  matrix3                 fac_cal_corr_mat_2;
+  float                   fac_cal_bias_2[TRIAXIS_NUM];
+  float                   fac_cal_scale_2[TRIAXIS_NUM];
+#ifdef AK0991X_ENABLE_DC
   bool                    registry_dc_param_2_received;
   uint8_t                 dc_param_2[AKSC_PDC_SIZE];
   ak0991x_dc_parameter    reg_dc_param_2;
 #endif
+#endif
+
+
   // placement
   bool                    registry_placement_received;
   float                   placement[12];
