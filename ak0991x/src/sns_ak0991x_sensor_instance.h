@@ -207,7 +207,9 @@ typedef struct ak0991x_instance_state
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
   uint8_t flush_sample_count;
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool this_is_first_data;
+#endif
   bool data_over_run;
   bool data_is_ready;
   bool re_read_data_after_ascp;

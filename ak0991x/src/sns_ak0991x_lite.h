@@ -31,12 +31,12 @@
  */
 
 // TODO:1 Enable below macro to set SEE Lite mode
-//#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
+#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
 
 #ifdef AK0991X_ENABLE_SEE_LITE
 // SEE-Lite Mode. Require to select a target device and configure mode setting.
 
-//#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
+#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
 //#define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
 //#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 //#define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
