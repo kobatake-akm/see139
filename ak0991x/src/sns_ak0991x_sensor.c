@@ -706,17 +706,19 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
       (ak0991x_registry_phy_sensor_cfg *)parsed_buffer;
 
     if(0 == strncmp((char*)item_name->buf,
-                    "use_fifo",
-                    item_name->buf_len))
-    {
-      cfg->use_fifo = (reg_item->sint == 1) ? true : false;
-    }
-    else if(0 == strncmp((char*)item_name->buf,
                          "nsf",
                          item_name->buf_len))
     {
       cfg->nsf = reg_item->sint;
     }
+#ifndef AK0991X_TARGET_AK09916C
+    else if(0 == strncmp((char*)item_name->buf,
+                    "use_fifo",
+                    item_name->buf_len))
+    {
+      cfg->use_fifo = (reg_item->sint == 1) ? true : false;
+    }
+#endif
     else if(0 == strncmp((char*)item_name->buf,
                          "sdr",
                          item_name->buf_len))
@@ -906,7 +908,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         if(rv)
         {
           state->registry_reg_cfg_received = true;
+#ifndef AK0991X_TARGET_AK09916C
           state->use_fifo = state->registry_reg_cfg.use_fifo;
+#endif
           state->nsf = state->registry_reg_cfg.nsf;
           state->sdr = state->registry_reg_cfg.sdr;
 
@@ -1702,14 +1706,14 @@ static bool ak0991x_extract_self_test_info(
 {
   sns_std_request decoded_request;
   sns_physical_sensor_test_config test_config = sns_physical_sensor_test_config_init_default;
-  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
+  // ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
   ak0991x_self_test_info *self_test_info;
 
 #ifndef AK0991X_ENABLE_DEBUG_MSG
   UNUSED_VAR(this);
 #endif
 
-  self_test_info = &inst_state->mag_info.test_info;
+  self_test_info = &((ak0991x_instance_state*)instance->state->state)->mag_info.test_info;
 
   if(ak0991x_get_decoded_self_test_request(
       this,
@@ -1957,10 +1961,10 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             if (NULL != instance)
             {
               AK0991X_PRINT(LOW, this, "state = SET_CLIENT_REQ && instance is Not NULL");
-              ak0991x_instance_state *inst_state =
-                (ak0991x_instance_state*) instance->state->state;
+              // ak0991x_instance_state *inst_state =
+                // (ak0991x_instance_state*) instance->state->state;
               ak0991x_reval_instance_config(this, instance);
-              if(inst_state->new_self_test_request)
+              if(((ak0991x_instance_state*) instance->state->state)->new_self_test_request)
               {
                 AK0991X_PRINT(LOW, this, "new_self_test_request = true");
                 ak0991x_set_self_test_inst_config(this, instance);
@@ -2098,14 +2102,14 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 
     if (NULL != instance)
     {
-      ak0991x_instance_state *inst_state =
-        (ak0991x_instance_state *)instance->state->state;
+      // ak0991x_instance_state *inst_state =
+        // (ak0991x_instance_state *)instance->state->state;
 
       if(SNS_STD_MSGID_SNS_STD_FLUSH_REQ != new_request->message_id)
       {
         // if self-test is running,
         // Keep the exist_request and Reject the incoming stream request.
-        if (!inst_state->new_self_test_request)
+        if (!((ak0991x_instance_state *)instance->state->state)->new_self_test_request)
         {
           // An existing client is changing request
           if (NULL != exist_request)
@@ -2153,7 +2157,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             if(ak0991x_extract_self_test_info(this, instance, new_request))
             {
               AK0991X_PRINT(LOW, this, "new_self_test_request = true");
-              inst_state->new_self_test_request = true;
+              ((ak0991x_instance_state *)instance->state->state)->new_self_test_request = true;
 
               AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
               ak0991x_set_self_test_inst_config(this, instance);
@@ -2172,7 +2176,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
       else // handle Flush request without adding to request list
       {
-        if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+        if(((ak0991x_instance_state *)instance->state->state)->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
         {
           ak0991x_send_flush_config(this, instance);
         }
@@ -2200,9 +2204,9 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
          NULL != sensor;
          sensor = this->cb->get_library_sensor(this, false))
     {
-      ak0991x_state *sensor_state = (ak0991x_state *)sensor->state->state;
+      // ak0991x_state *sensor_state = (ak0991x_state *)sensor->state->state;
 
-      if (sensor_state->rail_config.rail_vote != SNS_RAIL_OFF)
+      if (((ak0991x_state *)sensor->state->state)->rail_config.rail_vote != SNS_RAIL_OFF)
       {
 #ifdef AK0991X_ENABLE_POWER_RAIL
         ak0991x_start_power_rail_timer(this,
@@ -2368,8 +2372,8 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
     void *const *arg)
 {
   pb_arg_reg_group_arg* pb_arg = (pb_arg_reg_group_arg*)*arg;
-  ak0991x_instance_state *state =
-     (ak0991x_instance_state*)pb_arg->instance->state->state;
+  // ak0991x_instance_state *state =
+  //    (ak0991x_instance_state*)pb_arg->instance->state->state;
 
   if(0 == strncmp(pb_arg->name,"bias",strlen("bias")))
   {
@@ -2386,8 +2390,8 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
       pb_item.has_flt = true;
       pb_item.has_version = true;
 
-      pb_item.flt = state->mag_registry_cfg.fac_cal_bias[i];
-      pb_item.version = state->mag_registry_cfg.version;
+      pb_item.flt = ((ak0991x_instance_state*)pb_arg->instance->state->state)->mag_registry_cfg.fac_cal_bias[i];
+      pb_item.version = ((ak0991x_instance_state*)pb_arg->instance->state->state)->mag_registry_cfg.version;
 
       if(!pb_encode_tag_for_field(stream, field))
         return false;
@@ -2415,8 +2419,8 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
       pb_item.name.arg = &name_data;
       pb_item.has_flt = true;
       pb_item.has_version = true;
-      pb_item.flt = state->mag_registry_cfg.fac_cal_corr_mat.data[i];
-      pb_item.version = state->mag_registry_cfg.version;
+      pb_item.flt = ((ak0991x_instance_state*)pb_arg->instance->state->state)->mag_registry_cfg.fac_cal_corr_mat.data[i];
+      pb_item.version = ((ak0991x_instance_state*)pb_arg->instance->state->state)->mag_registry_cfg.version;
 
       if(!pb_encode_tag_for_field(stream, field))
         return false;
@@ -2435,8 +2439,8 @@ static bool
 ak0991x_encode_registry_cb(struct pb_ostream_s *stream, struct pb_field_s const *field,
     void *const *arg)
 {
-  pb_arg_reg_group_arg *reg_arg = (pb_arg_reg_group_arg*)*arg;
- sns_sensor_instance *instance = reg_arg->instance;
+  // pb_arg_reg_group_arg *reg_arg = (pb_arg_reg_group_arg*)*arg;
+ sns_sensor_instance *instance = ((pb_arg_reg_group_arg*)*arg)->instance;
  char const *names[] = {"bias", "corr_mat"};
 
  for(int i = 0; i < ARR_SIZE(names); i++)
@@ -2449,7 +2453,7 @@ ak0991x_encode_registry_cb(struct pb_ostream_s *stream, struct pb_field_s const 
    };
 
    pb_item.has_version = true;
-   pb_item.version = reg_arg->version;
+   pb_item.version = ((pb_arg_reg_group_arg*)*arg)->version;
    pb_item.name.arg = &name_data;
    pb_item.name.funcs.encode = &pb_encode_string_cb;
 
@@ -2494,8 +2498,8 @@ void ak0991x_update_registry(sns_sensor *const this,
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   pb_arg_reg_group_arg arg = {.instance = instance };
 
-  ak0991x_instance_state *inst_state =
-            (ak0991x_instance_state*)instance->state->state;
+  // ak0991x_instance_state *inst_state =
+  //           (ak0991x_instance_state*)instance->state->state;
 
   uint8_t buffer[1000];
   int32_t encoded_len;
@@ -2509,7 +2513,7 @@ void ak0991x_update_registry(sns_sensor *const this,
 
   name_data = (pb_buffer_arg)
         { .buf = name, .buf_len = strlen(name) + 1 };
-  arg.version = inst_state->mag_registry_cfg.version;
+  arg.version = ((ak0991x_instance_state*)instance->state->state)->mag_registry_cfg.version;
 
   write_req.name.funcs.encode = &pb_encode_string_cb;
   write_req.name.arg = &name_data;
