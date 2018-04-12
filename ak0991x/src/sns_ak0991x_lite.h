@@ -31,7 +31,7 @@
  */
 
 // TODO:1 Enable below macro to set SEE Lite mode
-//#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
+#define AK0991X_ENABLE_SEE_LITE           // Enable SEE-Lite mode
 
 #ifdef AK0991X_ENABLE_SEE_LITE
 // SEE-Lite Mode. Require to select a target device and configure mode setting.
@@ -42,6 +42,7 @@
 //#define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
 //#define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 //#define AK0991X_ENABLE_DEINIT             // Enable deinit call
+//#define AK0991X_ENABLE_REG_ITEM_VERSION   // Enable registry item version
 
 //TODO:2 Please select a target device for SEE-Lite
 //#define AK0991X_TARGET_AK09911
@@ -110,6 +111,7 @@
 //#define AK0991X_ENABLE_FIFO               // Enable FIFO
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
+#define AK0991X_ENABLE_REG_ITEM_VERSION   // Enable registry item version
 
 // this is setting for enable DEVICE_MODE_SENSOR (NOT IMPLEMENTED YET)
 //#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor

@@ -191,7 +191,9 @@ typedef struct sns_ak0991x_registry_cfg
 #ifdef AK0991X_ENABLE_DC
   uint8_t             dc_param[AKSC_PDC_SIZE];
 #endif
+#ifdef  AK0991X_ENABLE_REG_ITEM_VERSION
   uint32_t            version;
+#endif
 }sns_ak0991x_registry_cfg;
 
 /** Private state. */

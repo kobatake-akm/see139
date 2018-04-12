@@ -261,7 +261,10 @@ typedef struct ak0991x_state
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
+#ifdef AK0991X_ENABLE_REG_ITEM_VERSION
   uint32_t                fac_cal_version;
+#endif
+
 #ifdef AK0991X_ENABLE_DC
   // dc_parameter
   bool                    registry_dc_param_1_received;
