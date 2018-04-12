@@ -588,7 +588,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     return rv;
   }
 
-  akm_device_type device_select = state->mag_info.device_select;
+
 
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || \
     defined(AK0991X_TARGET_AK09912) || \
@@ -596,6 +596,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     defined(AK0991X_TARGET_AK09915D) || \
     defined(AK0991X_TARGET_AK09917)
 
+  akm_device_type device_select = state->mag_info.device_select;
   uint16_t cur_wmk = state->mag_info.cur_wmk;
 
   // Configure control register 1
@@ -632,11 +633,12 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     | (uint8_t)desired_odr; // MODE[4:0] bits
 #endif
 
+#ifdef AK0991X_ENABLE_DRI
   // Force 100Hz DRI measurement starts to get the clock error.
   if(!force_off && state->mag_info.use_dri && (state->mag_info.clock_error_meas_count == 0) && !state->in_clock_error_procedure)
   {
     buffer[0] = 0x0;
-    if (device_select == AK09917)
+    if (state->mag_info.device_select == AK09917)
     {
       buffer[1] = 0x0
 //        | (0x01 << 7)                              // FIFO bit, FIFO enable for AK09917 RevA Bug
@@ -654,6 +656,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 
     state->in_clock_error_procedure = true;
   }
+#endif
 
   return ak0991x_com_write_wrapper(this,
                                    scp_service,
@@ -707,14 +710,18 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   state->system_time = sns_get_system_time();
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = true;
+#endif
   state->mag_info.data_count = 0;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = state->system_time;
   state->irq_event_time = state->system_time;
   state->reg_event_done = false;
+#ifdef AK0991X_ENABLE_DRI
   state->is_temp_average = false;
+#endif
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
   state->previous_meas_is_correct_wm = true;
@@ -1554,6 +1561,8 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
   size_t num_bytes_to_report;
   num_bytes_to_report = num_bytes;
+
+#ifdef AK0991X_ENABLE_FIFO
   int8_t over_sample;
 
   //skip the data to adjust timing for Polling+FIFO
@@ -1573,6 +1582,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
       num_bytes_to_report -= over_sample * 8;
     }
   }
+#endif
 
   for(i = 0; i < num_bytes_to_report; i += 8)
   {
@@ -1623,7 +1633,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
   // reset flags
   state->irq_info.detect_irq_event = false;
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = false;
+#endif
 
   state->this_is_the_last_flush = false;
   if(state->fifo_flush_in_progress)
@@ -1943,6 +1955,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     rc |= SNS_RC_FAILED;
   }
 
+#ifdef AK0991X_ENABLE_DRI
   if(state->fifo_flush_in_progress && state->in_clock_error_procedure)
   {
     // whether IRQ detected or not, no flushing can be done during clock error procedure
@@ -1950,8 +1963,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     rc |= SNS_RC_FAILED;
     complete_flush = true;
   }
-
-#ifdef AK0991X_ENABLE_DRI
 
   if(state->mag_info.use_dri &&
      !state->irq_info.detect_irq_event &&
@@ -2199,22 +2210,25 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t num_count = 0;
 
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
     if(state->mag_info.use_dri) // DRI mode
     {
+#ifdef AK0991X_ENABLE_DRI
       if(!state->irq_info.detect_irq_event) // flush request received.
       {
         ak0991x_get_st1_status(instance);
       }
       // else, use state->num_samples when check DRDY status by INTERRUPT_EVENT
+#endif //AK0991X_ENABLE_DRI
     }
     else  // Polling mode
     {
       if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)
       {
+#if defined(AK0991X_ENABLE_FIFO) || defined(AK0991X_ENABLE_S4S)
+        uint8_t num_count = 0;
         ak0991x_get_st1_status(instance);
 
         // check num_samples when the last fifo flush to prevent negative timestamp
@@ -2226,8 +2240,9 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
           }
           state->num_samples = num_count;
         }
+#endif // defined(AK0991X_ENABLE_FIFO) || defined(AK0991X_ENABLE_S4S)
       }
-      else // no FIFO or S4S
+      else // no FIFO
       {
         ak0991x_get_st1_status(instance);
         state->num_samples = 1;

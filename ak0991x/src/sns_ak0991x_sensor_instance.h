@@ -207,7 +207,9 @@ typedef struct ak0991x_instance_state
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
   uint8_t flush_sample_count;
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool this_is_first_data;
+#endif
   bool data_over_run;
   bool data_is_ready;
   bool re_read_data_after_ascp;
@@ -219,8 +221,10 @@ typedef struct ak0991x_instance_state
 #ifdef AK0991X_ENABLE_S4S
   bool s4s_reg_event_done;
 #endif
+#ifdef AK0991X_ENABLE_DRI
   bool is_temp_average;
   bool in_clock_error_procedure;
+#endif
   bool previous_meas_is_irq;
   bool previous_meas_is_correct_wm;
   sns_time interrupt_timestamp;
