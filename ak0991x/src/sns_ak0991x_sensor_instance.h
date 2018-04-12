@@ -169,7 +169,7 @@ typedef struct ak0991x_mag_info
   bool                   s4s_dt_abort;
 #endif // AK0991X_ENABLE_S4S
 } ak0991x_mag_info;
-
+#ifdef AK0991X_ENABLE_DRI
 typedef struct ak0991x_irq_info
 {
   sns_interrupt_req irq_config;
@@ -177,7 +177,7 @@ typedef struct ak0991x_irq_info
   bool is_ready;
   bool detect_irq_event;
 } ak0991x_irq_info;
-
+#endif
 
 typedef struct ak0991x_async_com_port_info
 {

@@ -447,6 +447,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
   Public Functions
   ======================================================================================*/
 /* ------------------------------------------------------------------------------------ */
+#ifdef AK0991X_ENABLE_DAE
 bool ak0991x_dae_if_available(sns_sensor_instance *this)
 {
 #ifdef AK0991X_ENABLE_DAE
@@ -457,7 +458,7 @@ bool ak0991x_dae_if_available(sns_sensor_instance *this)
   return false;
 #endif
 }
-
+#endif //AK0991X_ENABLE_DAE
 /* ------------------------------------------------------------------------------------ */
 sns_rc ak0991x_dae_if_init(
   sns_sensor_instance  *const this,
