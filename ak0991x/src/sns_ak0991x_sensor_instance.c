@@ -636,7 +636,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_send_config_event(this);
       }
     }
-#ifdef AK0991X_ENABLE_REG_ITEM_VERSION
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
     // update registry configuration
     if(payload->registry_cfg.version >= state->mag_registry_cfg.version)
     {

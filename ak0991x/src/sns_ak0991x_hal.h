@@ -700,7 +700,7 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance);
  */
 void ak0991x_send_cal_event(sns_sensor_instance * const instance);
 
-#ifdef AK0991X_ENABLE_REG_ITEM_VERSION
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 /**
  * Reset Calibration values
  *
