@@ -719,7 +719,9 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->heart_beat_timestamp = state->system_time;
   state->irq_event_time = state->system_time;
   state->reg_event_done = false;
+#ifdef AK0991X_ENABLE_DRI
   state->is_temp_average = false;
+#endif
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
   state->previous_meas_is_correct_wm = true;
@@ -1559,6 +1561,8 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
   size_t num_bytes_to_report;
   num_bytes_to_report = num_bytes;
+
+#ifdef AK0991X_ENABLE_FIFO
   int8_t over_sample;
 
   //skip the data to adjust timing for Polling+FIFO
@@ -1578,6 +1582,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
       num_bytes_to_report -= over_sample * 8;
     }
   }
+#endif
 
   for(i = 0; i < num_bytes_to_report; i += 8)
   {
@@ -2205,22 +2210,25 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t num_count = 0;
 
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
     if(state->mag_info.use_dri) // DRI mode
     {
+#ifdef AK0991X_ENABLE_DRI
       if(!state->irq_info.detect_irq_event) // flush request received.
       {
         ak0991x_get_st1_status(instance);
       }
       // else, use state->num_samples when check DRDY status by INTERRUPT_EVENT
+#endif //AK0991X_ENABLE_DRI
     }
     else  // Polling mode
     {
       if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)
       {
+#if defined(AK0991X_ENABLE_FIFO) || defined(AK0991X_ENABLE_S4S)
+        uint8_t num_count = 0;
         ak0991x_get_st1_status(instance);
 
         // check num_samples when the last fifo flush to prevent negative timestamp
@@ -2232,8 +2240,9 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
           }
           state->num_samples = num_count;
         }
+#endif // defined(AK0991X_ENABLE_FIFO) || defined(AK0991X_ENABLE_S4S)
       }
-      else // no FIFO or S4S
+      else // no FIFO
       {
         ak0991x_get_st1_status(instance);
         state->num_samples = 1;
