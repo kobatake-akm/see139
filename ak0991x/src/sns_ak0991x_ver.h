@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/12/18     010065     AKM              Modified for SEE_LITE_MODE again.
  * 04/12/18     010064     AKM              Modified for SEE_LITE_MODE.
  * 04/09/18     010063     AKM              Modified DAE settings.
  * 04/09/18                AKM              Fixed AK09915C/D read samples.
@@ -136,4 +137,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10064  // major:01 minor:00 revision:64
+#define AK0991X_DRIVER_VERSION 10065  // major:01 minor:00 revision:65
