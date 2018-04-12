@@ -22,7 +22,13 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 03/26/18     010061     AKM              Fixed calculating sample num on S4S mode. Related failed on MAG-024,MAG-025,MAG-026
+ * 04/12/18     010065     AKM              Modified for SEE_LITE_MODE again.
+ * 04/12/18     010064     AKM              Modified for SEE_LITE_MODE.
+ * 04/09/18     010063     AKM              Modified DAE settings.
+ * 04/09/18                AKM              Fixed AK09915C/D read samples.
+ * 04/11/18     010062     AKM              Protect several code for dual SI parameter by macro.
+ * 04/03/18                AKM              Implement for handling dual SI parameter using device_mode_sensor.
+ * 03/30/18     010061     AKM              Modified HB timer setting for crash when system is busy.
  * 03/21/18     010060     AKM              Fixed S4S to care timestamp.
  * 03/21/18                AKM              Added registry item version number. Case# 03380028
  * 03/12/18     010059     AKM              Fixed S4S settings.
@@ -131,4 +137,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10061  // major:01 minor:00 revision:61
+#define AK0991X_DRIVER_VERSION 10065  // major:01 minor:00 revision:65

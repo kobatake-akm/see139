@@ -36,7 +36,7 @@
 #ifdef AK0991X_ENABLE_SEE_LITE
 // SEE-Lite Mode. Require to select a target device and configure mode setting.
 
-//#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
+#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
 //#define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
 //#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 //#define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
@@ -75,6 +75,8 @@
 #define AK0991X_ENABLE_DRI
 #define AK0991X_ENABLE_FIFO
 #define AK0991X_ENABLE_S4S
+#elif   defined(AK0991X_TARGET_AK09918)
+#define AK0991X_FORCE_MAX_ODR_50HZ
 #endif
 
 //TODO:3 Define macros for DRI/FIFO/S4S mode if the target device has the feature.
@@ -101,13 +103,16 @@
 #define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
 #define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 #define AK0991X_ENABLE_DEINIT             // Enable deinit call
-#define AK0991X_ENABLE_S4S                // Enable S4S parts
+//#define AK0991X_ENABLE_S4S                // Enable S4S parts
 #define AK0991X_ENABLE_ALL_DEVICES        // Enable AKM all sensors
 #define AK0991X_ENABLE_FUSE               // Enable fuse rom
-#define AK0991X_ENABLE_DRI                // Enable DRI
-#define AK0991X_ENABLE_FIFO               // Enable FIFO
+//#define AK0991X_ENABLE_DRI                // Enable DRI
+//#define AK0991X_ENABLE_FIFO               // Enable FIFO
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
+
+// this is setting for enable DEVICE_MODE_SENSOR (NOT IMPLEMENTED YET)
+//#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
 
 // To enabe DC-Lib, Change scons file.
 // (uncomment '-DAK0991X_ENABLE_DC' in ".../ak0991x/build/sns_ak0991x.scons")

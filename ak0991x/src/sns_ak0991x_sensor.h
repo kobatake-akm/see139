@@ -57,7 +57,9 @@
 #define AK0991X_REGISTRY_0_PLACE       "ak0991x_0_platform.placement"
 #define AK0991X_REGISTRY_0_ORIENT      "ak0991x_0_platform.orient"
 #define AK0991X_REGISTRY_0_FACCAL      "ak0991x_0_platform.mag.fac_cal"
+#define AK0991X_REGISTRY_0_FACCAL_2    "ak0991x_0_platform.mag.fac_cal_2"
 #define AK0991X_REGISTRY_0_DC_PARAM    "ak0991x_0_platform.mag.dc_param"
+#define AK0991X_REGISTRY_0_DC_PARAM_2  "ak0991x_0_platform.mag.dc_param_2"
 #define AK0991X_REGISTRY_0_MAG_CONFIG  "ak0991x_0.mag.config"
 #define AK0991X_REGISTRY_0_REG_CONFIG  "ak0991x_0.mag.config_2"
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
@@ -177,12 +179,14 @@ typedef enum
 /** Registry items supported as part of physical sensor
  *  configuraton registry group
  */
+#ifdef AK0991X_ENABLE_DRI
 typedef struct ak0991x_registry_phy_sensor_cfg
 {
   bool    use_fifo;
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
+#endif
 #ifdef AK0991X_ENABLE_DC
 typedef struct ak0991x_dc_parameter
 {
@@ -203,8 +207,9 @@ typedef struct ak0991x_state
   SNS_SUID_LOOKUP_DATA(5) suid_lookup_data;
 
   ak0991x_com_port_info com_port_info;
+#ifdef AK0991X_ENABLE_DRI
   sns_interrupt_req      irq_config;
-
+#endif
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
   sns_power_rail_state  registry_rail_on_state;
@@ -220,11 +225,13 @@ typedef struct ak0991x_state
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
 
   // sensor configuration
+#ifdef AK0991X_ENABLE_DRI
   bool is_dri;
   bool supports_sync_stream;
   bool use_fifo;
   uint8_t nsf;
   uint8_t sdr;
+#endif
   uint8_t resolution_idx;
   int64_t hardware_id;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
@@ -236,8 +243,10 @@ typedef struct ak0991x_state
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
   // registry sensor reg config
+#ifdef AK0991X_ENABLE_DRI
   bool registry_reg_cfg_received;
   ak0991x_registry_phy_sensor_cfg registry_reg_cfg;
+#endif
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
@@ -248,18 +257,33 @@ typedef struct ak0991x_state
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
   // factory calibration
-  bool                    registry_fac_cal_received;
+  bool                    registry_fac_cal_1_received;
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
   uint32_t                fac_cal_version;
-
 #ifdef AK0991X_ENABLE_DC
   // dc_parameter
+  bool                    registry_dc_param_1_received;
   uint8_t                 dc_param[AKSC_PDC_SIZE];
-  bool                    registry_dc_param_received;
   ak0991x_dc_parameter    reg_dc_param;
 #endif
+
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  uint8_t                 device_mode;
+
+  bool                    registry_fac_cal_2_received;
+  matrix3                 fac_cal_corr_mat_2;
+  float                   fac_cal_bias_2[TRIAXIS_NUM];
+  float                   fac_cal_scale_2[TRIAXIS_NUM];
+#ifdef AK0991X_ENABLE_DC
+  bool                    registry_dc_param_2_received;
+  uint8_t                 dc_param_2[AKSC_PDC_SIZE];
+  ak0991x_dc_parameter    reg_dc_param_2;
+#endif
+#endif
+
+
   // placement
   bool                    registry_placement_received;
   float                   placement[12];

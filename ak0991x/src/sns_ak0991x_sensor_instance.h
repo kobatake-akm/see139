@@ -169,7 +169,7 @@ typedef struct ak0991x_mag_info
   bool                   s4s_dt_abort;
 #endif // AK0991X_ENABLE_S4S
 } ak0991x_mag_info;
-
+#ifdef AK0991X_ENABLE_DRI
 typedef struct ak0991x_irq_info
 {
   sns_interrupt_req irq_config;
@@ -177,7 +177,7 @@ typedef struct ak0991x_irq_info
   bool is_ready;
   bool detect_irq_event;
 } ak0991x_irq_info;
-
+#endif //AK0991X_ENABLE_DRI
 
 typedef struct ak0991x_async_com_port_info
 {
@@ -207,7 +207,9 @@ typedef struct ak0991x_instance_state
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
   uint8_t flush_sample_count;
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool this_is_first_data;
+#endif
   bool data_over_run;
   bool data_is_ready;
   bool re_read_data_after_ascp;
@@ -219,9 +221,11 @@ typedef struct ak0991x_instance_state
 #ifdef AK0991X_ENABLE_S4S
   bool s4s_reg_event_done;
 #endif
+#ifdef AK0991X_ENABLE_DRI
   bool is_temp_average;
   bool in_clock_error_procedure;
   bool previous_meas_is_irq;
+#endif
   bool previous_meas_is_correct_wm;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
@@ -242,9 +246,10 @@ typedef struct ak0991x_instance_state
   /** Timer info */
   sns_sensor_uid timer_suid;
 
+#ifdef AK0991X_ENABLE_DRI
   /** Interrupt dependency info. */
   ak0991x_irq_info irq_info;
-
+#endif // AK0991X_ENABLE_DRI
   /** COM port info */
   ak0991x_com_port_info com_port_info;
 
@@ -279,7 +284,9 @@ typedef struct ak0991x_instance_state
 
   /**----------Sensor specific registry configuration----------*/
   sns_ak0991x_registry_cfg mag_registry_cfg;
-
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  uint8_t                  device_mode;
+#endif
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
   size_t           log_raw_encoded_size;
