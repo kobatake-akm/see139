@@ -1404,7 +1404,9 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   float ipdata[TRIAXIS_NUM] = {0}, opdata_raw[TRIAXIS_NUM] = {0};
   int16_t lsbdata[TRIAXIS_NUM] = {0};
+#ifdef AK0991X_ENABLE_FIFO
   uint8_t inv_fifo_bit;
+#endif
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
@@ -1426,25 +1428,30 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
+#ifdef AK0991X_ENABLE_FIFO
   // Check magnetic sensor overflow (and invalid data for FIFO)
   inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
+#endif
 
   status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 
-  if ((mag_sample[7] & (inv_fifo_bit)) != 0)
-  {
-    AK0991X_INST_PRINT(LOW, instance, "INV=1, use previous data.");
-    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
-    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
-    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
-  }
-  else if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0)
+
+  if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0)
   {
     AK0991X_INST_PRINT(LOW, instance, "HOFL_BIT=1, use previous data.");
     lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
     lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
     lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
   }
+#ifdef AK0991X_ENABLE_FIFO
+  else if ((mag_sample[7] & (inv_fifo_bit)) != 0)
+  {
+    AK0991X_INST_PRINT(LOW, instance, "INV=1, use previous data.");
+    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
+    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
+    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
+  }
+#endif
   else if(!state->mag_info.use_dri && !state->mag_info.use_fifo && !state->data_is_ready)
   {
     AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. Use previous data");
@@ -1609,6 +1616,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     }
   }
 
+#ifdef AK0991X_ENABLE_DRI
   // store previous measurement is irq and also right WM
   if(state->mag_info.use_dri && state->irq_info.detect_irq_event)
   {
@@ -1618,6 +1626,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     state->previous_meas_is_irq = false;
   }
+#else
+  state->previous_meas_is_irq = false;
+#endif
 
   if(state->mag_info.cur_wmk + 1 == state->num_samples)
   {
@@ -2096,9 +2107,10 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
 static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
 
 #ifdef AK0991X_ENABLE_FIFO
+  uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
+
   // FIFO mode
   if(state->mag_info.use_fifo)
   {
@@ -2162,6 +2174,8 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     }
   }
 #else
+  uint8_t buffer[1];
+
   state->num_samples = 1;
   if(state->data_is_ready)
   {
@@ -2283,6 +2297,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                 &state->mag_info.suid);
 }
 
+#ifndef AK0991X_ENABLE_SEE_LITE
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -2299,6 +2314,7 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
   }
   state->mag_registry_cfg.version++;
 }
+#endif
 
 /** See sns_ak0991x_hal.h */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
@@ -2667,6 +2683,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.start_config.early_start_delta = 0;
     req_payload.start_config.late_start_delta = sample_period * 2;
 
+#ifdef AK0991X_ENABLE_FIFO
     if (state->mag_info.use_fifo)
     {
       req_payload.timeout_period = sample_period * (state->mag_info.cur_wmk + 1);
@@ -2682,6 +2699,11 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     state->heart_beat_timeout_period =
       (state->mag_info.use_fifo)? req_payload.timeout_period * 2 + sample_period * 2
       : req_payload.timeout_period * 5 * sample_period;
+#else
+    req_payload.timeout_period = sample_period;
+    state->heart_beat_timeout_period = req_payload.timeout_period * 5 * sample_period;
+
+#endif
   }
   // reset request payload
   state->req_payload = req_payload;
@@ -2714,6 +2736,7 @@ sns_rc ak0991x_get_meas_time( akm_device_type device_select,
                               sns_time* meas_ts )
 {
   sns_time usec_time_for_measure;
+#ifdef AK0991X_ENABLE_ALL_DEVICES
   if (device_select == AK09918)
   {
     usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
@@ -2760,6 +2783,88 @@ sns_rc ak0991x_get_meas_time( akm_device_type device_select,
   {
     return SNS_RC_FAILED;
   }
+#else
+#ifdef AK0991X_TARGET_AK09918
+  if (device_select == AK09918)
+  {
+    usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
+  }
+#endif
+#ifdef AK0991X_TARGET_AK09917
+  if (device_select == AK09917)
+  {
+    if (sdr == 0)
+    {
+      usec_time_for_measure = AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
+    }
+    else
+    {
+      usec_time_for_measure = AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
+    }
+  }
+#endif
+#ifdef AK0991X_TARGET_AK09916C
+  if (device_select == AK09916C)
+  {
+    usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
+  }
+#endif
+#ifdef AK0991X_TARGET_AK09916D
+  if (device_select == AK09916D)
+  {
+    usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
+  }
+#endif
+#ifdef AK0991X_TARGET_AK09915C
+  if (device_select == AK09915C)
+  {
+    if (sdr == 1)
+    {
+      usec_time_for_measure = AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
+    }
+    else
+    {
+      usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
+    }
+  }
+#endif
+#ifdef AK0991X_TARGET_AK09915D
+  if (device_select == AK09915D)
+  {
+    if (sdr == 1)
+    {
+      usec_time_for_measure = AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
+    }
+    else
+    {
+      usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
+    }
+  }
+#endif
+#ifdef AK0991X_TARGET_AK09913
+  if (device_select == AK09913)
+  {
+    usec_time_for_measure = AK09913_TIME_FOR_MEASURE_US;
+  }
+#endif
+#ifdef AK0991X_TARGET_AK09912
+  if (device_select == AK09912)
+  {
+    usec_time_for_measure = AK09912_TIME_FOR_MEASURE_US;
+  }
+#endif
+#ifdef AK0991X_TARGET_AK09911
+  if (device_select == AK09911)
+  {
+    usec_time_for_measure = AK09911_TIME_FOR_MEASURE_US;
+  }
+#endif
+  else
+  {
+    return SNS_RC_FAILED;
+  }
+  UNUSED_VAR(sdr);
+#endif
   *meas_ts = usec_time_for_measure;
   return SNS_RC_SUCCESS;
 }

@@ -1942,14 +1942,14 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             else
             {
               AK0991X_PRINT(MED, this, "AK0991X HW absent");
-              #ifdef AK0991X_ENABLE_POWER_RAIL
+#ifdef AK0991X_ENABLE_POWER_RAIL
               state->rail_config.rail_vote = SNS_RAIL_OFF;
               state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
                             &state->rail_config,     NULL);
               state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
               state->remove_timer_stream = true;
-              #endif
+#endif
             }
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ)
@@ -1976,14 +1976,14 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF)
           {
             AK0991X_PRINT(LOW, this, "state = POWER_RAIL_PENDING_OFF");
-            #ifdef AK0991X_ENABLE_POWER_RAIL
+#ifdef AK0991X_ENABLE_POWER_RAIL
             state->rail_config.rail_vote = SNS_RAIL_OFF;
             state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
                                          &state->rail_config,     NULL);
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
             state->remove_timer_stream = true;
-            #endif
+#endif
           }
         }
         else
@@ -2132,6 +2132,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "Add the new request to list");
           instance->cb->add_client_request(instance, new_request);
 
+#ifndef AK0991X_ENABLE_SEE_LITE
           if(new_request->message_id == SNS_CAL_MSGID_SNS_CAL_RESET) {
             AK0991X_PRINT(LOW,this,"Request for resetting cal data.");
             ak0991x_reset_cal_data(instance);
@@ -2139,6 +2140,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             ak0991x_update_registry(this, instance);
             ak0991x_send_cal_event(instance);
           }
+#endif
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
           // DEVICE_MODE_SENSOR
@@ -2347,6 +2349,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR100;
 #endif
   }
+#ifndef AK0991X_TARGET_AK09916C
   else if ((desired_sample_rate <= AK0991X_ODR_200) &&
            ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
   {
@@ -2358,10 +2361,15 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR200;
 #endif
   }
+#endif //AK0991X_TARGET_AK09916C
   else
   {
     return SNS_RC_FAILED;
   }
+
+#ifdef AK0991X_TARGET_AK09916C 
+  UNUSED_VAR(device_select);
+#endif
 
   return SNS_RC_SUCCESS;
 }
@@ -2546,6 +2554,7 @@ void ak0991x_update_registry(sns_sensor *const this,
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
 }
 
+#ifndef AK0991X_ENABLE_SEE_LITE
 void ak0991x_update_sensor_state(sns_sensor *const this,
         sns_sensor_instance *const instance)
 {
@@ -2572,3 +2581,4 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
     }
   }
 }
+#endif
