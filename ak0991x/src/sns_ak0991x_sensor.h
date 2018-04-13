@@ -30,7 +30,7 @@
 
 #ifdef AK0991X_ENABLE_DC
 #include "sns_ak0991x_dist_compen.h"
-#endif
+#endif //AK0991X_ENABLE_DC
 
 #define MAG_SUID1 \
   {  \
@@ -50,7 +50,7 @@
       0xb4, 0xbe, 0xc1, 0xa5, 0x7b, 0x8d, 0x5f, 0xec  \
     }  \
   }
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
 
 //#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 #define AK0991X_REGISTRY_0_PF_CONFIG   "ak0991x_0_platform.config"
@@ -186,14 +186,14 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
-#endif
+#endif //AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_DC
 typedef struct ak0991x_dc_parameter
 {
   uint8_t dc_param_arr[AKSC_PDC_SIZE];
 } ak0991x_dc_parameter;
-#endif
-#endif
+#endif //AK0991X_ENABLE_DC
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /** Interrupt Sensor State. */
 
@@ -209,7 +209,7 @@ typedef struct ak0991x_state
   ak0991x_com_port_info com_port_info;
 #ifdef AK0991X_ENABLE_DRI
   sns_interrupt_req      irq_config;
-#endif
+#endif //AK0991X_ENABLE_DRI
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
   sns_power_rail_state  registry_rail_on_state;
@@ -231,12 +231,12 @@ typedef struct ak0991x_state
   bool use_fifo;
   uint8_t nsf;
   uint8_t sdr;
-#endif
+#endif //AK0991X_ENABLE_DRI
   uint8_t resolution_idx;
   int64_t hardware_id;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   uint32_t registration_idx;
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   // registry sensor config
@@ -246,13 +246,13 @@ typedef struct ak0991x_state
 #ifdef AK0991X_ENABLE_DRI
   bool registry_reg_cfg_received;
   ak0991x_registry_phy_sensor_cfg registry_reg_cfg;
-#endif
+#endif //AK0991X_ENABLE_DRI
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
   // axis conversion
   bool registry_orient_received;
-#endif
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
@@ -263,14 +263,14 @@ typedef struct ak0991x_state
   float                   fac_cal_scale[TRIAXIS_NUM];
 #ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
   uint32_t                fac_cal_version;
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 #ifdef AK0991X_ENABLE_DC
   // dc_parameter
   bool                    registry_dc_param_1_received;
   uint8_t                 dc_param[AKSC_PDC_SIZE];
   ak0991x_dc_parameter    reg_dc_param;
-#endif
+#endif //AK0991X_ENABLE_DC
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   uint8_t                 device_mode;
@@ -283,8 +283,8 @@ typedef struct ak0991x_state
   bool                    registry_dc_param_2_received;
   uint8_t                 dc_param_2[AKSC_PDC_SIZE];
   ak0991x_dc_parameter    reg_dc_param_2;
-#endif
-#endif
+#endif //AK0991X_ENABLE_DC
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
 
   // placement
@@ -342,7 +342,7 @@ void ak0991x_mag_init_attributes(sns_sensor *const this,
 sns_rc ak0991x_mag_init(sns_sensor *const this);
 #ifdef AK0991X_ENABLE_DEINIT
 sns_rc ak0991x_mag_deinit(sns_sensor *const this);
-#endif
+#endif //AK0991X_ENABLE_DEINIT
 
 sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
                              float *chosen_sample_rate,
@@ -355,4 +355,4 @@ void ak0991x_update_registry(sns_sensor *const this,
 
 void ak0991x_update_sensor_state(sns_sensor *const this,
         sns_sensor_instance *const instance);
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS

@@ -690,7 +690,7 @@ void ak0991x_run_self_test(sns_sensor_instance *instance);
  * @return none
  */
 void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance);
-#endif
+#endif //AK0991X_ENABLE_DRI
 
 /**
  * Send Calibration event to client
@@ -708,4 +708,4 @@ void ak0991x_send_cal_event(sns_sensor_instance * const instance);
  * @return none
  */
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS

@@ -40,7 +40,7 @@
 
 #ifdef AK0991X_ENABLE_DC
 #include "sns_ak0991x_dist_compen.h"
-#endif
+#endif //AK0991X_ENABLE_DC
 
 /** Forward Declaration of Instance API */
 extern sns_sensor_instance_api ak0991x_sensor_instance_api;
@@ -190,10 +190,10 @@ typedef struct sns_ak0991x_registry_cfg
   float               fac_cal_bias[3];
 #ifdef AK0991X_ENABLE_DC
   uint8_t             dc_param[AKSC_PDC_SIZE];
-#endif
+#endif //AK0991X_ENABLE_DC
 #ifdef  AK0991X_ENABLE_REG_WRITE_ACCESS
   uint32_t            version;
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 }sns_ak0991x_registry_cfg;
 
 /** Private state. */
@@ -211,7 +211,7 @@ typedef struct ak0991x_instance_state
   uint8_t flush_sample_count;
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool this_is_first_data;
-#endif
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool data_over_run;
   bool data_is_ready;
   bool re_read_data_after_ascp;
@@ -222,12 +222,12 @@ typedef struct ak0991x_instance_state
   bool reg_event_done;
 #ifdef AK0991X_ENABLE_S4S
   bool s4s_reg_event_done;
-#endif
+#endif //AK0991X_ENABLE_S4S
 #ifdef AK0991X_ENABLE_DRI
   bool is_temp_average;
   bool in_clock_error_procedure;
   bool previous_meas_is_irq;
-#endif
+#endif //AK0991X_ENABLE_DRI
   bool previous_meas_is_correct_wm;
   sns_time interrupt_timestamp;
   sns_time irq_event_time;
@@ -288,7 +288,7 @@ typedef struct ak0991x_instance_state
   sns_ak0991x_registry_cfg mag_registry_cfg;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   uint8_t                  device_mode;
-#endif
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
   sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
   size_t           log_raw_encoded_size;

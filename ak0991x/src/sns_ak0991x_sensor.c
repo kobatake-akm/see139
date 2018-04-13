@@ -32,7 +32,7 @@
 #include "sns_printf.h"
 #ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 #include "sns_cal.pb.h"
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 typedef struct pb_arg_reg_group_arg
 {
@@ -280,7 +280,7 @@ static bool ak0991x_get_decoded_mag_request(
 
 #ifndef AK0991X_ENABLE_DEBUG_MSG
   UNUSED_VAR(this);
-#endif
+#endif //AK0991X_ENABLE_DEBUG_MSG
 
   return true;
 }
@@ -300,7 +300,7 @@ static void ak0991x_get_mag_config(
   AK0991X_PRINT(LOW, this, "hw_id=%d registration_idx=%d", state->hardware_id, state->registration_idx);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
   sns_request const *request;
 
   *chosen_report_rate = 0;
@@ -455,11 +455,11 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
 #ifdef AK0991X_ENABLE_DC
   sns_memscpy(&registry_cfg.dc_param, sizeof(registry_cfg.dc_param),
               &state->dc_param, sizeof(state->dc_param));
-#endif
+#endif //AK0991X_ENABLE_DC
 
 #ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
   registry_cfg.version = state->fac_cal_version;
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   if(state->device_mode != SNS_DEVICE_MODE_FLIP_OPEN) // temporary
@@ -472,9 +472,9 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
 #ifdef AK0991X_ENABLE_DC
     sns_memscpy(&registry_cfg.dc_param, sizeof(registry_cfg.dc_param),
                 &state->dc_param_2, sizeof(state->dc_param_2));
-#endif
+#endif //AK0991X_ENABLE_DC
   }
-#endif
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
   AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100 ver=%d",
       (int)(registry_cfg.fac_cal_bias[0]*100),
@@ -680,17 +680,17 @@ static void ak0991x_request_registry(sns_sensor *const this)
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL);
 #ifdef AK0991X_ENABLE_DC
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_DC_PARAM);
-#endif
+#endif //AK0991X_ENABLE_DC
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL_2);
 #ifdef AK0991X_ENABLE_DC
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_DC_PARAM_2);
-#endif
-#endif
+#endif //AK0991X_ENABLE_DC
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #endif // AK0991X_ENABLE_DUAL_SENSOR
   }
 }
-#endif
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 #ifdef AK0991X_ENABLE_DRI
@@ -724,7 +724,7 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
     {
       cfg->use_fifo = (reg_item->sint == 1) ? true : false;
     }
-#endif
+#endif //AK0991X_ENABLE_FIFO
     else if(0 == strncmp((char*)item_name->buf,
                          "sdr",
                          item_name->buf_len))
@@ -784,7 +784,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   ak0991x_state *state = (ak0991x_state *)this->state->state;
 #ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
   uint32_t fac_cal_version;
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
   pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
       event->event_len);
@@ -816,7 +816,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       bool reg_config;
       reg_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_REG_CONFIG,
                            group_name.buf_len));
-#endif
+#endif //AK0991X_ENABLE_DRI
       pf_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_PF_CONFIG,
                            group_name.buf_len));
       place = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_PLACE,
@@ -829,7 +829,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       bool dc_param;
       dc_param = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_DC_PARAM,
                              group_name.buf_len));
-#endif
+#endif //AK0991X_ENABLE_DC
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
       bool faccal_2;
       faccal_2 = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_FACCAL_2,
@@ -838,8 +838,8 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       bool dc_param_2;
       dc_param_2 = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_DC_PARAM_2,
                              group_name.buf_len));
-#endif
-#endif
+#endif //AK0991X_ENABLE_DC
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
       AK0991X_PRINT(LOW, this,
         "mag_config=%d reg_config=%d pf_config=%d place=%d orient=%d faccal=%d",
@@ -860,7 +860,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       AK0991X_PRINT(LOW, this,
         "mag_config=%d reg_config=%d pf_config=%d place=%d orient=%d faccal=%d",
         (int)mag_config,(int)reg_config,(int)pf_config,(int)place,(int)orient,(int)faccal);
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
       if(mag_config)
       {
         {
@@ -925,7 +925,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->registry_reg_cfg_received = true;
 #ifdef AK0991X_ENABLE_FIFO
           state->use_fifo = state->registry_reg_cfg.use_fifo;
-#endif
+#endif //AK0991X_ENABLE_FIFO
           state->nsf = state->registry_reg_cfg.nsf;
           state->sdr = state->registry_reg_cfg.sdr;
 
@@ -1186,7 +1186,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 #ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
           fac_cal_version = arg.version;
           AK0991X_PRINT(LOW, this, "fac_cal_version=%d",arg.version);
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
         }
 
         if(rv)
@@ -1194,7 +1194,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->registry_fac_cal_1_received = true;
 #ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
           state->fac_cal_version = fac_cal_version;
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
           if(state->fac_cal_scale[0] != 0.0)
           {
             state->fac_cal_corr_mat.e00 = state->fac_cal_scale[0];
@@ -1313,7 +1313,7 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
     value.has_boolean = true;
 #ifdef AK0991X_ENABLE_DRI
     value.boolean = state->is_dri;
-#endif
+#endif //AK0991X_ENABLE_DRI
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
   }
@@ -1322,7 +1322,7 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
     value.has_boolean = true;
 #ifdef AK0991X_ENABLE_S4S
     value.boolean = state->supports_sync_stream;
-#endif
+#endif //AK0991X_ENABLE_S4S
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
   }
@@ -1351,12 +1351,12 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
     value.sint = state->registry_pf_cfg.rigid_body_type;
 #else
     value.sint = 0; //
-#endif
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
   }
 }
-#endif
+#endif //AK0991X_ENABLE_ALL_ATTRIBUTES
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
@@ -1379,7 +1379,7 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
       {
         ak0991x_publish_registry_attributes(this);
       }
-#endif
+#endif //AK0991X_ENABLE_ALL_ATTRIBUTES
 
       event = state->reg_data_stream->api->get_next_input(state->reg_data_stream);
     }
@@ -1389,19 +1389,19 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
      && state->registry_cfg_received
 #ifdef AK0991X_ENABLE_DRI
      && state->registry_reg_cfg_received
-#endif
+#endif //AK0991X_ENABLE_DRI
      && state->registry_pf_cfg_received
      && state->registry_orient_received
      && state->registry_fac_cal_1_received
 #ifdef AK0991X_ENABLE_DC
      && state->registry_dc_param_1_received
-#endif
+#endif //AK0991X_ENABLE_DC
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
      && state->registry_fac_cal_2_received
 #ifdef AK0991X_ENABLE_DC
      && state->registry_dc_param_2_received
-#endif
-#endif
+#endif //AK0991X_ENABLE_DC
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
      && state->registry_placement_received)
   {
     // Done receiving all registry.
@@ -1409,7 +1409,7 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
   }
   return rv;
 }
-#endif
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 static void
 ak0991x_sensor_publish_available(sns_sensor *const this)
@@ -1432,7 +1432,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
 #ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S)
  ak0991x_state *state = (ak0991x_state *)this->state->state;
-#endif
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S)
  {
    sns_std_attr_value_data values[] = {SNS_ATTR};
 
@@ -1585,7 +1585,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
    value.has_boolean = true;
 #ifdef AK0991X_ENABLE_DRI
    value.boolean = (state->is_dri ? ak0991x_dev_info_array[device_select].supports_dri : false);
-#endif
+#endif //AK0991X_ENABLE_DRI
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
  }
@@ -1594,7 +1594,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
    value.has_boolean = true;
 #ifdef AK0991X_ENABLE_S4S
    value.boolean = (state->supports_sync_stream ? ak0991x_dev_info_array[device_select].supports_sync_stream : false);
-#endif
+#endif //AK0991X_ENABLE_S4S
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
  }
@@ -1636,7 +1636,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
 #else
  UNUSED_VAR(this);
  UNUSED_VAR(device_select);
-#endif
+#endif //AK0991X_ENABLE_ALL_ATTRIBUTES
 }
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
@@ -1647,7 +1647,7 @@ void ak0991x_switch_cal_data(sns_sensor const *this,
   matrix3 *fac_cal_corr_mat = NULL;
 #ifdef AK0991X_ENABLE_DC
   uint8_t *pdc_parameter = NULL;
-#endif
+#endif //AK0991X_ENABLE_DC
 
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   ak0991x_instance_state *inst_state = (ak0991x_instance_state *)instance->state->state;
@@ -1662,7 +1662,7 @@ void ak0991x_switch_cal_data(sns_sensor const *this,
     fac_cal_corr_mat = &state->fac_cal_corr_mat;
 #ifdef AK0991X_ENABLE_DC
     pdc_parameter    = state->dc_param;
-#endif
+#endif //AK0991X_ENABLE_DC
   }
   else  //device_mode != SNS_DEVICE_MODE_FLIP_OPEN
   {
@@ -1670,7 +1670,7 @@ void ak0991x_switch_cal_data(sns_sensor const *this,
     fac_cal_corr_mat = &state->fac_cal_corr_mat_2;
 #ifdef AK0991X_ENABLE_DC
     pdc_parameter    = state->dc_param_2;
-#endif
+#endif //AK0991X_ENABLE_DC
   }
 
   for (int i = 0; i < TRIAXIS_NUM; i++)
@@ -1686,9 +1686,9 @@ void ak0991x_switch_cal_data(sns_sensor const *this,
   {
     inst_state->mag_registry_cfg.dc_param[i] = pdc_parameter[i];
   }
-#endif
+#endif //AK0991X_ENABLE_DC
 }
-#endif
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
 /**
  * Decodes self test requests.
@@ -1720,7 +1720,7 @@ static bool ak0991x_get_decoded_self_test_request(
   }
 #ifndef AK0991X_ENABLE_DEBUG_MSG
   UNUSED_VAR(this);
-#endif
+#endif //AK0991X_ENABLE_DEBUG_MSG
   return true;
 }
 
@@ -1745,7 +1745,7 @@ static bool ak0991x_extract_self_test_info(
 
 #ifndef AK0991X_ENABLE_DEBUG_MSG
   UNUSED_VAR(this);
-#endif
+#endif //AK0991X_ENABLE_DEBUG_MSG
 
   self_test_info = &((ak0991x_instance_state*)instance->state->state)->mag_info.test_info;
 
@@ -1919,7 +1919,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                   SNS_PRINTF(ERROR, this, "Unsupported Sensor");
                   rv = SNS_RC_INVALID_STATE;
                 }
-#endif
+#endif //AK0991X_ENABLE_ALL_DEVICES
               }
               else
               {
@@ -1964,7 +1964,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             ak0991x_start_power_rail_timer(this,
                                            sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
                                            AK0991X_POWER_RAIL_PENDING_OFF);
-#endif
+#endif //AK0991X_ENABLE_POWER_RAIL
 
             if (state->hw_is_present)
             {
@@ -1983,7 +1983,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                             &state->rail_config,     NULL);
               state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
               state->remove_timer_stream = true;
-#endif
+#endif //AK0991X_ENABLE_POWER_RAIL
             }
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ)
@@ -2017,7 +2017,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                                          &state->rail_config,     NULL);
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
             state->remove_timer_stream = true;
-#endif
+#endif //AK0991X_ENABLE_POWER_RAIL
           }
         }
         else
@@ -2051,7 +2051,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   AK0991X_PRINT(LOW, this, "hw_id=%d registration_idx=%d", state->hardware_id, state->registration_idx);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
 
   AK0991X_PRINT(HIGH, this, "set_client_request - msg_id=%d/%d remove=%u",
                 exist_request ? exist_request->message_id : -1,
@@ -2126,7 +2126,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
       // rail is already ON
       AK0991X_PRINT(LOW, this, "rail is already ON");
-#endif
+#endif //AK0991X_ENABLE_POWER_RAIL
       AK0991X_PRINT(LOW, this, "Creating instance");
 
       /** create_instance() calls init() for the Sensor Instance */
@@ -2174,7 +2174,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             ak0991x_update_registry(this, instance);
             ak0991x_send_cal_event(instance);
           }
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
           // DEVICE_MODE_SENSOR
@@ -2185,7 +2185,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             ak0991x_switch_cal_data(this, instance);
             ak0991x_send_cal_event(instance);
           }
-#endif
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
           if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
              new_request->message_id)
@@ -2248,7 +2248,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         ak0991x_start_power_rail_timer(this,
                                        sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
                                        AK0991X_POWER_RAIL_PENDING_OFF);
-#endif
+#endif //AK0991X_ENABLE_POWER_RAIL
       }
     }
   }
@@ -2294,7 +2294,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         ak0991x_request_registry(this);
       }
     }
-#endif
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
   }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
@@ -2305,7 +2305,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   {
     ak0991x_register_power_rails(this);
   }
-#endif
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
   if(rv == SNS_RC_SUCCESS)
   {
@@ -2381,7 +2381,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
 #else
     *chosen_sample_rate = AK0991X_ODR_100;
     *chosen_reg_value = AK0991X_MAG_ODR100;
-#endif
+#endif //AK0991X_FORCE_MAX_ODR_50HZ
   }
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   else if ((desired_sample_rate <= AK0991X_ODR_200) &&
@@ -2393,7 +2393,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
 #else
     *chosen_sample_rate = AK0991X_ODR_200;
     *chosen_reg_value = AK0991X_MAG_ODR200;
-#endif
+#endif //AK0991X_FORCE_MAX_ODR_50HZ
   }
 #endif // defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   else
@@ -2545,7 +2545,7 @@ void ak0991x_update_registry(sns_sensor *const this,
   char name[] = (state->registration_idx == 0)? AK0991X_REGISTRY_0_FACCAL : AK0991X_REGISTRY_1_FACCAL;
 #else
   char name[] = AK0991X_REGISTRY_0_FACCAL;
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
   pb_buffer_arg name_data;
   sns_registry_write_req write_req = sns_registry_write_req_init_default;
 

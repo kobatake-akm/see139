@@ -58,7 +58,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
   }
-#endif
+#endif //AK0991X_ENABLE_ALL_ATTRIBUTES
   {
     char const type[] = "mag";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -140,12 +140,12 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   state->device_mode = 0;
-#endif
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   state->registration_idx = this->cb->get_registration_index(this);
   AK0991X_PRINT(LOW, this, "registration_idx=%d",state->registration_idx);
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
 
 #ifdef AK0991X_ENABLE_ALL_DEVICES
   uint8_t i = 0;
@@ -172,23 +172,23 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->is_dri = true;
 #else
   state->is_dri = false;
-#endif
+#endif //AK0991X_STATE_IS_DRI
 
 #ifdef AK0991X_STATE_USE_FIFO
   state->use_fifo = true;
 #else
   state->use_fifo = false;
-#endif
+#endif //AK0991X_STATE_USE_FIFO
 
 #ifdef AK0991X_STATE_SUPPORTS_SYNC_STREAM
   state->supports_sync_stream = true;
 #else
   state->supports_sync_stream = false;
-#endif
+#endif //AK0991X_STATE_SUPPORTS_SYNC_STREAM
 
   state->nsf = 0;
   state->sdr = 0;
-#endif
+#endif //AK0991X_ENABLE_DRI
   state->resolution_idx = 0;
   state->hardware_id = 0;
 
@@ -210,8 +210,8 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #else
   state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
   state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-#endif
-#endif
+#endif //defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09916D) || defined(AK0991X_TARGET_AK09917)
+#endif //AK0991X_ENABLE_DRI
   state->rail_config.num_of_rails = 1;
   state->registry_rail_on_state = 1;
   sns_strlcpy(state->rail_config.rails[0].name,
@@ -285,4 +285,4 @@ sns_rc ak0991x_mag_deinit(sns_sensor *const this)
   UNUSED_VAR(this);
   return SNS_RC_SUCCESS;
 }
-#endif
+#endif //AK0991X_ENABLE_DEINIT

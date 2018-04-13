@@ -61,14 +61,14 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     .arr_index = &arr_index};
   batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
   batch_sample.sample.arg = &arg;
-#endif
+#endif //AK0991X_ENABLE_DIAG_LOGGING
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   sns_sensor_uid mag_suid = (sensor_state->registration_idx == 0)? (sns_sensor_uid)MAG_SUID1 :
                                                               (sns_sensor_uid)MAG_SUID2;
   AK0991X_INST_PRINT(LOW, this, "hardware_id=%d registration_idx=%d", sensor_state->hardware_id, sensor_state->registration_idx);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
 
   state->diag_service = (sns_diag_service *)
     service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
@@ -188,14 +188,14 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->pre_timestamp = sns_get_system_time();
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = true;
-#endif
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
   state->flush_sample_count = 0;
 #ifdef AK0991X_ENABLE_DRI
   state->in_clock_error_procedure = false;
   state->mag_info.clock_error_meas_count = 0;
-#endif
+#endif //AK0991X_ENABLE_DRI
 
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
 
@@ -318,7 +318,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
       state->log_raw_encoded_size = stream.bytes_written;
     }
   }
-#endif
+#endif //AK0991X_ENABLE_DIAG_LOGGING
 
   sns_sensor_uid dae_suid;
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
@@ -449,7 +449,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   matrix3 *fac_cal_corr_mat = NULL;
 #ifdef AK0991X_ENABLE_DC
   uint8_t *pdc_parameter = NULL;
-#endif
+#endif //AK0991X_ENABLE_DC
 
   AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
@@ -644,7 +644,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
       state->mag_registry_cfg.version = payload->registry_cfg.version;
     }
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 #ifdef AK0991X_ENABLE_DC
     pdc_parameter = state->mag_registry_cfg.dc_param;
@@ -655,7 +655,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                   sizeof(payload->registry_cfg.dc_param));
     }
     SNS_INST_PRINTF(LOW, this, "set DC parameter. dc[0]=%d ... dc[26]=%d", pdc_parameter[0], pdc_parameter[26]);
-#endif
+#endif //AK0991X_ENABLE_DC
 
     if(NULL != fac_cal_bias && NULL != fac_cal_corr_mat)
     {
@@ -694,7 +694,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
 #else
         ak0991x_read_mag_samples(this);
-#endif
+#endif //AK0991X_ENABLE_DRI
       }
       else
       {

@@ -40,7 +40,7 @@
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_diag_service.h"
 #include "sns_diag.pb.h"
-#endif
+#endif //AK0991X_ENABLE_DIAG_LOGGING
 
 extern log_sensor_state_raw_info log_mag_state_raw_info;
 
@@ -105,7 +105,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
     }
   }
 }
-#endif
+#endif //AK0991X_ENABLE_FIFO
 
 static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 {

@@ -49,7 +49,7 @@
 #ifdef AK0991X_ENABLE_DC
 #include "sns_ak0991x_dist_compen.h"
 #define FX_FLTTOFIX_Q16(x)  ((int)(x * 65535.0f))
-#endif
+#endif //AK0991X_ENABLE_DC
 
 //#define AK0991X_VERBOSE_DEBUG             // Define to enable extra debugging
 
@@ -723,12 +723,12 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->is_temp_average = false;
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
-#endif  //AK0991X_ENABLE_DRI
+#endif //AK0991X_ENABLE_DRI
   state->previous_meas_is_correct_wm = true;
 #ifdef AK0991X_ENABLE_S4S
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-#endif
+#endif //AK0991X_ENABLE_S4S
 
   state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
@@ -756,7 +756,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     ak0991x_set_timer_request_payload(this);
     ak0991x_register_heart_beat_timer(this);
   }
-#endif
+#endif //AK0991X_ENABLE_DRI
 
   return SNS_RC_SUCCESS;
 }
@@ -1406,7 +1406,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   int16_t lsbdata[TRIAXIS_NUM] = {0};
 #ifdef AK0991X_ENABLE_FIFO
   uint8_t inv_fifo_bit;
-#endif
+#endif //AK0991X_ENABLE_FIFO
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
@@ -1414,7 +1414,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 #ifdef AK0991X_ENABLE_DC
   float temp_flt[3];
   sns_rc temp_ret = SNS_RC_INVALID_STATE;
-#endif
+#endif //AK0991X_ENABLE_DC
 
   /*
   AK0991X_INST_PRINT(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
@@ -1431,7 +1431,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
 #ifdef AK0991X_ENABLE_FIFO
   // Check magnetic sensor overflow (and invalid data for FIFO)
   inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
-#endif
+#endif //AK0991X_ENABLE_FIFO
 
   status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 
@@ -1451,7 +1451,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
     lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
   }
-#endif
+#endif //AK0991X_ENABLE_FIFO
   else if(!state->mag_info.use_dri && !state->mag_info.use_fifo && !state->data_is_ready)
   {
     AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. Use previous data");
@@ -1503,7 +1503,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   opdata_cal.data[0] = temp_flt[0];
   opdata_cal.data[1] = temp_flt[1];
   opdata_cal.data[2] = temp_flt[2];
-#else
+#else //AK0991X_ENABLE_DC
   // factory calibration
   opdata_cal = sns_apply_calibration_correction_3(
       make_vector3_from_array(opdata_raw),
@@ -1589,7 +1589,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
       num_bytes_to_report -= over_sample * 8;
     }
   }
-#endif
+#endif //AK0991X_ENABLE_FIFO
 
   for(i = 0; i < num_bytes_to_report; i += 8)
   {
@@ -1626,7 +1626,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     state->previous_meas_is_irq = false;
   }
-#endif
+#endif //AK0991X_ENABLE_DRI
   if(state->mag_info.cur_wmk + 1 == state->num_samples)
   {
     state->previous_meas_is_correct_wm = true;
@@ -1645,7 +1645,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #endif //AK0991X_ENABLE_DRI
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = false;
-#endif
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
 
   state->this_is_the_last_flush = false;
   if(state->fifo_flush_in_progress)
@@ -1655,7 +1655,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
     ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
-#endif
+#endif //AK0991X_ENABLE_DIAG_LOGGING
 }
 
 /** See ak0991x_hal.h */
@@ -1906,7 +1906,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   }
 #else
   state->num_samples = state->data_is_ready ? 1 : 0;
-#endif
+#endif //AK0991X_ENABLE_FIFO
 
   if(state->data_over_run)
   {
@@ -1957,7 +1957,7 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
     SNS_INST_PRINTF(ERROR, instance, "Failed sending request to ASCP");
   }
 }
-#endif
+#endif //AK0991X_ENABLE_FIFO
 
 static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 {
@@ -2006,7 +2006,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
       }
     }
   }
-#endif
+#endif //AK0991X_ENABLE_DRI
 
   if(state->fifo_flush_in_progress && complete_flush)
   {
@@ -2108,7 +2108,7 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance)
 
   state->irq_info.detect_irq_event = false;
 }
-#endif
+#endif //AK0991X_ENABLE_DRI
 
 static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 {
@@ -2189,7 +2189,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
                          1,
                          &buffer[0]);
   }
-#endif
+#endif //AK0991X_ENABLE_FIFO
 
   if(state->num_samples > 0)
   {
@@ -2224,7 +2224,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   {
     ak0991x_register_heart_beat_timer(instance);
   }
-#endif
+#endif //AK0991X_ENABLE_DRI
 }
 
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
@@ -2292,7 +2292,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   cal_event.cal_id                   = state->device_mode;
-#endif
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
 
   pb_send_event(instance,
@@ -2320,7 +2320,7 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
   }
   state->mag_registry_cfg.version++;
 }
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 /** See sns_ak0991x_hal.h */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
@@ -2709,7 +2709,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.timeout_period = sample_period;
     state->heart_beat_timeout_period = req_payload.timeout_period * 5 * sample_period;
 
-#endif
+#endif //AK0991X_ENABLE_FIFO
   }
   // reset request payload
   state->req_payload = req_payload;
@@ -2870,7 +2870,7 @@ sns_rc ak0991x_get_meas_time( akm_device_type device_select,
     return SNS_RC_FAILED;
   }
   UNUSED_VAR(sdr);
-#endif
+#endif //AK0991X_ENABLE_ALL_DEVICES
   *meas_ts = usec_time_for_measure;
   return SNS_RC_SUCCESS;
 }
@@ -2881,7 +2881,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
   sns_rc rv = SNS_RC_SUCCESS;
 #ifdef AK0991X_ENABLE_DRI
   AK0991X_INST_PRINT(LOW, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
-#endif
+#endif //AK0991X_ENABLE_DRI
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
 #ifdef AK0991X_ENABLE_DRI
