@@ -269,8 +269,10 @@ typedef struct ak0991x_instance_state
   sns_data_stream       *timer_data_stream;
 #ifdef AK0991X_ENABLE_DRI
   sns_data_stream       *interrupt_data_stream;
-  sns_data_stream       *async_com_port_data_stream;
 #endif // AK0991X_ENABLE_DRI
+#ifdef AK0991X_ENABLE_FIFO
+  sns_data_stream       *async_com_port_data_stream;
+#endif // AK0991X_ENABLE_FIFO
 #ifdef AK0991X_ENABLE_S4S
   sns_data_stream       *s4s_timer_data_stream;
 #endif // AK0991X_ENABLE_S4S

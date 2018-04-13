@@ -1430,9 +1430,9 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
                                 akm_device_type device_select)
 {
 #ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
-#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S)
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S) || defined(AK0991X_ENABLE_ALL_DEVICES)
  ak0991x_state *state = (ak0991x_state *)this->state->state;
-#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S)
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S) || defined(AK0991X_ENABLE_ALL_DEVICES)
  {
    sns_std_attr_value_data values[] = {SNS_ATTR};
 

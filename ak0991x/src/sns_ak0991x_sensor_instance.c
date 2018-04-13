@@ -115,9 +115,11 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09912_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09912_FIFO_SIZE;
+#ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = 0;
+#endif //AK0991X_ENABLE_DRI
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
@@ -134,11 +136,15 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   case AK09915C:
   case AK09915D:
     state->mag_info.resolution = AK09915_RESOLUTION;
+#ifdef AK0991X_ENABLE_FIFO
     state->mag_info.use_fifo = sensor_state->use_fifo;
     state->mag_info.max_fifo_size = AK09915_FIFO_SIZE;
+#endif //AK0991X_ENABLE_FIFO
+#ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+#endif //AK0991X_ENABLE_DRI
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
@@ -156,19 +162,25 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09916_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
+#ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+#endif //AK0991X_ENABLE_DRI
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
   case AK09917:
     state->mag_info.resolution = AK09917_RESOLUTION;
+#ifdef AK0991X_ENABLE_FIFO
     state->mag_info.use_fifo = sensor_state->use_fifo;
     state->mag_info.max_fifo_size = AK09917_FIFO_SIZE;
+#endif //AK0991X_ENABLE_FIFO
+#ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+#endif //AK0991X_ENABLE_DRI
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
@@ -201,34 +213,36 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
+  sns_rc rv;
 #ifdef AK0991X_ENABLE_DRI
   sns_sensor_uid irq_suid;
-  sns_sensor_uid acp_suid;
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "interrupt", &irq_suid);
-  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "async_com_port", &acp_suid);
 
-  sns_rc rv;
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                       this,
                                                       irq_suid,
                                                       &state->interrupt_data_stream);
-
   if (rv != SNS_RC_SUCCESS)
   {
     return rv;
   }
+#endif //AK0991X_ENABLE_DRI
 
+#ifdef AK0991X_ENABLE_FIFO
+  sns_sensor_uid acp_suid;
+  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "async_com_port", &acp_suid);
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                       this,
                                                       acp_suid,
                                                       &state->async_com_port_data_stream);
-
   if (rv != SNS_RC_SUCCESS)
   {
+#ifdef AK0991X_ENABLE_DRI
     stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
+#endif //AK0991X_ENABLE_DRI
     return rv;
   }
-#endif //AK0991X_ENABLE_DRI
+#endif //AK0991X_ENABLE_FIFO
 
   /** Initialize Timer info to be used by the Instance */
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "timer", &state->timer_suid);
@@ -282,6 +296,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   enc_len = pb_encode_request(pb_encode_buffer, 100, &state->ascp_config,
                               sns_async_com_port_config_fields, NULL);
 
+#ifdef AK0991X_ENABLE_FIFO
   sns_request async_com_port_request =
     (sns_request)
   {
@@ -291,6 +306,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   };
   state->async_com_port_data_stream->api->send_request(
     state->async_com_port_data_stream, &async_com_port_request);
+#endif //AK0991X_ENABLE_FIFO
 #endif //AK0991X_ENABLE_DRI
 
  /** Copy down axis conversion settings */
@@ -348,8 +364,10 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_s4s_inst_deinit(this);
 #ifdef AK0991X_ENABLE_DRI
   sns_sensor_util_remove_sensor_instance_stream(this,&state->interrupt_data_stream);
-  sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
 #endif //AK0991X_ENABLE_DRI
+#ifdef AK0991X_ENABLE_FIFO
+  sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
+#endif //AK0991X_ENABLE_FIFO
   if(NULL != state->scp_service)
   {
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);

@@ -227,11 +227,15 @@ typedef struct ak0991x_state
   // sensor configuration
 #ifdef AK0991X_ENABLE_DRI
   bool is_dri;
-  bool supports_sync_stream;
-  bool use_fifo;
   uint8_t nsf;
   uint8_t sdr;
 #endif //AK0991X_ENABLE_DRI
+#ifdef AK0991X_ENABLE_FIFO
+  bool use_fifo;
+#endif //AK0991X_ENABLE_FIFO
+#ifdef AK0991X_ENABLE_S4S
+  bool supports_sync_stream;
+#endif //AK0991X_ENABLE_S4S
   uint8_t resolution_idx;
   int64_t hardware_id;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
