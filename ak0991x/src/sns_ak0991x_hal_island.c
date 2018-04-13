@@ -656,7 +656,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 
     state->in_clock_error_procedure = true;
   }
-#endif
+#endif //AK0991X_ENABLE_DRI
 
   return ak0991x_com_write_wrapper(this,
                                    scp_service,

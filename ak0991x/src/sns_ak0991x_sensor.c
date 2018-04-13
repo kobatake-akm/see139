@@ -693,7 +693,7 @@ static void ak0991x_request_registry(sns_sensor *const this)
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-#ifdef AK0991X_ENABLE_DRI
+#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
 static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_item,
                                                   pb_buffer_arg *item_name,
                                                   pb_buffer_arg *item_str_val,
@@ -739,7 +739,7 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
 
   return rv;
 }
-#endif //AK0991X_ENABLE_DRI
+#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
 #ifdef AK0991X_ENABLE_DC
 static bool ak0991x_registry_parse_dc_param(sns_registry_data_item *reg_item,
                                                   pb_buffer_arg *item_name,
@@ -812,11 +812,11 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       bool faccal;
       mag_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_MAG_CONFIG,
                            group_name.buf_len));
-#ifdef AK0991X_ENABLE_DRI
+#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
       bool reg_config;
       reg_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_REG_CONFIG,
                            group_name.buf_len));
-#endif //AK0991X_ENABLE_DRI
+#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
       pf_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_PF_CONFIG,
                            group_name.buf_len));
       place = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_PLACE,
@@ -884,24 +884,22 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->registry_cfg_received = true;
 #ifdef AK0991X_ENABLE_DRI
           state->is_dri = state->registry_cfg.is_dri;
+          AK0991X_PRINT(LOW, this, "is_dri:%d, hardware_id:%d ",
+                                   state->is_dri,
+                                   (uint32_t)state->hardware_id);
 #endif //AK0991X_ENABLE_DRI
           state->hardware_id = state->registry_cfg.hw_id;
           state->resolution_idx = state->registry_cfg.res_idx;
 #ifdef AK0991X_ENABLE_S4S
           state->supports_sync_stream = state->registry_cfg.sync_stream;
-#endif //AK0991X_ENABLE_S4S
-#ifdef AK0991X_ENABLE_DRI
-          AK0991X_PRINT(LOW, this, "is_dri:%d, hardware_id:%d ",
-                                   state->is_dri,
-                                   (uint32_t)state->hardware_id);
-
           AK0991X_PRINT(LOW, this, "resolution_idx:%d, supports_sync_stream:%d ",
                                    state->resolution_idx,
                                    state->supports_sync_stream);
-#endif //AK0991X_ENABLE_DRI
+#endif //AK0991X_ENABLE_S4S
+
         }
       }
-#ifdef AK0991X_ENABLE_DRI
+#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
       if(reg_config)
       {
         {
@@ -930,13 +928,13 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->sdr = state->registry_reg_cfg.sdr;
 
 
-          AK0991X_PRINT(LOW, this, "use_fifo:%d, nsf:%d ,sdr:%d",
-                                   state->use_fifo,
-                                   state->nsf,
-                                   state->sdr);
+          // AK0991X_PRINT(LOW, this, "use_fifo:%d, nsf:%d ,sdr:%d",
+          //                          state->use_fifo,
+          //                          state->nsf,
+          //                          state->sdr);
         }
       }
-#endif //AK0991X_ENABLE_DRI
+#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
 #ifdef AK0991X_ENABLE_DC
       else if (dc_param)
       {
@@ -1387,9 +1385,9 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 
   if(NULL != state->reg_data_stream
      && state->registry_cfg_received
-#ifdef AK0991X_ENABLE_DRI
+#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
      && state->registry_reg_cfg_received
-#endif //AK0991X_ENABLE_DRI
+#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
      && state->registry_pf_cfg_received
      && state->registry_orient_received
      && state->registry_fac_cal_1_received
