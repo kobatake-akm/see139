@@ -22,6 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/12/18     010067     AKM              Added AK0991X_ENABLE_REG_WRITE_ACCESS macro
+ * 04/12/18     010066     AKM              Modified for AK09918
+ * 04/12/18                AKM              Modified for 0 gap detection on MAG-024/025/026 with S4S mode.
+ * 04/12/18     010065     AKM              Modified for SEE_LITE_MODE again.
  * 04/12/18     010064     AKM              Modified for SEE_LITE_MODE.
  * 04/09/18     010063     AKM              Modified DAE settings.
  * 04/09/18                AKM              Fixed AK09915C/D read samples.
@@ -136,4 +140,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10064  // major:01 minor:00 revision:64
+#define AK0991X_DRIVER_VERSION 10067  // major:01 minor:00 revision:67

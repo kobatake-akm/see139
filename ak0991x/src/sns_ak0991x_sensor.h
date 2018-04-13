@@ -179,12 +179,14 @@ typedef enum
 /** Registry items supported as part of physical sensor
  *  configuraton registry group
  */
+#ifdef AK0991X_ENABLE_DRI
 typedef struct ak0991x_registry_phy_sensor_cfg
 {
   bool    use_fifo;
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
+#endif
 #ifdef AK0991X_ENABLE_DC
 typedef struct ak0991x_dc_parameter
 {
@@ -205,8 +207,9 @@ typedef struct ak0991x_state
   SNS_SUID_LOOKUP_DATA(5) suid_lookup_data;
 
   ak0991x_com_port_info com_port_info;
+#ifdef AK0991X_ENABLE_DRI
   sns_interrupt_req      irq_config;
-
+#endif
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
   sns_power_rail_state  registry_rail_on_state;
@@ -222,11 +225,13 @@ typedef struct ak0991x_state
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
 
   // sensor configuration
+#ifdef AK0991X_ENABLE_DRI
   bool is_dri;
   bool supports_sync_stream;
   bool use_fifo;
   uint8_t nsf;
   uint8_t sdr;
+#endif
   uint8_t resolution_idx;
   int64_t hardware_id;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
@@ -238,8 +243,10 @@ typedef struct ak0991x_state
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
   // registry sensor reg config
+#ifdef AK0991X_ENABLE_DRI
   bool registry_reg_cfg_received;
   ak0991x_registry_phy_sensor_cfg registry_reg_cfg;
+#endif
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
@@ -254,7 +261,10 @@ typedef struct ak0991x_state
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
   uint32_t                fac_cal_version;
+#endif
+
 #ifdef AK0991X_ENABLE_DC
   // dc_parameter
   bool                    registry_dc_param_1_received;
@@ -338,8 +348,11 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
                              float *chosen_sample_rate,
                              ak0991x_mag_odr *chosen_reg_value,
                              akm_device_type device_select);
+
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance);
 
 void ak0991x_update_sensor_state(sns_sensor *const this,
         sns_sensor_instance *const instance);
+#endif

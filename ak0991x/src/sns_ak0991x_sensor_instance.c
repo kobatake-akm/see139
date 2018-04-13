@@ -456,9 +456,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
     true);
-
+#ifdef AK0991X_ENABLE_DAE
   AK0991X_INST_PRINT(LOW, this, "dae_if_available %d",(int)ak0991x_dae_if_available(this));
-
+#endif //AK0991X_ENABLE_DAE
   if (client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
     // In case of DRI,
@@ -479,9 +479,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
 #ifdef AK0991X_ENABLE_DRI
     // Register for interrupt
-    if(state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+    if(state->mag_info.use_dri)
     {
+#ifdef AK0991X_ENABLE_DAE
+      if(!ak0991x_dae_if_available(this))
+      {
+        ak0991x_register_interrupt(this);
+      }
+#else
       ak0991x_register_interrupt(this);
+#endif //AK0991X_ENABLE_DAE
     }
 #endif //AK0991X_ENABLE_DRI
 
@@ -601,23 +608,35 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 #endif //AK0991X_ENABLE_DRI
 
       // Register for timer
-      if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+      if (!state->mag_info.use_dri)
       {
+#ifdef AK0991X_ENABLE_DAE
+        if(!ak0991x_dae_if_available(this))
+        {
+          ak0991x_reconfig_hw(this);
+          ak0991x_register_timer(this);
+          // Register for s4s timer
+          if (state->mag_info.use_sync_stream)
+          {
+            ak0991x_s4s_register_timer(this);
+          }
+        }
+#else
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this);
         // Register for s4s timer
         if (state->mag_info.use_sync_stream)
         {
           ak0991x_s4s_register_timer(this);
-        }
+        }       
+#endif //AK0991X_ENABLE_DAE
       }
-
       if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
       {
         ak0991x_send_config_event(this);
       }
     }
-
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
     // update registry configuration
     if(payload->registry_cfg.version >= state->mag_registry_cfg.version)
     {
@@ -625,6 +644,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
       state->mag_registry_cfg.version = payload->registry_cfg.version;
     }
+#endif
 
 #ifdef AK0991X_ENABLE_DC
     pdc_parameter = state->mag_registry_cfg.dc_param;
@@ -726,12 +746,19 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_reconfig_hw(this);
         }
 #endif //AK0991X_ENABLE_DRI
-
         // Register for timer
-        if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+        if (!state->mag_info.use_dri) 
         {
+#ifdef AK0991X_ENABLE_DAE
+          if (!ak0991x_dae_if_available(this))
+          {
+            ak0991x_reconfig_hw(this);
+            ak0991x_register_timer(this);
+          }
+#else
           ak0991x_reconfig_hw(this);
           ak0991x_register_timer(this);
+#endif //AK0991X_ENABLE_DAE
         }
         ak0991x_send_config_event(this);
       }
@@ -752,17 +779,32 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
 #ifdef AK0991X_ENABLE_DRI
       // hardware setting for measurement mode
-      if (state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+      if (state->mag_info.use_dri)
       {
+#ifdef AK0991X_ENABLE_DAE
+        if(!ak0991x_dae_if_available(this))
+        {
+          ak0991x_reconfig_hw(this);  
+        }
+#else
         ak0991x_reconfig_hw(this);
+#endif //AK0991X_ENABLE_DAE
       }
 #endif //AK0991X_ENABLE_DRI
 
       // Register for timer
-      if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+      if (!state->mag_info.use_dri)
       {
+#ifdef AK0991X_ENABLE_DAE
+        if (!ak0991x_dae_if_available(this))
+        {
+          ak0991x_reconfig_hw(this);
+          ak0991x_register_timer(this);
+        }
+#else
         ak0991x_reconfig_hw(this);
         ak0991x_register_timer(this);
+#endif //AK0991X_ENABLE_DAE
       }
 
       ak0991x_send_config_event(this);

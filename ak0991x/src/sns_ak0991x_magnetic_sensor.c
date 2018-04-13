@@ -166,6 +166,8 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #else
   AK0991X_PRINT(LOW, this, "SEE-Lite Mode.");
 
+#ifdef AK0991X_ENABLE_DRI
+
 #ifdef AK0991X_STATE_IS_DRI
   state->is_dri = true;
 #else
@@ -186,6 +188,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 
   state->nsf = 0;
   state->sdr = 0;
+#endif
   state->resolution_idx = 0;
   state->hardware_id = 0;
 
@@ -196,6 +199,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->com_port_info.com_config.min_bus_speed_KHz = 400;// I2C speed
   state->com_port_info.com_config.max_bus_speed_KHz = 400;// I2C speed
   state->com_port_info.com_config.reg_addr_type = 0;      //
+#ifdef AK0991X_ENABLE_DRI
   state->irq_config.interrupt_num = 119;                  // mag interrupt
 
   state->irq_config.is_chip_pin = 1;                      //
@@ -207,7 +211,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
   state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
 #endif
-
+#endif
   state->rail_config.num_of_rails = 1;
   state->registry_rail_on_state = 1;
   sns_strlcpy(state->rail_config.rails[0].name,

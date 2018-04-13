@@ -721,9 +721,9 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->reg_event_done = false;
 #ifdef AK0991X_ENABLE_DRI
   state->is_temp_average = false;
-#endif
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
+#endif  //AK0991X_ENABLE_DRI
   state->previous_meas_is_correct_wm = true;
 #ifdef AK0991X_ENABLE_S4S
   state->s4s_reg_event_done = false;
@@ -1616,8 +1616,8 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     }
   }
 
-#ifdef AK0991X_ENABLE_DRI
   // store previous measurement is irq and also right WM
+#ifdef AK0991X_ENABLE_DRI
   if(state->mag_info.use_dri && state->irq_info.detect_irq_event)
   {
     state->previous_meas_is_irq = true;
@@ -1626,10 +1626,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     state->previous_meas_is_irq = false;
   }
-#else
-  state->previous_meas_is_irq = false;
 #endif
-
   if(state->mag_info.cur_wmk + 1 == state->num_samples)
   {
     state->previous_meas_is_correct_wm = true;
@@ -1643,7 +1640,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->pre_timestamp = timestamp;
 
   // reset flags
+#ifdef AK0991X_ENABLE_DRI
   state->irq_info.detect_irq_event = false;
+#endif //AK0991X_ENABLE_DRI
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = false;
 #endif
@@ -1853,11 +1852,18 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
           {
             int16_t calculated_samples;
             calculated_samples = state->mag_info.cur_wmk + 1 - state->flush_sample_count;
-            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d", calculated_samples);
- 
+            state->num_samples = st1_buf >> 2;
+            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d num_samples %d", calculated_samples,state->num_samples);
             if(calculated_samples > 0)
             {
               state->num_samples = (uint8_t)calculated_samples;
+
+              // check timestamp
+              if( ( state->system_time + (state->averaged_interval>>1) ) <= state->pre_timestamp + (state->averaged_interval * state->num_samples) )
+              {
+                state->num_samples--;
+                SNS_INST_PRINTF(LOW, instance, "interval is less than averaged_interval/2. num_sample is now %d", state->num_samples);
+              }
             }
             else
             {
@@ -2297,7 +2303,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                 &state->mag_info.suid);
 }
 
-#ifndef AK0991X_ENABLE_SEE_LITE
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -2479,12 +2485,12 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_water_mark = false;
     phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09916_HI_PWR;
+    phy_sensor_config.active_current = AK09918_HI_PWR;
     phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09916_RESOLUTION;
+    phy_sensor_config.resolution = AK09918_RESOLUTION;
     phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09916_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+    phy_sensor_config.range[0] = AK09918_MIN_RANGE;
+    phy_sensor_config.range[1] = AK09918_MAX_RANGE;
     break;
 #endif
   default:
@@ -2873,17 +2879,21 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
-
+#ifdef AK0991X_ENABLE_DRI
   AK0991X_INST_PRINT(LOW, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
-
+#endif
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
+#ifdef AK0991X_ENABLE_DRI
     if ((state->mag_info.use_dri && state->irq_info.is_ready) ||
         (state->mag_info.use_dri && state->dae_if.mag.state == STREAMING) ||
         (!state->mag_info.use_dri))
     {
       ak0991x_start_mag_streaming(this);
     }
+#else 
+    ak0991x_start_mag_streaming(this);
+#endif //AK0991X_ENABLE_DRI
   }
   else
   {

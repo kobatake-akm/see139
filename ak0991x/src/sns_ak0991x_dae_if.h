@@ -51,9 +51,9 @@ typedef struct ak0991x_dae_if_info
 {
   ak0991x_dae_stream   mag;
 } ak0991x_dae_if_info;
-
+#ifdef AK0991X_ENABLE_DAE
 bool ak0991x_dae_if_available(sns_sensor_instance *this);
-
+#endif //AK0991X_ENABLE_DAE
 sns_rc ak0991x_dae_if_init(
   sns_sensor_instance        *const this,
   struct sns_stream_service  *stream_mgr,
