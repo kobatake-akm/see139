@@ -30,7 +30,9 @@
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
 #include "sns_printf.h"
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 #include "sns_cal.pb.h"
+#endif
 
 typedef struct pb_arg_reg_group_arg
 {
@@ -454,7 +456,10 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   sns_memscpy(&registry_cfg.dc_param, sizeof(registry_cfg.dc_param),
               &state->dc_param, sizeof(state->dc_param));
 #endif
-    registry_cfg.version = state->fac_cal_version;
+
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
+  registry_cfg.version = state->fac_cal_version;
+#endif
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   if(state->device_mode != SNS_DEVICE_MODE_FLIP_OPEN) // temporary
@@ -777,7 +782,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   bool rv = true;
   sns_rc rc = SNS_RC_SUCCESS;
   ak0991x_state *state = (ak0991x_state *)this->state->state;
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
   uint32_t fac_cal_version;
+#endif
 
   pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
       event->event_len);
@@ -1176,14 +1183,18 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           read_event.data.items.arg = &arg;
 
           rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
           fac_cal_version = arg.version;
           AK0991X_PRINT(LOW, this, "fac_cal_version=%d",arg.version);
-       }
+#endif
+        }
 
         if(rv)
         {
           state->registry_fac_cal_1_received = true;
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
           state->fac_cal_version = fac_cal_version;
+#endif
           if(state->fac_cal_scale[0] != 0.0)
           {
             state->fac_cal_corr_mat.e00 = state->fac_cal_scale[0];
@@ -2155,7 +2166,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "Add the new request to list");
           instance->cb->add_client_request(instance, new_request);
 
-#ifndef AK0991X_ENABLE_SEE_LITE
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
           if(new_request->message_id == SNS_CAL_MSGID_SNS_CAL_RESET) {
             AK0991X_PRINT(LOW,this,"Request for resetting cal data.");
             ak0991x_reset_cal_data(instance);
@@ -2372,7 +2383,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR100;
 #endif
   }
-#ifndef AK0991X_TARGET_AK09916C
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   else if ((desired_sample_rate <= AK0991X_ODR_200) &&
            ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
   {
@@ -2384,13 +2395,14 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR200;
 #endif
   }
-#endif //AK0991X_TARGET_AK09916C
+#endif // defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   else
   {
     return SNS_RC_FAILED;
   }
 
-#ifdef AK0991X_TARGET_AK09916C 
+#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#else
   UNUSED_VAR(device_select);
 #endif
 
@@ -2398,6 +2410,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
 }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 static bool
 ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s const *field,
     void *const *arg)
@@ -2423,7 +2436,6 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
 
       pb_item.flt = ((ak0991x_instance_state*)pb_arg->instance->state->state)->mag_registry_cfg.fac_cal_bias[i];
       pb_item.version = ((ak0991x_instance_state*)pb_arg->instance->state->state)->mag_registry_cfg.version;
-
       if(!pb_encode_tag_for_field(stream, field))
         return false;
 
@@ -2452,7 +2464,6 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
       pb_item.has_version = true;
       pb_item.flt = ((ak0991x_instance_state*)pb_arg->instance->state->state)->mag_registry_cfg.fac_cal_corr_mat.data[i];
       pb_item.version = ((ak0991x_instance_state*)pb_arg->instance->state->state)->mag_registry_cfg.version;
-
       if(!pb_encode_tag_for_field(stream, field))
         return false;
 
@@ -2519,13 +2530,9 @@ ak0991x_encode_registry_cb(struct pb_ostream_s *stream, struct pb_field_s const 
 
  return true;
 }
-#endif // AK0991X_ENABLE_REGISTRY_ACCESS
-
 void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance)
 {
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   pb_arg_reg_group_arg arg = {.instance = instance };
 
@@ -2571,13 +2578,8 @@ void ak0991x_update_registry(sns_sensor *const this,
           .message_id = SNS_REGISTRY_MSGID_SNS_REGISTRY_WRITE_REQ };
     state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
   }
-#else
-  UNUSED_VAR(this);
-  UNUSED_VAR(instance);
-#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 }
 
-#ifndef AK0991X_ENABLE_SEE_LITE
 void ak0991x_update_sensor_state(sns_sensor *const this,
         sns_sensor_instance *const instance)
 {
@@ -2604,4 +2606,6 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
     }
   }
 }
-#endif
+#endif // AK0991X_ENABLE_REG_WRITE_ACCESS
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
+

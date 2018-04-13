@@ -1852,11 +1852,18 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
           {
             int16_t calculated_samples;
             calculated_samples = state->mag_info.cur_wmk + 1 - state->flush_sample_count;
-            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d", calculated_samples);
- 
+            state->num_samples = st1_buf >> 2;
+            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d num_samples %d", calculated_samples,state->num_samples);
             if(calculated_samples > 0)
             {
               state->num_samples = (uint8_t)calculated_samples;
+
+              // check timestamp
+              if( ( state->system_time + (state->averaged_interval>>1) ) <= state->pre_timestamp + (state->averaged_interval * state->num_samples) )
+              {
+                state->num_samples--;
+                SNS_INST_PRINTF(LOW, instance, "interval is less than averaged_interval/2. num_sample is now %d", state->num_samples);
+              }
             }
             else
             {
@@ -2296,7 +2303,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                 &state->mag_info.suid);
 }
 
-#ifndef AK0991X_ENABLE_SEE_LITE
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -2478,12 +2485,12 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.has_water_mark = false;
     phy_sensor_config.water_mark = state->mag_info.cur_wmk + 1;
     phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09916_HI_PWR;
+    phy_sensor_config.active_current = AK09918_HI_PWR;
     phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09916_RESOLUTION;
+    phy_sensor_config.resolution = AK09918_RESOLUTION;
     phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09916_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+    phy_sensor_config.range[0] = AK09918_MIN_RANGE;
+    phy_sensor_config.range[1] = AK09918_MAX_RANGE;
     break;
 #endif
   default:

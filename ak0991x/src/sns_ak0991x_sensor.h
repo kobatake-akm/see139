@@ -261,7 +261,10 @@ typedef struct ak0991x_state
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
   uint32_t                fac_cal_version;
+#endif
+
 #ifdef AK0991X_ENABLE_DC
   // dc_parameter
   bool                    registry_dc_param_1_received;
@@ -345,8 +348,11 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
                              float *chosen_sample_rate,
                              ak0991x_mag_odr *chosen_reg_value,
                              akm_device_type device_select);
+
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance);
 
 void ak0991x_update_sensor_state(sns_sensor *const this,
         sns_sensor_instance *const instance);
+#endif

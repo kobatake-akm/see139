@@ -636,7 +636,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_send_config_event(this);
       }
     }
-
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
     // update registry configuration
     if(payload->registry_cfg.version >= state->mag_registry_cfg.version)
     {
@@ -644,6 +644,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
       state->mag_registry_cfg.version = payload->registry_cfg.version;
     }
+#endif
 
 #ifdef AK0991X_ENABLE_DC
     pdc_parameter = state->mag_registry_cfg.dc_param;
