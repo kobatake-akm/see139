@@ -110,8 +110,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = false;
 #endif //AK0991X_ENABLE_DRI
-    // state->mag_info.nsf = 0;
-    // state->mag_info.sdr = 0;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
@@ -124,10 +122,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = sensor_state->is_dri;
 #endif //AK0991X_ENABLE_DRI
-#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = 0;
-#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
@@ -140,8 +136,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = false;
 #endif //AK0991X_ENABLE_DRI
-    // state->mag_info.nsf = 0;
-    // state->mag_info.sdr = 0;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
@@ -155,10 +149,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = sensor_state->is_dri;
 #endif //AK0991X_ENABLE_DRI
-#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
@@ -171,8 +163,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = false;
 #endif //AK0991X_ENABLE_DRI
-    // state->mag_info.nsf = 0;
-    // state->mag_info.sdr = 0;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916D)
@@ -185,8 +175,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = sensor_state->is_dri;
 #endif //AK0991X_ENABLE_DRI
-    // state->mag_info.nsf = 0;
-    // state->mag_info.sdr = 0;
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
@@ -199,10 +187,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = sensor_state->is_dri;
 #endif //AK0991X_ENABLE_DRI
-#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
     break;
 #endif
 #if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
@@ -215,8 +201,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DRI
     state->mag_info.use_dri = false;
 #endif //AK0991X_ENABLE_DRI
-    // state->mag_info.nsf = 0;
-    // state->mag_info.sdr = 0;
     break;
 #endif
   default:
