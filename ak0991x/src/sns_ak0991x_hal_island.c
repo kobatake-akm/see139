@@ -2179,7 +2179,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     }
   }
 #else
-  uint8_t buffer[1];
+  uint8_t buffer[AK0991X_NUM_DATA_HXL_TO_ST2];
 
   state->num_samples = 1;
   if(state->data_is_ready)

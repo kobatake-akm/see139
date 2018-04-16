@@ -476,10 +476,16 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   }
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
+#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
   AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100 ver=%d",
       (int)(registry_cfg.fac_cal_bias[0]*100),
       (int)(registry_cfg.fac_cal_corr_mat.e00*100),
       registry_cfg.version);
+#else
+  AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100",
+      (int)(registry_cfg.fac_cal_bias[0]*100),
+      (int)(registry_cfg.fac_cal_corr_mat.e00*100));
+#endif // AK0991X_ENABLE_REG_WRITE_ACCESS
 
   AK0991X_PRINT(LOW, this, "chosen_sample_rate=%d chosen_report_rate=%d",
       (int)chosen_sample_rate, (int)chosen_report_rate);
