@@ -42,7 +42,7 @@ typedef struct pb_arg_reg_group_arg
 }pb_arg_reg_group_arg;
 
 /* device specific information */
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09911)
+#ifdef AK0991X_TARGET_AK09911
 float ak09911_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
@@ -52,7 +52,7 @@ float ak09911_odr_table[] =
 static char *ak09911_ope_mode_table[] = {AK0991X_NORMAL};
 #endif
 
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
+#ifdef AK0991X_TARGET_AK09912
 float ak09912_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
@@ -62,7 +62,7 @@ float ak09912_odr_table[] =
 static char *ak09912_ope_mode_table[] = {AK0991X_NORMAL};
 #endif
 
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
+#ifdef AK0991X_TARGET_AK09913
 float ak09913_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
@@ -72,7 +72,7 @@ float ak09913_odr_table[] =
 static char *ak09913_ope_mode_table[] = {AK0991X_NORMAL};
 #endif
 
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
+#if defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
 float ak09915_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
@@ -82,7 +82,7 @@ float ak09915_odr_table[] =
 static char *ak09915_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 #endif
 
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C) || defined(AK0991X_TARGET_AK09916D)
+#if defined(AK0991X_TARGET_AK09916C) || defined(AK0991X_TARGET_AK09916D)
 float ak09916_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
@@ -92,7 +92,7 @@ float ak09916_odr_table[] =
 static char *ak09916_ope_mode_table[] = {AK0991X_NORMAL};
 #endif
 
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
+#ifdef AK0991X_TARGET_AK09917
 float ak09917_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
@@ -102,7 +102,7 @@ float ak09917_odr_table[] =
 static char *ak09917_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 #endif
 
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
+#ifdef AK0991X_TARGET_AK09918
 float ak09918_odr_table[] =
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50};
@@ -127,7 +127,7 @@ typedef struct ak0991x_dev_info
 } ak0991x_dev_info;
 
 const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09911)
+#ifdef AK0991X_TARGET_AK09911
   [AK09911] = {
     .odr                  = ak09911_odr_table,
     .resolutions          = AK09911_RESOLUTION,
@@ -140,7 +140,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_sync_stream = false,
   },
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
+#ifdef AK0991X_TARGET_AK09912
   [AK09912] = {
     .odr                  = ak09912_odr_table,
     .resolutions          = AK09912_RESOLUTION,
@@ -153,7 +153,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_sync_stream = false,
   },
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
+#ifdef AK0991X_TARGET_AK09913
   [AK09913] = {
     .odr                  = ak09913_odr_table,
     .resolutions          = AK09913_RESOLUTION,
@@ -166,7 +166,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_sync_stream = false,
   },
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C)
+#ifdef AK0991X_TARGET_AK09915C
   [AK09915C] = {
     .odr                  = ak09915_odr_table,
     .resolutions          = AK09915_RESOLUTION,
@@ -179,7 +179,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_sync_stream = false,
   },
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915D)
+#ifdef AK0991X_TARGET_AK09915D
   [AK09915D] = {
     .odr                  = ak09915_odr_table,
     .resolutions          = AK09915_RESOLUTION,
@@ -192,7 +192,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_sync_stream = true,
   },
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
+#ifdef AK0991X_TARGET_AK09916C
   [AK09916C] = {
     .odr                  = ak09916_odr_table,
     .resolutions          = AK09916_RESOLUTION,
@@ -205,7 +205,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_sync_stream = false,
   },
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916D)
+#ifdef AK0991X_TARGET_AK09916D
   [AK09916D] = {
     .odr                  = ak09916_odr_table,
     .resolutions          = AK09916_RESOLUTION,
@@ -218,7 +218,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_sync_stream = false,
   },
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
+#ifdef AK0991X_TARGET_AK09917
   [AK09917] = {
     .odr                  = ak09917_odr_table,
     .resolutions          = AK09917_RESOLUTION,
@@ -231,7 +231,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_sync_stream = true,
   },
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
+#ifdef AK0991X_TARGET_AK09918
   [AK09918] = {
     .odr                  = ak09918_odr_table,
     .resolutions          = AK09918_RESOLUTION,
@@ -693,7 +693,7 @@ static void ak0991x_request_registry(sns_sensor *const this)
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
 static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_item,
                                                   pb_buffer_arg *item_name,
                                                   pb_buffer_arg *item_str_val,
@@ -739,7 +739,7 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
 
   return rv;
 }
-#endif //defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
 #ifdef AK0991X_ENABLE_DC
 static bool ak0991x_registry_parse_dc_param(sns_registry_data_item *reg_item,
                                                   pb_buffer_arg *item_name,
@@ -812,11 +812,11 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       bool faccal;
       mag_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_MAG_CONFIG,
                            group_name.buf_len));
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
       bool reg_config;
       reg_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_REG_CONFIG,
                            group_name.buf_len));
-#endif //defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
       pf_config = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_PF_CONFIG,
                            group_name.buf_len));
       place = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_PLACE,
@@ -899,7 +899,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
         }
       }
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
       if(reg_config)
       {
         {
@@ -934,7 +934,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           //                          state->sdr);
         }
       }
-#endif //defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
 #ifdef AK0991X_ENABLE_DC
       else if (dc_param)
       {
@@ -1385,9 +1385,9 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 
   if(NULL != state->reg_data_stream
      && state->registry_cfg_received
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
      && state->registry_reg_cfg_received
-#endif //defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
      && state->registry_pf_cfg_received
      && state->registry_orient_received
      && state->registry_fac_cal_1_received
@@ -1428,9 +1428,9 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
                                 akm_device_type device_select)
 {
 #ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
-#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S) || defined(AK0991X_ENABLE_ALL_DEVICES)
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S) || !defined(AK0991X_ENABLE_SEE_LITE)
  ak0991x_state *state = (ak0991x_state *)this->state->state;
-#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S) || defined(AK0991X_ENABLE_ALL_DEVICES)
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_S4S) || !defined(AK0991X_ENABLE_SEE_LITE)
  {
    sns_std_attr_value_data values[] = {SNS_ATTR};
 
@@ -1458,7 +1458,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
    uint32_t value_len = 0;
    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
 
-#ifdef AK0991X_ENABLE_ALL_DEVICES
+#ifndef AK0991X_ENABLE_SEE_LITE
    if((state->device_select == AK09915C) || (state->device_select == AK09915D))
    {
      value_len = ARR_SIZE(ak09915_odr_table);
@@ -1552,7 +1552,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
    }
 #endif
 
-#endif //  AK0991X_ENABLE_ALL_DEVICES
+#endif //  AK0991X_ENABLE_SEE_LITE
 
    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
        values, value_len, false);
@@ -1825,99 +1825,58 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               //Check AKM device ID
               if (buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
               {
-#ifdef AK0991X_ENABLE_ALL_DEVICES
-                if (buffer[1] == AK09911_WHOAMI_DEV_ID)
+                switch(buffer[1])
                 {
-                  state->device_select = AK09911;
-                }
-                else if (buffer[1] == AK09912_WHOAMI_DEV_ID)
-                {
-                  state->device_select = AK09912;
-                }
-                else if (buffer[1] == AK09913_WHOAMI_DEV_ID)
-                {
-                  state->device_select = AK09913;
-                }
-                else if ((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915C_SUB_ID))
-                {
-                  state->device_select = AK09915C;
-                }
-                else if ((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915D_SUB_ID))
-                {
-                  state->device_select = AK09915D;
-                }
-                else if (buffer[1] == AK09916C_WHOAMI_DEV_ID)
-                {
-                  state->device_select = AK09916C;
-                }
-                else if (buffer[1] == AK09917_WHOAMI_DEV_ID)
-                {
-                  state->device_select = AK09917;
-                }
-                else if (buffer[1] == AK09916D_WHOAMI_DEV_ID)
-                {
-                  state->device_select = AK09916D;
-                }
-                else if (buffer[1] == AK09918_WHOAMI_DEV_ID)
-                {
-                  state->device_select = AK09918;
-                }
-                else
-                {
-                  SNS_PRINTF(ERROR, this, "Unsupported Sensor");
-                  rv = SNS_RC_INVALID_STATE;
-                }
-#else
 #ifdef AK0991X_TARGET_AK09911
-                if(buffer[1] == AK09911_WHOAMI_DEV_ID){
+                case AK09911_WHOAMI_DEV_ID:
                   state->device_select = AK09911;
-                }
-#endif
+                  break;
+#endif //AK0991X_TARGET_AK09911
 #ifdef AK0991X_TARGET_AK09912
-                if(buffer[1] == AK09912_WHOAMI_DEV_ID){
+                case AK09912_WHOAMI_DEV_ID:
                   state->device_select = AK09912;
-                }
-#endif
+                  break;
+#endif //AK0991X_TARGET_AK09912
 #ifdef AK0991X_TARGET_AK09913
-                if(buffer[1] == AK09913_WHOAMI_DEV_ID){
+                case AK09913_WHOAMI_DEV_ID:
                   state->device_select = AK09913;
-                }
-#endif
-#ifdef AK0991X_TARGET_AK09915C
-                if((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915C_SUB_ID)){
-                  state->device_select = AK09915C;
-                }
-#endif
-#ifdef AK0991X_TARGET_AK09915D
-                if((buffer[1] == AK09915_WHOAMI_DEV_ID) && (buffer[3] == AK09915D_SUB_ID)){
-                  state->device_select = AK09915D;
-                }
-#endif
+                  break;
+#endif //AK0991X_TARGET_AK09913
+#if defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
+                case AK09915_WHOAMI_DEV_ID:
+                  if(buffer[3] == AK09915C_SUB_ID){
+                    state->device_select = AK09915C;
+                  }
+                  if(buffer[3] == AK09915D_SUB_ID){
+                    state->device_select = AK09915D;
+                  }
+                  break;
+#endif //AK0991X_TARGET_AK09915
 #ifdef AK0991X_TARGET_AK09916C
-                if(buffer[1] == AK09916C_WHOAMI_DEV_ID){
+                case AK09916C_WHOAMI_DEV_ID:
                   state->device_select = AK09916C;
-                }
-#endif
+                  break;
+#endif //AK0991X_TARGET_AK09916C
 #ifdef AK0991X_TARGET_AK09916D
-                if(buffer[1] == AK09916D_WHOAMI_DEV_ID){
+                case AK09916D_WHOAMI_DEV_ID:
                   state->device_select = AK09916D;
-                }
-#endif
+                  break;
+#endif //AK0991X_TARGET_AK09916D
 #ifdef AK0991X_TARGET_AK09917
-                if(buffer[1] == AK09917_WHOAMI_DEV_ID){
+                case AK09917_WHOAMI_DEV_ID:
                   state->device_select = AK09917;
-                }
-#endif
+                  break;
+#endif //AK0991X_TARGET_AK09917
 #ifdef AK0991X_TARGET_AK09918
-                if(buffer[1] == AK09918_WHOAMI_DEV_ID){
+                case AK09918_WHOAMI_DEV_ID:
                   state->device_select = AK09918;
-                }
-#endif
-                else{
+                  break;
+#endif //AK0991X_TARGET_AK09918
+                default:
                   SNS_PRINTF(ERROR, this, "Unsupported Sensor");
                   rv = SNS_RC_INVALID_STATE;
+                  break;
                 }
-#endif //AK0991X_ENABLE_ALL_DEVICES
               }
               else
               {
@@ -2381,7 +2340,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR100;
 #endif //AK0991X_FORCE_MAX_ODR_50HZ
   }
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#if defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   else if ((desired_sample_rate <= AK0991X_ODR_200) &&
            ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
   {
@@ -2393,13 +2352,13 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR200;
 #endif //AK0991X_FORCE_MAX_ODR_50HZ
   }
-#endif // defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#endif //defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   else
   {
     return SNS_RC_FAILED;
   }
 
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+#if defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
 #else
   UNUSED_VAR(device_select);
 #endif

@@ -183,7 +183,78 @@
 #define TLIMIT_HI_SLF_ST2                           0
 #define TLIMIT_ST2_MASK                             (0x08)
 
-#if     defined(AK0991X_TARGET_AK09911)
+#if !defined(AK0991X_ENABLE_SEE_LITE)
+/*******************************
+* AK09918 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09918                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09918                  200
+#define TLIMIT_LO_SLF_RVHY_AK09918                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09918                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09918                  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09918                  -150
+
+/*******************************
+* AK09917 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09917                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09917                  200
+#define TLIMIT_LO_SLF_RVHY_AK09917                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09917                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09917                  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09917                  -150
+
+/*******************************
+* AK09916 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09916                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09916                  200
+#define TLIMIT_LO_SLF_RVHY_AK09916                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09916                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09916                  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09916                  -200
+
+/*******************************
+* AK09915 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09915                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09915                  200
+#define TLIMIT_LO_SLF_RVHY_AK09915                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09915                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09915                  -800
+#define TLIMIT_HI_SLF_RVHZ_AK09915                  -200
+
+/*******************************
+ * AK09913 dependent value
+ */
+#define TLIMIT_LO_SLF_RVHX_AK09913                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09913                  200
+#define TLIMIT_LO_SLF_RVHY_AK09913                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09913                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09913                  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09913                  -200
+
+/*******************************
+ * AK09912 dependent value
+ */
+#define TLIMIT_LO_SLF_RVHX_AK09912                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09912                  200
+#define TLIMIT_LO_SLF_RVHY_AK09912                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09912                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09912                  -1600
+#define TLIMIT_HI_SLF_RVHZ_AK09912                  -400
+
+/*******************************
+ * AK09911 dependent value
+ */
+#define TLIMIT_LO_SLF_RVHX_AK09911                  -30
+#define TLIMIT_HI_SLF_RVHX_AK09911                  30
+#define TLIMIT_LO_SLF_RVHY_AK09911                  -30
+#define TLIMIT_HI_SLF_RVHY_AK09911                  30
+#define TLIMIT_LO_SLF_RVHZ_AK09911                  -400
+#define TLIMIT_HI_SLF_RVHZ_AK09911                  -50
+
+#elif     defined(AK0991X_TARGET_AK09911)
 #define TLIMIT_LO_SLF_RVHX                          -30
 #define TLIMIT_HI_SLF_RVHX                          30
 #define TLIMIT_LO_SLF_RVHY                          -30
@@ -255,79 +326,7 @@
 #define TLIMIT_LO_SLF_RVHZ                          -1000
 #define TLIMIT_HI_SLF_RVHZ                          -150
 
-#else
-
-/*******************************
-* AK09918 dependent value
-*/
-#define TLIMIT_LO_SLF_RVHX_AK09918                  -200
-#define TLIMIT_HI_SLF_RVHX_AK09918                  200
-#define TLIMIT_LO_SLF_RVHY_AK09918                  -200
-#define TLIMIT_HI_SLF_RVHY_AK09918                  200
-#define TLIMIT_LO_SLF_RVHZ_AK09918                  -1000
-#define TLIMIT_HI_SLF_RVHZ_AK09918                  -150
-
-/*******************************
-* AK09917 dependent value
-*/
-#define TLIMIT_LO_SLF_RVHX_AK09917                  -200
-#define TLIMIT_HI_SLF_RVHX_AK09917                  200
-#define TLIMIT_LO_SLF_RVHY_AK09917                  -200
-#define TLIMIT_HI_SLF_RVHY_AK09917                  200
-#define TLIMIT_LO_SLF_RVHZ_AK09917                  -1000
-#define TLIMIT_HI_SLF_RVHZ_AK09917                  -150
-
-/*******************************
-* AK09916 dependent value
-*/
-#define TLIMIT_LO_SLF_RVHX_AK09916                  -200
-#define TLIMIT_HI_SLF_RVHX_AK09916                  200
-#define TLIMIT_LO_SLF_RVHY_AK09916                  -200
-#define TLIMIT_HI_SLF_RVHY_AK09916                  200
-#define TLIMIT_LO_SLF_RVHZ_AK09916                  -1000
-#define TLIMIT_HI_SLF_RVHZ_AK09916                  -200
-
-/*******************************
-* AK09915 dependent value
-*/
-#define TLIMIT_LO_SLF_RVHX_AK09915                  -200
-#define TLIMIT_HI_SLF_RVHX_AK09915                  200
-#define TLIMIT_LO_SLF_RVHY_AK09915                  -200
-#define TLIMIT_HI_SLF_RVHY_AK09915                  200
-#define TLIMIT_LO_SLF_RVHZ_AK09915                  -800
-#define TLIMIT_HI_SLF_RVHZ_AK09915                  -200
-
-/*******************************
- * AK09913 dependent value
- */
-#define TLIMIT_LO_SLF_RVHX_AK09913                  -200
-#define TLIMIT_HI_SLF_RVHX_AK09913                  200
-#define TLIMIT_LO_SLF_RVHY_AK09913                  -200
-#define TLIMIT_HI_SLF_RVHY_AK09913                  200
-#define TLIMIT_LO_SLF_RVHZ_AK09913                  -1000
-#define TLIMIT_HI_SLF_RVHZ_AK09913                  -200
-
-/*******************************
- * AK09912 dependent value
- */
-#define TLIMIT_LO_SLF_RVHX_AK09912                  -200
-#define TLIMIT_HI_SLF_RVHX_AK09912                  200
-#define TLIMIT_LO_SLF_RVHY_AK09912                  -200
-#define TLIMIT_HI_SLF_RVHY_AK09912                  200
-#define TLIMIT_LO_SLF_RVHZ_AK09912                  -1600
-#define TLIMIT_HI_SLF_RVHZ_AK09912                  -400
-
-/*******************************
- * AK09911 dependent value
- */
-#define TLIMIT_LO_SLF_RVHX_AK09911                  -30
-#define TLIMIT_HI_SLF_RVHX_AK09911                  30
-#define TLIMIT_LO_SLF_RVHY_AK09911                  -30
-#define TLIMIT_HI_SLF_RVHY_AK09911                  30
-#define TLIMIT_LO_SLF_RVHZ_AK09911                  -400
-#define TLIMIT_HI_SLF_RVHZ_AK09911                  -50
-
-#endif // AK0991X_TARGET_AK09911-18
+#endif // AK0991X_ENABLE_SEE_LITE
 
 /*******************************
  * Number of axes in a 3 axis sensor

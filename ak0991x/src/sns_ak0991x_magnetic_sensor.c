@@ -22,7 +22,7 @@
 #include "sns_pb_util.h"
 #include "sns_attribute_util.h"
 #include "sns_printf.h"
-#ifndef AK0991X_ENABLE_ALL_DEVICES
+#ifdef AK0991X_ENABLE_SEE_LITE
 #include "sns_interrupt.pb.h"
 #endif
 /**
@@ -147,7 +147,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   AK0991X_PRINT(LOW, this, "registration_idx=%d",state->registration_idx);
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
-#ifdef AK0991X_ENABLE_ALL_DEVICES
+#ifndef AK0991X_ENABLE_SEE_LITE
   uint8_t i = 0;
 
   // initialize axis conversion settings
@@ -266,7 +266,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->placement[9] = 0.0;
   state->placement[10] = 0.0;
   state->placement[11] = 0.0;
-#endif // AK0991X_ENABLE_ALL_DEVICES
+#endif // AK0991X_ENABLE_SEE_LITE
 
   SNS_SUID_LOOKUP_INIT(state->suid_lookup_data, NULL);
 #ifdef AK0991X_ENABLE_DAE

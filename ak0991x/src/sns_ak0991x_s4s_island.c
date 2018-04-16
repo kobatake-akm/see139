@@ -90,25 +90,25 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
 
   switch (state->mag_info.device_select)
   {
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09911)
+#ifdef AK0991X_TARGET_AK09911
   case AK09911:
     phy_sensor_config->has_stream_is_synchronous = false;
     phy_sensor_config->stream_is_synchronous = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
+#ifdef AK0991X_TARGET_AK09912
   case AK09912:
     phy_sensor_config->has_stream_is_synchronous = false;
     phy_sensor_config->stream_is_synchronous = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
+#ifdef AK0991X_TARGET_AK09913
   case AK09913:
     phy_sensor_config->has_stream_is_synchronous = false;
     phy_sensor_config->stream_is_synchronous = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C)
+#ifdef AK0991X_TARGET_AK09915C
   case AK09915C:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
@@ -120,7 +120,7 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915D)
+#ifdef AK0991X_TARGET_AK09915D
   case AK09915D:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
@@ -128,19 +128,19 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
+#ifdef AK0991X_TARGET_AK09916C
   case AK09916C:
     phy_sensor_config->has_stream_is_synchronous = false;
     phy_sensor_config->stream_is_synchronous = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916D)
+#ifdef AK0991X_TARGET_AK09916D
   case AK09916D:
     phy_sensor_config->has_stream_is_synchronous = false;
     phy_sensor_config->stream_is_synchronous = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
+#ifdef AK0991X_TARGET_AK09917
   case AK09917:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
@@ -148,7 +148,7 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
+#ifdef AK0991X_TARGET_AK09918
   case AK09918:
     phy_sensor_config->has_stream_is_synchronous = false;
     phy_sensor_config->stream_is_synchronous = false;
@@ -178,47 +178,47 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
 
   switch (state->mag_info.device_select)
   {
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09911)
+#ifdef AK0991X_TARGET_AK09911
   case AK09911:
     state->mag_info.use_sync_stream = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
+#ifdef AK0991X_TARGET_AK09912
   case AK09912:
     state->mag_info.use_sync_stream = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
+#ifdef AK0991X_TARGET_AK09913
   case AK09913:
     state->mag_info.use_sync_stream = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C)
+#ifdef AK0991X_TARGET_AK09915C
   case AK09915C:
     state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915D)
+#ifdef AK0991X_TARGET_AK09915D
   case AK09915D:
     state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
+#ifdef AK0991X_TARGET_AK09916C
   case AK09916C:
     state->mag_info.use_sync_stream = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916D)
+#ifdef AK0991X_TARGET_AK09916D
   case AK09916D:
     state->mag_info.use_sync_stream = false;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
+#ifdef AK0991X_TARGET_AK09917
   case AK09917:
     state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
+#ifdef AK0991X_TARGET_AK09918
   case AK09918:
     state->mag_info.use_sync_stream = false;
     break;

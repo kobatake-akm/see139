@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 04/13/18     010069     AKM              Modified macro definition for non SEE_LITE mode.
+ * 04/16/18     010069     AKM              Modified macro definition for non SEE_LITE mode. Removed AK0991X_ENABLE_ALL_DEVICES definition.
  * 04/13/18     010068     AKM              Fixed for SEE_LITE_MODE.
  * 04/12/18     010067     AKM              Added AK0991X_ENABLE_REG_WRITE_ACCESS macro
  * 04/12/18     010066     AKM              Modified for AK09918

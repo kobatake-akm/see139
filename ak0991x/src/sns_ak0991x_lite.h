@@ -96,6 +96,17 @@
 
 #else // AK0991X_ENABLE_SEE_LITE
 
+// define all sensors for regular mode(=non SEE-Lite mode)
+#define AK0991X_TARGET_AK09911
+#define AK0991X_TARGET_AK09912
+#define AK0991X_TARGET_AK09913
+#define AK0991X_TARGET_AK09915C
+#define AK0991X_TARGET_AK09915D
+#define AK0991X_TARGET_AK09916C
+#define AK0991X_TARGET_AK09916D
+#define AK0991X_TARGET_AK09917
+#define AK0991X_TARGET_AK09918
+
 // Standard SEE Mode. Enabled all features.
 #define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
 #define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
@@ -105,7 +116,6 @@
 #define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 #define AK0991X_ENABLE_DEINIT             // Enable deinit call
 //#define AK0991X_ENABLE_S4S                // Enable S4S parts
-#define AK0991X_ENABLE_ALL_DEVICES        // Enable AKM all sensors
 #define AK0991X_ENABLE_FUSE               // Enable fuse rom
 #define AK0991X_ENABLE_DRI                // Enable DRI
 #define AK0991X_ENABLE_FIFO               // Enable FIFO
