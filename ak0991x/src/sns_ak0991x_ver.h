@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/20/18     010070     AKM              Modified for initialize use_dri,use_fifo,nsf and sdr.
  * 04/16/18     010069     AKM              Modified macro definition for non SEE_LITE mode. Removed AK0991X_ENABLE_ALL_DEVICES definition.
  * 04/13/18     010068     AKM              Fixed for SEE_LITE_MODE.
  * 04/12/18     010067     AKM              Added AK0991X_ENABLE_REG_WRITE_ACCESS macro
@@ -142,4 +143,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10069  // major:01 minor:00 revision:69
+#define AK0991X_DRIVER_VERSION 10070  // major:01 minor:00 revision:70
