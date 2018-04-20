@@ -166,35 +166,24 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #else
   AK0991X_PRINT(LOW, this, "SEE-Lite Mode.");
 
-#ifdef AK0991X_ENABLE_DRI
+  state->is_dri = false;
+  state->use_fifo = false;
+  state->supports_sync_stream = false;
+  state->nsf = 0;
+  state->sdr = 0;
 
 #ifdef AK0991X_STATE_IS_DRI
   state->is_dri = true;
-#else
-  state->is_dri = false;
 #endif //AK0991X_STATE_IS_DRI
-#endif //AK0991X_ENABLE_DRI
 
-#ifdef AK0991X_ENABLE_FIFO
 #ifdef AK0991X_STATE_USE_FIFO
   state->use_fifo = true;
-#else
-  state->use_fifo = false;
 #endif //AK0991X_STATE_USE_FIFO
-#endif //AK0991X_ENABLE_FIFO
 
-#ifdef AK0991X_ENABLE_S4S
 #ifdef AK0991X_STATE_SUPPORTS_SYNC_STREAM
   state->supports_sync_stream = true;
-#else
-  state->supports_sync_stream = false;
 #endif //AK0991X_STATE_SUPPORTS_SYNC_STREAM
-#endif //AK0991X_ENABLE_S4S
 
-#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
-  state->nsf = 0;
-  state->sdr = 0;
-#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   state->resolution_idx = 0;
   state->hardware_id = 0;
 
