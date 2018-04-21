@@ -126,8 +126,6 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   struct sns_service_manager *smgr = this->cb->get_service_manager(this);
-  state->diag_service = (sns_diag_service *)
-    smgr->get_service(smgr, SNS_DIAG_SERVICE);
   state->scp_service =
      (sns_sync_com_port_service *)smgr->get_service(smgr, SNS_SYNC_COM_PORT_SERVICE);
 

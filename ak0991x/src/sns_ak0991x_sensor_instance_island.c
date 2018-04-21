@@ -37,10 +37,6 @@
 #include "sns_pb_util.h"
 #include "sns_async_com_port_pb_utils.h"
 #include "sns_sync_com_port_service.h"
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
-#include "sns_diag_service.h"
-#include "sns_diag.pb.h"
-#endif //AK0991X_ENABLE_DIAG_LOGGING
 
 extern log_sensor_state_raw_info log_mag_state_raw_info;
 
@@ -268,7 +264,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                                    (uint32_t)irq_event.timestamp,
                                    (uint32_t)state->system_time);
               }
-
+#ifdef AK0991X_ENABLE_FIFO
               if(state->ascp_xfer_in_progress == 0)
               {
                 ak0991x_read_mag_samples(this);
@@ -278,6 +274,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                 AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress=%d.",state->ascp_xfer_in_progress);
                 state->re_read_data_after_ascp = true;
               }
+#else
+              ak0991x_read_mag_samples(this);
+#endif//AK0991X_ENABLE_FIFO
+
             }
           }
           else

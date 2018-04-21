@@ -26,7 +26,6 @@
 #include "pb_encode.h"
 #include "pb_decode.h"
 #include "sns_pb_util.h"
-#include "sns_diag_service.h"
 #include "sns_sensor_util.h"
 
 sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)

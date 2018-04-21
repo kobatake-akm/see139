@@ -18,10 +18,10 @@
 
 #include "sns_ak0991x_lite.h"
 #include "sns_ak0991x_sensor_instance.h"
-#include "sns_diag.pb.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
+#include "sns_diag.pb.h"
 #include "sns_std.pb.h"
 #endif
 #include "sns_std_sensor.pb.h"

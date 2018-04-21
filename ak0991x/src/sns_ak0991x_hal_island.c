@@ -680,12 +680,14 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");
 
+#ifdef AK0991X_ENABLE_FIFO
   if(state->ascp_xfer_in_progress)
   {
     AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming skipped. wait for the ASCP done.");
     state->config_mag_after_ascp_xfer = true;
     return SNS_RC_SUCCESS;
   }
+#endif //AK0991X_ENABLE_FIFO
 
   // Enable Mag Streaming
 
@@ -712,18 +714,17 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = true;
 #endif
-  state->mag_info.data_count = 0;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = state->system_time;
-  state->irq_event_time = state->system_time;
   state->reg_event_done = false;
 #ifdef AK0991X_ENABLE_DRI
+  state->mag_info.data_count = 0;
   state->is_temp_average = false;
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
-#endif //AK0991X_ENABLE_DRI
   state->previous_meas_is_correct_wm = true;
+#endif //AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_S4S
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
@@ -741,13 +742,14 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   {
     state->pre_timestamp = state->system_time;
   }
-  state->previous_irq_time = state->pre_timestamp;
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u",
                      (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,
                      (uint32_t)state->averaged_interval);
 
 #ifdef AK0991X_ENABLE_DRI
+  state->previous_irq_time = state->pre_timestamp;
+
   // QC - is it not possible to miss any of the interrupts during dummy measurement?
   if(state->mag_info.use_dri && !state->in_clock_error_procedure)
   {
@@ -1536,7 +1538,9 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     opdata_raw,
     timestamp,
     status);
+#ifdef AK0991X_ENABLE_DEBUG_MSG
   state->total_samples++;
+#endif //AK0991X_ENABLE_DEBUG_MSG
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -1625,7 +1629,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     state->previous_meas_is_irq = false;
   }
-#endif //AK0991X_ENABLE_DRI
   if(state->mag_info.cur_wmk + 1 == state->num_samples)
   {
     state->previous_meas_is_correct_wm = true;
@@ -1634,6 +1637,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   {
     state->previous_meas_is_correct_wm = false;
   }
+#endif //AK0991X_ENABLE_DRI
 
   // store previous timestamp
   state->pre_timestamp = timestamp;
@@ -1750,9 +1754,9 @@ static void ak0991x_check_data_gap_for_dri(sns_sensor_instance *const instance)
 }
 #endif // AK0991X_ENABLE_DRI
 
+#ifdef AK0991X_ENABLE_DRI
 static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 {
-#ifdef AK0991X_ENABLE_DRI
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
   // if the previous batch use unreliable timestamp, then reset.
@@ -1779,11 +1783,8 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
   }
-
-#else
-  UNUSED_VAR(instance);
-#endif // AK0991X_ENABLE_DRI
 }
+#endif // AK0991X_ENABLE_DRI
 
 static void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 {
@@ -1964,12 +1965,15 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
   sns_rc rc = SNS_RC_SUCCESS;
   bool complete_flush = false;
 
+#ifdef AK0991X_ENABLE_FIFO
   // is ASCP is still during in the process, skip flush
   if(state->ascp_xfer_in_progress > 0)
   {
     AK0991X_INST_PRINT(LOW, instance, "#ascp_xfer=%u", state->ascp_xfer_in_progress);
     rc |= SNS_RC_FAILED;
   }
+#endif //AK0991X_ENABLE_FIFO
+
 
 #ifdef AK0991X_ENABLE_DRI
   if(state->fifo_flush_in_progress && state->in_clock_error_procedure)
@@ -2192,20 +2196,23 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
   if(state->num_samples > 0)
   {
-    state->mag_info.data_count+=state->num_samples;
-
     // adjust timestamp and interval if needed.
     if(state->mag_info.use_dri)
     {
+#ifdef AK0991X_ENABLE_DRI
+      state->mag_info.data_count+=state->num_samples;
       ak0991x_validate_timestamp_for_dri(instance);
+#endif //AK0991X_ENABLE_DRI
     }
     else
     {
       ak0991x_validate_timestamp_for_polling(instance);
     }
 
+#ifdef AK0991X_ENABLE_FIFO
     // sync flush
     if( state->ascp_xfer_in_progress == 0 )
+#endif //AK0991X_ENABLE_FIFO
     {
       ak0991x_process_mag_data_buffer(instance,
                                       state->first_data_ts_of_batch,

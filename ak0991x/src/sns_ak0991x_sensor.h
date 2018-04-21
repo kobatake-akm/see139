@@ -25,7 +25,6 @@
 
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_math_util.h"
-#include "sns_diag_service.h"
 #include "sns_registry_util.h"
 
 #ifdef AK0991X_ENABLE_DC
@@ -293,7 +292,6 @@ typedef struct ak0991x_state
 
   // debug
   uint16_t who_am_i;
-  sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
   size_t   encoded_event_len;
 } ak0991x_state;

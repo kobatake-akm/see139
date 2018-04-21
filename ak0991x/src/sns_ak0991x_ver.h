@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/20/18                AKM              Reduced parameters for SEE-Lite mode.
  * 04/20/18     010070     AKM              Modified for initialize use_dri,use_fifo,nsf and sdr.
  * 04/16/18     010069     AKM              Modified macro definition for non SEE_LITE mode. Removed AK0991X_ENABLE_ALL_DEVICES definition.
  * 04/13/18     010068     AKM              Fixed for SEE_LITE_MODE.

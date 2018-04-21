@@ -70,8 +70,10 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
   state->diag_service = (sns_diag_service *)
     service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
+#endif //AK0991X_ENABLE_DIAG_LOGGING
   state->scp_service = (sns_sync_com_port_service *)
     service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
 
@@ -189,10 +191,12 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = true;
 #endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
-  state->mag_info.data_count = 0;
   state->heart_beat_attempt_count = 0;
+#ifdef AK0991X_ENABLE_FIFO
   state->flush_sample_count = 0;
+#endif //AK0991X_ENABLE_FIFO
 #ifdef AK0991X_ENABLE_DRI
+  state->mag_info.data_count = 0;
   state->in_clock_error_procedure = false;
   state->mag_info.clock_error_meas_count = 0;
 #endif //AK0991X_ENABLE_DRI
@@ -338,7 +342,9 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
+#ifdef AK0991X_ENABLE_DEBUG_MSG
   SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
+#endif //AK0991X_ENABLE_DEBUG_MSG
 
   if(NULL != state->com_port_info.port_handle)
   {
@@ -446,7 +452,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
-  state->client_req_id = client_request->message_id;
   float           desired_sample_rate = 0;
   float           desired_report_rate = 0;
   float           mag_chosen_sample_rate = 0;
@@ -710,7 +715,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
     }
   }
-  else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
+  else if (client_request->message_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
     // If the sensor is streaming and there is a client_request to run self-test,
     // the existing stream can be temporarily paused.
