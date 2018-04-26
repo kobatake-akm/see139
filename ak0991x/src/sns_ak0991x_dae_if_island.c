@@ -34,7 +34,6 @@
 #include "pb_encode.h"
 #include "pb_decode.h"
 #include "sns_pb_util.h"
-#include "sns_diag_service.h"
 
 //#define AK0991X_DAE_FORCE_NOT_AVAILABLE
 

@@ -25,7 +25,6 @@
 
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_math_util.h"
-#include "sns_diag_service.h"
 #include "sns_registry_util.h"
 
 #ifdef AK0991X_ENABLE_DC
@@ -227,19 +226,11 @@ typedef struct ak0991x_state
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
 
   // sensor configuration
-#ifdef AK0991X_ENABLE_DRI
   bool is_dri;
-#endif //AK0991X_ENABLE_DRI
-#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   uint8_t nsf;
   uint8_t sdr;
-#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
-#ifdef AK0991X_ENABLE_FIFO
   bool use_fifo;
-#endif //AK0991X_ENABLE_FIFO
-#ifdef AK0991X_ENABLE_S4S
   bool supports_sync_stream;
-#endif //AK0991X_ENABLE_S4S
   uint8_t resolution_idx;
   int64_t hardware_id;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
@@ -301,7 +292,6 @@ typedef struct ak0991x_state
 
   // debug
   uint16_t who_am_i;
-  sns_diag_service *diag_service;
   sns_sync_com_port_service *scp_service;
   size_t   encoded_event_len;
 } ak0991x_state;

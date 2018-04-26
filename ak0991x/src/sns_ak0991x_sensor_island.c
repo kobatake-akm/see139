@@ -34,8 +34,6 @@
 #include "sns_std_sensor.pb.h"
 #include "sns_suid.pb.h"
 #include "sns_timer.pb.h"
-#include "sns_diag_service.h"
-#include "sns_sync_com_port_service.h"
 #include "sns_attribute_util.h"
 
 static sns_sensor_uid const* ak0991x_mag_get_sensor_uid(sns_sensor const *const this)
