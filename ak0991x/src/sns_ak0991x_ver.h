@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/26/18     010071     AKM              Fixed error when ENABLE_DC is defined.
  * 04/20/18                AKM              Reduced parameters for SEE-Lite mode.
  * 04/20/18     010070     AKM              Modified for initialize use_dri,use_fifo,nsf and sdr.
  * 04/16/18     010069     AKM              Modified macro definition for non SEE_LITE mode. Removed AK0991X_ENABLE_ALL_DEVICES definition.
@@ -144,4 +145,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10070  // major:01 minor:00 revision:70
+#define AK0991X_DRIVER_VERSION 10071  // major:01 minor:00 revision:71

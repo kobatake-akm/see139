@@ -970,6 +970,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "read dc-parameter [0]:%d to [26]:%d", state->dc_param[0], state->dc_param[26]);
         }
       }
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
       else if (dc_param_2)
       {
         {
@@ -998,6 +999,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "read dc-parameter2 [0]:%d to [26]:%d", state->dc_param_2[0], state->dc_param_2[26]);
         }
       }
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #endif //AK0991X_ENABLE_DC
       else if (pf_config)
       {
