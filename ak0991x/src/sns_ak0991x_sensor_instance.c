@@ -61,17 +61,19 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     .arr_index = &arr_index};
   batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
   batch_sample.sample.arg = &arg;
-#endif
+#endif //AK0991X_ENABLE_DIAG_LOGGING
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   sns_sensor_uid mag_suid = (sensor_state->registration_idx == 0)? (sns_sensor_uid)MAG_SUID1 :
                                                               (sns_sensor_uid)MAG_SUID2;
   AK0991X_INST_PRINT(LOW, this, "hardware_id=%d registration_idx=%d", sensor_state->hardware_id, sensor_state->registration_idx);
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
-#endif
+#endif //AK0991X_ENABLE_DUAL_SENSOR
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
   state->diag_service = (sns_diag_service *)
     service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
+#endif //AK0991X_ENABLE_DIAG_LOGGING
   state->scp_service = (sns_sync_com_port_service *)
     service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
 
@@ -100,7 +102,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   switch (state->mag_info.device_select)
   {
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09911)
+#if defined(AK0991X_TARGET_AK09911)
   case AK09911:
     state->mag_info.resolution = AK09911_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -110,7 +112,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.sdr = 0;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09912)
+#if defined(AK0991X_TARGET_AK09912)
   case AK09912:
     state->mag_info.resolution = AK09912_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -120,7 +122,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.sdr = 0;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09913)
+#if defined(AK0991X_TARGET_AK09913)
   case AK09913:
     state->mag_info.resolution = AK09913_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -130,7 +132,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.sdr = 0;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
+#if defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
   case AK09915C:
   case AK09915D:
     state->mag_info.resolution = AK09915_RESOLUTION;
@@ -141,7 +143,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.sdr = sensor_state->sdr;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916C)
+#if defined(AK0991X_TARGET_AK09916C)
   case AK09916C:
     state->mag_info.resolution = AK09916_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -151,7 +153,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.sdr = 0;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09916D)
+#if defined(AK0991X_TARGET_AK09916D)
   case AK09916D:
     state->mag_info.resolution = AK09916_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -161,7 +163,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.sdr = 0;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09917)
+#if defined(AK0991X_TARGET_AK09917)
   case AK09917:
     state->mag_info.resolution = AK09917_RESOLUTION;
     state->mag_info.use_fifo = sensor_state->use_fifo;
@@ -171,7 +173,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.sdr = sensor_state->sdr;
     break;
 #endif
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || defined(AK0991X_TARGET_AK09918)
+#if defined(AK0991X_TARGET_AK09918)
   case AK09918:
     state->mag_info.resolution = AK09918_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -188,47 +190,53 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->pre_timestamp = sns_get_system_time();
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->this_is_first_data = true;
-#endif
-  state->mag_info.data_count = 0;
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   state->heart_beat_attempt_count = 0;
+#ifdef AK0991X_ENABLE_FIFO
   state->flush_sample_count = 0;
+#endif //AK0991X_ENABLE_FIFO
 #ifdef AK0991X_ENABLE_DRI
+  state->mag_info.data_count = 0;
   state->in_clock_error_procedure = false;
   state->mag_info.clock_error_meas_count = 0;
-#endif
+#endif //AK0991X_ENABLE_DRI
 
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
+#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
+  sns_rc rv;
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
 #ifdef AK0991X_ENABLE_DRI
   sns_sensor_uid irq_suid;
-  sns_sensor_uid acp_suid;
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "interrupt", &irq_suid);
-  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "async_com_port", &acp_suid);
 
-  sns_rc rv;
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                       this,
                                                       irq_suid,
                                                       &state->interrupt_data_stream);
-
   if (rv != SNS_RC_SUCCESS)
   {
     return rv;
   }
+#endif //AK0991X_ENABLE_DRI
 
+#ifdef AK0991X_ENABLE_FIFO
+  sns_sensor_uid acp_suid;
+  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "async_com_port", &acp_suid);
   rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
                                                       this,
                                                       acp_suid,
                                                       &state->async_com_port_data_stream);
-
   if (rv != SNS_RC_SUCCESS)
   {
+#ifdef AK0991X_ENABLE_DRI
     stream_mgr->api->remove_stream(stream_mgr, state->interrupt_data_stream);
+#endif //AK0991X_ENABLE_DRI
     return rv;
   }
-#endif //AK0991X_ENABLE_DRI
+#endif //AK0991X_ENABLE_FIFO
 
   /** Initialize Timer info to be used by the Instance */
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "timer", &state->timer_suid);
@@ -282,6 +290,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   enc_len = pb_encode_request(pb_encode_buffer, 100, &state->ascp_config,
                               sns_async_com_port_config_fields, NULL);
 
+#ifdef AK0991X_ENABLE_FIFO
   sns_request async_com_port_request =
     (sns_request)
   {
@@ -291,6 +300,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   };
   state->async_com_port_data_stream->api->send_request(
     state->async_com_port_data_stream, &async_com_port_request);
+#endif //AK0991X_ENABLE_FIFO
 #endif //AK0991X_ENABLE_DRI
 
  /** Copy down axis conversion settings */
@@ -318,7 +328,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
       state->log_raw_encoded_size = stream.bytes_written;
     }
   }
-#endif
+#endif //AK0991X_ENABLE_DIAG_LOGGING
 
   sns_sensor_uid dae_suid;
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
@@ -332,7 +342,9 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
+#ifdef AK0991X_ENABLE_DEBUG_MSG
   SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
+#endif //AK0991X_ENABLE_DEBUG_MSG
 
   if(NULL != state->com_port_info.port_handle)
   {
@@ -348,8 +360,10 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_s4s_inst_deinit(this);
 #ifdef AK0991X_ENABLE_DRI
   sns_sensor_util_remove_sensor_instance_stream(this,&state->interrupt_data_stream);
-  sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
 #endif //AK0991X_ENABLE_DRI
+#ifdef AK0991X_ENABLE_FIFO
+  sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
+#endif //AK0991X_ENABLE_FIFO
   if(NULL != state->scp_service)
   {
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
@@ -438,7 +452,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
-  state->client_req_id = client_request->message_id;
   float           desired_sample_rate = 0;
   float           desired_report_rate = 0;
   float           mag_chosen_sample_rate = 0;
@@ -449,7 +462,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   matrix3 *fac_cal_corr_mat = NULL;
 #ifdef AK0991X_ENABLE_DC
   uint8_t *pdc_parameter = NULL;
-#endif
+#endif //AK0991X_ENABLE_DC
 
   AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
@@ -644,7 +657,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
       state->mag_registry_cfg.version = payload->registry_cfg.version;
     }
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 #ifdef AK0991X_ENABLE_DC
     pdc_parameter = state->mag_registry_cfg.dc_param;
@@ -655,7 +668,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                   sizeof(payload->registry_cfg.dc_param));
     }
     SNS_INST_PRINTF(LOW, this, "set DC parameter. dc[0]=%d ... dc[26]=%d", pdc_parameter[0], pdc_parameter[26]);
-#endif
+#endif //AK0991X_ENABLE_DC
 
     if(NULL != fac_cal_bias && NULL != fac_cal_corr_mat)
     {
@@ -694,7 +707,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
 #else
         ak0991x_read_mag_samples(this);
-#endif
+#endif //AK0991X_ENABLE_DRI
       }
       else
       {
@@ -702,7 +715,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
     }
   }
-  else if (state->client_req_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
+  else if (client_request->message_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
     // If the sensor is streaming and there is a client_request to run self-test,
     // the existing stream can be temporarily paused.

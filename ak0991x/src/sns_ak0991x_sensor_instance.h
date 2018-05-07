@@ -23,7 +23,9 @@
 #include <stdint.h>
 #include "sns_printf.h"
 
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_diag_service.h"
+#endif //AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_interrupt.pb.h"
 #include "sns_timer.pb.h"
 #include "sns_physical_sensor_test.pb.h"
@@ -40,7 +42,7 @@
 
 #ifdef AK0991X_ENABLE_DC
 #include "sns_ak0991x_dist_compen.h"
-#endif
+#endif //AK0991X_ENABLE_DC
 
 /** Forward Declaration of Instance API */
 extern sns_sensor_instance_api ak0991x_sensor_instance_api;
@@ -155,13 +157,16 @@ typedef struct ak0991x_mag_info
   bool           use_dri;
   bool           use_fifo;
   bool           flush_only;
+  bool           use_sync_stream;
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;
   ak0991x_self_test_info test_info;
-  bool                   use_sync_stream;
+
+#ifdef AK0991X_ENABLE_DRI
   uint32_t      data_count;
   uint32_t      clock_error_meas_count;
+#endif //AK0991X_ENABLE_DRI
 
 #ifdef AK0991X_ENABLE_S4S
   ak0991x_s4s_state      s4s_sync_state;
@@ -169,6 +174,7 @@ typedef struct ak0991x_mag_info
   bool                   s4s_dt_abort;
 #endif // AK0991X_ENABLE_S4S
 } ak0991x_mag_info;
+
 #ifdef AK0991X_ENABLE_DRI
 typedef struct ak0991x_irq_info
 {
@@ -190,10 +196,10 @@ typedef struct sns_ak0991x_registry_cfg
   float               fac_cal_bias[3];
 #ifdef AK0991X_ENABLE_DC
   uint8_t             dc_param[AKSC_PDC_SIZE];
-#endif
+#endif //AK0991X_ENABLE_DC
 #ifdef  AK0991X_ENABLE_REG_WRITE_ACCESS
   uint32_t            version;
-#endif
+#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 }sns_ak0991x_registry_cfg;
 
 /** Private state. */
@@ -201,42 +207,46 @@ typedef struct ak0991x_instance_state
 {
   /** mag HW config details*/
   ak0991x_mag_info mag_info;
+#ifdef AK0991X_ENABLE_DEBUG_MSG
   uint32_t total_samples; /* throughout the life of this instance */
+#endif //AK0991X_ENABLE_DEBUG_MSG
 
   /** sampling info. */
   uint8_t num_samples;
-  uint8_t ascp_xfer_in_progress;
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
-  uint8_t flush_sample_count;
 #if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool this_is_first_data;
-#endif
+#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool data_over_run;
   bool data_is_ready;
-  bool re_read_data_after_ascp;
   bool fifo_flush_in_progress;
   bool new_self_test_request;
+#ifdef AK0991X_ENABLE_FIFO
+  uint8_t ascp_xfer_in_progress;
+  uint8_t flush_sample_count;
   bool config_mag_after_ascp_xfer;
+  bool re_read_data_after_ascp;
+#endif //AK0991X_ENABLE_FIFO
   bool this_is_the_last_flush;
   bool reg_event_done;
 #ifdef AK0991X_ENABLE_S4S
   bool s4s_reg_event_done;
-#endif
+#endif //AK0991X_ENABLE_S4S
 #ifdef AK0991X_ENABLE_DRI
   bool is_temp_average;
   bool in_clock_error_procedure;
   bool previous_meas_is_irq;
-#endif
   bool previous_meas_is_correct_wm;
-  sns_time interrupt_timestamp;
+  sns_time temp_averaged_interval;
   sns_time irq_event_time;
+  sns_time previous_irq_time;
+#endif //AK0991X_ENABLE_DRI
+  sns_time interrupt_timestamp;
   sns_time pre_timestamp;
   sns_time first_data_ts_of_batch;
   sns_time averaged_interval;
-  sns_time temp_averaged_interval;
   sns_time system_time;
-  sns_time previous_irq_time;
   sns_time heart_beat_timestamp;
   sns_time heart_beat_timeout_period;
   sns_time nominal_intvl;
@@ -269,13 +279,14 @@ typedef struct ak0991x_instance_state
   sns_data_stream       *timer_data_stream;
 #ifdef AK0991X_ENABLE_DRI
   sns_data_stream       *interrupt_data_stream;
-  sns_data_stream       *async_com_port_data_stream;
 #endif // AK0991X_ENABLE_DRI
+#ifdef AK0991X_ENABLE_FIFO
+  sns_data_stream       *async_com_port_data_stream;
+#endif // AK0991X_ENABLE_FIFO
 #ifdef AK0991X_ENABLE_S4S
   sns_data_stream       *s4s_timer_data_stream;
 #endif // AK0991X_ENABLE_S4S
 
-  uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
   int16_t               pre_lsbdata[TRIAXIS_NUM];
 
@@ -288,10 +299,14 @@ typedef struct ak0991x_instance_state
   sns_ak0991x_registry_cfg mag_registry_cfg;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   uint8_t                  device_mode;
-#endif
-  sns_diag_service *diag_service;
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
+
   sns_sync_com_port_service *scp_service;
+
+#ifdef AK0991X_ENABLE_DIAG_LOGGING
+  sns_diag_service *diag_service;
   size_t           log_raw_encoded_size;
+#endif //AK0991X_ENABLE_DIAG_LOGGING
 
 } ak0991x_instance_state;
 

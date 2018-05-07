@@ -22,6 +22,11 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/26/18     010071     AKM              Fixed error when ENABLE_DC is defined.
+ * 04/20/18                AKM              Reduced parameters for SEE-Lite mode.
+ * 04/20/18     010070     AKM              Modified for initialize use_dri,use_fifo,nsf and sdr.
+ * 04/16/18     010069     AKM              Modified macro definition for non SEE_LITE mode. Removed AK0991X_ENABLE_ALL_DEVICES definition.
+ * 04/13/18     010068     AKM              Fixed for SEE_LITE_MODE.
  * 04/12/18     010067     AKM              Added AK0991X_ENABLE_REG_WRITE_ACCESS macro
  * 04/12/18     010066     AKM              Modified for AK09918
  * 04/12/18                AKM              Modified for 0 gap detection on MAG-024/025/026 with S4S mode.
@@ -140,4 +145,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10067  // major:01 minor:00 revision:67
+#define AK0991X_DRIVER_VERSION 10071  // major:01 minor:00 revision:71
