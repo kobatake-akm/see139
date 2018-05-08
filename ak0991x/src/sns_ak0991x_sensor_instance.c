@@ -460,9 +460,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   sns_rc          rv = SNS_RC_SUCCESS;
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
-#ifdef AK0991X_ENABLE_DC
-  uint8_t *pdc_parameter = NULL;
-#endif //AK0991X_ENABLE_DC
 
   AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
@@ -658,17 +655,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_registry_cfg.version = payload->registry_cfg.version;
     }
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
-
-#ifdef AK0991X_ENABLE_DC
-    pdc_parameter = state->mag_registry_cfg.dc_param;
-    if(NULL != pdc_parameter)
-    {
-      sns_memscpy(pdc_parameter, sizeof(payload->registry_cfg.dc_param),
-                  &payload->registry_cfg.dc_param,
-                  sizeof(payload->registry_cfg.dc_param));
-    }
-    SNS_INST_PRINTF(LOW, this, "set DC parameter. dc[0]=%d ... dc[26]=%d", pdc_parameter[0], pdc_parameter[26]);
-#endif //AK0991X_ENABLE_DC
 
     if(NULL != fac_cal_bias && NULL != fac_cal_corr_mat)
     {

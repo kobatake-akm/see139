@@ -40,9 +40,6 @@
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
 
-#ifdef AK0991X_ENABLE_DC
-#include "sns_ak0991x_dist_compen.h"
-#endif //AK0991X_ENABLE_DC
 
 /** Forward Declaration of Instance API */
 extern sns_sensor_instance_api ak0991x_sensor_instance_api;
@@ -194,9 +191,6 @@ typedef struct sns_ak0991x_registry_cfg
 {
   matrix3             fac_cal_corr_mat;
   float               fac_cal_bias[3];
-#ifdef AK0991X_ENABLE_DC
-  uint8_t             dc_param[AKSC_PDC_SIZE];
-#endif //AK0991X_ENABLE_DC
 #ifdef  AK0991X_ENABLE_REG_WRITE_ACCESS
   uint32_t            version;
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS

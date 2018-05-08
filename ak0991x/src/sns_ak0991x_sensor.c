@@ -452,10 +452,6 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
 
   sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
               &state->fac_cal_corr_mat, sizeof(state->fac_cal_corr_mat));
-#ifdef AK0991X_ENABLE_DC
-  sns_memscpy(&registry_cfg.dc_param, sizeof(registry_cfg.dc_param),
-              &state->dc_param, sizeof(state->dc_param));
-#endif //AK0991X_ENABLE_DC
 
 #ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
   registry_cfg.version = state->fac_cal_version;
@@ -469,10 +465,6 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
 
     sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
                 &state->fac_cal_corr_mat_2, sizeof(state->fac_cal_corr_mat_2));
-#ifdef AK0991X_ENABLE_DC
-    sns_memscpy(&registry_cfg.dc_param, sizeof(registry_cfg.dc_param),
-                &state->dc_param_2, sizeof(state->dc_param_2));
-#endif //AK0991X_ENABLE_DC
   }
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
@@ -684,14 +676,8 @@ static void ak0991x_request_registry(sns_sensor *const this)
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_MAG_CONFIG);
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_REG_CONFIG);
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL);
-#ifdef AK0991X_ENABLE_DC
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_DC_PARAM);
-#endif //AK0991X_ENABLE_DC
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
     ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL_2);
-#ifdef AK0991X_ENABLE_DC
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_DC_PARAM_2);
-#endif //AK0991X_ENABLE_DC
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #endif // AK0991X_ENABLE_DUAL_SENSOR
   }
@@ -746,41 +732,6 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
   return rv;
 }
 #endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
-#ifdef AK0991X_ENABLE_DC
-static bool ak0991x_registry_parse_dc_param(sns_registry_data_item *reg_item,
-                                                  pb_buffer_arg *item_name,
-                                                  pb_buffer_arg *item_str_val,
-                                                  void *parsed_buffer)
-{
-  bool rv = true;
-  char reg_name_arr[AKSC_PDC_SIZE][5] = {"dc01", "dc02", "dc03", "dc04", "dc05", "dc06", "dc07", "dc08", "dc09",
-                                         "dc10", "dc11", "dc12", "dc13", "dc14", "dc15", "dc16", "dc17", "dc18",
-                                         "dc19", "dc20", "dc21", "dc22", "dc23", "dc24", "dc25", "dc26", "dc27"};
-
-  if(NULL == reg_item || NULL == item_name || NULL == item_str_val ||
-     NULL == parsed_buffer)
-  {
-    rv = false;
-  }
-  else if(reg_item->has_sint)
-  {
-    ak0991x_dc_parameter *cfg = (ak0991x_dc_parameter *)parsed_buffer;
-
-    for(uint8_t i=0; i<AKSC_PDC_SIZE; i++)
-    {
-      if(0 == strncmp((char*)item_name->buf, reg_name_arr[i], item_name->buf_len))
-      {
-        cfg->dc_param_arr[i] = reg_item->sint;
-      }
-    }
-  }
-  else
-  {
-    rv = false;
-  }
-  return rv;
-}
-#endif //AK0991X_ENABLE_DC
 
 static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                                   sns_sensor_event *event)
@@ -831,20 +782,10 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                              group_name.buf_len));
       faccal = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_FACCAL,
                              group_name.buf_len));
-#ifdef AK0991X_ENABLE_DC
-      bool dc_param;
-      dc_param = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_DC_PARAM,
-                             group_name.buf_len));
-#endif //AK0991X_ENABLE_DC
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
       bool faccal_2;
       faccal_2 = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_FACCAL_2,
                              group_name.buf_len));
-#ifdef AK0991X_ENABLE_DC
-      bool dc_param_2;
-      dc_param_2 = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_DC_PARAM_2,
-                             group_name.buf_len));
-#endif //AK0991X_ENABLE_DC
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
       AK0991X_PRINT(LOW, this,
@@ -941,66 +882,6 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         }
       }
 #endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
-#ifdef AK0991X_ENABLE_DC
-      else if (dc_param)
-      {
-        {
-          sns_registry_decode_arg arg = {
-            .item_group_name = &group_name,
-            .parse_info_len = 1,
-            .parse_info[0] = {
-            .group_name = "dc_param",
-            .parse_func = ak0991x_registry_parse_dc_param,
-            .parsed_buffer = &state->reg_dc_param }
-          };
-
-          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
-          read_event.data.items.arg = &arg;
-
-          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
-        }
-
-        if(rv)
-        {
-          state->registry_dc_param_1_received = true;
-          for (uint8_t i=0; i<AKSC_PDC_SIZE; i++)
-          {
-            state->dc_param[i] = state->reg_dc_param.dc_param_arr[i];
-          }
-          AK0991X_PRINT(LOW, this, "read dc-parameter [0]:%d to [26]:%d", state->dc_param[0], state->dc_param[26]);
-        }
-      }
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-      else if (dc_param_2)
-      {
-        {
-          sns_registry_decode_arg arg = {
-            .item_group_name = &group_name,
-            .parse_info_len = 1,
-            .parse_info[0] = {
-            .group_name = "dc_param_2",
-            .parse_func = ak0991x_registry_parse_dc_param,
-            .parsed_buffer = &state->reg_dc_param_2 }
-          };
-
-          read_event.data.items.funcs.decode = &sns_registry_item_decode_cb;
-          read_event.data.items.arg = &arg;
-
-          rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
-        }
-
-        if(rv)
-        {
-          state->registry_dc_param_2_received = true;
-          for (uint8_t i=0; i<AKSC_PDC_SIZE; i++)
-          {
-            state->dc_param_2[i] = state->reg_dc_param_2.dc_param_arr[i];
-          }
-          AK0991X_PRINT(LOW, this, "read dc-parameter2 [0]:%d to [26]:%d", state->dc_param_2[0], state->dc_param_2[26]);
-        }
-      }
-#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
-#endif //AK0991X_ENABLE_DC
       else if (pf_config)
       {
         {
@@ -1399,14 +1280,8 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
      && state->registry_pf_cfg_received
      && state->registry_orient_received
      && state->registry_fac_cal_1_received
-#ifdef AK0991X_ENABLE_DC
-     && state->registry_dc_param_1_received
-#endif //AK0991X_ENABLE_DC
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
      && state->registry_fac_cal_2_received
-#ifdef AK0991X_ENABLE_DC
-     && state->registry_dc_param_2_received
-#endif //AK0991X_ENABLE_DC
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
      && state->registry_placement_received)
   {
@@ -1651,9 +1526,6 @@ void ak0991x_switch_cal_data(sns_sensor const *this,
 {
   float *fac_cal_bias = NULL;
   matrix3 *fac_cal_corr_mat = NULL;
-#ifdef AK0991X_ENABLE_DC
-  uint8_t *pdc_parameter = NULL;
-#endif //AK0991X_ENABLE_DC
 
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   ak0991x_instance_state *inst_state = (ak0991x_instance_state *)instance->state->state;
@@ -1666,17 +1538,11 @@ void ak0991x_switch_cal_data(sns_sensor const *this,
   {
     fac_cal_bias     = state->fac_cal_bias;
     fac_cal_corr_mat = &state->fac_cal_corr_mat;
-#ifdef AK0991X_ENABLE_DC
-    pdc_parameter    = state->dc_param;
-#endif //AK0991X_ENABLE_DC
   }
   else  //device_mode != SNS_DEVICE_MODE_FLIP_OPEN
   {
     fac_cal_bias     = state->fac_cal_bias_2;
     fac_cal_corr_mat = &state->fac_cal_corr_mat_2;
-#ifdef AK0991X_ENABLE_DC
-    pdc_parameter    = state->dc_param_2;
-#endif //AK0991X_ENABLE_DC
   }
 
   for (int i = 0; i < TRIAXIS_NUM; i++)
@@ -1687,12 +1553,6 @@ void ak0991x_switch_cal_data(sns_sensor const *this,
   {
     inst_state->mag_registry_cfg.fac_cal_corr_mat.data[i] = fac_cal_corr_mat->data[i];
   }
-#ifdef AK0991X_ENABLE_DC
-  for (int i = 0; i < AKSC_PDC_SIZE; i++)
-  {
-    inst_state->mag_registry_cfg.dc_param[i] = pdc_parameter[i];
-  }
-#endif //AK0991X_ENABLE_DC
 }
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
