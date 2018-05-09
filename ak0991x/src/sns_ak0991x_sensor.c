@@ -2125,6 +2125,10 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       }
     }
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
+    if(sns_suid_lookup_complete(&state->suid_lookup_data))
+    {
+      sns_suid_lookup_deinit(this, &state->suid_lookup_data);
+    }
   }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS

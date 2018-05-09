@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 05/09/18     010074     AKM              Added sns_suid_lookup_deinit.
  * 05/08/18     010073     AKM              Remove DC-Lib related code.
  * 05/07/18     010072     AKM              Modified to set RAIL_ON_NPM by registry.
  * 04/26/18     010071     AKM              Fixed error when ENABLE_DC is defined.
@@ -147,4 +148,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10073  // major:01 minor:00 revision:73
+#define AK0991X_DRIVER_VERSION 10074  // major:01 minor:00 revision:74
