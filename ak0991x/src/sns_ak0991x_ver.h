@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 05/16/18     010075     AKM              Changed to read registry value for rail_vote when registry access is enabled
  * 05/09/18     010074     AKM              Added sns_suid_lookup_deinit.
  * 05/08/18     010073     AKM              Remove DC-Lib related code.
  * 05/07/18     010072     AKM              Modified to set RAIL_ON_NPM by registry.
@@ -148,4 +149,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10074  // major:01 minor:00 revision:74
+#define AK0991X_DRIVER_VERSION 10075  // major:01 minor:00 revision:75
