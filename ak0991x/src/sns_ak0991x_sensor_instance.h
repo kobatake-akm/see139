@@ -191,9 +191,9 @@ typedef struct sns_ak0991x_registry_cfg
 {
   matrix3             fac_cal_corr_mat;
   float               fac_cal_bias[3];
-#ifdef  AK0991X_ENABLE_REG_WRITE_ACCESS
+#ifdef  AK0991X_ENABLE_REG_FAC_CAL
   uint32_t            version;
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
+#endif //AK0991X_ENABLE_REG_FAC_CAL
 }sns_ak0991x_registry_cfg;
 
 /** Private state. */

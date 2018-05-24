@@ -739,9 +739,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   bool rv = true;
   sns_rc rc = SNS_RC_SUCCESS;
   ak0991x_state *state = (ak0991x_state *)this->state->state;
-#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
+#ifdef AK0991X_ENABLE_REG_FAC_CAL
   uint32_t fac_cal_version;
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
+#endif //AK0991X_ENABLE_REG_FAC_CAL
 
   pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
       event->event_len);
@@ -1070,18 +1070,18 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           read_event.data.items.arg = &arg;
 
           rv = pb_decode(&stream, sns_registry_read_event_fields, &read_event);
-#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
+#ifdef AK0991X_ENABLE_REG_FAC_CAL
           fac_cal_version = arg.version;
           AK0991X_PRINT(LOW, this, "fac_cal_version=%d",arg.version);
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
+#endif //AK0991X_ENABLE_REG_FAC_CAL
         }
 
         if(rv)
         {
           state->registry_fac_cal_1_received = true;
-#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
+#ifdef AK0991X_ENABLE_REG_FAC_CAL
           state->fac_cal_version = fac_cal_version;
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
+#endif //AK0991X_ENABLE_REG_FAC_CAL
           if(state->fac_cal_scale[0] != 0.0)
           {
             state->fac_cal_corr_mat.e00 = state->fac_cal_scale[0];

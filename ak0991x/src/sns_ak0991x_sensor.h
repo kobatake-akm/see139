@@ -248,9 +248,9 @@ typedef struct ak0991x_state
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
-#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
+#ifdef AK0991X_ENABLE_REG_FAC_CAL
   uint32_t                fac_cal_version;
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
+#endif //AK0991X_ENABLE_REG_FAC_CAL
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   uint8_t                 device_mode;

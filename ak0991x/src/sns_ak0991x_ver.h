@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 05/24/18     010076     Qualcomm/AKM     Added AK0991X_ENABLE_REG_FAC_CAL macro for reading 3x3 factory calibration parameter from registry
  * 05/16/18     010075     AKM              Changed to read registry value for rail_vote when registry access is enabled
  * 05/09/18     010074     AKM              Added sns_suid_lookup_deinit.
  * 05/08/18     010073     AKM              Remove DC-Lib related code.
@@ -149,4 +150,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10075  // major:01 minor:00 revision:75
+#define AK0991X_DRIVER_VERSION 10076  // major:01 minor:00 revision:76
