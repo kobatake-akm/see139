@@ -43,6 +43,7 @@
 //#define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 //#define AK0991X_ENABLE_DEINIT             // Enable deinit call
 //#define AK0991X_ENABLE_REG_WRITE_ACCESS   // Enable registry write access
+#define AK0991X_ENABLE_REG_FAC_CAL        // Enable factory cal access
 
 //TODO:2 Please select a target device for SEE-Lite
 //#define AK0991X_TARGET_AK09911
@@ -110,7 +111,7 @@
 // Standard SEE Mode. Enabled all features.
 #define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
 #define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
-//#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
+#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 //#define AK0991X_ENABLE_DAE                // Enable DAE
 #define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
 #define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
@@ -122,11 +123,9 @@
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
 #define AK0991X_ENABLE_REG_WRITE_ACCESS   // Enable registry write access
+#define AK0991X_ENABLE_REG_FAC_CAL        // Enable factory cal access
 
 // this is setting for enable DEVICE_MODE_SENSOR (NOT IMPLEMENTED YET)
 //#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
-
-// To enabe DC-Lib, Change scons file.
-// (uncomment '-DAK0991X_ENABLE_DC' in ".../ak0991x/build/sns_ak0991x.scons")
 
 #endif	// AK0991X_ENABLE_SEE_LITE

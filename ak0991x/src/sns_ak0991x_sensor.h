@@ -27,10 +27,6 @@
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
 
-#ifdef AK0991X_ENABLE_DC
-#include "sns_ak0991x_dist_compen.h"
-#endif //AK0991X_ENABLE_DC
-
 #define MAG_SUID1 \
   {  \
     .sensor_uid =  \
@@ -57,8 +53,6 @@
 #define AK0991X_REGISTRY_0_ORIENT      "ak0991x_0_platform.orient"
 #define AK0991X_REGISTRY_0_FACCAL      "ak0991x_0_platform.mag.fac_cal"
 #define AK0991X_REGISTRY_0_FACCAL_2    "ak0991x_0_platform.mag.fac_cal_2"
-#define AK0991X_REGISTRY_0_DC_PARAM    "ak0991x_0_platform.mag.dc_param"
-#define AK0991X_REGISTRY_0_DC_PARAM_2  "ak0991x_0_platform.mag.dc_param_2"
 #define AK0991X_REGISTRY_0_MAG_CONFIG  "ak0991x_0.mag.config"
 #define AK0991X_REGISTRY_0_REG_CONFIG  "ak0991x_0.mag.config_2"
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
@@ -188,12 +182,6 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
 #endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
-#ifdef AK0991X_ENABLE_DC
-typedef struct ak0991x_dc_parameter
-{
-  uint8_t dc_param_arr[AKSC_PDC_SIZE];
-} ak0991x_dc_parameter;
-#endif //AK0991X_ENABLE_DC
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /** Interrupt Sensor State. */
@@ -260,29 +248,16 @@ typedef struct ak0991x_state
   matrix3                 fac_cal_corr_mat;
   float                   fac_cal_bias[TRIAXIS_NUM];
   float                   fac_cal_scale[TRIAXIS_NUM];
-#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
+#ifdef AK0991X_ENABLE_REG_FAC_CAL
   uint32_t                fac_cal_version;
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
-
-#ifdef AK0991X_ENABLE_DC
-  // dc_parameter
-  bool                    registry_dc_param_1_received;
-  uint8_t                 dc_param[AKSC_PDC_SIZE];
-  ak0991x_dc_parameter    reg_dc_param;
-#endif //AK0991X_ENABLE_DC
+#endif //AK0991X_ENABLE_REG_FAC_CAL
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   uint8_t                 device_mode;
-
   bool                    registry_fac_cal_2_received;
   matrix3                 fac_cal_corr_mat_2;
   float                   fac_cal_bias_2[TRIAXIS_NUM];
   float                   fac_cal_scale_2[TRIAXIS_NUM];
-#ifdef AK0991X_ENABLE_DC
-  bool                    registry_dc_param_2_received;
-  uint8_t                 dc_param_2[AKSC_PDC_SIZE];
-  ak0991x_dc_parameter    reg_dc_param_2;
-#endif //AK0991X_ENABLE_DC
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
 
