@@ -163,6 +163,7 @@
 #define TLIMIT_NO_SET_SELFTEST                      0x005
 #define TLIMIT_NO_READ_ST1                          0x006
 #define TLIMIT_NO_READ_DATA                         0x007
+#define TLIMIT_NO_CHANGE_ST1                        0x008
 #define TLIMIT_NO_ASAX                              0x101
 #define TLIMIT_LO_ASAX                              1
 #define TLIMIT_HI_ASAX                              254

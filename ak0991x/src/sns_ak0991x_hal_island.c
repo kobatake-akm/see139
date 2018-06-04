@@ -964,6 +964,103 @@ static void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8
 }
 
 /**
+ * Read ST1(10h) register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[o] buffer                   st1 register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
+                               uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_ST1,
+                                buffer,
+                                1,
+                                &xfer_bytes);
+
+  if (xfer_bytes != 1)
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+
+/**
+ * Read ST1(10h) to ST2(18h) register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[o] buffer                   register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+#ifdef AK0991X_ENABLE_DRI
+static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
+                                   uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_ST1,
+                                buffer,
+                                (uint32_t)(AK0991X_NUM_DATA_ST1_TO_ST2),
+                                &xfer_bytes);
+
+  if (xfer_bytes != (uint32_t)(AK0991X_NUM_DATA_ST1_TO_ST2))
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+#endif
+
+/**
+ * Read HXL(11h) to ST2(18h) register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[i] num_samples              number of samples
+ * @param[o] buffer                   register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_read_hxl_st2(ak0991x_instance_state *state,
+                                   uint16_t num_samples,
+                                   uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_HXL,
+                                buffer,
+                                (uint32_t)(num_samples * AK0991X_NUM_DATA_HXL_TO_ST2),
+                                &xfer_bytes);
+
+  if (xfer_bytes != (uint32_t)(num_samples * AK0991X_NUM_DATA_HXL_TO_ST2))
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+
+/**
  * Run a hardware self-test
  * @param[i]            reference to the instance
  * @param[o]            error code
@@ -984,6 +1081,8 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
   uint8_t  sdr = 0;
+  uint8_t  st1_buf;
+  int      i;
 
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
@@ -1028,6 +1127,82 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
 #endif // AK0991X_ENABLE_FUSE
 
   /** Step 2
+   *   Continuous mode check
+   **/
+  /* Start continuous mode 50Hz */
+  buffer[0] = AK0991X_MAG_ODR50;
+  rv = ak0991x_com_write_wrapper(this,
+                   state->scp_service,
+                   state->com_port_info.port_handle,
+                   AKM_AK0991X_REG_CNTL2,
+                   buffer,
+                   1,
+                   &xfer_bytes,
+                   false);
+
+  if (rv != SNS_RC_SUCCESS
+    ||
+    xfer_bytes != 1)
+  {
+    goto TEST_SEQUENCE_FAILED;
+  }
+
+  // To ensure that measurement is finished, First measurement time is 14.4ms + margin
+  sns_busy_wait(sns_convert_ns_to_ticks(16* 1000 * 1000));
+
+  /* Step 2 : Continuous mode checking */
+  for (i = 0; i < 3; i++) { //  3 is temp value for first check of continuous mode. It can be change by customer
+
+    /* read measurement data with ST1 */
+    rv = ak0991x_com_read_wrapper(state->scp_service,
+                    state->com_port_info.port_handle,
+                    AKM_AK0991X_REG_ST1,
+                    buffer,
+                    (uint32_t)AK0991X_NUM_DATA_ST1_TO_ST2,
+                    &xfer_bytes);
+    
+    if (rv != SNS_RC_SUCCESS
+      ||
+      xfer_bytes != (uint32_t)AK0991X_NUM_DATA_ST1_TO_ST2)
+    {
+      *err = ((TLIMIT_NO_READ_DATA) << 16);
+      goto TEST_SEQUENCE_FAILED;
+    }
+
+    /* If ST1 is not go to 1, It is fail.*/
+    if ((buffer[0] & AK0991X_DRDY_BIT) == 0){
+        AK0991X_INST_PRINT(HIGH, this, "Device reset failed. Continuous mode cheking fail! ");
+        *err = ((TLIMIT_NO_CHANGE_ST1) << 16);  //temp error msg
+    }
+
+    ak0991x_read_st1(state, &st1_buf);  // read ST1
+
+    state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
+
+    /* If ST1 is not go to 0, even though register read already. It is fail. */
+    if (state->data_is_ready == true){
+        AK0991X_INST_PRINT(HIGH, this, "Device reset failed. Continuous mode cheking fail! ");
+        *err = ((TLIMIT_NO_CHANGE_ST1) << 16);  //temp error msg
+    }
+
+    // To ensure that measurement is finished, measurement time is 20ms
+    sns_busy_wait(sns_convert_ns_to_ticks(20* 1000 * 1000));
+
+  }
+
+  // Reset device
+  rv = ak0991x_device_sw_reset(this,
+                               state->scp_service,
+                               state->com_port_info.port_handle);
+
+  if (rv != SNS_RC_SUCCESS)
+  {
+    *err = ((TLIMIT_NO_RESET) << 16);
+    goto TEST_SEQUENCE_FAILED;
+  }
+
+
+  /** Step 3
    *   Start self test
    **/
   buffer[0] = AK0991X_MAG_SELFTEST;
@@ -1059,7 +1234,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   // To ensure that measurement is finished, wait for double as typical
   sns_busy_wait(sns_convert_ns_to_ticks(usec_time_for_measure * 1000 * 2));
 
-  /** Step 3
+  /** Step 4
    *   Read and check data
    **/
   rv = ak0991x_com_read_wrapper(state->scp_service,
@@ -1168,103 +1343,6 @@ TEST_SEQUENCE_FAILED:
   {
     return SNS_RC_FAILED;
   }
-}
-
-/**
- * Read ST1(10h) register data.
- *
- * @param[i] state                    Instance state
- * @param[o] buffer                   st1 register data
- *
- * @return sns_rc
- * SNS_RC_FAILED - COM port failure
- * SNS_RC_SUCCESS
- */
-static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
-                               uint8_t *buffer)
-{
-  sns_rc   rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
-
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                state->com_port_info.port_handle,
-                                AKM_AK0991X_REG_ST1,
-                                buffer,
-                                1,
-                                &xfer_bytes);
-
-  if (xfer_bytes != 1)
-  {
-    rv = SNS_RC_FAILED;
-  }
-
-  return rv;
-}
-
-/**
- * Read ST1(10h) to ST2(18h) register data.
- *
- * @param[i] state                    Instance state
- * @param[o] buffer                   register data
- *
- * @return sns_rc
- * SNS_RC_FAILED - COM port failure
- * SNS_RC_SUCCESS
- */
-#ifdef AK0991X_ENABLE_DRI
-static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
-                                   uint8_t *buffer)
-{
-  sns_rc   rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
-
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                state->com_port_info.port_handle,
-                                AKM_AK0991X_REG_ST1,
-                                buffer,
-                                (uint32_t)(AK0991X_NUM_DATA_ST1_TO_ST2),
-                                &xfer_bytes);
-
-  if (xfer_bytes != (uint32_t)(AK0991X_NUM_DATA_ST1_TO_ST2))
-  {
-    rv = SNS_RC_FAILED;
-  }
-
-  return rv;
-}
-#endif
-
-/**
- * Read HXL(11h) to ST2(18h) register data.
- *
- * @param[i] state                    Instance state
- * @param[i] num_samples              number of samples
- * @param[o] buffer                   register data
- *
- * @return sns_rc
- * SNS_RC_FAILED - COM port failure
- * SNS_RC_SUCCESS
- */
-static sns_rc ak0991x_read_hxl_st2(ak0991x_instance_state *state,
-                                   uint16_t num_samples,
-                                   uint8_t *buffer)
-{
-  sns_rc   rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
-
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                state->com_port_info.port_handle,
-                                AKM_AK0991X_REG_HXL,
-                                buffer,
-                                (uint32_t)(num_samples * AK0991X_NUM_DATA_HXL_TO_ST2),
-                                &xfer_bytes);
-
-  if (xfer_bytes != (uint32_t)(num_samples * AK0991X_NUM_DATA_HXL_TO_ST2))
-  {
-    rv = SNS_RC_FAILED;
-  }
-
-  return rv;
 }
 
 /**
