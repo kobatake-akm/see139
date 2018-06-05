@@ -27,6 +27,10 @@
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
 
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+#include "sns_device_mode.pb.h"
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
+
 #define MAG_SUID1 \
   {  \
     .sensor_uid =  \
@@ -253,7 +257,7 @@ typedef struct ak0991x_state
 #endif //AK0991X_ENABLE_REG_FAC_CAL
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  uint8_t                 device_mode;
+  sns_device_mode         device_mode;
   bool                    registry_fac_cal_2_received;
   matrix3                 fac_cal_corr_mat_2;
   float                   fac_cal_bias_2[TRIAXIS_NUM];

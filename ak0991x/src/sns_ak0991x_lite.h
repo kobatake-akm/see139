@@ -126,6 +126,6 @@
 #define AK0991X_ENABLE_REG_FAC_CAL        // Enable factory cal access
 
 // this is setting for enable DEVICE_MODE_SENSOR (NOT IMPLEMENTED YET)
-//#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
+#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
 
 #endif	// AK0991X_ENABLE_SEE_LITE
