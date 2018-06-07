@@ -257,7 +257,7 @@ typedef struct ak0991x_state
 #endif //AK0991X_ENABLE_REG_FAC_CAL
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  sns_device_mode         device_mode;
+  sns_device_mode_event_mode_spec device_mode;
   bool                    registry_fac_cal_2_received;
   matrix3                 fac_cal_corr_mat_2;
   float                   fac_cal_bias_2[TRIAXIS_NUM];

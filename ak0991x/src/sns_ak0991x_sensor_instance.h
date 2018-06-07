@@ -295,7 +295,7 @@ typedef struct ak0991x_instance_state
   /**----------Sensor specific registry configuration----------*/
   sns_ak0991x_registry_cfg mag_registry_cfg;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  sns_device_mode  device_mode;
+  sns_device_mode_event_mode_spec  device_mode;
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
   sns_sync_com_port_service *scp_service;

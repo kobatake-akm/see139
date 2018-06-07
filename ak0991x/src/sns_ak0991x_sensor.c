@@ -458,7 +458,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  if(state->device_mode == SNS_DEVICE_MODE_FLIP_CLOSE) // temporary
+  if(state->device_mode.mode == SNS_DEVICE_MODE_FLIP_CLOSE) // temporary
   {
     sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
                 state->fac_cal_bias_2, sizeof(state->fac_cal_bias_2));
@@ -480,7 +480,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
       (int)(registry_cfg.fac_cal_corr_mat.e00*100));
 #endif // AK0991X_ENABLE_REG_WRITE_ACCESS
 
-  AK0991X_PRINT(LOW, this, "DEVICE_MODE=%d", (int)state->device_mode);
+  AK0991X_PRINT(LOW, this, "DEVICE_MODE=%d", (int)state->device_mode.mode);
   AK0991X_PRINT(LOW, this, "| %4d %4d %4d |",
       (int)(registry_cfg.fac_cal_corr_mat.e00*100),
       (int)(registry_cfg.fac_cal_corr_mat.e01*100),
@@ -1559,6 +1559,72 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
 }
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+
+/**
+ * Decodes device mode requests.
+ *
+ * @param[i] request         Encoded input request
+ * @param[o] decoded_request Decoded standard request
+ * @param[o] device_mode     Decoded self test request
+ *
+ * @return bool True if decoding is successful else false.
+ */
+static bool ak0991x_get_decoded_device_mode_request(
+                                                  sns_sensor const *this,
+                                                  sns_request const *request,
+                                                  sns_std_request *decoded_request,
+                                                  sns_device_mode_event_mode_spec *device_mode)
+{
+  pb_istream_t stream;
+  pb_simple_cb_arg arg =
+      { .decoded_struct = device_mode,
+        .fields = sns_device_mode_event_mode_spec_fields };
+  decoded_request->payload = (struct pb_callback_s)
+      { .funcs.decode = &pb_decode_simple_cb, .arg = &arg };
+  stream = pb_istream_from_buffer(request->request,
+                                  request->request_len);
+  if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
+  {
+    AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+    return false;
+  }
+#ifndef AK0991X_ENABLE_DEBUG_MSG
+  UNUSED_VAR(this);
+#endif //AK0991X_ENABLE_DEBUG_MSG
+  return true;
+}
+
+/**
+ * Updates instance state with request spec.
+ *
+ * @param[i] this          Sensor reference
+ * @param[i] new_request   Encoded request
+ *
+ * @return Ture if request is valid else false
+ */
+static bool ak0991x_extract_device_mode_spec(
+                                   sns_sensor const *this,
+                                   struct sns_request const *new_request)
+{
+
+  ak0991x_state *state = (ak0991x_state *)this->state->state;
+  sns_std_request decoded_request;
+  sns_device_mode_event_mode_spec device_mode_spec = sns_device_mode_event_mode_spec_init_default;
+
+  if(ak0991x_get_decoded_device_mode_request(
+      this,
+      new_request, &decoded_request, &device_mode_spec))
+  {
+    state->device_mode.mode = device_mode_spec.mode;
+    state->device_mode.state = device_mode_spec.state;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
 void ak0991x_switch_cal_data(sns_sensor const *this,
                              sns_sensor_instance *instance)
 {
@@ -1568,16 +1634,16 @@ void ak0991x_switch_cal_data(sns_sensor const *this,
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   ak0991x_instance_state *inst_state = (ak0991x_instance_state *)instance->state->state;
 
-  AK0991X_PRINT(LOW, this, "!test device mode before : %d", inst_state->device_mode);
+  AK0991X_PRINT(LOW, this, "!test device mode before : %d", inst_state->device_mode.mode);
   inst_state->device_mode = state->device_mode;
-  AK0991X_PRINT(LOW, this, "!test device mode after : %d", inst_state->device_mode);
+  AK0991X_PRINT(LOW, this, "!test device mode after : %d", inst_state->device_mode.mode);
 
-  if(state->device_mode == SNS_DEVICE_MODE_FLIP_OPEN) //temporary
+  if(state->device_mode.mode == SNS_DEVICE_MODE_FLIP_OPEN) //temporary
   {
     fac_cal_bias     = state->fac_cal_bias;
     fac_cal_corr_mat = &state->fac_cal_corr_mat;
   }
-  else if(state->device_mode == SNS_DEVICE_MODE_FLIP_CLOSE)
+  else if(state->device_mode.mode == SNS_DEVICE_MODE_FLIP_CLOSE)
   {
     fac_cal_bias     = state->fac_cal_bias_2;
     fac_cal_corr_mat = &state->fac_cal_corr_mat_2;
@@ -2044,19 +2110,16 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-          // DEVICE_MODE_SENSOR
-          if(SNS_STD_SENSOR_MSGID_SNS_STD_ON_CHANGE_CONFIG == new_request->message_id)
+          if(SNS_DEVICE_MODE_MSGID_SNS_DEVICE_MODE_EVENT == new_request->message_id)
           {
-            // AKM??? How to get the device mode?
-            // temporary, just toggled.
-            if(state->device_mode == SNS_DEVICE_MODE_FLIP_OPEN){
-              state->device_mode = SNS_DEVICE_MODE_FLIP_CLOSE; // temporary
-            }else if(state->device_mode == SNS_DEVICE_MODE_FLIP_CLOSE){
-              state->device_mode = SNS_DEVICE_MODE_FLIP_OPEN; // temporary
+            if(ak0991x_extract_device_mode_spec(this, new_request))
+            {
+              AK0991X_PRINT(LOW,this,"Request to switch device mode : %d.", state->device_mode.mode);
+              ak0991x_switch_cal_data(this, instance);
+              ak0991x_send_cal_event(instance);
+            }else{
+              AK0991X_PRINT(LOW,this,"Request to switch device mode failed.");
             }
-            AK0991X_PRINT(LOW,this,"Request to switch device mode : %d.", state->device_mode);
-            ak0991x_switch_cal_data(this, instance);
-            ak0991x_send_cal_event(instance);
           }
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
@@ -2072,7 +2135,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               ak0991x_set_self_test_inst_config(this, instance);
             }
           }
-          else if(AK0991X_POWER_RAIL_PENDING_NONE == state->power_rail_pend_state)
+
+          if(AK0991X_POWER_RAIL_PENDING_NONE == state->power_rail_pend_state)
           {
             ak0991x_reval_instance_config(this, instance);
           }

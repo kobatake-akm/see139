@@ -137,7 +137,8 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->sensor_client_present = false;
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  state->device_mode = SNS_DEVICE_MODE_FLIP_OPEN;
+  state->device_mode.mode = SNS_DEVICE_MODE_FLIP_OPEN;
+  state->device_mode.state = SNS_DEVICE_STATE_UNKNOWN;
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
 #ifdef AK0991X_ENABLE_DUAL_SENSOR

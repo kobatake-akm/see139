@@ -2337,7 +2337,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
   cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  cal_event.cal_id                   = state->device_mode;
+  cal_event.cal_id                   = state->device_mode.mode;
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
 
