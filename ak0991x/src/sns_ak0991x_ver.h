@@ -22,8 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 06/07/18     010078     AKM              Modified continuous mode check in HW self-test
- * 06/04/18     010077     AKM              Add continuous mode check in HW self-test
+ * 06/04/18     010077     AKM              Add continous mode check in HW self-test
  * 05/24/18     010076     Qualcomm/AKM     Added AK0991X_ENABLE_REG_FAC_CAL macro for reading 3x3 factory calibration parameter from registry
  * 05/16/18     010075     AKM              Changed to read registry value for rail_vote when registry access is enabled
  * 05/09/18     010074     AKM              Added sns_suid_lookup_deinit.
@@ -152,4 +151,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10078  // major:01 minor:00 revision:78
+#define AK0991X_DRIVER_VERSION 10077  // major:01 minor:00 revision:77
