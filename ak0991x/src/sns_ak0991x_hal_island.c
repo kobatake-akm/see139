@@ -1004,7 +1004,6 @@ static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-#ifdef AK0991X_ENABLE_DRI
 static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
                                    uint8_t *buffer)
 {
@@ -1025,7 +1024,6 @@ static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
 
   return rv;
 }
-#endif
 
 /**
  * Read HXL(11h) to ST2(18h) register data.
@@ -1061,6 +1059,46 @@ static sns_rc ak0991x_read_hxl_st2(ak0991x_instance_state *state,
 }
 
 /**
+ * Wait DRDY bit is ready
+ * @param[i] this              reference to the instance
+ * @param[i] timeout_ms        Waiting time for drdy
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_wait_drdy_poll(sns_sensor_instance *const this,
+                                     int32_t timeout_ms)
+{
+  sns_rc  rv;
+  int16_t i;
+  uint8_t st1_buf;
+  ak0991x_instance_state *state =
+    (ak0991x_instance_state *)this->state->state;
+
+  for (i = 0; i < timeout_ms; i++)
+  {
+    /* check DRDY */
+    rv = ak0991x_read_st1(state, &st1_buf);  // read ST1
+    if (rv != SNS_RC_SUCCESS)
+    {
+      return rv;
+    }
+
+    state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
+    if (state->data_is_ready)
+    {
+      /* OK, DRDY bit is high */
+      return SNS_RC_SUCCESS;
+    }
+    /* DRDY bit is still LOW, wait for a while and read again */
+    sns_busy_wait(sns_convert_ns_to_ticks(1 * 1000 * 1000)); // Wait 1ms
+  }
+
+  return SNS_RC_FAILED;
+}
+
+/**
  * Run a hardware self-test
  * @param[i]            reference to the instance
  * @param[o]            error code
@@ -1081,7 +1119,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
   uint8_t  sdr = 0;
-  uint8_t  st1_buf;
   int      i;
 
   ak0991x_instance_state *state =
@@ -1129,7 +1166,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /** Step 2
    *   Continuous mode check
    **/
-  /* Start continuous mode 50Hz */
+  /* Set to CNT measurement mode3 (50Hz) */
   buffer[0] = AK0991X_MAG_ODR50;
   rv = ak0991x_com_write_wrapper(this,
                    state->scp_service,
@@ -1144,50 +1181,47 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     ||
     xfer_bytes != 1)
   {
+    *err = ((TLIMIT_NO_CNT_CNTL2) << 16);
     goto TEST_SEQUENCE_FAILED;
   }
 
-  // To ensure that measurement is finished, First measurement time is 14.4ms + margin
-  sns_busy_wait(sns_convert_ns_to_ticks(16* 1000 * 1000));
-
-  /* Step 2 : Continuous mode checking */
-  for (i = 0; i < 3; i++) { //  3 is temp value for first check of continuous mode. It can be change by customer
-
-    /* read measurement data with ST1 */
-    rv = ak0991x_com_read_wrapper(state->scp_service,
-                    state->com_port_info.port_handle,
-                    AKM_AK0991X_REG_ST1,
-                    buffer,
-                    (uint32_t)AK0991X_NUM_DATA_ST1_TO_ST2,
-                    &xfer_bytes);
-    
-    if (rv != SNS_RC_SUCCESS
-      ||
-      xfer_bytes != (uint32_t)AK0991X_NUM_DATA_ST1_TO_ST2)
+  for (i = 0; i < TLIMIT_NO_CNT_ITR; i++)
+  {
+    /* current test program sets to MODE3, i.e. 50Hz=20msec interval
+     * so, wait for double length of measurement time.
+     */
+    rv = ak0991x_wait_drdy_poll(this, 40);
+    if (rv != SNS_RC_SUCCESS)
     {
-      *err = ((TLIMIT_NO_READ_DATA) << 16);
+      *err = ((TLIMIT_NO_CNT_WAIT) << 16);
       goto TEST_SEQUENCE_FAILED;
     }
 
-    /* If ST1 is not go to 1, It is fail.*/
-    if ((buffer[0] & AK0991X_DRDY_BIT) == 0){
-        AK0991X_INST_PRINT(HIGH, this, "Device reset failed. Continuous mode cheking fail! ");
-        *err = ((TLIMIT_NO_CHANGE_ST1) << 16);  //temp error msg
+    /* Get measurement from device (1st). */
+    rv = ak0991x_read_st1_st2(state, &buffer[0]);
+
+    if (rv != SNS_RC_SUCCESS)
+    {
+      *err = ((TLIMIT_NO_CNT_READ) << 16);
+      goto TEST_SEQUENCE_FAILED;
     }
 
-    ak0991x_read_st1(state, &st1_buf);  // read ST1
+    /* Check DRDY bit (1st) */
+    state->data_is_ready = (buffer[0] & AK0991X_DRDY_BIT) ? true : false;
+    AKM_FST(TLIMIT_NO_CNT_1ST, state->data_is_ready, TLIMIT_LO_CNT_1ST, TLIMIT_HI_CNT_1ST, err);
 
-    state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
+    /* Get measurement from device (2nd). */
+    rv = ak0991x_read_st1_st2(state, &buffer[0]);
 
-    /* If ST1 is not go to 0, even though register read already. It is fail. */
-    if (state->data_is_ready == true){
-        AK0991X_INST_PRINT(HIGH, this, "Device reset failed. Continuous mode cheking fail! ");
-        *err = ((TLIMIT_NO_CHANGE_ST1) << 16);  //temp error msg
+    if (rv != SNS_RC_SUCCESS)
+    {
+      *err = ((TLIMIT_NO_CNT_READ) << 16);
+      goto TEST_SEQUENCE_FAILED;
     }
 
-    // To ensure that measurement is finished, measurement time is 20ms
-    sns_busy_wait(sns_convert_ns_to_ticks(20* 1000 * 1000));
-
+    /* Check DRDY bit (2nd) */
+    state->data_is_ready = (buffer[0] & AK0991X_DRDY_BIT) ? true : false;
+    AKM_FST(TLIMIT_NO_CNT_2ND, state->data_is_ready, TLIMIT_LO_CNT_2ND, TLIMIT_HI_CNT_2ND, err);
   }
 
   // Reset device
@@ -1201,6 +1235,8 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
+  /* Wait over 100us */
+  sns_busy_wait(sns_convert_ns_to_ticks(100 * 1000));
 
   /** Step 3
    *   Start self test
@@ -1341,6 +1377,12 @@ TEST_SEQUENCE_FAILED:
   }
   else
   {
+    AK0991X_INST_PRINT(HIGH, this, "hw self-test failed!! err code = %x",*err);
+    // Reset device
+    ak0991x_device_sw_reset(this,
+                            state->scp_service,
+                            state->com_port_info.port_handle);
+
     return SNS_RC_FAILED;
   }
 }
@@ -2966,6 +3008,7 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
       bool hw_success = false;
       uint32_t err;
 
+      AK0991X_INST_PRINT(LOW, instance, "hw self-test start!");
       rv = ak0991x_hw_self_test(instance, &err);
 
       if(rv == SNS_RC_SUCCESS

@@ -163,7 +163,9 @@
 #define TLIMIT_NO_SET_SELFTEST                      0x005
 #define TLIMIT_NO_READ_ST1                          0x006
 #define TLIMIT_NO_READ_DATA                         0x007
-#define TLIMIT_NO_CHANGE_ST1                        0x008
+#define TLIMIT_NO_CNT_CNTL2                         0x008
+#define TLIMIT_NO_CNT_WAIT                          0x009
+#define TLIMIT_NO_CNT_READ                          0x00A
 #define TLIMIT_NO_ASAX                              0x101
 #define TLIMIT_LO_ASAX                              1
 #define TLIMIT_HI_ASAX                              254
@@ -176,10 +178,18 @@
 #define TLIMIT_LO_ASAZ                              1
 #define TLIMIT_HI_ASAZ                              254
 
-#define TLIMIT_NO_SLF_RVHX                          0x201
-#define TLIMIT_NO_SLF_RVHY                          0x202
-#define TLIMIT_NO_SLF_RVHZ                          0x203
-#define TLIMIT_NO_SLF_ST2                           0x204
+#define TLIMIT_NO_CNT_ITR                           3
+#define TLIMIT_NO_CNT_1ST                           0x201
+#define TLIMIT_LO_CNT_1ST                           1
+#define TLIMIT_HI_CNT_1ST                           1
+#define TLIMIT_NO_CNT_2ND                           0x202
+#define TLIMIT_LO_CNT_2ND                           0
+#define TLIMIT_HI_CNT_2ND                           0
+
+#define TLIMIT_NO_SLF_RVHX                          0x301
+#define TLIMIT_NO_SLF_RVHY                          0x302
+#define TLIMIT_NO_SLF_RVHZ                          0x303
+#define TLIMIT_NO_SLF_ST2                           0x304
 #define TLIMIT_LO_SLF_ST2                           0
 #define TLIMIT_HI_SLF_ST2                           0
 #define TLIMIT_ST2_MASK                             (0x08)
