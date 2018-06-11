@@ -1377,6 +1377,7 @@ TEST_SEQUENCE_FAILED:
   }
   else
   {
+    AK0991X_INST_PRINT(HIGH, this, "hw self-test failed!! err code = %x",*err);
     // Reset device
     ak0991x_device_sw_reset(this,
                             state->scp_service,
