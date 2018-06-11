@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/11/18     010078     AKM              Modified contains mode check in HW self-test
  * 06/04/18     010077     AKM              Add continous mode check in HW self-test
  * 05/24/18     010076     Qualcomm/AKM     Added AK0991X_ENABLE_REG_FAC_CAL macro for reading 3x3 factory calibration parameter from registry
  * 05/16/18     010075     AKM              Changed to read registry value for rail_vote when registry access is enabled
