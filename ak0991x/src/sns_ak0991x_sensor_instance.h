@@ -231,11 +231,9 @@ typedef struct ak0991x_instance_state
   bool s4s_reg_event_done;
 #endif //AK0991X_ENABLE_S4S
 #ifdef AK0991X_ENABLE_DRI
-  bool is_temp_average;
   bool in_clock_error_procedure;
   bool previous_meas_is_irq;
   bool previous_meas_is_correct_wm;
-  sns_time temp_averaged_interval;
   sns_time irq_event_time;
   sns_time previous_irq_time;
 #endif //AK0991X_ENABLE_DRI

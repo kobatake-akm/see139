@@ -715,7 +715,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->reg_event_done = false;
 #ifdef AK0991X_ENABLE_DRI
   state->mag_info.data_count = 0;
-  state->is_temp_average = false;
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
   state->previous_meas_is_correct_wm = true;
@@ -1688,16 +1687,16 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d flush %d pre_wm_ok %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %d of %d wm %d flush %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
           (uint32_t)state->system_time,
           (uint32_t)state->averaged_interval,
           num_samples_sets,
+          state->num_samples,
           (state->mag_info.cur_wmk + 1),
-          state->fifo_flush_in_progress,
-          state->previous_meas_is_correct_wm);
+          state->fifo_flush_in_progress);
     }
   }
 
@@ -1804,36 +1803,6 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
                        (uint32_t)state->internal_clock_error);
   }
 }
-
-static void ak0991x_check_data_gap_for_dri(sns_sensor_instance *const instance)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  const sns_time few_ms = state->nominal_intvl >> 6; // 1/64 = 1.5% error
-
-  // data gap check timestamp
-  if(state->first_data_ts_of_batch + few_ms < state->pre_timestamp + state->averaged_interval)
-  {
-    state->is_temp_average = true;
-  }
-  else if(state->first_data_ts_of_batch > state->pre_timestamp + state->averaged_interval + few_ms)
-  {
-    state->is_temp_average = true;
-  }
-
-  if(state->is_temp_average)
-  {
-    AK0991X_INST_PRINT(HIGH, instance, "Data gap detected! pre %u first_ts %u avg %u",
-                       (uint32_t)state->pre_timestamp,
-                       (uint32_t)state->first_data_ts_of_batch,
-                       (uint32_t)state->averaged_interval);
-
-    state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
-
-    state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / (state->mag_info.cur_wmk + 1);
-    state->first_data_ts_of_batch = state->interrupt_timestamp -
-      (state->averaged_interval * state->mag_info.cur_wmk);
-  }
-}
 #endif // AK0991X_ENABLE_DRI
 
 #ifdef AK0991X_ENABLE_DRI
@@ -1841,21 +1810,12 @@ static void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instan
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  // if the previous batch use unreliable timestamp, then reset.
-  if(state->is_temp_average)
-  {
-    state->averaged_interval = state->temp_averaged_interval; // reset
-    state->is_temp_average = false;
-  }
-
   ak0991x_calc_average_interval_for_dri(instance);
 
   if(state->irq_info.detect_irq_event)  // DRI
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * state->mag_info.cur_wmk);
-
-    ak0991x_check_data_gap_for_dri(instance);
 
     state->mag_info.data_count = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
@@ -1956,7 +1916,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
         }
       }
 
-      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
+//      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
  
       if(state->num_samples == 0)
       {
