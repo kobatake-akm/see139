@@ -27,6 +27,9 @@ ak0991x_island_enable = False
 if 'SNS_ISLAND_INCLUDE_AK0991X' in env:
   ak0991x_island_enable = True
 
+if 'FORCE_ISLAND_DISABLE_AK0991X' in env:
+  ak0991x_island_enable = False
+
 akm_cflags = [
   '-Wno-sign-compare'
   ]
