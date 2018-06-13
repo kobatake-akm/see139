@@ -343,6 +343,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(state->re_read_data_after_ascp && (state->ascp_xfer_in_progress == 0))
         {
+          ak0991x_read_mag_samples(this);
           ak0991x_send_fifo_flush_done(this);
           state->re_read_data_after_ascp = false;
         }

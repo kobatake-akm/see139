@@ -1791,7 +1791,9 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
       }
       else
       {
-        AK0991X_INST_PRINT(LOW, instance, "previous is not reliable timestamp");
+        AK0991X_INST_PRINT(LOW, instance, "previous irq is delayed. pre_irq %d pre_wm %d",
+            state->previous_meas_is_irq,
+            state->previous_meas_is_correct_wm);
       }
     }
   }
