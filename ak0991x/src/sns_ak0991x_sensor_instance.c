@@ -238,6 +238,46 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
 #endif //AK0991X_ENABLE_FIFO
 
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  sns_sensor_uid device_mode_suid;
+  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "device_mode", &device_mode_suid);
+  rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                      this, 
+                                                      device_mode_suid,
+                                                      &state->device_mode_stream);
+  if(rv != SNS_RC_SUCCESS)
+  {
+#ifndef AK0991X_BOARD_HDK845
+    return rv;
+#endif // AK0991X_BOARD_HDK845
+  }
+
+  uint8_t i;
+  for(i = 0; i < MAX_DEVICE_MODE_SUPPORTED; i++)
+  {
+    sns_memscpy(&state->cal_parameter[i],
+                sizeof(state->cal_parameter[i]),
+                &sensor_state->cal_parameter[i],
+                sizeof(sensor_state->cal_parameter[i]));
+    AK0991X_INST_PRINT(LOW, this, "| %4d %4d %4d |",
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e00*100),
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e01*100),
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e02*100));
+     AK0991X_INST_PRINT(LOW, this, "| %4d %4d %4d |",
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e10*100),
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e11*100),
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e12*100));
+     AK0991X_INST_PRINT(LOW, this, "| %4d %4d %4d |",
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e20*100),
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e21*100),
+       (int)(state->cal_parameter[i].fac_cal_corr_mat.e22*100));
+      AK0991X_INST_PRINT(LOW, this, "Fac Cal bias %d %d %d",
+       (int)(state->cal_parameter[i].fac_cal_bias[0]),
+       (int)(state->cal_parameter[i].fac_cal_bias[1]),
+       (int)(state->cal_parameter[i].fac_cal_bias[2]));
+ }
+#endif
+
   /** Initialize Timer info to be used by the Instance */
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "timer", &state->timer_suid);
   state->timer_data_stream = NULL;
@@ -364,6 +404,9 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 #ifdef AK0991X_ENABLE_FIFO
   sns_sensor_util_remove_sensor_instance_stream(this,&state->async_com_port_data_stream);
 #endif //AK0991X_ENABLE_FIFO
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  sns_sensor_util_remove_sensor_instance_stream(this, &state->device_mode_stream);
+#endif
   if(NULL != state->scp_service)
   {
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
@@ -452,6 +495,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
+  state->client_req_id = client_request->message_id;
   float           desired_sample_rate = 0;
   float           desired_report_rate = 0;
   float           mag_chosen_sample_rate = 0;
@@ -486,6 +530,17 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     desired_sample_rate = payload->sample_rate;
     desired_report_rate = payload->report_rate;
     state->mag_info.flush_only = payload->is_flush_only;
+    
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+    if(NULL != state->device_mode_stream )
+    {
+      sns_request request = (sns_request){
+       .message_id = SNS_STD_SENSOR_MSGID_SNS_STD_ON_CHANGE_CONFIG,
+       .request_len = 0, .request = NULL };
+      state->device_mode_stream->api->send_request(state->device_mode_stream, &request);
+    }
+
+#endif
 
 #ifdef AK0991X_ENABLE_DRI
     // Register for interrupt

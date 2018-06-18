@@ -214,6 +214,96 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
   return rv;
 }
 
+void ak0991x_switch_cal_data(sns_sensor_instance *const instance)
+{
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  float *fac_cal_bias = NULL;
+  matrix3 *fac_cal_corr_mat = NULL;
+  ak0991x_instance_state *inst_state = (ak0991x_instance_state *)instance->state->state;
+
+  uint32_t cal_id = ak0991x_device_mode2cal_id(instance);
+  fac_cal_bias     = inst_state->cal_parameter[cal_id].fac_cal_bias;
+  fac_cal_corr_mat = &inst_state->cal_parameter[cal_id].fac_cal_corr_mat;
+
+  for (int i = 0; i < TRIAXIS_NUM; i++)
+  {
+    inst_state->mag_registry_cfg.fac_cal_bias[i] = fac_cal_bias[i];
+  }
+  for (int i = 0; i < ARR_SIZE(fac_cal_corr_mat->data); i++)
+  {
+    inst_state->mag_registry_cfg.fac_cal_corr_mat.data[i] = fac_cal_corr_mat->data[i];
+  }
+#else // AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  UNUSED_VAR(instance);
+#endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
+}
+
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+bool sns_device_mode_event_decode_cb(pb_istream_t *stream, const pb_field_t *field,
+    void **arg)
+{
+  UNUSED_VAR(field);
+  ak0991x_instance_state *state = (ak0991x_instance_state *)*arg;
+  if(!pb_decode(stream, sns_device_mode_event_mode_spec_fields, &state->device_mode[state->device_mode_cnt]))
+  {
+    return false;
+  }
+  else
+  {
+    state->device_mode_cnt++;
+  }
+  return true;
+}
+#endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
+
+sns_rc ak0991x_handle_device_mode_stream(sns_sensor_instance *const this)
+{
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
+  sns_sensor_event    *event;
+  sns_rc rv = SNS_RC_FAILED;
+
+  if (NULL != state->device_mode_stream)
+  {
+    event = state->device_mode_stream->api->peek_input(state->device_mode_stream);
+
+    while (NULL != event)
+    {
+      if(event->message_id == SNS_DEVICE_MODE_MSGID_SNS_DEVICE_MODE_EVENT)
+      {
+        pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
+                                                   event->event_len);
+        sns_device_mode_event device_mode_event = sns_device_mode_event_init_default;
+        state->device_mode_cnt = 0;
+        device_mode_event.device_mode.arg = (void*)state;
+        device_mode_event.device_mode.funcs.decode = sns_device_mode_event_decode_cb;
+        if(!pb_decode(&stream, sns_device_mode_event_fields, &device_mode_event))
+        {
+          SNS_INST_PRINTF(ERROR, this, "Error in decoding device mode event!");
+        }
+        else
+        {
+          AK0991X_INST_PRINT(LOW, this, "Received %u device mode specs", state->device_mode_cnt);
+          for(int i = 0; i < state->device_mode_cnt; ++i)
+          {
+            AK0991X_INST_PRINT(LOW, this, "mode: %u, state: %u", state->device_mode[i].mode,
+                                                                 state->device_mode[i].state);
+          }
+          state->cal_id = ak0991x_device_mode2cal_id(this);
+          rv = SNS_RC_SUCCESS;
+        }
+      }
+      event = state->device_mode_stream->api->get_next_input(state->device_mode_stream);
+    }
+  }
+#else // AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  sns_rc rv = SNS_RC_FAILED;
+  UNUSED_VAR(this);
+#endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
+
+  return rv;
+}
+
 /** See sns_sensor_instance_api::notify_event */
 static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 {
@@ -441,6 +531,17 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
       }
     }
+  }
+
+
+  //Handle device_mode stream events
+  if( ak0991x_handle_device_mode_stream(this) == SNS_RC_SUCCESS )
+  {
+    // switch
+    ak0991x_switch_cal_data(this);
+
+    // report
+    ak0991x_send_cal_event(this);
   }
 
   // Handle timer data stream for S4S

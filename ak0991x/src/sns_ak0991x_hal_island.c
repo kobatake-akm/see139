@@ -1791,9 +1791,7 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
       }
       else
       {
-        AK0991X_INST_PRINT(LOW, instance, "previous irq is delayed. pre_irq %d pre_wm %d",
-            state->previous_meas_is_irq,
-            state->previous_meas_is_correct_wm);
+        AK0991X_INST_PRINT(LOW, instance, "previous is not reliable timestamp");
       }
     }
   }
@@ -2324,6 +2322,23 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   }
 }
 
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+uint32_t ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint32_t cal_id = 0;
+  for(int i = 0; i < MAX_DEVICE_MODE_SUPPORTED; ++i)
+  {
+    if(state->device_mode[i].mode == 0 &&
+       state->device_mode[i].state == 0)
+      break;
+    uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
+    cal_id += state_set*(uint32_t)powf(2, i);
+  }
+  return cal_id;
+}
+#endif
+
 void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -2341,10 +2356,12 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
   cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  cal_event.cal_id                   = state->device_mode.mode;
-#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  cal_event.has_cal_id               = true;
+  cal_event.cal_id                   = ak0991x_device_mode2cal_id(instance);
+  AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT, cal_id:%u", cal_event.cal_id);
+#else //AK0991X_ENABLE_DEVICE_MODE_SENSOR
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
-
+#endif
   pb_send_event(instance,
                 sns_cal_event_fields,
                 &cal_event,
@@ -2368,7 +2385,9 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
   {
     state->mag_registry_cfg.fac_cal_corr_mat.data[i] = comp_matrix_data[i];
   }
+#ifdef AK0991X_ENABLE_REG_FAC_CAL
   state->mag_registry_cfg.version++;
+#endif // AK0991X_ENABLE_REG_FAC_CAL
 }
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 

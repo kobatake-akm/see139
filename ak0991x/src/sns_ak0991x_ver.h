@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/18/18     010080     AKM              Applied the device_mode modification from ver1.00.62F.
  * 06/12/18     010079     AKM              Modified for device mode sensor and timestamp for DRI+FIFO mode.
  * 06/11/18     010078     AKM              Modified contains mode check in HW self-test
  * 06/04/18     010077     AKM              Add continuous mode check in HW self-test
@@ -153,4 +154,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10079  // major:01 minor:00 revision:79
+#define AK0991X_DRIVER_VERSION 10080  // major:01 minor:00 revision:80

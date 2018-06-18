@@ -20,8 +20,8 @@
  *
  *-------------------------------------------------------------------------*/
 
-// Target board HDK820 (DragonBoard820)
-//#define AK0991X_BOARD_HDK820
+// Target board HDK845
+//#define AK0991X_BOARD_HDK845
 
 /*
  * For SEE-Lite Mode, please follow the procedure.
@@ -125,7 +125,12 @@
 #define AK0991X_ENABLE_REG_WRITE_ACCESS   // Enable registry write access
 #define AK0991X_ENABLE_REG_FAC_CAL        // Enable factory cal access
 
-// this is setting for enable DEVICE_MODE_SENSOR (NOT IMPLEMENTED YET)
-#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
+// this is setting for enable DEVICE_MODE_SENSOR
+//#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+#define MAX_DEVICE_MODE_SUPPORTED 2       // change number 2/4/8 in order to match the faccal num in the registry
+#else
+#define MAX_DEVICE_MODE_SUPPORTED 1
+#endif
 
 #endif	// AK0991X_ENABLE_SEE_LITE
