@@ -136,10 +136,13 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->hw_is_present = false;
   state->sensor_client_present = false;
 
+<<<<<<< HEAD
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   state->device_mode = 0;
 #endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
+=======
+>>>>>>> origin/nakajima
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   state->registration_idx = this->cb->get_registration_index(this);
   AK0991X_PRINT(LOW, this, "registration_idx=%d",state->registration_idx);
@@ -157,9 +160,13 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   }
 
   // initialize fac cal correction matrix to identity
-  state->fac_cal_corr_mat.e00 = 1.0;
-  state->fac_cal_corr_mat.e11 = 1.0;
-  state->fac_cal_corr_mat.e22 = 1.0;
+  uint8_t j;
+  for(j = 0; j < MAX_DEVICE_MODE_SUPPORTED; j++)
+  {
+    state->cal_parameter[j].fac_cal_corr_mat.e00 = 1.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e11 = 1.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e22 = 1.0;
+  }
 
 #else
   AK0991X_PRINT(LOW, this, "SEE-Lite Mode.");
@@ -225,23 +232,25 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->axis_map[2].opaxis = TRIAXIS_Z;
   state->axis_map[2].invert = false;
 
-  state->fac_cal_bias[0] = 0.0;
-  state->fac_cal_bias[1] = 0.0;
-  state->fac_cal_bias[2] = 0.0;
-  state->fac_cal_scale[0] = 0.0;
-  state->fac_cal_scale[1] = 0.0;
-  state->fac_cal_scale[2] = 0.0;
+  for(j = 0; j < MAX_DEVICE_MODE_SUPPORTED; j++)
+  {
+    state->cal_parameter[j].fac_cal_bias[0] = 0.0;
+    state->cal_parameter[j].fac_cal_bias[1] = 0.0;
+    state->cal_parameter[j].fac_cal_bias[2] = 0.0;
+    state->cal_parameter[j].fac_cal_scale[0] = 0.0;
+    state->cal_parameter[j].fac_cal_scale[1] = 0.0;
+    state->cal_parameter[j].fac_cal_scale[2] = 0.0;
 
-  state->fac_cal_corr_mat.e00 = 1.0;
-  state->fac_cal_corr_mat.e01 = 0.0;
-  state->fac_cal_corr_mat.e02 = 0.0;
-  state->fac_cal_corr_mat.e10 = 0.0;
-  state->fac_cal_corr_mat.e11 = 1.0;
-  state->fac_cal_corr_mat.e12 = 0.0;
-  state->fac_cal_corr_mat.e20 = 0.0;
-  state->fac_cal_corr_mat.e21 = 0.0;
-  state->fac_cal_corr_mat.e22 = 1.0;
-
+    state->cal_parameter[j].fac_cal_corr_mat.e00 = 1.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e01 = 0.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e02 = 0.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e10 = 0.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e11 = 1.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e12 = 0.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e20 = 0.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e21 = 0.0;
+    state->cal_parameter[j].fac_cal_corr_mat.e22 = 1.0;
+  }
   state->placement[0] = 0.0;
   state->placement[1] = 0.0;
   state->placement[2] = 0.0;
@@ -268,6 +277,9 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   sns_suid_lookup_add(this, &state->suid_lookup_data, "registry");
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  sns_suid_lookup_add(this, &state->suid_lookup_data, "device_mode");
+#endif
 
   return SNS_RC_SUCCESS;
 }

@@ -13,7 +13,8 @@ sim/
 timer/
 flush_test/
 md_test/
-
+test/
+lsm6ds3/
 
 # Object files
 *.o
@@ -50,3 +51,5 @@ md_test/
 *.su
 
 *.zip
+
+ak0991x/sdm845_ak991x_0\.json

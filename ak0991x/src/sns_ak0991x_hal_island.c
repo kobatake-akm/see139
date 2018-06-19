@@ -934,7 +934,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 #endif
 #ifdef AK0991X_ENABLE_DRI
   state->mag_info.data_count = 0;
-  state->is_temp_average = false;
   state->irq_info.detect_irq_event = false;
   state->previous_meas_is_irq = false;
   state->previous_meas_is_correct_wm = true;
@@ -1228,7 +1227,6 @@ static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-#ifdef AK0991X_ENABLE_DRI
 static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
                                    uint8_t *buffer)
 {
@@ -1249,7 +1247,6 @@ static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
 
   return rv;
 }
-#endif
 
 /**
  * Read HXL(11h) to ST2(18h) register data.
@@ -1285,6 +1282,46 @@ static sns_rc ak0991x_read_hxl_st2(ak0991x_instance_state *state,
 }
 
 /**
+ * Wait DRDY bit is ready
+ * @param[i] this              reference to the instance
+ * @param[i] timeout_ms        Waiting time for drdy
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_wait_drdy_poll(sns_sensor_instance *const this,
+                                     int32_t timeout_ms)
+{
+  sns_rc  rv;
+  int16_t i;
+  uint8_t st1_buf;
+  ak0991x_instance_state *state =
+    (ak0991x_instance_state *)this->state->state;
+
+  for (i = 0; i < timeout_ms; i++)
+  {
+    /* check DRDY */
+    rv = ak0991x_read_st1(state, &st1_buf);  // read ST1
+    if (rv != SNS_RC_SUCCESS)
+    {
+      return rv;
+    }
+
+    state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
+    if (state->data_is_ready)
+    {
+      /* OK, DRDY bit is high */
+      return SNS_RC_SUCCESS;
+    }
+    /* DRDY bit is still LOW, wait for a while and read again */
+    sns_busy_wait(sns_convert_ns_to_ticks(1 * 1000 * 1000)); // Wait 1ms
+  }
+
+  return SNS_RC_FAILED;
+}
+
+/**
  * Run a hardware self-test
  * @param[i]            reference to the instance
  * @param[o]            error code
@@ -1305,7 +1342,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
   uint8_t  sdr = 0;
-  uint8_t  st1_buf;
   int      i;
   
   ak0991x_instance_state *state =
@@ -1353,7 +1389,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /** Step 2
    *   Continuous mode check
    **/
-  /* Start continuous mode 50Hz */
+  /* Set to CNT measurement mode3 (50Hz) */
   buffer[0] = AK0991X_MAG_ODR50;
   rv = ak0991x_com_write_wrapper(this,
                    state->scp_service,
@@ -1368,50 +1404,47 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     ||
     xfer_bytes != 1)
   {
+    *err = ((TLIMIT_NO_CNT_CNTL2) << 16);
     goto TEST_SEQUENCE_FAILED;
   }
 
-  // To ensure that measurement is finished, First measurement time is 14.4ms + margin
-  sns_busy_wait(sns_convert_ns_to_ticks(16* 1000 * 1000));
-
-  /* Step 2 : Continuous mode checking */
-  for (i = 0; i < 3; i++) { //  3 is temp value for first check of continuous mode. It can be change by customer
-
-    /* read measurement data with ST1 */
-    rv = ak0991x_com_read_wrapper(state->scp_service,
-                    state->com_port_info.port_handle,
-                    AKM_AK0991X_REG_ST1,
-                    buffer,
-                    (uint32_t)AK0991X_NUM_DATA_ST1_TO_ST2,
-                    &xfer_bytes);
-    
-    if (rv != SNS_RC_SUCCESS
-      ||
-      xfer_bytes != (uint32_t)AK0991X_NUM_DATA_ST1_TO_ST2)
+  for (i = 0; i < TLIMIT_NO_CNT_ITR; i++)
+  {
+    /* current test program sets to MODE3, i.e. 50Hz=20msec interval
+     * so, wait for double length of measurement time.
+     */
+    rv = ak0991x_wait_drdy_poll(this, 40);
+    if (rv != SNS_RC_SUCCESS)
     {
-      *err = ((TLIMIT_NO_READ_DATA) << 16);
+      *err = ((TLIMIT_NO_CNT_WAIT) << 16);
       goto TEST_SEQUENCE_FAILED;
     }
 
-    /* If ST1 is not go to 1, It is fail.*/
-    if ((buffer[0] & AK0991X_DRDY_BIT) == 0){
-        AK0991X_INST_PRINT(HIGH, this, "Device reset failed. Continuous mode cheking fail! ");
-        *err = ((TLIMIT_NO_CHANGE_ST1) << 16);  //temp error msg
+    /* Get measurement from device (1st). */
+    rv = ak0991x_read_st1_st2(state, &buffer[0]);
+
+    if (rv != SNS_RC_SUCCESS)
+    {
+      *err = ((TLIMIT_NO_CNT_READ) << 16);
+      goto TEST_SEQUENCE_FAILED;
     }
 
-    ak0991x_read_st1(state, &st1_buf);  // read ST1
+    /* Check DRDY bit (1st) */
+    state->data_is_ready = (buffer[0] & AK0991X_DRDY_BIT) ? true : false;
+    AKM_FST(TLIMIT_NO_CNT_1ST, state->data_is_ready, TLIMIT_LO_CNT_1ST, TLIMIT_HI_CNT_1ST, err);
 
-    state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
+    /* Get measurement from device (2nd). */
+    rv = ak0991x_read_st1_st2(state, &buffer[0]);
 
-    /* If ST1 is not go to 0, even though register read already. It is fail. */
-    if (state->data_is_ready == true){
-        AK0991X_INST_PRINT(HIGH, this, "Device reset failed. Continuous mode cheking fail! ");
-        *err = ((TLIMIT_NO_CHANGE_ST1) << 16);  //temp error msg
+    if (rv != SNS_RC_SUCCESS)
+    {
+      *err = ((TLIMIT_NO_CNT_READ) << 16);
+      goto TEST_SEQUENCE_FAILED;
     }
 
-    // To ensure that measurement is finished, measurement time is 20ms
-    sns_busy_wait(sns_convert_ns_to_ticks(20* 1000 * 1000));
-
+    /* Check DRDY bit (2nd) */
+    state->data_is_ready = (buffer[0] & AK0991X_DRDY_BIT) ? true : false;
+    AKM_FST(TLIMIT_NO_CNT_2ND, state->data_is_ready, TLIMIT_LO_CNT_2ND, TLIMIT_HI_CNT_2ND, err);
   }
 
   // Reset device
@@ -1425,6 +1458,8 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
+  /* Wait over 100us */
+  sns_busy_wait(sns_convert_ns_to_ticks(100 * 1000));
 
   /** Step 3
    *   Start self test
@@ -1565,6 +1600,12 @@ TEST_SEQUENCE_FAILED:
   }
   else
   {
+    AK0991X_INST_PRINT(HIGH, this, "hw self-test failed!! err code = %x",*err);
+    // Reset device
+    ak0991x_device_sw_reset(this,
+                            state->scp_service,
+                            state->com_port_info.port_handle);
+
     return SNS_RC_FAILED;
   }
 }
@@ -1866,16 +1907,16 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #ifdef AK0991X_ENABLE_DRI
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u #sample %d wm %d flush %d pre_wm_ok %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %d of %d wm %d flush %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
           (uint32_t)state->system_time,
           (uint32_t)state->averaged_interval,
           num_samples_sets,
+          state->num_samples,
           (state->mag_info.cur_wmk + 1),
-          state->fifo_flush_in_progress,
-          state->previous_meas_is_correct_wm);
+          state->fifo_flush_in_progress);
     }
 #endif //AK0991X_ENABLE_DRI
   }
@@ -1984,36 +2025,6 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
                        (uint32_t)state->internal_clock_error);
   }
 }
-
-static void ak0991x_check_data_gap_for_dri(sns_sensor_instance *const instance)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  const sns_time few_ms = state->nominal_intvl >> 6; // 1/64 = 1.5% error
-
-  // data gap check timestamp
-  if(state->first_data_ts_of_batch + few_ms < state->pre_timestamp + state->averaged_interval)
-  {
-    state->is_temp_average = true;
-  }
-  else if(state->first_data_ts_of_batch > state->pre_timestamp + state->averaged_interval + few_ms)
-  {
-    state->is_temp_average = true;
-  }
-
-  if(state->is_temp_average)
-  {
-    AK0991X_INST_PRINT(HIGH, instance, "Data gap detected! pre %u first_ts %u avg %u",
-                       (uint32_t)state->pre_timestamp,
-                       (uint32_t)state->first_data_ts_of_batch,
-                       (uint32_t)state->averaged_interval);
-
-    state->temp_averaged_interval = state->averaged_interval; // store actual average interval for the next batch.
-
-    state->averaged_interval = (state->interrupt_timestamp - state->pre_timestamp) / (state->mag_info.cur_wmk + 1);
-    state->first_data_ts_of_batch = state->interrupt_timestamp -
-      (state->averaged_interval * state->mag_info.cur_wmk);
-  }
-}
 #endif // AK0991X_ENABLE_DRI
 
 void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
@@ -2021,21 +2032,12 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 #ifdef AK0991X_ENABLE_DRI
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  // if the previous batch use unreliable timestamp, then reset.
-  if(state->is_temp_average)
-  {
-    state->averaged_interval = state->temp_averaged_interval; // reset
-    state->is_temp_average = false;
-  }
-
   ak0991x_calc_average_interval_for_dri(instance);
 
   if(state->irq_info.detect_irq_event)  // DRI
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * state->mag_info.cur_wmk);
-
-    ak0991x_check_data_gap_for_dri(instance);
 
     state->mag_info.data_count = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
@@ -2141,8 +2143,13 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
         }
       }
 
+<<<<<<< HEAD
       AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
 
+=======
+//      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
+ 
+>>>>>>> origin/nakajima
       if(state->num_samples == 0)
       {
         AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
@@ -2535,6 +2542,23 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   }
 }
 
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+uint32_t ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint32_t cal_id = 0;
+  for(int i = 0; i < MAX_DEVICE_MODE_SUPPORTED; ++i)
+  {
+    if(state->device_mode[i].mode == 0 &&
+       state->device_mode[i].state == 0)
+      break;
+    uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
+    cal_id += state_set*(uint32_t)powf(2, i);
+  }
+  return cal_id;
+}
+#endif
+
 void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -2552,6 +2576,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
   cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+<<<<<<< HEAD
   cal_event.cal_id                   = state->device_mode;
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
@@ -2564,6 +2589,14 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                      state->mag_registry_cfg.fac_cal_bias[1],
                      state->mag_registry_cfg.fac_cal_bias[2]);
 
+=======
+  cal_event.has_cal_id               = true;
+  cal_event.cal_id                   = ak0991x_device_mode2cal_id(instance);
+  AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT, cal_id:%u", cal_event.cal_id);
+#else //AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
+#endif
+>>>>>>> origin/nakajima
   pb_send_event(instance,
                 sns_cal_event_fields,
                 &cal_event,
@@ -2587,7 +2620,9 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
   {
     state->mag_registry_cfg.fac_cal_corr_mat.data[i] = comp_matrix_data[i];
   }
+#ifdef AK0991X_ENABLE_REG_FAC_CAL
   state->mag_registry_cfg.version++;
+#endif // AK0991X_ENABLE_REG_FAC_CAL
 }
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
@@ -3222,6 +3257,7 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
       bool hw_success = false;
       uint32_t err;
 
+      AK0991X_INST_PRINT(LOW, instance, "hw self-test start!");
       rv = ak0991x_hw_self_test(instance, &err);
 
       if(rv == SNS_RC_SUCCESS
