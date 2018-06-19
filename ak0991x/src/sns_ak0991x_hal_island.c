@@ -2016,7 +2016,10 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
       }
       else
       {
-        SNS_INST_PRINTF(LOW, instance, "Unreliable interrupt.");
+        SNS_INST_PRINTF(LOW, instance, "Unreliable irq. prev_irq= %d wm( prev %d current %d )",
+            (int)state->previous_meas_is_irq,
+            (int)state->previous_meas_is_correct_wm,
+            (int)(state->num_samples == (state->mag_info.cur_wmk+1)));
         rc = SNS_RC_FAILED;
       }
     }
@@ -2052,6 +2055,10 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
   {
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
+
+    if(rc != SNS_RC_SUCCESS){
+      state->previous_irq_time = state->interrupt_timestamp;
+    }
   }
 
 #else
