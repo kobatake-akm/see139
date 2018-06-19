@@ -117,7 +117,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
   if (state->mag_info.use_dri)
   {
 #ifdef AK0991X_ENABLE_DRI
-      AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
+    SNS_INST_PRINTF(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
                          state->heart_beat_attempt_count,
                          (uint32_t)state->req_payload.start_time,
                          (uint32_t)state->req_payload.timeout_period,
@@ -331,13 +331,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                 state->irq_event_time = irq_event.timestamp;
                 state->irq_info.detect_irq_event = true; // detect interrupt
                 state->system_time = sns_get_system_time();
-
-                if(state->system_time > irq_event.timestamp + state->averaged_interval)
-                {
-                  AK0991X_INST_PRINT(MED, this, "Delayed interrupt event. irq_event %u, now=%u",
-                                     (uint32_t)irq_event.timestamp,
-                                     (uint32_t)state->system_time);
-                }
                 ak0991x_read_mag_samples(this);
               }
             }
@@ -459,7 +452,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->system_time = timer_event.requested_timeout_time;
           if(state->system_time + state->nominal_intvl < now )
           {
-            SNS_INST_PRINTF(ERROR, this, "req_to=%u now=%u", 
+            AK0991X_INST_PRINT(ERROR, this, "req_to=%u now=%u",
                             (uint32_t)timer_event.requested_timeout_time, (uint32_t)now);
           }
 
@@ -486,7 +479,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           }
           else
           {
-            SNS_INST_PRINTF(ERROR, this, "Wrong HB timer fired. fire_time %u now %u",(uint32_t)state->hb_timer_fire_time, (uint32_t)now );
+//            AK0991X_INST_PRINT(ERROR, this, "Wrong HB timer fired. fire_time %u now %u",(uint32_t)state->hb_timer_fire_time, (uint32_t)now );
           }
         }
         else

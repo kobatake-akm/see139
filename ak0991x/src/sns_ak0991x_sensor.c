@@ -674,7 +674,7 @@ static void ak0991x_request_registry(sns_sensor *const this)
     AK0991X_PRINT(LOW, this, "get_registration_index=%d registration_idx = %d",
         this->cb->get_registration_index(this), state->registration_idx);
     hw_id = state->registration_idx;
-#else
+#endif // AK0991X_ENABLE_DUAL_SENSOR
 
     ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_CONFIG_STR));
     ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_PLACEMENT_STR));
@@ -685,7 +685,6 @@ static void ak0991x_request_registry(sns_sensor *const this)
     {
       ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_faccal_str(hw_id, i));
     }
-#endif // AK0991X_ENABLE_DUAL_SENSOR
   }
 }
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS

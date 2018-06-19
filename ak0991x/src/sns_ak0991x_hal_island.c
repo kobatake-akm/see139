@@ -1993,9 +1993,10 @@ static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time int
                                  AK0991X_CALC_BIT_RESOLUTION) / intvl;
 }
 
-static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const instance)
+static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_rc rc = SNS_RC_SUCCESS;
 
   // set interrupt_timestamp
   if(state->irq_info.detect_irq_event)  // DRI
@@ -2006,14 +2007,17 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
       // keep re-calculating for clock frequency drifting.
       ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
 
-      if( (state->previous_meas_is_irq) && (state->previous_meas_is_correct_wm) )
+      if( (state->previous_meas_is_irq) &&
+          (state->previous_meas_is_correct_wm) &&
+          (state->num_samples == (state->mag_info.cur_wmk+1)) )
       {
         state->averaged_interval = ((state->interrupt_timestamp - state->previous_irq_time) / 
                                     (state->mag_info.cur_wmk + 1));
       }
       else
       {
-        AK0991X_INST_PRINT(LOW, instance, "previous is not reliable timestamp");
+        SNS_INST_PRINTF(LOW, instance, "Unreliable interrupt.");
+        rc = SNS_RC_FAILED;
       }
     }
   }
@@ -2024,6 +2028,8 @@ static void ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const ins
                        (uint32_t)state->averaged_interval,
                        (uint32_t)state->internal_clock_error);
   }
+
+  return rc;
 }
 #endif // AK0991X_ENABLE_DRI
 
@@ -2032,9 +2038,9 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 #ifdef AK0991X_ENABLE_DRI
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  ak0991x_calc_average_interval_for_dri(instance);
+  sns_rc rc = ak0991x_calc_average_interval_for_dri(instance);
 
-  if(state->irq_info.detect_irq_event)  // DRI
+  if(state->irq_info.detect_irq_event && (rc == SNS_RC_SUCCESS) )  // DRI
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * state->mag_info.cur_wmk);
