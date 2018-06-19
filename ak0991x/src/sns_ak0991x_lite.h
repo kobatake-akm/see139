@@ -4,7 +4,7 @@
  *
  * compile switches for SEE-Lite.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
@@ -19,9 +19,8 @@
  * COMPILE CONDITION
  *
  *-------------------------------------------------------------------------*/
-
-// Target board HDK820 (DragonBoard820)
-//#define AK0991X_BOARD_HDK820
+// Enable below macro to set dual sensor support mode
+//#define AK0991X_ENABLE_DUAL_SENSOR
 
 /*
  * For SEE-Lite Mode, please follow the procedure.
@@ -36,12 +35,13 @@
 #ifdef AK0991X_ENABLE_SEE_LITE
 // SEE-Lite Mode. Require to select a target device and configure mode setting.
 
-#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
+#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access -- note: normally defined in scons
 //#define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
 //#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 //#define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
 //#define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 //#define AK0991X_ENABLE_DEINIT             // Enable deinit call
+//#define AK0991X_ENABLE_I3C_SUPPORT        // Enable support for I3C bus
 //#define AK0991X_ENABLE_REG_WRITE_ACCESS   // Enable registry write access
 #define AK0991X_ENABLE_REG_FAC_CAL        // Enable factory cal access
 
@@ -109,10 +109,10 @@
 #define AK0991X_TARGET_AK09918
 
 // Standard SEE Mode. Enabled all features.
-#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access
+//#define AK0991X_ENABLE_REGISTRY_ACCESS    // Enable registry access  -- note: normally defined in scons
 #define AK0991X_ENABLE_ALL_ATTRIBUTES     // Enable all attribute service
-#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
-//#define AK0991X_ENABLE_DAE                // Enable DAE
+//#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
+#define AK0991X_ENABLE_DAE                // Enable DAE
 #define AK0991X_ENABLE_DIAG_LOGGING       // Enable diagnostic logging
 #define AK0991X_ENABLE_POWER_RAIL         // Enable power rail reference
 #define AK0991X_ENABLE_DEINIT             // Enable deinit call
@@ -120,12 +120,14 @@
 #define AK0991X_ENABLE_FUSE               // Enable fuse rom
 #define AK0991X_ENABLE_DRI                // Enable DRI
 #define AK0991X_ENABLE_FIFO               // Enable FIFO
-//#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
-//#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
+#define AK0991X_ENABLE_I3C_SUPPORT        // Enable support for I3C bus
 #define AK0991X_ENABLE_REG_WRITE_ACCESS   // Enable registry write access
 #define AK0991X_ENABLE_REG_FAC_CAL        // Enable factory cal access
+//#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
+//#define AK0991X_ENABLE_I3C_DEBUG
+//#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 
 // this is setting for enable DEVICE_MODE_SENSOR (NOT IMPLEMENTED YET)
-//#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
+//#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable device_mode_sensor
 
 #endif	// AK0991X_ENABLE_SEE_LITE

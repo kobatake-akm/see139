@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -24,6 +24,7 @@
 #include "sns_ak0991x_hal.h"
 
 #include "sns_ak0991x_sensor_instance.h"
+#include "sns_ak0991x_dae_if.h"
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
 
@@ -47,7 +48,6 @@
   }
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
-//#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 #define AK0991X_REGISTRY_0_PF_CONFIG   "ak0991x_0_platform.config"
 #define AK0991X_REGISTRY_0_PLACE       "ak0991x_0_platform.placement"
 #define AK0991X_REGISTRY_0_ORIENT      "ak0991x_0_platform.orient"
@@ -62,34 +62,24 @@
 #define AK0991X_REGISTRY_1_FACCAL      "ak0991x_1_platform.mag.fac_cal"
 #define AK0991X_REGISTRY_1_MAG_CONFIG  "ak0991x_1.mag.config"
 #define AK0991X_REGISTRY_1_REG_CONFIG  "ak0991x_1.mag.config_2"
-#endif // AK0991X_ENABLE_DUAL_SENSOR
-//#endif // AK0991X_ENABLE_REGISTRY_ACCESS
+#endif //AK0991X_ENABLE_DUAL_SENSOR
 
-#if 0
-/** TODO Using 8996 Platform config as defaults. This is for
+
+#ifndef AK0991X_ENABLE_REGISTRY_ACCESS
+/** TODO Using SDM855 Platform config as defaults. This is for
  *  test purpose only. All platform specific information will
  *  be available to the Sensor driver via Registry. */
+#define BUS_TYPE                   SNS_BUS_I3C_SDR
 #define RAIL_1                     "/pmic/client/sensor_vddio"
 #define RAIL_2                     "/pmic/client/sensor_vdd"
-#define IRQ_NUM                    119
-#define NUM_OF_RAILS               2
-#define I2C_BUS_FREQ               400
-#define I2C_SLAVE_ADDRESS          0x0C
-#ifdef SSC_TARGET_HEXAGON_CORE_QDSP6_2_0
-#ifdef USE_RUMI_SE
-#define I2C_BUS_INSTANCE           0x06
-#else
+#define IRQ_NUM                    134
+#define NUM_OF_RAILS               1
+#define BUS_FREQ_MIN               400
+#define BUS_FREQ_MAX               12500
+#define SLAVE_ADDRESS              0x0C
+#define I3C_ADDR                   20    //Dynamic address
 #define I2C_BUS_INSTANCE           0x01
-#endif /* USE_RUMI_SE */
-#define SPI_BUS_INSTANCE           0x02
-#else
-#define I2C_BUS_INSTANCE           0x03
-#define SPI_BUS_INSTANCE           0x01
-#endif
-#define SPI_BUS_MIN_FREQ_KHZ       0        // 0MHz
-#define SPI_BUS_MAX_FREQ_KHZ       33 * 100 // 3MHz
-#define SPI_SLAVE_CONTROL          0x0
-#endif // AK0991X_USE_DEFAULTS
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /** Forward Declaration of Magnetic Sensor API */
 extern sns_sensor_api ak0991x_mag_sensor_api;
@@ -214,7 +204,7 @@ typedef struct ak0991x_state
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
 
   // sensor configuration
-  bool is_dri;
+  int8 is_dri;
   uint8_t nsf;
   uint8_t sdr;
   bool use_fifo;
@@ -229,8 +219,8 @@ typedef struct ak0991x_state
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
-  // registry sensor reg config
 #if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+  // registry sensor reg config
   bool registry_reg_cfg_received;
   ak0991x_registry_phy_sensor_cfg registry_reg_cfg;
 #endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
@@ -260,10 +250,10 @@ typedef struct ak0991x_state
   float                   fac_cal_scale_2[TRIAXIS_NUM];
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
-
   // placement
   bool                    registry_placement_received;
   float                   placement[12];
+  ak0991x_dae_if_info     dae_if;
 
   // debug
   uint16_t who_am_i;
@@ -329,3 +319,4 @@ void ak0991x_update_registry(sns_sensor *const this,
 void ak0991x_update_sensor_state(sns_sensor *const this,
         sns_sensor_instance *const instance);
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
+

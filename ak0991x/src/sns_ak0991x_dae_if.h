@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2017-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -22,11 +22,13 @@
 
 struct sns_stream_service;
 struct sns_data_stream;
-struct ak0991x_instance_state;
+struct ak0991x_state;
 
 typedef enum
 {
   PRE_INIT,
+  INIT_PENDING,
+  UNAVAILABLE,
   IDLE,
   STREAM_STARTING,
   STREAMING,
@@ -38,8 +40,8 @@ typedef struct
 {
 #ifdef AK0991X_ENABLE_DAE
   struct sns_data_stream *stream;
-  const sns_sensor_uid   *suid; /* for diag print purpose */
   const char             *nano_hal_vtable_name;
+  uint8_t                status_bytes_per_fifo;
   bool                   stream_usable:1;
   bool                   flushing_hw:1;
   bool                   flushing_data:1;
@@ -51,14 +53,22 @@ typedef struct ak0991x_dae_if_info
 {
   ak0991x_dae_stream   mag;
 } ak0991x_dae_if_info;
-#ifdef AK0991X_ENABLE_DAE
+
+void ak0991x_dae_if_check_support(sns_sensor *this);
+
+void ak0991x_dae_if_process_sensor_events(sns_sensor *this);
+
 bool ak0991x_dae_if_available(sns_sensor_instance *this);
-#endif //AK0991X_ENABLE_DAE
+
+bool ak0991x_dae_if_is_initializing(sns_sensor_instance *this);
+
+bool ak0991x_dae_if_is_streaming(sns_sensor_instance *this);
+
 sns_rc ak0991x_dae_if_init(
-  sns_sensor_instance        *const this,
-  struct sns_stream_service  *stream_mgr,
-  sns_sensor_uid             *dae_suid,
-  sns_sensor_uid const       *parent_suid);
+  sns_sensor_instance       *const this,
+  struct sns_stream_service *stream_mgr,
+  sns_sensor_uid            *dae_suid,
+  struct ak0991x_state      *sensor_state);
 
 void ak0991x_dae_if_deinit(sns_sensor_instance *this);
 
@@ -71,3 +81,4 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this);
 bool ak0991x_dae_if_flush_samples(sns_sensor_instance *this);
 
 void ak0991x_dae_if_process_events(sns_sensor_instance *this);
+

@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -417,13 +417,33 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
                                  bool save_write_time );
 
 /**
+ * Enters I3C mode.
+ *
+ * If the configured bus type is I3C, this will switch the AK0991x
+ * hardware from I2C to I3C mode and configure I3C settings such as 
+ * maximum read length.
+ * This function will do nothing for non-I3C bus types.
+ *
+ * @param[i] instance      Pointer to instance. May be NULL if called from sensor.
+ * @param[i] com_port      pointer to com port structure
+ * @param[i] scp_service   synch COM port service
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure, or bus type is not I3C
+ * SNS_RC_SUCCESS
+ */
+sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
+                              ak0991x_com_port_info *com_port,
+                              sns_sync_com_port_service * scp_service);
+
+/**
  * Resets the Sensor SW.
  * This function is used in ak0991x drivers flow only.
  * If call from other flow directly for HW reset,
  * should also reset the SW settings like a mag_info.curr_odr.
  *
- * @param[i] port_handle   handle to synch COM port
  * @param[i] scp_service   synch COM port service
+ * @param[i] com_port      sensor/instance com port info
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
@@ -431,7 +451,7 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
  */
 sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
-                               sns_sync_com_port_handle *port_handle);
+                               ak0991x_com_port_info *com_port);
 
 /**
  * Enable Mag streaming. enables Mag sensor with
@@ -557,11 +577,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance);
 /**
  * Submit the Sensor State Raw Log Packet
  *
- * @param[i] log_raw_info   Pointer to logging information
+ * @param[i] log_raw_info   Pointer to logging information 
  *       pertaining to the sensor
- * @param[i] batch_complete true if submit request is for end
+ * @param[i] batch_complete true if submit request is for end 
  *       of batch
- *  */
+ *  */ 
 void ak0991x_log_sensor_state_raw_submit(
   log_sensor_state_raw_info *log_raw_info,
   bool batch_complete);
@@ -587,10 +607,10 @@ sns_rc ak0991x_log_sensor_state_raw_add(
   sns_std_sensor_sample_status status);
 
 /**
- * Allocate Sensor State Raw Log Packet
+ * Allocate Sensor State Raw Log Packet 
  *
- * @param[i] diag       Pointer to diag service
- * @param[i] log_size   Optional size of log packet to
+ * @param[i] diag       Pointer to diag service 
+ * @param[i] log_size   Optional size of log packet to 
  *    be allocated. If not provided by setting to 0, will
  *    default to using maximum supported log packet size
  */
@@ -653,11 +673,12 @@ sns_rc ak0991x_get_meas_time(akm_device_type device_select, uint8_t sdr, sns_tim
  * Configures sensor with new/recomputed settings
  *
  * @param instance   Instance reference
+ * @param reset      TRUE to do sw reset before reconfig
  * @return sns_rc
  * SNS_RC_FAILED
  * SNS_RC_SUCCESS
  */
-sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this);
+sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset);
 
 /**
  * Run a hardware self-tests.
@@ -686,11 +707,26 @@ void ak0991x_run_self_test(sns_sensor_instance *instance);
  * Clock error procedure for DRI mode.
  *
  * @param instance     reference to the instance
+ * @param st1_buf      NULL, or pointer to value read from ST1 register
  *
  * @return none
  */
-void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance);
-#endif //AK0991X_ENABLE_DRI
+void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance,
+                                        uint8_t const *st1_buf);
+#endif // AK0991X_ENABLE_DRI
+
+/**
+ * Continues processing client config request
+ *
+ * @param instance     reference to the instance
+ *
+ * @return none
+ */
+void ak0991x_continue_client_config(sns_sensor_instance *const instance);
+
+void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance);
+
+void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance);
 
 /**
  * Send Calibration event to client
@@ -709,3 +745,4 @@ void ak0991x_send_cal_event(sns_sensor_instance * const instance);
  */
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
+

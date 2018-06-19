@@ -22,12 +22,21 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 06/04/18     010077     AKM              Add continous mode check in HW self-test
- * 05/24/18     010076     Qualcomm/AKM     Added AK0991X_ENABLE_REG_FAC_CAL macro for reading 3x3 factory calibration parameter from registry
- * 05/16/18     010075     AKM              Changed to read registry value for rail_vote when registry access is enabled
- * 05/09/18     010074     AKM              Added sns_suid_lookup_deinit.
- * 05/08/18     010073     AKM              Remove DC-Lib related code.
- * 05/07/18     010072     AKM              Modified to set RAIL_ON_NPM by registry.
+ * 06/13/18     020005     Qualcomm         Integrated the deltas between AKM's driver versions 71 and 77.
+ *                                          AKM version 010077:  Add continuous mode check in HW self-test
+ *                                          AKM/QCOM version 010076: Added AK0991X_ENABLE_REG_FAC_CAL macro for reading 3x3 factory calibration parameter from registry
+ *                                          AKM version 010075: Changed to read registry value for rail_vote when registry access is enabled
+ *                                          AKM version 010074: Added sns_suid_lookup_deinit.
+ *                                          AKM version 010073: Remove DC-Lib related code.
+ *                                          AKM version 010072: Modified to set RAIL_ON_NPM by registry.
+ * 05/16/18     020004     Qualcomm         Integrated versions 010063 to 010071
+ * 05/10/18     020004     Qualcomm         Integrated versions 010059 to 010062
+ * 04/20/18     020003     Qualcomm         Integrated versions 010057 and 010058
+ * 04/20/18                Qualcomm         Fixed COM selftest; Fixed batching via DAE sensor
+ * 04/20/18                Qualcomm         Added DAE WM to Config event
+ * 03/16/18     020002     Qualcomm         DAE availability is discovered at boot
+ * 03/07/18     020001     Qualcomm         Added I3C support
+ * 03/02/18     020000     Qualcomm         Re-enabled streaming via DAE
  * 04/26/18     010071     AKM              Fixed error when ENABLE_DC is defined.
  * 04/20/18                AKM              Reduced parameters for SEE-Lite mode.
  * 04/20/18     010070     AKM              Modified for initialize use_dri,use_fifo,nsf and sdr.
@@ -87,14 +96,14 @@
  * 11/09/17                Qualcomm         Changed to disallow Flush requests without Config requests
  * 11/09/17                Qualcomm         When DAE is unavailable reconfig HW after interrupt is ready
  * 11/07/17     010041     Qualcomm         Remove 1Hz ODR. Don't delete timer stream while processing it.
- * 11/04/17     010040     Qualcomm         Added Calibration event.
+ * 11/04/17     010040     Qualcomm         Added Calibration event. 
  * 11/03/17     010039     AKM              Removed AK09917_REV_A flag. Calculate averaged_interval.
  * 11/03/17                Qualcomm         Fixed flush request handling during power up
- * 10/31/17     010038     AKM              Refactor to use ASCP in flush. Added AK09917_REV_A flag.
+ * 10/31/17     010038     AKM              Refactor to use ASCP in flush. Added AK09917_REV_A flag. 
  * 10/31/17                AKM              Added dual sensor support
  * 10/25/17     010037     AKM              Removed averaging filter for DRI mode
  * 10/23/17     010036     Qualcomm         Sends config event to new clients immediately if already streaming
- * 10/20/17     010035     AKM              Modified for SEE-Lite.
+ * 10/20/17     010035     AKM              Modified for SEE-Lite. 
  * 10/20/17                AKM              Fixed negavite timestamp intervals
  * 10/19/17     010034     Qualcomm/AKM     Debugged timestamp issue. Added 1[sec] delay power rail when off. Removed GPIO check.
  * 10/18/17                AKM(M)           Modified for SEE-Lite except using new SUID handler utility
@@ -151,4 +160,5 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 10077  // major:01 minor:00 revision:77
+#define AK0991X_DRIVER_VERSION 20005  // major:02 minor:00 revision:05
+
