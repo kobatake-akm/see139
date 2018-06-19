@@ -517,16 +517,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
-<<<<<<< HEAD
+  state->client_req_id = client_request->message_id;
   float           desired_sample_rate = 0.0f;
   float           desired_report_rate = 0.0f;
   float           mag_chosen_sample_rate = 0.0f;
-=======
-  state->client_req_id = client_request->message_id;
-  float           desired_sample_rate = 0;
-  float           desired_report_rate = 0;
-  float           mag_chosen_sample_rate = 0;
->>>>>>> origin/nakajima
   ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
   uint16_t        desired_wmk;
   sns_rc          rv = SNS_RC_SUCCESS;

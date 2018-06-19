@@ -441,37 +441,16 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
       sizeof(state->cal_parameter[cal_id].fac_cal_corr_mat));
 
 #ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
-<<<<<<< HEAD
-    registry_cfg.version = state->fac_cal_version;
-#else
-    registry_cfg.version = 0xFFFFFFFF;
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
-
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  if(state->device_mode != SNS_DEVICE_MODE_FLIP_OPEN) // temporary
-  {
-    sns_memscpy(registry_cfg.fac_cal_bias, sizeof(registry_cfg.fac_cal_bias),
-                state->fac_cal_bias_2, sizeof(state->fac_cal_bias_2));
-
-    sns_memscpy(&registry_cfg.fac_cal_corr_mat, sizeof(registry_cfg.fac_cal_corr_mat),
-                &state->fac_cal_corr_mat_2, sizeof(state->fac_cal_corr_mat_2));
-  }
-#endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
-
-=======
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
   registry_cfg.version = state->fac_cal_version;
 #endif //AK0991X_ENABLE_REG_FAC_CAL
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
->>>>>>> origin/nakajima
   AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100 ver=%d",
       (int)(registry_cfg.fac_cal_bias[0]*100),
       (int)(registry_cfg.fac_cal_corr_mat.e00*100),
       registry_cfg.version);
-<<<<<<< HEAD
-=======
 #else
   AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100",
       (int)(registry_cfg.fac_cal_bias[0]*100),
@@ -490,7 +469,6 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
       (int)(registry_cfg.fac_cal_corr_mat.e20*100),
       (int)(registry_cfg.fac_cal_corr_mat.e21*100),
       (int)(registry_cfg.fac_cal_corr_mat.e22*100));
->>>>>>> origin/nakajima
 
   AK0991X_PRINT(LOW, this, "chosen_sample_rate=%d chosen_report_rate=%d/100",
       (int)chosen_sample_rate, (int)(chosen_report_rate*100));
@@ -707,21 +685,6 @@ static void ak0991x_request_registry(sns_sensor *const this)
     {
       ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_faccal_str(hw_id, i));
     }
-<<<<<<< HEAD
-#else
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PF_CONFIG);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_PLACE);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_ORIENT);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL_2);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_MAG_CONFIG);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_REG_CONFIG);
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL);
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-    ak0991x_sensor_send_registry_request(this, AK0991X_REGISTRY_0_FACCAL_2);
-#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
-=======
-
->>>>>>> origin/nakajima
 #endif // AK0991X_ENABLE_DUAL_SENSOR
   }
 }
@@ -826,14 +789,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                              group_name.buf_len));
         reg_config |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_str(i, AK0991X_REG_CONFIG_STR),
                              group_name.buf_len));
-<<<<<<< HEAD
-
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-      bool faccal_2;
-      faccal_2 = (0 == strncmp((char*)group_name.buf, AK0991X_REGISTRY_0_FACCAL_2,
-=======
         pf_config |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_str(i, AK0991X_PLATFORM_CONFIG_STR),
->>>>>>> origin/nakajima
                              group_name.buf_len));
         place |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_str(i, AK0991X_PLATFORM_PLACEMENT_STR),
                              group_name.buf_len));
@@ -2017,22 +1973,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           }
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
-<<<<<<< HEAD
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-          // DEVICE_MODE_SENSOR
-          if(new_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_ON_CHANGE_CONFIG)
-          {
-            state->device_mode = SNS_DEVICE_MODE_FLIP_OPEN; // temporary
-            AK0991X_PRINT(LOW,this,"Request to switch device mode : %d.", state->device_mode);
-            ak0991x_switch_cal_data(this, instance);
-            ak0991x_send_cal_event(instance);
-          }
-#endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
-
-          if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG == 
-=======
           if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
->>>>>>> origin/nakajima
              new_request->message_id)
           {
             if(ak0991x_extract_self_test_info(this, instance, new_request))
@@ -2273,13 +2214,8 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
     void *const *arg)
 {
   pb_arg_reg_group_arg* pb_arg = (pb_arg_reg_group_arg*)*arg;
-<<<<<<< HEAD
   ak0991x_instance_state *state =
-     (ak0991x_instance_state*)pb_arg->instance->state->state;
-=======
-   ak0991x_instance_state *state =
       (ak0991x_instance_state*)pb_arg->instance->state->state;
->>>>>>> origin/nakajima
 
   if(0 == strncmp(pb_arg->name,"bias",strlen("bias")))
   {
@@ -2297,16 +2233,9 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
       pb_item.flt = state->mag_registry_cfg.fac_cal_bias[i];
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
       pb_item.has_version = true;
-<<<<<<< HEAD
-
-      pb_item.flt = state->mag_registry_cfg.fac_cal_bias[i];
-      pb_item.version = state->mag_registry_cfg.version;
-
-=======
       pb_item.version = state->mag_registry_cfg.version;
 #endif // AK0991X_ENABLE_REG_FAC_CAL
       
->>>>>>> origin/nakajima
       if(!pb_encode_tag_for_field(stream, field))
         return false;
 
@@ -2335,13 +2264,8 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
       pb_item.flt = state->mag_registry_cfg.fac_cal_corr_mat.data[i];
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
       pb_item.has_version = true;
-<<<<<<< HEAD
-      pb_item.flt = state->mag_registry_cfg.fac_cal_corr_mat.data[i];
-      pb_item.version = state->mag_registry_cfg.version;
-=======
       pb_item.version = state->mag_registry_cfg.version;
 #endif // AK0991X_ENABLE_REG_FAC_CAL
->>>>>>> origin/nakajima
 
       if(!pb_encode_tag_for_field(stream, field))
         return false;
@@ -2415,45 +2339,28 @@ void ak0991x_update_registry(sns_sensor *const this,
 {
   ak0991x_state *state = (ak0991x_state*)this->state->state;
 
-<<<<<<< HEAD
-  ak0991x_instance_state *inst_state =
-            (ak0991x_instance_state*)instance->state->state;
-=======
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
   pb_arg_reg_group_arg arg = {.instance = instance };
 #endif
->>>>>>> origin/nakajima
 
   uint8_t buffer[1000];
   int32_t encoded_len;
   int hw_id = 0;
 
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
-<<<<<<< HEAD
-  char name[] = (state->registration_idx == 0)? AK0991X_REGISTRY_0_FACCAL : AK0991X_REGISTRY_1_FACCAL;
-#else
-  char name[] = AK0991X_REGISTRY_0_FACCAL;
-#endif // AK0991X_ENABLE_DUAL_SENSOR
-=======
   hw_id = state->registration_idx;
 #endif
 
   char* name = ak0991x_create_registry_faccal_str(hw_id, 0);
 
->>>>>>> origin/nakajima
   pb_buffer_arg name_data;
   sns_registry_write_req write_req = sns_registry_write_req_init_default;
 
   name_data = (pb_buffer_arg)
         { .buf = name, .buf_len = strlen(name) + 1 };
-<<<<<<< HEAD
-  arg.version = inst_state->mag_registry_cfg.version;
-=======
-
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
   arg.version = ((ak0991x_instance_state*)instance->state->state)->mag_registry_cfg.version;
 #endif
->>>>>>> origin/nakajima
 
   write_req.name.funcs.encode = &pb_encode_string_cb;
   write_req.name.arg = &name_data;

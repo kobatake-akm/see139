@@ -52,24 +52,6 @@
   }
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
-<<<<<<< HEAD
-#define AK0991X_REGISTRY_0_PF_CONFIG   "ak0991x_0_platform.config"
-#define AK0991X_REGISTRY_0_PLACE       "ak0991x_0_platform.placement"
-#define AK0991X_REGISTRY_0_ORIENT      "ak0991x_0_platform.orient"
-#define AK0991X_REGISTRY_0_FACCAL      "ak0991x_0_platform.mag.fac_cal"
-#define AK0991X_REGISTRY_0_FACCAL_2    "ak0991x_0_platform.mag.fac_cal_2"
-#define AK0991X_REGISTRY_0_MAG_CONFIG  "ak0991x_0.mag.config"
-#define AK0991X_REGISTRY_0_REG_CONFIG  "ak0991x_0.mag.config_2"
-#ifdef AK0991X_ENABLE_DUAL_SENSOR
-#define AK0991X_REGISTRY_1_PF_CONFIG   "ak0991x_1_platform.config"
-#define AK0991X_REGISTRY_1_PLACE       "ak0991x_1_platform.placement"
-#define AK0991X_REGISTRY_1_ORIENT      "ak0991x_1_platform.orient"
-#define AK0991X_REGISTRY_1_FACCAL      "ak0991x_1_platform.mag.fac_cal"
-#define AK0991X_REGISTRY_1_MAG_CONFIG  "ak0991x_1.mag.config"
-#define AK0991X_REGISTRY_1_REG_CONFIG  "ak0991x_1.mag.config_2"
-#endif //AK0991X_ENABLE_DUAL_SENSOR
-
-=======
 //#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 #define AK0991X_STR                     "ak0991x_"
 #define AK0991X_PLATFORM_CONFIG_STR     "_platform.config"
@@ -79,7 +61,6 @@
 #define AK0991X_MAG_CONFIG_STR          ".mag.config"
 #define AK0991X_REG_CONFIG_STR          ".mag.config_2"
 //#endif // AK0991X_ENABLE_REGISTRY_ACCESS
->>>>>>> origin/nakajima
 
 #ifndef AK0991X_ENABLE_REGISTRY_ACCESS
 /** TODO Using SDM855 Platform config as defaults. This is for
@@ -255,17 +236,6 @@ typedef struct ak0991x_state
   uint32_t                fac_cal_version;
 #endif //AK0991X_ENABLE_REG_FAC_CAL
 
-<<<<<<< HEAD
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  uint8_t                 device_mode;
-  bool                    registry_fac_cal_2_received;
-  matrix3                 fac_cal_corr_mat_2;
-  float                   fac_cal_bias_2[TRIAXIS_NUM];
-  float                   fac_cal_scale_2[TRIAXIS_NUM];
-#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
-
-=======
->>>>>>> origin/nakajima
   // placement
   bool                    registry_placement_received;
   float                   placement[12];

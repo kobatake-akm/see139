@@ -321,31 +321,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             if(state->ascp_xfer_in_progress == 0)
 #endif//AK0991X_ENABLE_FIFO
             {
-<<<<<<< HEAD
-              state->irq_event_time = irq_event.timestamp;
-              state->irq_info.detect_irq_event = true; // detect interrupt
-              state->system_time = sns_get_system_time();
-#ifdef AK0991X_VERBOSE_DEBUG
-              AK0991X_INST_PRINT(LOW, this, "Data is ready. Detect interrupt.");
-#endif
-
-              if(state->system_time > irq_event.timestamp + state->averaged_interval)
-              {
-                AK0991X_INST_PRINT(MED, this, "Delayed interrupt event. irq_event %u, now=%u",
-                                   (uint32_t)irq_event.timestamp,
-                                   (uint32_t)state->system_time);
-              }
-
-#ifdef AK0991X_ENABLE_FIFO
-              if(state->ascp_xfer_in_progress == 0)
-=======
               AK0991X_INST_PRINT(LOW, this, "   %u Detect interrupt.",(uint32_t)irq_event.timestamp);
 
               // check DRDY status.
               ak0991x_get_st1_status(this);
 
               if(state->data_is_ready)
->>>>>>> origin/nakajima
               {
                 state->irq_event_time = irq_event.timestamp;
                 state->irq_info.detect_irq_event = true; // detect interrupt
@@ -393,12 +374,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       }
       else
       {
-<<<<<<< HEAD
-        AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d", event->message_id);
-=======
         AK0991X_INST_PRINT(ERROR, this, "Received invalid interrupt event id=%d",
                                       event->message_id);
->>>>>>> origin/nakajima
       }
       event = state->interrupt_data_stream->api->get_next_input(state->interrupt_data_stream);
 
@@ -441,15 +418,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
         if(state->re_read_data_after_ascp && (state->ascp_xfer_in_progress == 0))
         {
-<<<<<<< HEAD
-          if(state->fifo_flush_in_progress)
-          {
-            ak0991x_send_fifo_flush_done(this);
-          }
-=======
           ak0991x_read_mag_samples(this);
           ak0991x_send_fifo_flush_done(this);
->>>>>>> origin/nakajima
           state->re_read_data_after_ascp = false;
         }
 

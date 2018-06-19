@@ -19,14 +19,8 @@
  * COMPILE CONDITION
  *
  *-------------------------------------------------------------------------*/
-<<<<<<< HEAD
-// Enable below macro to set dual sensor support mode
-//#define AK0991X_ENABLE_DUAL_SENSOR
-=======
-
 // Target board HDK845
 //#define AK0991X_BOARD_HDK845
->>>>>>> origin/nakajima
 
 /*
  * For SEE-Lite Mode, please follow the procedure.
@@ -133,10 +127,6 @@
 //#define AK0991X_ENABLE_I3C_DEBUG
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 
-<<<<<<< HEAD
-// this is setting for enable DEVICE_MODE_SENSOR (NOT IMPLEMENTED YET)
-//#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable device_mode_sensor
-=======
 // this is setting for enable DEVICE_MODE_SENSOR
 //#define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
@@ -144,6 +134,5 @@
 #else
 #define MAX_DEVICE_MODE_SUPPORTED 1
 #endif
->>>>>>> origin/nakajima
 
 #endif	// AK0991X_ENABLE_SEE_LITE

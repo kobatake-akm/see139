@@ -22,7 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
-<<<<<<< HEAD
+ * 06/19/18     020006     AKM              Integrated the deltas between AKM's driver versions 77 and 80.
+ *                                          AKM version 010080: Applied the device_mode modification from ver1.00.62F.
+ *                                          AKM version 010079: Modified for device mode sensor and timestamp for DRI+FIFO mode.
+ *                                          AKM version 010078: Modified contains mode check in HW self-test
  * 06/13/18     020005     Qualcomm         Integrated the deltas between AKM's driver versions 71 and 77.
  *                                          AKM version 010077:  Add continuous mode check in HW self-test
  *                                          AKM/QCOM version 010076: Added AK0991X_ENABLE_REG_FAC_CAL macro for reading 3x3 factory calibration parameter from registry
@@ -38,17 +41,6 @@
  * 03/16/18     020002     Qualcomm         DAE availability is discovered at boot
  * 03/07/18     020001     Qualcomm         Added I3C support
  * 03/02/18     020000     Qualcomm         Re-enabled streaming via DAE
-=======
- * 06/18/18     010080     AKM              Applied the device_mode modification from ver1.00.62F.
- * 06/12/18     010079     AKM              Modified for device mode sensor and timestamp for DRI+FIFO mode.
- * 06/11/18     010078     AKM              Modified contains mode check in HW self-test
- * 06/04/18     010077     AKM              Add continuous mode check in HW self-test
- * 05/24/18     010076     Qualcomm/AKM     Added AK0991X_ENABLE_REG_FAC_CAL macro for reading 3x3 factory calibration parameter from registry
- * 05/16/18     010075     AKM              Changed to read registry value for rail_vote when registry access is enabled
- * 05/09/18     010074     AKM              Added sns_suid_lookup_deinit.
- * 05/08/18     010073     AKM              Remove DC-Lib related code.
- * 05/07/18     010072     AKM              Modified to set RAIL_ON_NPM by registry.
->>>>>>> origin/nakajima
  * 04/26/18     010071     AKM              Fixed error when ENABLE_DC is defined.
  * 04/20/18                AKM              Reduced parameters for SEE-Lite mode.
  * 04/20/18     010070     AKM              Modified for initialize use_dri,use_fifo,nsf and sdr.
@@ -172,9 +164,5 @@
  *
  **/
 
-<<<<<<< HEAD
-#define AK0991X_DRIVER_VERSION 20005  // major:02 minor:00 revision:05
+#define AK0991X_DRIVER_VERSION 20006  // major:02 minor:00 revision:06
 
-=======
-#define AK0991X_DRIVER_VERSION 10080  // major:01 minor:00 revision:80
->>>>>>> origin/nakajima

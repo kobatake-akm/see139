@@ -2143,13 +2143,8 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
         }
       }
 
-<<<<<<< HEAD
       AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
 
-=======
-//      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_wmk + 1);
- 
->>>>>>> origin/nakajima
       if(state->num_samples == 0)
       {
         AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
@@ -2576,10 +2571,8 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
   cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-<<<<<<< HEAD
-  cal_event.cal_id                   = state->device_mode;
-#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
-
+  cal_event.has_cal_id               = true;
+  cal_event.cal_id                   = ak0991x_device_mode2cal_id(instance);
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx CAL_EVENT: cm %X/%X/%X bias %X/%X/%X",
                      state->mag_registry_cfg.fac_cal_corr_mat.e00,
@@ -2588,15 +2581,10 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                      state->mag_registry_cfg.fac_cal_bias[0],
                      state->mag_registry_cfg.fac_cal_bias[1],
                      state->mag_registry_cfg.fac_cal_bias[2]);
-
-=======
-  cal_event.has_cal_id               = true;
-  cal_event.cal_id                   = ak0991x_device_mode2cal_id(instance);
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT, cal_id:%u", cal_event.cal_id);
 #else //AK0991X_ENABLE_DEVICE_MODE_SENSOR
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
 #endif
->>>>>>> origin/nakajima
   pb_send_event(instance,
                 sns_cal_event_fields,
                 &cal_event,
