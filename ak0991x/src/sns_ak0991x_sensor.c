@@ -1255,6 +1255,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
 	 
   sns_rc rv = SNS_RC_SUCCESS;
   ak0991x_state *state = (ak0991x_state *)this->state->state;
+  uint8_t i;
 	 
   state->is_dri = 1;
   state->hardware_id = 0;
@@ -1265,10 +1266,15 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   state->nsf = 0;
   state->sdr = 0;
 
-  state->com_port_info.com_config.bus_type = BUS_TYPE;
   state->com_port_info.com_config.bus_instance = I2C_BUS_INSTANCE;
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
+  state->com_port_info.com_config.bus_type = BUS_TYPE;
   state->com_port_info.com_config.slave_control = 
     BUS_TYPE == SNS_BUS_I3C_SDR ? I3C_ADDR : SLAVE_ADDRESS;
+#else
+  state->com_port_info.com_config.bus_type = SNS_BUS_I2C;
+  state->com_port_info.com_config.slave_control = SLAVE_ADDRESS;
+#endif
   state->com_port_info.i2c_address = SLAVE_ADDRESS;
   state->com_port_info.i3c_address = I3C_ADDR;
   state->com_port_info.com_config.min_bus_speed_KHz = BUS_FREQ_MIN;
@@ -1300,15 +1306,16 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
       .opaxis = TRIAXIS_Z,
       .invert = false, };
 
-	 
-  state->registry_fac_cal_received = true;
-  state->fac_cal_corr_mat.e00 = 1;
-  state->fac_cal_corr_mat.e11 = 1;
-  state->fac_cal_corr_mat.e22 = 1;
-  state->fac_cal_bias[0] =
-    state->fac_cal_bias[1] =
-    state->fac_cal_bias[2] = 0;
-
+  for (i = 0; i < MAX_DEVICE_MODE_SUPPORTED; i++)
+  {
+    state->cal_parameter[i].registry_fac_cal_received = true;
+    state->cal_parameter[i].fac_cal_corr_mat.e00 = 1;
+    state->cal_parameter[i].fac_cal_corr_mat.e11 = 1;
+    state->cal_parameter[i].fac_cal_corr_mat.e22 = 1;
+    state->cal_parameter[i].fac_cal_bias[0] =
+      state->cal_parameter[i].fac_cal_bias[1] =
+      state->cal_parameter[i].fac_cal_bias[2] = 0;
+  }
 
   ak0991x_publish_hw_attributes(this, state->device_select);
 	 

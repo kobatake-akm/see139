@@ -242,17 +242,20 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #endif //AK0991X_ENABLE_FIFO
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  sns_sensor_uid device_mode_suid;
-  sns_suid_lookup_get(&sensor_state->suid_lookup_data, "device_mode", &device_mode_suid);
-  rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                      this, 
-                                                      device_mode_suid,
-                                                      &state->device_mode_stream);
-  if(rv != SNS_RC_SUCCESS)
   {
+    sns_rc rv;
+    sns_sensor_uid device_mode_suid;
+    sns_suid_lookup_get(&sensor_state->suid_lookup_data, "device_mode", &device_mode_suid);
+    rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                        this, 
+                                                        device_mode_suid,
+                                                        &state->device_mode_stream);
+    if(rv != SNS_RC_SUCCESS)
+    {
 #ifndef AK0991X_BOARD_HDK845
-    return rv;
+      return rv;
 #endif // AK0991X_BOARD_HDK845
+    }
   }
 
   uint8_t i;

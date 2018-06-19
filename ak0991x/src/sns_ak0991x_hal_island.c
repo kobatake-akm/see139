@@ -1604,7 +1604,7 @@ TEST_SEQUENCE_FAILED:
     // Reset device
     ak0991x_device_sw_reset(this,
                             state->scp_service,
-                            state->com_port_info.port_handle);
+                            &state->com_port_info);
 
     return SNS_RC_FAILED;
   }
