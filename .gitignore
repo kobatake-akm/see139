@@ -13,7 +13,8 @@ sim/
 timer/
 flush_test/
 md_test/
-
+test/
+lsm6ds3/
 
 # Object files
 *.o
