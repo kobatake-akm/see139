@@ -39,6 +39,9 @@
 
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+#include "sns_device_mode.pb.h"
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
 
 /** Forward Declaration of Instance API */
@@ -182,6 +185,14 @@ typedef struct ak0991x_irq_info
 } ak0991x_irq_info;
 #endif //AK0991X_ENABLE_DRI
 
+typedef struct ak0991x_cal_param
+{
+  bool registry_fac_cal_received;
+  matrix3 fac_cal_corr_mat;
+  float fac_cal_bias[TRIAXIS_NUM];
+  float fac_cal_scale[TRIAXIS_NUM];
+}ak0991x_cal_param;
+
 typedef struct ak0991x_async_com_port_info
 {
   uint32_t port_handle;
@@ -190,7 +201,7 @@ typedef struct ak0991x_async_com_port_info
 typedef struct sns_ak0991x_registry_cfg
 {
   matrix3             fac_cal_corr_mat;
-  float               fac_cal_bias[3];
+  float               fac_cal_bias[TRIAXIS_NUM];
 #ifdef  AK0991X_ENABLE_REG_FAC_CAL
   uint32_t            version;
 #endif //AK0991X_ENABLE_REG_FAC_CAL
@@ -228,11 +239,9 @@ typedef struct ak0991x_instance_state
   bool s4s_reg_event_done;
 #endif //AK0991X_ENABLE_S4S
 #ifdef AK0991X_ENABLE_DRI
-  bool is_temp_average;
   bool in_clock_error_procedure;
   bool previous_meas_is_irq;
   bool previous_meas_is_correct_wm;
-  sns_time temp_averaged_interval;
   sns_time irq_event_time;
   sns_time previous_irq_time;
 #endif //AK0991X_ENABLE_DRI
@@ -281,6 +290,7 @@ typedef struct ak0991x_instance_state
   sns_data_stream       *s4s_timer_data_stream;
 #endif // AK0991X_ENABLE_S4S
 
+  uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
   int16_t               pre_lsbdata[TRIAXIS_NUM];
 
@@ -292,7 +302,11 @@ typedef struct ak0991x_instance_state
   /**----------Sensor specific registry configuration----------*/
   sns_ak0991x_registry_cfg mag_registry_cfg;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  uint8_t                  device_mode;
+  sns_data_stream       *device_mode_stream;
+  ak0991x_cal_param     cal_parameter[MAX_DEVICE_MODE_SUPPORTED];
+  uint32_t              cal_id;
+  sns_device_mode_event_mode_spec  device_mode[MAX_DEVICE_MODE_SUPPORTED];
+  uint32_t device_mode_cnt;
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
   sns_sync_com_port_service *scp_service;

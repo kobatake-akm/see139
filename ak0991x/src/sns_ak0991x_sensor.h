@@ -27,6 +27,10 @@
 #include "sns_math_util.h"
 #include "sns_registry_util.h"
 
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+#include "sns_device_mode.pb.h"
+#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
+
 #define MAG_SUID1 \
   {  \
     .sensor_uid =  \
@@ -48,21 +52,13 @@
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
 //#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-#define AK0991X_REGISTRY_0_PF_CONFIG   "ak0991x_0_platform.config"
-#define AK0991X_REGISTRY_0_PLACE       "ak0991x_0_platform.placement"
-#define AK0991X_REGISTRY_0_ORIENT      "ak0991x_0_platform.orient"
-#define AK0991X_REGISTRY_0_FACCAL      "ak0991x_0_platform.mag.fac_cal"
-#define AK0991X_REGISTRY_0_FACCAL_2    "ak0991x_0_platform.mag.fac_cal_2"
-#define AK0991X_REGISTRY_0_MAG_CONFIG  "ak0991x_0.mag.config"
-#define AK0991X_REGISTRY_0_REG_CONFIG  "ak0991x_0.mag.config_2"
-#ifdef AK0991X_ENABLE_DUAL_SENSOR
-#define AK0991X_REGISTRY_1_PF_CONFIG   "ak0991x_1_platform.config"
-#define AK0991X_REGISTRY_1_PLACE       "ak0991x_1_platform.placement"
-#define AK0991X_REGISTRY_1_ORIENT      "ak0991x_1_platform.orient"
-#define AK0991X_REGISTRY_1_FACCAL      "ak0991x_1_platform.mag.fac_cal"
-#define AK0991X_REGISTRY_1_MAG_CONFIG  "ak0991x_1.mag.config"
-#define AK0991X_REGISTRY_1_REG_CONFIG  "ak0991x_1.mag.config_2"
-#endif // AK0991X_ENABLE_DUAL_SENSOR
+#define AK0991X_STR                     "ak0991x_"
+#define AK0991X_PLATFORM_CONFIG_STR     "_platform.config"
+#define AK0991X_PLATFORM_PLACEMENT_STR  "_platform.placement"
+#define AK0991X_PLATFORM_ORIENT_STR     "_platform.orient"
+#define AK0991X_PLATFORM_FACCAL_STR     "_platform.mag.fac_cal"
+#define AK0991X_MAG_CONFIG_STR          ".mag.config"
+#define AK0991X_REG_CONFIG_STR          ".mag.config_2"
 //#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
 #if 0
@@ -192,8 +188,8 @@ typedef struct ak0991x_state
   sns_data_stream       *fw_stream;
   sns_data_stream       *timer_stream;
 
-  // Registry, IRQ, Timer, ASCP, DAE
-  SNS_SUID_LOOKUP_DATA(5) suid_lookup_data;
+  // Registry, IRQ, Timer, ASCP, DAE, device_mode
+  SNS_SUID_LOOKUP_DATA(6) suid_lookup_data;
 
   ak0991x_com_port_info com_port_info;
 #ifdef AK0991X_ENABLE_DRI
@@ -244,22 +240,10 @@ typedef struct ak0991x_state
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
   // factory calibration
-  bool                    registry_fac_cal_1_received;
-  matrix3                 fac_cal_corr_mat;
-  float                   fac_cal_bias[TRIAXIS_NUM];
-  float                   fac_cal_scale[TRIAXIS_NUM];
+  ak0991x_cal_param cal_parameter[MAX_DEVICE_MODE_SUPPORTED];
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
   uint32_t                fac_cal_version;
 #endif //AK0991X_ENABLE_REG_FAC_CAL
-
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  uint8_t                 device_mode;
-  bool                    registry_fac_cal_2_received;
-  matrix3                 fac_cal_corr_mat_2;
-  float                   fac_cal_bias_2[TRIAXIS_NUM];
-  float                   fac_cal_scale_2[TRIAXIS_NUM];
-#endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
-
 
   // placement
   bool                    registry_placement_received;

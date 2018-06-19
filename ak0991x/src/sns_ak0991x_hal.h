@@ -719,3 +719,7 @@ void ak0991x_send_cal_event(sns_sensor_instance * const instance);
  */
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
+
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+uint32_t ak0991x_device_mode2cal_id(sns_sensor_instance *const instance);
+#endif
