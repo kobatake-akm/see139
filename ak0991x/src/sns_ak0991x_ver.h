@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/20/18     020008     AKM              Debugged mul-function when the AK0991X_FORCE_MAX_ODR_50HZ is set.
  * 06/19/18     020007     AKM              Debugged compile error when dual sensor is enabled. Modified to ignore the irq time when WM!=num_samples.
  * 06/19/18     020006     AKM              Integrated the deltas between AKM's driver versions 77 and 80.
  *                                          AKM version 010080: Applied the device_mode modification from ver1.00.62F.
@@ -165,5 +166,5 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20007  // major:02 minor:00 revision:07
+#define AK0991X_DRIVER_VERSION 20008  // major:02 minor:00 revision:08
 

@@ -824,9 +824,10 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         {
           state->registry_cfg_received = true;
 #ifdef AK0991X_ENABLE_DRI
+          // AKM???: the registry_cfg.is_dri is bool
           state->is_dri = state->registry_cfg.is_dri;
           AK0991X_PRINT(LOW, this, "is_dri:%d", state->is_dri);
-#endif //AK0991X_ENABLE_DRI
+#endif // AK0991X_ENABLE_DRI
 #ifdef AK0991X_ENABLE_S4S
           state->supports_sync_stream = state->registry_cfg.sync_stream;
           AK0991X_PRINT(LOW, this, "supports_sync_stream:%d ", state->supports_sync_stream);
@@ -1417,17 +1418,25 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
 
 #endif // AK0991X_ENABLE_SEE_LITE
 
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+   // over write value_len when MAX=50Hz, 10Hz/20Hz/50Hz
+   value_len = 3;
+#endif // AK0991X_FORCE_MAX_ODR_50HZ
+
    if(odr_table != NULL)
    {
      for(uint32_t i=0; i<value_len; i++)
      {
-       if(state->is_dri || odr_table[i] < AK0991X_ODR_100) // 100Hz is too high for Polling
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+       if(odr_table[i] < AK0991X_ODR_100) // 100Hz is too high for Polling
+#endif // AK0991X_FORCE_MAX_ODR_50HZ
        {
          values[i].has_flt = true;
          values[i].flt = odr_table[i];
        }
      }
    }
+
    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
        values, value_len, false);
  }
@@ -1815,9 +1824,13 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           rv = SNS_RC_INVALID_STATE;
         }
       }
-      else if( event->message_id != SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT )
+      else if( event->message_id == SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT )
       {
-        AK0991X_PRINT(HIGH, this, "unexpected timer message");
+        AK0991X_PRINT(LOW, this, "SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT");
+      }
+      else
+      {
+        AK0991X_PRINT(HIGH, this, "unexpected timer message: message_id: %d",event->message_id);
       }
 
       event = state->timer_stream->api->get_next_input(state->timer_stream);

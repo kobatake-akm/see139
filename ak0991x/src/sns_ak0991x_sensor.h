@@ -201,7 +201,7 @@ typedef struct ak0991x_state
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
 
   // sensor configuration
-  int8 is_dri;
+  uint8_t is_dri;
   uint8_t nsf;
   uint8_t sdr;
   bool use_fifo;
