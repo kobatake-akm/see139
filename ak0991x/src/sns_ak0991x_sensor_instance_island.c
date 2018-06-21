@@ -105,110 +105,90 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
 
 static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 {
-  ak0991x_instance_state *state =
-    (ak0991x_instance_state *)this->state->state;
+  ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  if(state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
+  if(state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
   {
-    if (state->mag_info.use_dri)
-    {
+    SNS_INST_PRINTF(ERROR, this, "heart beat timer event is skipped since ODR=0.");
+    return rv;
+  }
+
+  if (state->mag_info.use_dri)
+  {
 #ifdef AK0991X_ENABLE_DRI
-      AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
+    SNS_INST_PRINTF(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
                          state->heart_beat_attempt_count,
                          (uint32_t)state->req_payload.start_time,
                          (uint32_t)state->req_payload.timeout_period,
                          (uint32_t)state->hb_timer_fire_time,
                          (uint32_t)state->system_time);
-
-      // Streaming is unable to resume after 4 attempts
-      if (state->heart_beat_attempt_count >= 4)
+    // Streaming is unable to resume after 4 attempts
+    if (state->heart_beat_attempt_count >= 4)
+    {
+      ak0991x_inst_exit_island(this);
+      SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
+      rv = SNS_RC_INVALID_STATE;
+    }
+    // Perform a reset operation in an attempt to revive the sensor
+    else
+    {
+      state->heart_beat_attempt_count++;
+      if(!ak0991x_dae_if_flush_hw(this))
       {
-        ak0991x_inst_exit_island(this);
-        SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
-        rv = SNS_RC_INVALID_STATE;
-      }
-      // Perform a reset operation in an attempt to revive the sensor
-      else
-      {
-        state->heart_beat_attempt_count++;
         ak0991x_read_mag_samples(this);
-
         if(state->heart_beat_attempt_count >= 3)
         {
           ak0991x_inst_exit_island(this);
-          rv = ak0991x_device_sw_reset(this,
-                                       state->scp_service,
-                                       state->com_port_info.port_handle);
-          if (rv != SNS_RC_SUCCESS)
-          {
-            SNS_INST_PRINTF(ERROR, this, "soft reset failed");
-          }
-          else
-          {
-            AK0991X_INST_PRINT(LOW, this, "soft reset called");
-          }
+          ak0991x_reconfig_hw(this, true);
           // Indicate streaming error
           rv = SNS_RC_NOT_AVAILABLE;
-          ak0991x_reconfig_hw(this);
         }
       }
+    }
 #endif // AK0991X_ENABLE_DRI
-    }
-    else
-    {
-      uint8_t heart_beat_thresthold =
-        ( state->mag_info.use_fifo )? 1 : 4;
-      if (state->heart_beat_sample_count < heart_beat_thresthold)
-      {
-        state->heart_beat_sample_count++;
-      }
-      else
-      {
-        AK0991X_INST_PRINT(LOW, this, "heart_beat_gap=%u, heart_beat_timeout=%u",
-          (uint32_t)((state->interrupt_timestamp-state->heart_beat_timestamp)/19200),
-          (uint32_t)(state->heart_beat_timeout_period/19200));
-        // Detect streaming has stopped
-        if (state->interrupt_timestamp > state->heart_beat_timestamp + state->heart_beat_timeout_period)
-        {
-          AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
-          // Streaming is unable to resume after 3 attempts
-          if (state->heart_beat_attempt_count >= 3)
-          {
-            ak0991x_inst_exit_island(this);
-            SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
-            rv = SNS_RC_INVALID_STATE;
-          }
-          // Perform a reset operation in an attempt to revive the sensor
-          else
-          {
-            ak0991x_inst_exit_island(this);
-            rv = ak0991x_device_sw_reset(this,
-                                         state->scp_service,
-                                         state->com_port_info.port_handle);
-            if (rv == SNS_RC_SUCCESS) {
-              AK0991X_INST_PRINT(LOW, this, "soft reset called");
-            } else {
-              SNS_INST_PRINTF(ERROR, this, "soft reset failed");
-            }
-            // Indicate streaming error
-            rv = SNS_RC_NOT_AVAILABLE;
-            ak0991x_reconfig_hw(this);
-            state->heart_beat_attempt_count++;
-          }
-        }
-        else
-        {
-          state->heart_beat_timestamp = state->interrupt_timestamp;
-          state->heart_beat_sample_count = 0;
-          state->heart_beat_attempt_count = 0;
-        }
-      }
-    }
   }
   else
   {
-    SNS_INST_PRINTF(ERROR, this, "heart beat timer event is skipped since ODR=0.");
+    uint8_t heart_beat_thresthold =
+      ( state->mag_info.use_fifo )? 1 : 4;
+    if (state->heart_beat_sample_count < heart_beat_thresthold)
+    {
+      state->heart_beat_sample_count++;
+    }
+    else
+    {
+      AK0991X_INST_PRINT(LOW, this, "heart_beat_gap=%u, heart_beat_timeout=%u",
+        (uint32_t)(state->interrupt_timestamp-state->heart_beat_timestamp),
+        (uint32_t)state->heart_beat_timeout_period);
+      // Detect streaming has stopped
+      if (state->interrupt_timestamp > state->heart_beat_timestamp + state->heart_beat_timeout_period)
+      {
+        AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
+        // Streaming is unable to resume after 3 attempts
+        if (state->heart_beat_attempt_count >= 3)
+        {
+          ak0991x_inst_exit_island(this);
+          SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
+          rv = SNS_RC_INVALID_STATE;
+        }
+        // Perform a reset operation in an attempt to revive the sensor
+        else
+        {
+          ak0991x_inst_exit_island(this);
+          ak0991x_reconfig_hw(this, true);
+          // Indicate streaming error
+          rv = SNS_RC_NOT_AVAILABLE;
+          state->heart_beat_attempt_count++;
+        }
+      }
+      else
+      {
+        state->heart_beat_timestamp = state->interrupt_timestamp;
+        state->heart_beat_sample_count = 0;
+        state->heart_beat_attempt_count = 0;
+      }
+    }
   }
 
   return rv;
@@ -324,8 +304,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
   if (NULL != state->interrupt_data_stream)
   {
-    event = state->interrupt_data_stream->api->peek_input(
-        state->interrupt_data_stream);
+    event = state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
 
     while (NULL != event)
     {
@@ -352,13 +331,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                 state->irq_event_time = irq_event.timestamp;
                 state->irq_info.detect_irq_event = true; // detect interrupt
                 state->system_time = sns_get_system_time();
-
-                if(state->system_time > irq_event.timestamp + state->averaged_interval)
-                {
-                  AK0991X_INST_PRINT(MED, this, "Delayed interrupt event. irq_event %u, now=%u",
-                                     (uint32_t)irq_event.timestamp,
-                                     (uint32_t)state->system_time);
-                }
                 ak0991x_read_mag_samples(this);
               }
             }
@@ -375,7 +347,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           else
           {
             state->irq_event_time = irq_event.timestamp;
-            ak0991x_clock_error_calc_procedure(this);
+            ak0991x_clock_error_calc_procedure(this, NULL);
+            if (!state->in_clock_error_procedure)
+            {
+              // actual ODR measurement start.
+              ak0991x_reconfig_hw(this, true);
+            }
           }
         }
         else
@@ -386,7 +363,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       else if (SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REG_EVENT == event->message_id)
       {
         state->irq_info.is_ready = true;
-        ak0991x_reconfig_hw(this);
+        ak0991x_reconfig_hw(this, false);
       }
       else
       {
@@ -397,7 +374,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
       if(NULL != event)
       {
-        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue... %u DRDY= %d", (uint32_t)sns_get_system_time(), state->data_is_ready);
+        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue... %u DRDY= %d", 
+                           (uint32_t)sns_get_system_time(), state->data_is_ready);
       }
     }
   }
@@ -474,10 +452,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->system_time = timer_event.requested_timeout_time;
           if(state->system_time + state->nominal_intvl < now )
           {
-            SNS_INST_PRINTF(ERROR, this, "req_to=%u now=%u", 
+            AK0991X_INST_PRINT(ERROR, this, "req_to=%u now=%u",
                             (uint32_t)timer_event.requested_timeout_time, (uint32_t)now);
           }
-		  
+
           // for regular polling mode
           if (!state->mag_info.use_dri && state->reg_event_done)
           {
@@ -501,7 +479,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           }
           else
           {
-            SNS_INST_PRINTF(ERROR, this, "Wrong HB timer fired. fire_time %u now %u",(uint32_t)state->hb_timer_fire_time, (uint32_t)now );
+//            AK0991X_INST_PRINT(ERROR, this, "Wrong HB timer fired. fire_time %u now %u",(uint32_t)state->hb_timer_fire_time, (uint32_t)now );
           }
         }
         else
@@ -525,7 +503,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       {
         AK0991X_INST_PRINT(ERROR, this, "Received invalid timer event id=%d", event->message_id);
       }
-
       if(NULL != state->timer_data_stream)
       {
         event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);

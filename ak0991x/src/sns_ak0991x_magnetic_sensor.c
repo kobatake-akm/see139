@@ -139,7 +139,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   state->registration_idx = this->cb->get_registration_index(this);
   AK0991X_PRINT(LOW, this, "registration_idx=%d",state->registration_idx);
-#endif //AK0991X_ENABLE_DUAL_SENSOR
+#endif // AK0991X_ENABLE_DUAL_SENSOR
 
 #ifndef AK0991X_ENABLE_SEE_LITE
   uint8_t i = 0;
@@ -172,15 +172,15 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 
 #ifdef AK0991X_STATE_IS_DRI
   state->is_dri = true;
-#endif //AK0991X_STATE_IS_DRI
+#endif // AK0991X_STATE_IS_DRI
 
 #ifdef AK0991X_STATE_USE_FIFO
   state->use_fifo = true;
-#endif //AK0991X_STATE_USE_FIFO
+#endif // AK0991X_STATE_USE_FIFO
 
 #ifdef AK0991X_STATE_SUPPORTS_SYNC_STREAM
   state->supports_sync_stream = true;
-#endif //AK0991X_STATE_SUPPORTS_SYNC_STREAM
+#endif // AK0991X_STATE_SUPPORTS_SYNC_STREAM
 
   state->resolution_idx = 0;
   state->hardware_id = 0;
@@ -193,7 +193,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->com_port_info.com_config.max_bus_speed_KHz = 400;// I2C speed
   state->com_port_info.com_config.reg_addr_type = 0;      //
 #ifdef AK0991X_ENABLE_DRI
-  state->irq_config.interrupt_num = 119;                  // mag interrupt
+  state->irq_config.interrupt_num = 134;                  // mag interrupt
 
   state->irq_config.is_chip_pin = 1;                      //
   state->irq_config.interrupt_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
@@ -205,6 +205,7 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
 #endif //defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09916D) || defined(AK0991X_TARGET_AK09917)
 #endif //AK0991X_ENABLE_DRI
+
   state->rail_config.num_of_rails = 1;
   state->registry_rail_on_state = 1;
   sns_strlcpy(state->rail_config.rails[0].name,
@@ -283,4 +284,5 @@ sns_rc ak0991x_mag_deinit(sns_sensor *const this)
   UNUSED_VAR(this);
   return SNS_RC_SUCCESS;
 }
-#endif //AK0991X_ENABLE_DEINIT
+#endif // AK0991X_ENABLE_DEINIT
+

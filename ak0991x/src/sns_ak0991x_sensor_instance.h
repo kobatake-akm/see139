@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -23,9 +23,7 @@
 #include <stdint.h>
 #include "sns_printf.h"
 
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_diag_service.h"
-#endif //AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_interrupt.pb.h"
 #include "sns_timer.pb.h"
 #include "sns_physical_sensor_test.pb.h"
@@ -42,7 +40,6 @@
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #include "sns_device_mode.pb.h"
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
-
 
 /** Forward Declaration of Instance API */
 extern sns_sensor_instance_api ak0991x_sensor_instance_api;
@@ -107,6 +104,8 @@ typedef struct ak0991x_com_port_info
 {
   sns_com_port_config      com_config;
   sns_sync_com_port_handle *port_handle;
+  uint8_t                  i2c_address;
+  uint8_t                  i3c_address;
 } ak0991x_com_port_info;
 
 /**
@@ -143,6 +142,12 @@ typedef struct ak0991x_self_test_info
   bool test_client_present;
 } ak0991x_self_test_info;
 
+typedef struct ak0991x_config_event_info
+{
+  ak0991x_mag_odr odr;
+  uint8_t         fifo_wmk;
+} ak0991x_config_event_info;
+
 typedef struct ak0991x_mag_info
 {
   ak0991x_mag_odr   desired_odr;
@@ -154,7 +159,7 @@ typedef struct ak0991x_mag_info
   uint32_t       req_wmk;
   uint16_t       cur_wmk;
   uint16_t       max_fifo_size;
-  bool           use_dri;
+  uint8_t        use_dri; // 0: polling.  1:DRI.   2:IBI.
   bool           use_fifo;
   bool           flush_only;
   bool           use_sync_stream;
@@ -212,9 +217,9 @@ typedef struct ak0991x_instance_state
 {
   /** mag HW config details*/
   ak0991x_mag_info mag_info;
-#ifdef AK0991X_ENABLE_DEBUG_MSG
+  ak0991x_config_event_info last_sent_cfg;
+  ak0991x_config_event_info new_cfg;
   uint32_t total_samples; /* throughout the life of this instance */
-#endif //AK0991X_ENABLE_DEBUG_MSG
 
   /** sampling info. */
   uint8_t num_samples;
@@ -245,6 +250,7 @@ typedef struct ak0991x_instance_state
   sns_time irq_event_time;
   sns_time previous_irq_time;
 #endif //AK0991X_ENABLE_DRI
+  sns_time odr_change_timestamp;
   sns_time interrupt_timestamp;
   sns_time pre_timestamp;
   sns_time first_data_ts_of_batch;
@@ -264,7 +270,8 @@ typedef struct ak0991x_instance_state
 #ifdef AK0991X_ENABLE_DRI
   /** Interrupt dependency info. */
   ak0991x_irq_info irq_info;
-#endif // AK0991X_ENABLE_DRI
+#endif //AK0991X_ENABLE_DRI
+
   /** COM port info */
   ak0991x_com_port_info com_port_info;
 
@@ -309,10 +316,10 @@ typedef struct ak0991x_instance_state
   uint32_t device_mode_cnt;
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
-  sns_sync_com_port_service *scp_service;
+  sns_diag_service *diag_service;
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
-  sns_diag_service *diag_service;
+  sns_sync_com_port_service *scp_service;
   size_t           log_raw_encoded_size;
 #endif //AK0991X_ENABLE_DIAG_LOGGING
 
