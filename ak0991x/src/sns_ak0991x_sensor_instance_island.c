@@ -499,6 +499,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->reg_event_done = true;
         }
       }
+      else if(SNS_STD_MSGID_SNS_STD_ERROR_EVENT == event->message_id)
+      {
+        // ignore
+      }
       else
       {
         AK0991X_INST_PRINT(ERROR, this, "Received invalid timer event id=%d", event->message_id);

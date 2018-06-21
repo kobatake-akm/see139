@@ -279,7 +279,6 @@ static void ak0991x_get_mag_config(
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
   sns_request const *request;
-  bool is_streaming = false;
 
   *chosen_report_rate = 0;
   *chosen_sample_rate = 0;
@@ -317,9 +316,7 @@ static void ak0991x_get_mag_config(
 
         if (decoded_request.has_batching
             &&
-            decoded_request.batching.batch_period > 0
-            &&
-            is_streaming == false)
+            decoded_request.batching.batch_period > 0)
         {
           report_rate = 1000000.0f / (float)decoded_request.batching.batch_period;
           if( decoded_request.batching.has_flush_period )
@@ -333,7 +330,6 @@ static void ak0991x_get_mag_config(
         }
         else
         {
-          is_streaming = true;
           report_rate = *chosen_sample_rate;
           flush_period = UINT32_MAX;
         }
@@ -1216,25 +1212,29 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 
       event = state->reg_data_stream->api->get_next_input(state->reg_data_stream);
     }
-  }
 
-  for(i=0; i<MAX_DEVICE_MODE_SUPPORTED; i++)
-  {
-    fac_cal_received &= state->cal_parameter[i].registry_fac_cal_received;
-  }
+    for(i=0; i<MAX_DEVICE_MODE_SUPPORTED; i++)
+    {
+      fac_cal_received &= state->cal_parameter[i].registry_fac_cal_received;
+    }
 
-  if(NULL != state->reg_data_stream
-     && state->registry_cfg_received
-#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
-     && state->registry_reg_cfg_received
-#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
-     && state->registry_pf_cfg_received
-     && state->registry_orient_received
-     && fac_cal_received
-     && state->registry_placement_received)
+    if(state->registry_cfg_received
+  #if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+       && state->registry_reg_cfg_received
+  #endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
+       && state->registry_pf_cfg_received
+       && state->registry_orient_received
+       && fac_cal_received
+       && state->registry_placement_received)
+    {
+      // Done receiving all registry.
+      sns_sensor_util_remove_sensor_stream(this, &state->reg_data_stream);
+      AK0991X_PRINT(LOW, this, "Done sns_sensor_util_remove_sensor_stream");
+    }
+  }
+  else
   {
-    // Done receiving all registry.
-    sns_sensor_util_remove_sensor_stream(this, &state->reg_data_stream);
+    AK0991X_PRINT(LOW, this, "reg_data_steram is NULL. Skip ak0991x_process_registry_events.");
   }
   return rv;
 }
@@ -1828,11 +1828,14 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
       {
         AK0991X_PRINT(LOW, this, "SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT");
       }
+      else if( event->message_id == SNS_STD_MSGID_SNS_STD_ERROR_EVENT )
+      {
+        // ignore
+      }
       else
       {
-        AK0991X_PRINT(HIGH, this, "unexpected timer message: message_id: %d",event->message_id);
+        AK0991X_PRINT(HIGH, this, "unexpected timer message : message_id: %d",event->message_id);
       }
-
       event = state->timer_stream->api->get_next_input(state->timer_stream);
     }
   }
@@ -2070,6 +2073,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
     if (state->timer_stream == NULL)
     {
       sns_sensor_uid timer_suid;
+      AK0991X_PRINT(LOW, this, "timer_stream is NULL. create.");
       if(sns_suid_lookup_get(&state->suid_lookup_data,"timer", &timer_suid))
       {
         stream_svc->api->create_sensor_stream(stream_svc, this, timer_suid,
@@ -2091,6 +2095,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       }
     }
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
+
     if(sns_suid_lookup_complete(&state->suid_lookup_data))
     {
       sns_suid_lookup_deinit(this, &state->suid_lookup_data);
