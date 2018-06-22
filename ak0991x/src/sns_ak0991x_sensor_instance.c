@@ -257,32 +257,34 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 #endif // AK0991X_BOARD_HDK845
     }
   }
+#endif
 
   uint8_t i;
   for(i = 0; i < MAX_DEVICE_MODE_SUPPORTED; i++)
   {
-    sns_memscpy(&state->cal_parameter[i],
-                sizeof(state->cal_parameter[i]),
-                &sensor_state->cal_parameter[i],
-                sizeof(sensor_state->cal_parameter[i]));
+    sns_memscpy(&state->cal.params[i],
+                sizeof(state->cal.params[i]),
+                &sensor_state->cal_params[i],
+                sizeof(sensor_state->cal_params[i]));
     AK0991X_INST_PRINT(LOW, this, "| %4d %4d %4d |",
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e00*100),
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e01*100),
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e02*100));
+       (int)(state->cal.params[i].corr_mat.e00*100),
+       (int)(state->cal.params[i].corr_mat.e01*100),
+       (int)(state->cal.params[i].corr_mat.e02*100));
      AK0991X_INST_PRINT(LOW, this, "| %4d %4d %4d |",
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e10*100),
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e11*100),
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e12*100));
+       (int)(state->cal.params[i].corr_mat.e10*100),
+       (int)(state->cal.params[i].corr_mat.e11*100),
+       (int)(state->cal.params[i].corr_mat.e12*100));
      AK0991X_INST_PRINT(LOW, this, "| %4d %4d %4d |",
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e20*100),
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e21*100),
-       (int)(state->cal_parameter[i].fac_cal_corr_mat.e22*100));
+       (int)(state->cal.params[i].corr_mat.e20*100),
+       (int)(state->cal.params[i].corr_mat.e21*100),
+       (int)(state->cal.params[i].corr_mat.e22*100));
       AK0991X_INST_PRINT(LOW, this, "Fac Cal bias %d %d %d",
-       (int)(state->cal_parameter[i].fac_cal_bias[0]),
-       (int)(state->cal_parameter[i].fac_cal_bias[1]),
-       (int)(state->cal_parameter[i].fac_cal_bias[2]));
- }
-#endif
+       (int)(state->cal.params[i].bias[0]),
+       (int)(state->cal.params[i].bias[1]),
+       (int)(state->cal.params[i].bias[2]));
+  }
+  state->cal.id = 0;
+
 
   /** Initialize Timer info to be used by the Instance */
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "timer", &state->timer_suid);
@@ -344,11 +346,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
  /** Copy down axis conversion settings */
   sns_memscpy(state->axis_map,  sizeof(sensor_state->axis_map),
               sensor_state->axis_map, sizeof(sensor_state->axis_map));
-
-  /** Initialize factory calibration */
-  state->mag_registry_cfg.fac_cal_corr_mat.e00 = 1.0;
-  state->mag_registry_cfg.fac_cal_corr_mat.e11 = 1.0;
-  state->mag_registry_cfg.fac_cal_corr_mat.e22 = 1.0;
 
 #ifdef AK0991X_ENABLE_DIAG_LOGGING
   /** Determine size of sns_diag_sensor_state_raw as defined in
@@ -527,8 +524,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
   uint16_t        desired_wmk;
   sns_rc          rv = SNS_RC_SUCCESS;
-  float *fac_cal_bias = NULL;
-  matrix3 *fac_cal_corr_mat = NULL;
 
   AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
@@ -635,27 +630,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                        (int)mag_chosen_sample_rate,
                        (int)mag_chosen_sample_rate_reg_value,
                        (int)state->config_step);
-
-#ifdef AK0991X_ENABLE_REG_FAC_CAL
-    // update registry configuration
-    if(payload->registry_cfg.version >= state->mag_registry_cfg.version)
-    {
-      fac_cal_bias = state->mag_registry_cfg.fac_cal_bias;
-      fac_cal_corr_mat = &state->mag_registry_cfg.fac_cal_corr_mat;
-      state->mag_registry_cfg.version = payload->registry_cfg.version;
-    }
-#endif //AK0991X_ENABLE_REG_FAC_CAL
-
-    if(NULL != fac_cal_bias && NULL != fac_cal_corr_mat)
-    {
-      sns_memscpy(fac_cal_bias, sizeof(payload->registry_cfg.fac_cal_bias),
-                  payload->registry_cfg.fac_cal_bias,
-                  sizeof(payload->registry_cfg.fac_cal_bias));
-
-      sns_memscpy(fac_cal_corr_mat, sizeof(payload->registry_cfg.fac_cal_corr_mat),
-                  &payload->registry_cfg.fac_cal_corr_mat,
-                  sizeof(payload->registry_cfg.fac_cal_corr_mat));
-    }
 
 #ifdef AK0991X_ENABLE_DRI
     if(state->in_clock_error_procedure)

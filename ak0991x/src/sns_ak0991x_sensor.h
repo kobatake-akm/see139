@@ -231,10 +231,8 @@ typedef struct ak0991x_state
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
   // factory calibration
-  ak0991x_cal_param cal_parameter[MAX_DEVICE_MODE_SUPPORTED];
-#ifdef AK0991X_ENABLE_REG_FAC_CAL
-  uint32_t                fac_cal_version;
-#endif //AK0991X_ENABLE_REG_FAC_CAL
+  ak0991x_cal_param cal_params[MAX_DEVICE_MODE_SUPPORTED];
+
 
   // placement
   bool                    registry_placement_received;

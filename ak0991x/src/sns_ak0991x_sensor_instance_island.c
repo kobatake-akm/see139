@@ -71,6 +71,24 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
+
+static void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
+{
+  uint32_t cal_id = 0;
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
+  for(int i = 0; i < MAX_DEVICE_MODE_SUPPORTED; ++i)
+  {
+    if(state->device_mode[i].mode == 0 &&
+       state->device_mode[i].state == 0)
+      break;
+    uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
+    cal_id += state_set*(uint32_t)powf(2, i);
+  }
+#endif
+  state->cal.id = cal_id;
+}
+
 static void ak0991x_inst_exit_island(sns_sensor_instance *this)
 {
   sns_service_manager *smgr = this->cb->get_service_manager(this);
@@ -194,30 +212,6 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
   return rv;
 }
 
-void ak0991x_switch_cal_data(sns_sensor_instance *const instance)
-{
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  float *fac_cal_bias = NULL;
-  matrix3 *fac_cal_corr_mat = NULL;
-  ak0991x_instance_state *inst_state = (ak0991x_instance_state *)instance->state->state;
-
-  uint32_t cal_id = ak0991x_device_mode2cal_id(instance);
-  fac_cal_bias     = inst_state->cal_parameter[cal_id].fac_cal_bias;
-  fac_cal_corr_mat = &inst_state->cal_parameter[cal_id].fac_cal_corr_mat;
-
-  for (int i = 0; i < TRIAXIS_NUM; i++)
-  {
-    inst_state->mag_registry_cfg.fac_cal_bias[i] = fac_cal_bias[i];
-  }
-  for (int i = 0; i < ARR_SIZE(fac_cal_corr_mat->data); i++)
-  {
-    inst_state->mag_registry_cfg.fac_cal_corr_mat.data[i] = fac_cal_corr_mat->data[i];
-  }
-#else // AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  UNUSED_VAR(instance);
-#endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
-}
-
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 bool sns_device_mode_event_decode_cb(pb_istream_t *stream, const pb_field_t *field,
     void **arg)
@@ -269,7 +263,7 @@ sns_rc ak0991x_handle_device_mode_stream(sns_sensor_instance *const this)
             AK0991X_INST_PRINT(LOW, this, "mode: %u, state: %u", state->device_mode[i].mode,
                                                                  state->device_mode[i].state);
           }
-          state->cal_id = ak0991x_device_mode2cal_id(this);
+          ak0991x_device_mode2cal_id(this);
           rv = SNS_RC_SUCCESS;
         }
       }
@@ -518,8 +512,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   //Handle device_mode stream events
   if( ak0991x_handle_device_mode_stream(this) == SNS_RC_SUCCESS )
   {
-    // switch
-    ak0991x_switch_cal_data(this);
+    // get device mode cal id
+    ak0991x_device_mode2cal_id(this);
 
     // report
     ak0991x_send_cal_event(this);

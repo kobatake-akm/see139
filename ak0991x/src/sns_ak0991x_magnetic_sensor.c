@@ -156,9 +156,9 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   uint8_t j;
   for(j = 0; j < MAX_DEVICE_MODE_SUPPORTED; j++)
   {
-    state->cal_parameter[j].fac_cal_corr_mat.e00 = 1.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e11 = 1.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e22 = 1.0;
+    state->cal_params[j].corr_mat.e00 = 1.0;
+    state->cal_params[j].corr_mat.e11 = 1.0;
+    state->cal_params[j].corr_mat.e22 = 1.0;
   }
 
 #else
@@ -227,22 +227,19 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 
   for(j = 0; j < MAX_DEVICE_MODE_SUPPORTED; j++)
   {
-    state->cal_parameter[j].fac_cal_bias[0] = 0.0;
-    state->cal_parameter[j].fac_cal_bias[1] = 0.0;
-    state->cal_parameter[j].fac_cal_bias[2] = 0.0;
-    state->cal_parameter[j].fac_cal_scale[0] = 0.0;
-    state->cal_parameter[j].fac_cal_scale[1] = 0.0;
-    state->cal_parameter[j].fac_cal_scale[2] = 0.0;
+    state->cal_params[j].fac_cal_bias[0] = 0.0;
+    state->cal_params[j].fac_cal_bias[1] = 0.0;
+    state->cal_params[j].fac_cal_bias[2] = 0.0;
 
-    state->cal_parameter[j].fac_cal_corr_mat.e00 = 1.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e01 = 0.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e02 = 0.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e10 = 0.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e11 = 1.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e12 = 0.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e20 = 0.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e21 = 0.0;
-    state->cal_parameter[j].fac_cal_corr_mat.e22 = 1.0;
+    state->cal_params[j].corr_mat.e00 = 1.0;
+    state->cal_params[j].corr_mat.e01 = 0.0;
+    state->cal_params[j].corr_mat.e02 = 0.0;
+    state->cal_params[j].corr_mat.e10 = 0.0;
+    state->cal_params[j].corr_mat.e11 = 1.0;
+    state->cal_params[j].corr_mat.e12 = 0.0;
+    state->cal_params[j].corr_mat.e20 = 0.0;
+    state->cal_params[j].corr_mat.e21 = 0.0;
+    state->cal_params[j].corr_mat.e22 = 1.0;
   }
   state->placement[0] = 0.0;
   state->placement[1] = 0.0;

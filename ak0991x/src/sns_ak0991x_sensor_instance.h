@@ -193,24 +193,23 @@ typedef struct ak0991x_irq_info
 typedef struct ak0991x_cal_param
 {
   bool registry_fac_cal_received;
-  matrix3 fac_cal_corr_mat;
-  float fac_cal_bias[TRIAXIS_NUM];
-  float fac_cal_scale[TRIAXIS_NUM];
+  matrix3 corr_mat;
+  float bias[TRIAXIS_NUM];
+#ifdef  AK0991X_ENABLE_REG_FAC_CAL
+  uint32_t version;
+#endif //AK0991X_ENABLE_REG_FAC_CAL
 }ak0991x_cal_param;
+
+typedef struct ak0991x_cal
+{
+  uint32_t id;
+  ak0991x_cal_param params[MAX_DEVICE_MODE_SUPPORTED];
+}ak0991x_cal;
 
 typedef struct ak0991x_async_com_port_info
 {
   uint32_t port_handle;
 } ak0991x_async_com_port_info;
-
-typedef struct sns_ak0991x_registry_cfg
-{
-  matrix3             fac_cal_corr_mat;
-  float               fac_cal_bias[TRIAXIS_NUM];
-#ifdef  AK0991X_ENABLE_REG_FAC_CAL
-  uint32_t            version;
-#endif //AK0991X_ENABLE_REG_FAC_CAL
-}sns_ak0991x_registry_cfg;
 
 /** Private state. */
 typedef struct ak0991x_instance_state
@@ -307,11 +306,9 @@ typedef struct ak0991x_instance_state
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
   /**----------Sensor specific registry configuration----------*/
-  sns_ak0991x_registry_cfg mag_registry_cfg;
+  ak0991x_cal           cal;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   sns_data_stream       *device_mode_stream;
-  ak0991x_cal_param     cal_parameter[MAX_DEVICE_MODE_SUPPORTED];
-  uint32_t              cal_id;
   sns_device_mode_event_mode_spec  device_mode[MAX_DEVICE_MODE_SUPPORTED];
   uint32_t device_mode_cnt;
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
@@ -338,7 +335,10 @@ typedef struct sns_ak0991x_mag_req
   float report_rate;
   uint32_t flush_period;
   bool is_flush_only;
-  sns_ak0991x_registry_cfg registry_cfg;
+  uint32_t cal_id;
+#ifdef  AK0991X_ENABLE_REG_FAC_CAL
+  uint32_t cal_version;
+#endif //AK0991X_ENABLE_REG_FAC_CAL
 } sns_ak0991x_mag_req;
 
 

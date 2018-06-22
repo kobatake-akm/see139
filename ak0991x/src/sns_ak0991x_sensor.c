@@ -349,7 +349,8 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
                                         sns_sensor_instance *instance,
                                         float chosen_report_rate,
                                         float chosen_sample_rate,
-                                        sns_ak0991x_registry_cfg registry_cfg,
+                                        uint32_t chosen_cal_id,
+                                        uint32_t cal_version,
                                         uint32_t chosen_flush_period,
                                         bool is_flush_only)
 {
@@ -359,7 +360,12 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   new_client_config.report_rate = chosen_report_rate;
   new_client_config.sample_rate = chosen_sample_rate;
   new_client_config.flush_period = chosen_flush_period;
-  new_client_config.registry_cfg = registry_cfg;
+  new_client_config.cal_id = chosen_cal_id;
+#ifdef AK0991X_ENABLE_REG_FAC_CAL
+  new_client_config.cal_version = cal_version;
+#else
+  UNUSED_VAR(cal_version);
+#endif
   new_client_config.is_flush_only = is_flush_only;
 
   config.message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
@@ -391,9 +397,10 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   bool is_flush_only = false;
   bool m_sensor_client_present;
   uint32_t cal_id = 0;
+  uint32_t version = 0;
   UNUSED_VAR(instance);
   ak0991x_state *state = (ak0991x_state*)this->state->state;
-  sns_ak0991x_registry_cfg registry_cfg;
+  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
 
   AK0991X_PRINT(LOW, this, "ak0991x_reval_instance_config");
 
@@ -421,50 +428,31 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                 chosen_flush_period);
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  cal_id = ak0991x_device_mode2cal_id(instance);
+  cal_id = inst_state->cal.id;
+#else
+  cal_id = 0;
 #endif
 
-  sns_memscpy(
-      registry_cfg.fac_cal_bias,
-      sizeof(registry_cfg.fac_cal_bias),
-      state->cal_parameter[cal_id].fac_cal_bias,
-      sizeof(state->cal_parameter[cal_id].fac_cal_bias));
-
-  sns_memscpy(
-      &registry_cfg.fac_cal_corr_mat,
-      sizeof(registry_cfg.fac_cal_corr_mat),
-      &state->cal_parameter[cal_id].fac_cal_corr_mat,
-      sizeof(state->cal_parameter[cal_id].fac_cal_corr_mat));
-
-#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
-  registry_cfg.version = state->fac_cal_version;
-#endif //AK0991X_ENABLE_REG_FAC_CAL
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
-
-#ifdef AK0991X_ENABLE_REG_FAC_CAL
-  AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100 ver=%d",
-      (int)(registry_cfg.fac_cal_bias[0]*100),
-      (int)(registry_cfg.fac_cal_corr_mat.e00*100),
-      registry_cfg.version);
-#else
-  AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100",
-      (int)(registry_cfg.fac_cal_bias[0]*100),
-      (int)(registry_cfg.fac_cal_corr_mat.e00*100));
+  version = inst_state->cal.params[inst_state->cal.id].version;
 #endif // AK0991X_ENABLE_REG_FAC_CAL
+  AK0991X_PRINT(LOW, this, "bias[0]=%d/100 corr_mat.e00=%d/100 ver=%d",
+      (int)(inst_state->cal.params[cal_id].bias[0]*100),
+      (int)(inst_state->cal.params[cal_id].corr_mat.e00*100),
+      version);
 
   AK0991X_PRINT(LOW, this, "| %4d %4d %4d |",
-      (int)(registry_cfg.fac_cal_corr_mat.e00*100),
-      (int)(registry_cfg.fac_cal_corr_mat.e01*100),
-      (int)(registry_cfg.fac_cal_corr_mat.e02*100));
+      (int)(inst_state->cal.params[cal_id].corr_mat.e00*100),
+      (int)(inst_state->cal.params[cal_id].corr_mat.e01*100),
+      (int)(inst_state->cal.params[cal_id].corr_mat.e02*100));
   AK0991X_PRINT(LOW, this, "| %4d %4d %4d |",
-      (int)(registry_cfg.fac_cal_corr_mat.e10*100),
-      (int)(registry_cfg.fac_cal_corr_mat.e11*100),
-      (int)(registry_cfg.fac_cal_corr_mat.e12*100));
+      (int)(inst_state->cal.params[cal_id].corr_mat.e10*100),
+      (int)(inst_state->cal.params[cal_id].corr_mat.e11*100),
+      (int)(inst_state->cal.params[cal_id].corr_mat.e12*100));
   AK0991X_PRINT(LOW, this, "| %4d %4d %4d |",
-      (int)(registry_cfg.fac_cal_corr_mat.e20*100),
-      (int)(registry_cfg.fac_cal_corr_mat.e21*100),
-      (int)(registry_cfg.fac_cal_corr_mat.e22*100));
+      (int)(inst_state->cal.params[cal_id].corr_mat.e20*100),
+      (int)(inst_state->cal.params[cal_id].corr_mat.e21*100),
+      (int)(inst_state->cal.params[cal_id].corr_mat.e22*100));
 
   AK0991X_PRINT(LOW, this, "chosen_sample_rate=%d chosen_report_rate=%d/100",
       (int)chosen_sample_rate, (int)(chosen_report_rate*100));
@@ -473,7 +461,8 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                               instance,
                               chosen_report_rate,
                               chosen_sample_rate,
-                              registry_cfg,
+                              inst_state->cal.id,
+                              version,
                               chosen_flush_period,
                               is_flush_only);
 }
@@ -1029,16 +1018,10 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
       else if (faccal)
       {
         {
-          uint8_t bias_arr_index = 0, scale_arr_index = 0;
+          uint8_t bias_arr_index = 0;
           pb_float_arr_arg bias_arr_arg = {
-            .arr = state->cal_parameter[cal_id].fac_cal_bias,
+            .arr = state->cal_params[cal_id].bias,
             .arr_index = &bias_arr_index,
-            .arr_len = TRIAXIS_NUM
-          };
-
-          pb_float_arr_arg scale_arr_arg = {
-            .arr = state->cal_parameter[cal_id].fac_cal_scale,
-            .arr_index = &scale_arr_index,
             .arr_len = TRIAXIS_NUM
           };
 
@@ -1051,14 +1034,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
               .parsed_buffer = &bias_arr_arg
             },
             .parse_info[1] = {
-              .group_name = "scale",
-              .parse_func = sns_registry_parse_float_arr,
-              .parsed_buffer = &scale_arr_arg
-            },
-            .parse_info[2] = {
               .group_name = "corr_mat",
               .parse_func = sns_registry_parse_corr_matrix_3,
-              .parsed_buffer = &state->cal_parameter[cal_id].fac_cal_corr_mat
+              .parsed_buffer = &state->cal_params[cal_id].corr_mat
             }
           };
 
@@ -1074,32 +1052,26 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
         if(rv)
         {
-          state->cal_parameter[cal_id].registry_fac_cal_received = true;
+          state->cal_params[cal_id].registry_fac_cal_received = true;
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
-          state->fac_cal_version = fac_cal_version;
+          state->cal_params[cal_id].version = fac_cal_version;
 #endif //AK0991X_ENABLE_REG_FAC_CAL
-          if(state->cal_parameter[cal_id].fac_cal_scale[0] != 0.0)
-          {
-            state->cal_parameter[cal_id].fac_cal_corr_mat.e00 = state->cal_parameter[cal_id].fac_cal_scale[0];
-            state->cal_parameter[cal_id].fac_cal_corr_mat.e11 = state->cal_parameter[cal_id].fac_cal_scale[1];
-            state->cal_parameter[cal_id].fac_cal_corr_mat.e22 = state->cal_parameter[cal_id].fac_cal_scale[2];
-          }
           AK0991X_PRINT(LOW, this, "| %4d %4d %4d |",
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e00*100),
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e01*100),
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e02*100));
+              (int)(state->cal_params[cal_id].corr_mat.e00*100),
+              (int)(state->cal_params[cal_id].corr_mat.e01*100),
+              (int)(state->cal_params[cal_id].corr_mat.e02*100));
           AK0991X_PRINT(LOW, this, "| %4d %4d %4d |",
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e10*100),
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e11*100),
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e12*100));
+              (int)(state->cal_params[cal_id].corr_mat.e10*100),
+              (int)(state->cal_params[cal_id].corr_mat.e11*100),
+              (int)(state->cal_params[cal_id].corr_mat.e12*100));
           AK0991X_PRINT(LOW, this, "| %4d %4d %4d |",
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e20*100),
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e21*100),
-              (int)(state->cal_parameter[cal_id].fac_cal_corr_mat.e22*100));
+              (int)(state->cal_params[cal_id].corr_mat.e20*100),
+              (int)(state->cal_params[cal_id].corr_mat.e21*100),
+              (int)(state->cal_params[cal_id].corr_mat.e22*100));
           AK0991X_PRINT(LOW, this, "Fac Cal Bias x:%d y:%d z:%d",
-              (int8_t)state->cal_parameter[cal_id].fac_cal_bias[0],
-              (int8_t)state->cal_parameter[cal_id].fac_cal_bias[1],
-              (int8_t)state->cal_parameter[cal_id].fac_cal_bias[2]);
+              (int8_t)state->cal_params[cal_id].bias[0],
+              (int8_t)state->cal_params[cal_id].bias[1],
+              (int8_t)state->cal_params[cal_id].bias[2]);
         }
       }
       else
@@ -1215,7 +1187,7 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 
     for(i=0; i<MAX_DEVICE_MODE_SUPPORTED; i++)
     {
-      fac_cal_received &= state->cal_parameter[i].registry_fac_cal_received;
+      fac_cal_received &= state->cal_params[i].registry_fac_cal_received;
     }
 
     if(state->registry_cfg_received
@@ -1298,13 +1270,13 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
 
   for (i = 0; i < MAX_DEVICE_MODE_SUPPORTED; i++)
   {
-    state->cal_parameter[i].registry_fac_cal_received = true;
-    state->cal_parameter[i].fac_cal_corr_mat.e00 = 1;
-    state->cal_parameter[i].fac_cal_corr_mat.e11 = 1;
-    state->cal_parameter[i].fac_cal_corr_mat.e22 = 1;
-    state->cal_parameter[i].fac_cal_bias[0] =
-      state->cal_parameter[i].fac_cal_bias[1] =
-      state->cal_parameter[i].fac_cal_bias[2] = 0;
+    state->cal_params[i].registry_fac_cal_received = true;
+    state->cal_params[i].corr_mat.e00 = 1;
+    state->cal_params[i].corr_mat.e11 = 1;
+    state->cal_params[i].corr_mat.e22 = 1;
+    state->cal_params[i].bias[0] =
+      state->cal_params[i].bias[1] =
+      state->cal_params[i].bias[2] = 0;
   }
 
   ak0991x_publish_hw_attributes(this, state->device_select);
@@ -2244,10 +2216,10 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
       pb_item.name.funcs.encode = &pb_encode_string_cb;
       pb_item.name.arg = &name_data;
       pb_item.has_flt = true;
-      pb_item.flt = state->mag_registry_cfg.fac_cal_bias[i];
+      pb_item.flt = state->cal.params[state->cal.id].bias[i];
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
       pb_item.has_version = true;
-      pb_item.version = state->mag_registry_cfg.version;
+      pb_item.version = state->cal.params[state->cal.id].version;
 #endif // AK0991X_ENABLE_REG_FAC_CAL
       
       if(!pb_encode_tag_for_field(stream, field))
@@ -2275,10 +2247,10 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
       pb_item.name.funcs.encode = &pb_encode_string_cb;
       pb_item.name.arg = &name_data;
       pb_item.has_flt = true;
-      pb_item.flt = state->mag_registry_cfg.fac_cal_corr_mat.data[i];
+      pb_item.flt = state->cal.params[state->cal.id].corr_mat.data[i];
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
       pb_item.has_version = true;
-      pb_item.version = state->mag_registry_cfg.version;
+      pb_item.version = state->cal.params[state->cal.id].version;
 #endif // AK0991X_ENABLE_REG_FAC_CAL
 
       if(!pb_encode_tag_for_field(stream, field))
@@ -2373,14 +2345,13 @@ void ak0991x_update_registry(sns_sensor *const this,
 
   name_data = (pb_buffer_arg)
         { .buf = name, .buf_len = strlen(name) + 1 };
-#ifdef AK0991X_ENABLE_REG_FAC_CAL
-  arg.version = ((ak0991x_instance_state*)instance->state->state)->mag_registry_cfg.version;
-#endif
 
   write_req.name.funcs.encode = &pb_encode_string_cb;
   write_req.name.arg = &name_data;
   write_req.data.items.funcs.encode = &ak0991x_encode_registry_cb;
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
+  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
+  arg.version = inst_state->cal.params[inst_state->cal.id].version;
   write_req.data.items.arg = &arg;
 #endif
 
@@ -2417,6 +2388,7 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
   ak0991x_state *sensor_state;
   ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
   sns_sensor *sensor = NULL;
+  uint32_t id = 0;
 
   for(sensor = this->cb->get_library_sensor(this, true);
       sensor != NULL;
@@ -2424,20 +2396,21 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
   {
     sensor_state = (ak0991x_state*)sensor->state->state;
 
-    if(sensor_state->fac_cal_version < inst_state->mag_registry_cfg.version)
+    id = inst_state->cal.id;
+    if(sensor_state->cal_params[id].version < inst_state->cal.params[id].version)
     {
       sns_memscpy(
-          &sensor_state->cal_parameter[0].fac_cal_bias,
-          sizeof(sensor_state->cal_parameter[0].fac_cal_bias),
-          &inst_state->mag_registry_cfg.fac_cal_bias[0],
-          sizeof(inst_state->mag_registry_cfg.fac_cal_bias));
+          &sensor_state->cal_params[id].bias,
+          sizeof(sensor_state->cal_params[id].bias),
+          &inst_state->cal.params[id].bias[0],
+          sizeof(inst_state->cal.params[id].bias));
 
       sns_memscpy(
-          &sensor_state->cal_parameter[0].fac_cal_corr_mat,
-          sizeof(sensor_state->cal_parameter[0].fac_cal_corr_mat),
-          &inst_state->mag_registry_cfg.fac_cal_corr_mat,
-          sizeof(inst_state->mag_registry_cfg.fac_cal_corr_mat));
-      sensor_state->fac_cal_version = inst_state->mag_registry_cfg.version;
+          &sensor_state->cal_params[id].corr_mat,
+          sizeof(sensor_state->cal_params[id].corr_mat),
+          &inst_state->cal.params[id].corr_mat,
+          sizeof(inst_state->cal.params[id].corr_mat));
+      sensor_state->cal_params[id].version = inst_state->cal.params[inst_state->cal.id].version;
     }
   }
 #else

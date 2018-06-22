@@ -1809,8 +1809,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   // factory calibration
   opdata_cal = sns_apply_calibration_correction_3(
       make_vector3_from_array(opdata_raw),
-      make_vector3_from_array(state->mag_registry_cfg.fac_cal_bias),
-      state->mag_registry_cfg.fac_cal_corr_mat);
+      make_vector3_from_array(state->cal.params[state->cal.id].bias),
+      state->cal.params[state->cal.id].corr_mat);
 /*
   AK0991X_INST_PRINT(LOW, instance, "before ,X,Y,Z: %d %d %d end",
       (int)opdata_raw[0],
@@ -2548,11 +2548,11 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   }
 }
 
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-uint32_t ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
+void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
 {
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint32_t cal_id = 0;
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   for(int i = 0; i < MAX_DEVICE_MODE_SUPPORTED; ++i)
   {
     if(state->device_mode[i].mode == 0 &&
@@ -2561,20 +2561,20 @@ uint32_t ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
     uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
     cal_id += state_set*(uint32_t)powf(2, i);
   }
-  return cal_id;
-}
 #endif
+  state->cal.id = cal_id;
+}
 
 void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_cal_event cal_event = sns_cal_event_init_default;
   pb_buffer_arg buff_arg_bias = { 
-    .buf     = &state->mag_registry_cfg.fac_cal_bias, 
-    .buf_len = ARR_SIZE(state->mag_registry_cfg.fac_cal_bias) };
+    .buf     = &state->cal.params[state->cal.id].bias,
+    .buf_len = ARR_SIZE(state->cal.params[state->cal.id].bias) };
   pb_buffer_arg buff_arg_comp_matrix = { 
-    .buf     = &state->mag_registry_cfg.fac_cal_corr_mat.data, 
-    .buf_len = ARR_SIZE(state->mag_registry_cfg.fac_cal_corr_mat.data) };
+    .buf     = &state->cal.params[state->cal.id].corr_mat.data,
+    .buf_len = ARR_SIZE(state->cal.params[state->cal.id].corr_mat.data) };
 
   cal_event.bias.funcs.encode        = &pb_encode_float_arr_cb;
   cal_event.bias.arg                 = &buff_arg_bias;
@@ -2583,15 +2583,15 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   cal_event.has_cal_id               = true;
-  cal_event.cal_id                   = ak0991x_device_mode2cal_id(instance);
+  cal_event.cal_id                   =  state->cal.id;
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx CAL_EVENT: cm %X/%X/%X bias %X/%X/%X",
-                     state->mag_registry_cfg.fac_cal_corr_mat.e00,
-                     state->mag_registry_cfg.fac_cal_corr_mat.e11,
-                     state->mag_registry_cfg.fac_cal_corr_mat.e22,
-                     state->mag_registry_cfg.fac_cal_bias[0],
-                     state->mag_registry_cfg.fac_cal_bias[1],
-                     state->mag_registry_cfg.fac_cal_bias[2]);
+                     state->cal.params[state->cal.id].corr_mat.e00,
+                     state->cal.params[state->cal.id].corr_mat.e11,
+                     state->cal.params[state->cal.id].corr_mat.e22,
+                     state->cal.params[state->cal.id].bias[0],
+                     state->cal.params[state->cal.id].bias[1],
+                     state->cal.params[state->cal.id].bias[2]);
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT, cal_id:%u", cal_event.cal_id);
 #else //AK0991X_ENABLE_DEVICE_MODE_SENSOR
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");
@@ -2613,14 +2613,14 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
 
   for (int i = 0; i < ARR_SIZE(bias_data); i++)
   {
-    state->mag_registry_cfg.fac_cal_bias[i] = bias_data[i];
+    state->cal.params[state->cal.id].bias[i] = bias_data[i];
   }
   for (int i = 0; i < ARR_SIZE(comp_matrix_data); i++)
   {
-    state->mag_registry_cfg.fac_cal_corr_mat.data[i] = comp_matrix_data[i];
+    state->cal.params[state->cal.id].corr_mat.data[i] = comp_matrix_data[i];
   }
 #ifdef AK0991X_ENABLE_REG_FAC_CAL
-  state->mag_registry_cfg.version++;
+  state->cal.params[state->cal.id].version++;
 #endif // AK0991X_ENABLE_REG_FAC_CAL
 }
 #endif //AK0991X_ENABLE_REG_WRITE_ACCESS
