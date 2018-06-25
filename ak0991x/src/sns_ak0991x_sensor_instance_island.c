@@ -512,9 +512,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   //Handle device_mode stream events
   if( ak0991x_handle_device_mode_stream(this) == SNS_RC_SUCCESS )
   {
-    // get device mode cal id
-    ak0991x_device_mode2cal_id(this);
-
     // report
     ak0991x_send_cal_event(this);
   }

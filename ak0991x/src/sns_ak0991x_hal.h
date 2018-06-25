@@ -194,7 +194,6 @@
 #define TLIMIT_HI_SLF_ST2                           0
 #define TLIMIT_ST2_MASK                             (0x08)
 
-#if !defined(AK0991X_ENABLE_SEE_LITE)
 /*******************************
 * AK09918 dependent value
 */
@@ -264,80 +263,6 @@
 #define TLIMIT_HI_SLF_RVHY_AK09911                  30
 #define TLIMIT_LO_SLF_RVHZ_AK09911                  -400
 #define TLIMIT_HI_SLF_RVHZ_AK09911                  -50
-
-#elif     defined(AK0991X_TARGET_AK09911)
-#define TLIMIT_LO_SLF_RVHX                          -30
-#define TLIMIT_HI_SLF_RVHX                          30
-#define TLIMIT_LO_SLF_RVHY                          -30
-#define TLIMIT_HI_SLF_RVHY                          30
-#define TLIMIT_LO_SLF_RVHZ                          -400
-#define TLIMIT_HI_SLF_RVHZ                          -50
-
-#elif   defined(AK0991X_TARGET_AK09912)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1600
-#define TLIMIT_HI_SLF_RVHZ                          -400
-
-#elif   defined(AK0991X_TARGET_AK09913)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09915C)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -800
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09915D)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -800
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09916C)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09916D)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09917)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -150
-
-#elif   defined(AK0991X_TARGET_AK09918)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -150
-
-#endif // AK0991X_ENABLE_SEE_LITE
 
 /*******************************
  * Number of axes in a 3 axis sensor

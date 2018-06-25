@@ -801,12 +801,6 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     return rv;
   }
 
-#if defined(AK0991X_ENABLE_ALL_DEVICES) || \
-    defined(AK0991X_TARGET_AK09912) || \
-    defined(AK0991X_TARGET_AK09915C) || \
-    defined(AK0991X_TARGET_AK09915D) || \
-    defined(AK0991X_TARGET_AK09917)
-
   akm_device_type device_select = state->mag_info.device_select;
   uint16_t cur_wmk = state->mag_info.cur_wmk;
 
@@ -839,10 +833,6 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     buffer[1] = 0x0
       | (uint8_t)desired_odr; // MODE[4:0] bits
   }
-#else
-  buffer[1] = 0x0
-    | (uint8_t)desired_odr; // MODE[4:0] bits
-#endif
 
 #ifdef AK0991X_ENABLE_DRI
   // Force 100Hz DRI measurement starts to get the clock error.
@@ -1513,7 +1503,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
 
   ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
 
-#ifndef AK0991X_ENABLE_SEE_LITE
   // check read value
   if (state->mag_info.device_select == AK09918)
   {
@@ -1583,11 +1572,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     *err = (TLIMIT_NO_INVALID_ID << 16);
     goto TEST_SEQUENCE_FAILED;
   }
-#else
-  AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX, TLIMIT_HI_SLF_RVHX, err);
-  AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY, TLIMIT_HI_SLF_RVHY, err);
-  AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ, TLIMIT_HI_SLF_RVHZ, err);
-#endif // AK0991X_ENABLE_SEE_LITE
 
   AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
           TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
@@ -2643,7 +2627,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   switch (state->mag_info.device_select)
   {
-#if defined(AK0991X_TARGET_AK09911)
   case AK09911:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2655,8 +2638,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09911_MIN_RANGE;
     phy_sensor_config.range[1] = AK09911_MAX_RANGE;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09912)
   case AK09912:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2668,8 +2649,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09912_MIN_RANGE;
     phy_sensor_config.range[1] = AK09912_MAX_RANGE;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09913)
   case AK09913:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2681,8 +2660,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09913_MIN_RANGE;
     phy_sensor_config.range[1] = AK09913_MAX_RANGE;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09915C)
   case AK09915C:
 
     if (state->mag_info.sdr == 1)
@@ -2703,8 +2680,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09915_MIN_RANGE;
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09915D)
   case AK09915D:
 
     if (state->mag_info.sdr == 1)
@@ -2725,8 +2700,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09915_MIN_RANGE;
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09916C)
   case AK09916C:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2738,8 +2711,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09916D)
   case AK09916D:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2751,8 +2722,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09917)
   case AK09917:
 
     if (state->mag_info.sdr == 0)
@@ -2773,8 +2742,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09917_MIN_RANGE;
     phy_sensor_config.range[1] = AK09917_MAX_RANGE;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09918)
   case AK09918:
     operating_mode = AK0991X_NORMAL;
     phy_sensor_config.has_water_mark = false;
@@ -2786,7 +2753,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     phy_sensor_config.range[0] = AK09918_MIN_RANGE;
     phy_sensor_config.range[1] = AK09918_MAX_RANGE;
     break;
-#endif
   default:
     return SNS_RC_FAILED;
   }
@@ -3057,12 +3023,9 @@ sns_rc ak0991x_get_meas_time( akm_device_type device_select,
   sns_time usec_time_for_measure;
   switch(device_select)
   {
-#ifdef AK0991X_TARGET_AK09918
   case AK09918:
     usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
     break;
-#endif //AK0991X_TARGET_AK09918
-#ifdef AK0991X_TARGET_AK09917
   case AK09917:
     if (sdr == 0)
     {
@@ -3073,18 +3036,12 @@ sns_rc ak0991x_get_meas_time( akm_device_type device_select,
       usec_time_for_measure = AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     }
     break;
-#endif //AK0991X_TARGET_AK09917
-#ifdef AK0991X_TARGET_AK09916C
   case AK09916C:
     usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
     break;
-#endif //AK0991X_TARGET_AK09916C
-#ifdef AK0991X_TARGET_AK09916D
   case AK09916D:
     usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
     break;
-#endif //AK0991X_TARGET_AK09916D
-#ifdef AK0991X_TARGET_AK09915C
   case AK09915C:
     if (sdr == 1)
     {
@@ -3095,8 +3052,6 @@ sns_rc ak0991x_get_meas_time( akm_device_type device_select,
       usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     }
     break;
-#endif //AK0991X_TARGET_AK09915C
-#ifdef AK0991X_TARGET_AK09915D
   case AK09915D:
     if (sdr == 1)
     {
@@ -3107,22 +3062,15 @@ sns_rc ak0991x_get_meas_time( akm_device_type device_select,
       usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     }
     break;
-#endif //AK0991X_TARGET_AK09915D
-#ifdef AK0991X_TARGET_AK09913
   case AK09913:
     usec_time_for_measure = AK09913_TIME_FOR_MEASURE_US;
     break;
-#endif //AK0991X_TARGET_AK09913
-#ifdef AK0991X_TARGET_AK09912
   case AK09912:
     usec_time_for_measure = AK09912_TIME_FOR_MEASURE_US;
     break;
-#endif //AK0991X_TARGET_AK09912
-#ifdef AK0991X_TARGET_AK09911
   case AK09911:
     usec_time_for_measure = AK09911_TIME_FOR_MEASURE_US;
     break;
-#endif //AK0991X_TARGET_AK09911
   default:
     return SNS_RC_FAILED;
   }

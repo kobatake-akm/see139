@@ -102,7 +102,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   switch (state->mag_info.device_select)
   {
-#if defined(AK0991X_TARGET_AK09911)
   case AK09911:
     state->mag_info.resolution = AK09911_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -111,8 +110,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09912)
   case AK09912:
     state->mag_info.resolution = AK09912_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -121,8 +118,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = 0;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09913)
   case AK09913:
     state->mag_info.resolution = AK09913_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -131,8 +126,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D)
   case AK09915C:
   case AK09915D:
     state->mag_info.resolution = AK09915_RESOLUTION;
@@ -142,8 +135,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09916C)
   case AK09916C:
     state->mag_info.resolution = AK09916_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -152,8 +143,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09916D)
   case AK09916D:
     state->mag_info.resolution = AK09916_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -162,8 +151,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09917)
   case AK09917:
     state->mag_info.resolution = AK09917_RESOLUTION;
     state->mag_info.use_fifo = sensor_state->use_fifo;
@@ -172,8 +159,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
     break;
-#endif
-#if defined(AK0991X_TARGET_AK09918)
   case AK09918:
     state->mag_info.resolution = AK09918_RESOLUTION;
     state->mag_info.use_fifo = false;
@@ -182,7 +167,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
-#endif
   default:
     return SNS_RC_FAILED;
   }

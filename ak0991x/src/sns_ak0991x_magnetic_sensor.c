@@ -22,9 +22,6 @@
 #include "sns_pb_util.h"
 #include "sns_attribute_util.h"
 #include "sns_printf.h"
-#ifdef AK0991X_ENABLE_SEE_LITE
-#include "sns_interrupt.pb.h"
-#endif
 /**
  * Initialize attributes to their default state.  They may/will be updated
  * within notify_event.
@@ -141,7 +138,6 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   AK0991X_PRINT(LOW, this, "registration_idx=%d",state->registration_idx);
 #endif // AK0991X_ENABLE_DUAL_SENSOR
 
-#ifndef AK0991X_ENABLE_SEE_LITE
   uint8_t i = 0;
 
   // initialize axis conversion settings
@@ -160,100 +156,6 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
     state->cal_params[j].corr_mat.e11 = 1.0;
     state->cal_params[j].corr_mat.e22 = 1.0;
   }
-
-#else
-  AK0991X_PRINT(LOW, this, "SEE-Lite Mode.");
-
-  state->is_dri = false;
-  state->use_fifo = false;
-  state->supports_sync_stream = false;
-  state->nsf = 0;
-  state->sdr = 0;
-
-#ifdef AK0991X_STATE_IS_DRI
-  state->is_dri = true;
-#endif // AK0991X_STATE_IS_DRI
-
-#ifdef AK0991X_STATE_USE_FIFO
-  state->use_fifo = true;
-#endif // AK0991X_STATE_USE_FIFO
-
-#ifdef AK0991X_STATE_SUPPORTS_SYNC_STREAM
-  state->supports_sync_stream = true;
-#endif // AK0991X_STATE_SUPPORTS_SYNC_STREAM
-
-  state->resolution_idx = 0;
-  state->hardware_id = 0;
-
-  state->com_port_info.com_config.bus_type = 0;           // I2C
-  state->com_port_info.com_config.bus_instance = 3;       // DragonBoard
-  state->com_port_info.com_config.slave_control = 12;     // Slave address:0x0C
-//  state->com_port_info.com_config.slave_control = 15;     // Slave address:0x0F
-  state->com_port_info.com_config.min_bus_speed_KHz = 400;// I2C speed
-  state->com_port_info.com_config.max_bus_speed_KHz = 400;// I2C speed
-  state->com_port_info.com_config.reg_addr_type = 0;      //
-#ifdef AK0991X_ENABLE_DRI
-  state->irq_config.interrupt_num = 134;                  // mag interrupt
-
-  state->irq_config.is_chip_pin = 1;                      //
-  state->irq_config.interrupt_drive_strength = SNS_INTERRUPT_DRIVE_STRENGTH_2_MILLI_AMP;
-#if defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09916D) || defined(AK0991X_TARGET_AK09917)
-  state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_PULL_UP;
-  state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_FALLING;
-#else
-  state->irq_config.interrupt_pull_type = SNS_INTERRUPT_PULL_TYPE_NO_PULL;
-  state->irq_config.interrupt_trigger_type = SNS_INTERRUPT_TRIGGER_TYPE_RISING;
-#endif //defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09916D) || defined(AK0991X_TARGET_AK09917)
-#endif //AK0991X_ENABLE_DRI
-
-  state->rail_config.num_of_rails = 1;
-  state->registry_rail_on_state = 1;
-  sns_strlcpy(state->rail_config.rails[0].name,
-      "/pmic/client/sensor_vddio",
-              sizeof(state->rail_config.rails[0].name));
-  sns_strlcpy(state->rail_config.rails[1].name,
-      "/pmic/client/sensor_vddio",
-              sizeof(state->rail_config.rails[1].name));
-
-  state->axis_map[0].ipaxis = TRIAXIS_X;
-  state->axis_map[0].opaxis = TRIAXIS_X;
-  state->axis_map[0].invert = false;
-  state->axis_map[1].ipaxis = TRIAXIS_Y;
-  state->axis_map[1].opaxis = TRIAXIS_Y;
-  state->axis_map[1].invert = false;
-  state->axis_map[2].ipaxis = TRIAXIS_Z;
-  state->axis_map[2].opaxis = TRIAXIS_Z;
-  state->axis_map[2].invert = false;
-
-  for(j = 0; j < MAX_DEVICE_MODE_SUPPORTED; j++)
-  {
-    state->cal_params[j].fac_cal_bias[0] = 0.0;
-    state->cal_params[j].fac_cal_bias[1] = 0.0;
-    state->cal_params[j].fac_cal_bias[2] = 0.0;
-
-    state->cal_params[j].corr_mat.e00 = 1.0;
-    state->cal_params[j].corr_mat.e01 = 0.0;
-    state->cal_params[j].corr_mat.e02 = 0.0;
-    state->cal_params[j].corr_mat.e10 = 0.0;
-    state->cal_params[j].corr_mat.e11 = 1.0;
-    state->cal_params[j].corr_mat.e12 = 0.0;
-    state->cal_params[j].corr_mat.e20 = 0.0;
-    state->cal_params[j].corr_mat.e21 = 0.0;
-    state->cal_params[j].corr_mat.e22 = 1.0;
-  }
-  state->placement[0] = 0.0;
-  state->placement[1] = 0.0;
-  state->placement[2] = 0.0;
-  state->placement[3] = 0.0;
-  state->placement[4] = 0.0;
-  state->placement[5] = 0.0;
-  state->placement[6] = 0.0;
-  state->placement[7] = 0.0;
-  state->placement[8] = 0.0;
-  state->placement[9] = 0.0;
-  state->placement[10] = 0.0;
-  state->placement[11] = 0.0;
-#endif // AK0991X_ENABLE_SEE_LITE
 
   SNS_SUID_LOOKUP_INIT(state->suid_lookup_data, NULL);
 #ifdef AK0991X_ENABLE_DAE
