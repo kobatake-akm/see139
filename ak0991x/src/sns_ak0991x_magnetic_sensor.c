@@ -28,7 +28,6 @@
  */
 static void ak0991x_publish_default_attributes(sns_sensor *const this)
 {
-#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   {
     sns_std_attr_value_data values[] = {SNS_ATTR};
@@ -55,7 +54,6 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
   }
-#endif //AK0991X_ENABLE_ALL_ATTRIBUTES
   {
     char const type[] = "mag";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -65,7 +63,6 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
   }
-#ifdef  AK0991X_ENABLE_ALL_ATTRIBUTES
   {
     char const vendor[] = "akm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
@@ -114,7 +111,6 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR_TESTS,
         values, ARR_SIZE(values), true);
   }
-#endif
 }
 
 
@@ -161,14 +157,10 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_DAE
   sns_suid_lookup_add(this, &state->suid_lookup_data, "data_acquisition_engine");
 #endif // AK0991X_ENABLE_DAE
-#ifdef AK0991X_ENABLE_DRI
   sns_suid_lookup_add(this, &state->suid_lookup_data, "interrupt");
   sns_suid_lookup_add(this, &state->suid_lookup_data, "async_com_port");
-#endif // AK0991X_ENABLE_DRI
   sns_suid_lookup_add(this, &state->suid_lookup_data, "timer");
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   sns_suid_lookup_add(this, &state->suid_lookup_data, "registry");
-#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   sns_suid_lookup_add(this, &state->suid_lookup_data, "device_mode");
 #endif
@@ -176,12 +168,10 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   return SNS_RC_SUCCESS;
 }
 
-#ifdef AK0991X_ENABLE_DEINIT
 /** See sns_sensor.h */
 sns_rc ak0991x_mag_deinit(sns_sensor *const this)
 {
   UNUSED_VAR(this);
   return SNS_RC_SUCCESS;
 }
-#endif // AK0991X_ENABLE_DEINIT
 

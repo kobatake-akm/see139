@@ -71,24 +71,6 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
-
-static void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
-{
-  uint32_t cal_id = 0;
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  for(int i = 0; i < MAX_DEVICE_MODE_SUPPORTED; ++i)
-  {
-    if(state->device_mode[i].mode == 0 &&
-       state->device_mode[i].state == 0)
-      break;
-    uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
-    cal_id += state_set*(uint32_t)powf(2, i);
-  }
-#endif
-  state->cal.id = cal_id;
-}
-
 static void ak0991x_inst_exit_island(sns_sensor_instance *this)
 {
   sns_service_manager *smgr = this->cb->get_service_manager(this);
@@ -97,7 +79,6 @@ static void ak0991x_inst_exit_island(sns_sensor_instance *this)
   island_svc->api->sensor_instance_island_exit(island_svc, this);
 }
 
-#ifdef AK0991X_ENABLE_FIFO
 static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                      void *user_arg)
 {
@@ -119,7 +100,6 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
     }
   }
 }
-#endif //AK0991X_ENABLE_FIFO
 
 static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 {
@@ -134,7 +114,6 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 
   if (state->mag_info.use_dri)
   {
-#ifdef AK0991X_ENABLE_DRI
     SNS_INST_PRINTF(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
                          state->heart_beat_attempt_count,
                          (uint32_t)state->req_payload.start_time,
@@ -164,7 +143,6 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
         }
       }
     }
-#endif // AK0991X_ENABLE_DRI
   }
   else
   {
@@ -213,7 +191,7 @@ static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 }
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-bool sns_device_mode_event_decode_cb(pb_istream_t *stream, const pb_field_t *field,
+static bool sns_device_mode_event_decode_cb(pb_istream_t *stream, const pb_field_t *field,
     void **arg)
 {
   UNUSED_VAR(field);
@@ -227,6 +205,21 @@ bool sns_device_mode_event_decode_cb(pb_istream_t *stream, const pb_field_t *fie
     state->device_mode_cnt++;
   }
   return true;
+}
+
+static void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
+{
+  uint32_t cal_id = 0;
+  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  for(int i = 0; i < MAX_DEVICE_MODE_SUPPORTED; ++i)
+  {
+    if(state->device_mode[i].mode == 0 &&
+       state->device_mode[i].state == 0)
+      break;
+    uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
+    cal_id += state_set*(uint32_t)powf(2, i);
+  }
+  state->cal.id = cal_id;
 }
 #endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
@@ -293,7 +286,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
   ak0991x_dae_if_process_events(this);
 
-#ifdef AK0991X_ENABLE_DRI
   // Handle interrupts
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
   if (NULL != state->interrupt_data_stream)
@@ -311,9 +303,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           if(!state->in_clock_error_procedure)
           {
-#ifdef AK0991X_ENABLE_FIFO
             if(state->ascp_xfer_in_progress == 0)
-#endif//AK0991X_ENABLE_FIFO
             {
               AK0991X_INST_PRINT(LOW, this, "   %u Detect interrupt.",(uint32_t)irq_event.timestamp);
 
@@ -328,7 +318,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                 ak0991x_read_mag_samples(this);
               }
             }
-#ifdef AK0991X_ENABLE_FIFO
             else
             {
               AK0991X_INST_PRINT(LOW, this, "   %u Detect interrupt. But ascp_xfer_in_progress=%d.",
@@ -336,7 +325,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                   state->ascp_xfer_in_progress);
               state->re_read_data_after_ascp = true;
             }
-#endif//AK0991X_ENABLE_FIFO
           }
           else
           {
@@ -373,9 +361,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
       }
     }
   }
-#endif // AK0991X_ENABLE_DRI
 
-#ifdef AK0991X_ENABLE_FIFO
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
@@ -425,7 +411,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->async_com_port_data_stream);
     }
   }
-#endif // AK0991X_ENABLE_FIFO
 
   // Handle timer event
   if (NULL != state->timer_data_stream)

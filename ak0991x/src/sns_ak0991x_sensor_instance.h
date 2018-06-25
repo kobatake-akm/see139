@@ -126,7 +126,6 @@ typedef enum
   AK0991X_CONFIG_UPDATING_HW        /** updating sensor HW, when done goes back to IDLE */
 } ak0991x_config_step;
 
-#ifdef AK0991X_ENABLE_S4S
 typedef enum
 {
   AK0991X_S4S_NOT_SYNCED,
@@ -134,7 +133,6 @@ typedef enum
   AK0991X_S4S_1ST_SYNCED,
   AK0991X_S4S_SYNCED
 } ak0991x_s4s_state;
-#endif // AK0991X_ENABLE_S4S
 
 typedef struct ak0991x_self_test_info
 {
@@ -168,19 +166,14 @@ typedef struct ak0991x_mag_info
   sns_sensor_uid suid;
   ak0991x_self_test_info test_info;
 
-#ifdef AK0991X_ENABLE_DRI
   uint32_t      data_count;
   uint32_t      clock_error_meas_count;
-#endif //AK0991X_ENABLE_DRI
 
-#ifdef AK0991X_ENABLE_S4S
   ak0991x_s4s_state      s4s_sync_state;
   uint8_t                s4s_rr;
   bool                   s4s_dt_abort;
-#endif // AK0991X_ENABLE_S4S
 } ak0991x_mag_info;
 
-#ifdef AK0991X_ENABLE_DRI
 typedef struct ak0991x_irq_info
 {
   sns_interrupt_req irq_config;
@@ -188,16 +181,13 @@ typedef struct ak0991x_irq_info
   bool is_ready;
   bool detect_irq_event;
 } ak0991x_irq_info;
-#endif //AK0991X_ENABLE_DRI
 
 typedef struct ak0991x_cal_param
 {
   bool registry_fac_cal_received;
   matrix3 corr_mat;
   float bias[TRIAXIS_NUM];
-#ifdef  AK0991X_ENABLE_REG_FAC_CAL
   uint32_t version;
-#endif //AK0991X_ENABLE_REG_FAC_CAL
 }ak0991x_cal_param;
 
 typedef struct ak0991x_cal
@@ -224,31 +214,23 @@ typedef struct ak0991x_instance_state
   uint8_t num_samples;
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
-#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool this_is_first_data;
-#endif //defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   bool data_over_run;
   bool data_is_ready;
   bool fifo_flush_in_progress;
   bool new_self_test_request;
-#ifdef AK0991X_ENABLE_FIFO
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
   bool config_mag_after_ascp_xfer;
   bool re_read_data_after_ascp;
-#endif //AK0991X_ENABLE_FIFO
   bool this_is_the_last_flush;
   bool reg_event_done;
-#ifdef AK0991X_ENABLE_S4S
   bool s4s_reg_event_done;
-#endif //AK0991X_ENABLE_S4S
-#ifdef AK0991X_ENABLE_DRI
   bool in_clock_error_procedure;
   bool previous_meas_is_irq;
   bool previous_meas_is_correct_wm;
   sns_time irq_event_time;
   sns_time previous_irq_time;
-#endif //AK0991X_ENABLE_DRI
   sns_time odr_change_timestamp;
   sns_time interrupt_timestamp;
   sns_time pre_timestamp;
@@ -266,19 +248,15 @@ typedef struct ak0991x_instance_state
   /** Timer info */
   sns_sensor_uid timer_suid;
 
-#ifdef AK0991X_ENABLE_DRI
   /** Interrupt dependency info. */
   ak0991x_irq_info irq_info;
-#endif //AK0991X_ENABLE_DRI
 
   /** COM port info */
   ak0991x_com_port_info com_port_info;
 
-#if defined(AK0991X_ENABLE_DRI) || defined(AK0991X_ENABLE_FIFO)
   /**--------Async Com Port--------*/
   ak0991x_async_com_port_info async_com_port_info;
   sns_async_com_port_config ascp_config;
-#endif // AK0991X_ENABLE_DRI || AK0991X_ENABLE_FIFO
 
   /**--------DAE interface---------*/
   ak0991x_dae_if_info       dae_if;
@@ -286,15 +264,9 @@ typedef struct ak0991x_instance_state
 
   /** Data streams from dependencies. */
   sns_data_stream       *timer_data_stream;
-#ifdef AK0991X_ENABLE_DRI
   sns_data_stream       *interrupt_data_stream;
-#endif // AK0991X_ENABLE_DRI
-#ifdef AK0991X_ENABLE_FIFO
   sns_data_stream       *async_com_port_data_stream;
-#endif // AK0991X_ENABLE_FIFO
-#ifdef AK0991X_ENABLE_S4S
   sns_data_stream       *s4s_timer_data_stream;
-#endif // AK0991X_ENABLE_S4S
 
   uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
@@ -315,10 +287,8 @@ typedef struct ak0991x_instance_state
 
   sns_diag_service *diag_service;
 
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
   sns_sync_com_port_service *scp_service;
   size_t           log_raw_encoded_size;
-#endif //AK0991X_ENABLE_DIAG_LOGGING
 
 } ak0991x_instance_state;
 
@@ -336,9 +306,7 @@ typedef struct sns_ak0991x_mag_req
   uint32_t flush_period;
   bool is_flush_only;
   uint32_t cal_id;
-#ifdef  AK0991X_ENABLE_REG_FAC_CAL
   uint32_t cal_version;
-#endif //AK0991X_ENABLE_REG_FAC_CAL
 } sns_ak0991x_mag_req;
 
 

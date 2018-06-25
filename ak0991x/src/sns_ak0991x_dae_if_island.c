@@ -46,7 +46,7 @@
 /*======================================================================================
   Helper Functions
   ======================================================================================*/
-#if defined(AK0991X_ENABLE_DAE) && defined(AK0991X_ENABLE_DRI) && defined(AK0991X_ENABLE_FIFO)
+#if defined(AK0991X_ENABLE_DAE)
 static void build_static_config_request(
   ak0991x_state             *sensor_state,
   sns_dae_set_static_config *config_req)
@@ -63,13 +63,11 @@ static void build_static_config_request(
   config_req->has_irq_config         = sensor_state->is_dri == 1;
   config_req->has_ibi_config         = sensor_state->is_dri == 2;
 #endif /* AK0991X_DAE_FORCE_POLLING */
-#ifdef AK0991X_ENABLE_DRI
   if(sensor_state->is_dri == 1)
   {
     config_req->irq_config           = sensor_state->irq_config;
   }
   else 
-#endif //AK0991X_ENABLE_DRI
   if(sensor_state->is_dri == 2)
   {
     config_req->ibi_config           =
@@ -77,12 +75,10 @@ static void build_static_config_request(
                    .bus_instance = sensor_state->com_port_info.com_config.bus_instance,
                    .ibi_data_bytes = 0, };
   }
-#ifdef AK0991X_ENABLE_S4S
   config_req->has_s4s_config         = state->mag_info.use_sync_stream;
   config_req->s4s_config.st_reg_addr = AKM_AK0991X_REG_SYT;
   config_req->s4s_config.st_reg_data = 0;
   config_req->s4s_config.dt_reg_addr = AKM_AK0991X_REG_DT;
-#endif // AK0991X_ENABLE_S4S
 
   sns_com_port_config const *com_config  = &sensor_state->com_port_info.com_config;
   sns_async_com_port_config *ascp_config = &config_req->ascp_config;
@@ -140,7 +136,6 @@ static bool send_mag_config(sns_sensor_instance *this)
   sns_time meas_usec;
   ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 
-#ifdef AK0991X_ENABLE_DRI
   AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x #clk_err=%u", 
                      dae_stream->stream, state->mag_info.clock_error_meas_count);
 
@@ -151,7 +146,6 @@ static bool send_mag_config(sns_sensor_instance *this)
                                     mag_info->cur_wmk : mag_info->max_fifo_size);
   }
   else
-#endif //AK0991X_ENABLE_DRI
   {
     config_req.dae_watermark = wm = 1;
   }
@@ -163,7 +157,6 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.has_polling_config  = !mag_info->use_dri;
   if( config_req.has_polling_config )
   {
-#ifdef AK0991X_ENABLE_S4S
     if (mag_info->use_sync_stream)
     {
       config_req.polling_config.polling_interval_ticks =
@@ -172,12 +165,9 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
     else
     {
-#endif // AK0991X_ENABLE_S4S
       config_req.polling_config.polling_interval_ticks = 
         ak0991x_get_sample_interval(state->mag_info.desired_odr);
-#ifdef AK0991X_ENABLE_S4S
     }
-#endif // AK0991X_ENABLE_S4S
     //TODO: it looks like the polling offset will not be adjusted for S4S. 
     //So it won't be synced with any other sensors
     config_req.polling_config.polling_offset =
@@ -204,7 +194,6 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
   }
 
-#ifdef AK0991X_ENABLE_S4S
   if(mag_info->use_sync_stream)
   {
     sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
@@ -237,8 +226,6 @@ static bool send_mag_config(sns_sensor_instance *this)
       }
     }
   }
-#endif // AK0991X_ENABLE_S4S
-
   return cmd_sent;
 }
 
@@ -475,7 +462,6 @@ static void process_response(
         }
       }
       break;
-#ifdef AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG:
       //The DAE environment will send the ST/DT messages to the HW automatically
       //without involvement of either the normal mag sensor driver,
@@ -486,7 +472,6 @@ static void process_response(
       //Send ST/DT command
       //ak0991x_s4s_handle_timer_event(this);
       break;
-#endif // AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
       AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG");
       if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
@@ -552,7 +537,6 @@ static void process_response(
         }
       }
       break;
-#ifdef AK0991X_ENABLE_S4S
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED:
       if(state->mag_info.use_sync_stream)
       {
@@ -561,7 +545,6 @@ static void process_response(
       state->mag_info.s4s_dt_abort = false;
       }
       break;
-#endif // AK0991X_ENABLE_S4S
 
     case SNS_DAE_MSGID_SNS_DAE_RESP:
     case SNS_DAE_MSGID_SNS_DAE_DATA_EVENT:
@@ -871,7 +854,7 @@ void ak0991x_dae_if_process_events(sns_sensor_instance *this)
   }
 }
 
-#else //defined(AK0991X_ENABLE_DAE) && defined(AK0991X_ENABLE_DRI) && defined(AK0991X_ENABLE_FIFO)
+#else //defined(AK0991X_ENABLE_DAE)
 
 bool ak0991x_dae_if_available(sns_sensor_instance *this)
 {
@@ -936,5 +919,5 @@ void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 {
   UNUSED_VAR(this);
 }
-#endif //defined(AK0991X_ENABLE_DAE) && defined(AK0991X_ENABLE_DRI) && defined(AK0991X_ENABLE_FIFO)
+#endif //defined(AK0991X_ENABLE_DAE)
 

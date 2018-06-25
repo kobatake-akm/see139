@@ -30,7 +30,6 @@
 
 sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
 {
-#ifdef AK0991X_ENABLE_S4S
   ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
   sns_rc  rv = SNS_RC_SUCCESS;
 
@@ -75,16 +74,11 @@ sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
   }
 
   return rv;
-#else // AK0991X_ENABLE_S4S
-  UNUSED_VAR(this);
-  return SNS_RC_SUCCESS;
-#endif  // AK0991X_ENABLE_S4S
 }
 
 void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
                                    sns_std_sensor_physical_config_event *phy_sensor_config)
 {
-#ifdef AK0991X_ENABLE_S4S
   ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
 
   switch (state->mag_info.device_select)
@@ -138,17 +132,11 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
   default:
     break;
   }
-#else // AK0991X_ENABLE_S4S
-  UNUSED_VAR(this);
-  phy_sensor_config->has_stream_is_synchronous = false;
-  phy_sensor_config->stream_is_synchronous = false;
-#endif // AK0991X_ENABLE_S4S
 }
 
 void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
                            sns_sensor_state const *sstate)
 {
-#ifdef AK0991X_ENABLE_S4S
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_state *sensor_state = (ak0991x_state *)sstate->state;
 
@@ -192,27 +180,16 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
 
   /** Initialize Timer info to be used by the Instance */
   state->s4s_timer_data_stream = NULL;
-
-#else // AK0991X_ENABLE_S4S
-  UNUSED_VAR(this);
-  UNUSED_VAR(sstate);
-#endif // AK0991X_ENABLE_S4S
 }
 
 void ak0991x_s4s_inst_deinit(sns_sensor_instance *const this)
 {
-#ifdef AK0991X_ENABLE_S4S
   ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
-
   sns_sensor_util_remove_sensor_instance_stream(this,&state->s4s_timer_data_stream);
-#else // AK0991X_ENABLE_S4S
-  UNUSED_VAR(this);
-#endif // AK0991X_ENABLE_S4S
 }
 
 void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
 {
-#ifdef AK0991X_ENABLE_S4S
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
@@ -277,14 +254,10 @@ void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
       state->s4s_timer_data_stream = NULL;
     }
   }
-#else // AK0991X_ENABLE_S4S
-  UNUSED_VAR(this);
-#endif // AK0991X_ENABLE_S4S
 }
 
 sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
 {
-#ifdef AK0991X_ENABLE_S4S
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
@@ -394,15 +367,10 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   }
 
   return rv;
-#else // AK0991X_ENABLE_S4S
-  UNUSED_VAR(instance);
-  return SNS_RC_SUCCESS;
-#endif // AK0991X_ENABLE_S4S
 }
 
 void ak0991x_s4s_handle_timer_data_stream(sns_sensor_instance *const this)
 {
-#ifdef AK0991X_ENABLE_S4S
   ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
   sns_sensor_event    *event;
 
@@ -452,9 +420,6 @@ void ak0991x_s4s_handle_timer_data_stream(sns_sensor_instance *const this)
       event = state->s4s_timer_data_stream->api->get_next_input(state->s4s_timer_data_stream);
     }
   }
-#else // AK0991X_ENABLE_S4S
-  UNUSED_VAR(this);
-#endif // AK0991X_ENABLE_S4S
 }
 
 
