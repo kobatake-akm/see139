@@ -235,6 +235,7 @@ static void ak0991x_get_mag_config(
                                    float *chosen_report_rate,
                                    uint32_t *chosen_flush_period,
                                    bool *is_flush_only,
+                                   bool *is_max_batch,
                                    bool *sensor_client_present)
 {
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
@@ -250,6 +251,7 @@ static void ak0991x_get_mag_config(
   *chosen_sample_rate = 0;
   *chosen_flush_period = 0;
   *is_flush_only = true;
+  *is_max_batch = true;
   *sensor_client_present = false;
 
   /** Parse through existing requests and get fastest sample
@@ -272,7 +274,7 @@ static void ak0991x_get_mag_config(
         uint32_t flush_period;
 
         *is_flush_only &= decoded_request.batching.flush_only;
-
+        *is_max_batch  &= decoded_request.batching.has_max_batch && decoded_request.batching.max_batch;
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
 
@@ -291,6 +293,7 @@ static void ak0991x_get_mag_config(
           }
           else
           {
+            report_rate = decoded_payload.sample_rate;
             flush_period = UINT32_MAX;
           }
         }
@@ -318,7 +321,8 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
                                         uint32_t chosen_cal_id,
                                         uint32_t cal_version,
                                         uint32_t chosen_flush_period,
-                                        bool is_flush_only)
+                                        bool is_flush_only,
+                                        bool is_max_batch)
 {
   sns_ak0991x_mag_req new_client_config;
   sns_request config;
@@ -329,6 +333,7 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
   new_client_config.cal_id = chosen_cal_id;
   new_client_config.cal_version = cal_version;
   new_client_config.is_flush_only = is_flush_only;
+  new_client_config.is_max_batch = is_max_batch;
 
   config.message_id = SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG;
   config.request_len = sizeof(sns_ak0991x_mag_req);
@@ -357,6 +362,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   float chosen_report_rate = 0;
   uint32_t chosen_flush_period = 0;
   bool is_flush_only = false;
+  bool is_max_batch = false;
   bool m_sensor_client_present;
   uint32_t cal_id = 0;
   uint32_t version = 0;
@@ -373,6 +379,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                          &chosen_report_rate,
                          &chosen_flush_period,
                          &is_flush_only,
+                         &is_max_batch,
                          &m_sensor_client_present);
 
   if(chosen_report_rate == chosen_sample_rate)
@@ -385,9 +392,9 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
     chosen_report_rate = chosen_sample_rate;
   }
 
-  AK0991X_PRINT(LOW, this, "RR=%u/100 SR=%u/100 fl_per=%u", 
-                (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
-                chosen_flush_period);
+  AK0991X_PRINT(LOW, this, "RR=%u/100 SR=%u/100 fl_per=%u, fl_only=%u, max_batch=%u",
+                  (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
+                  chosen_flush_period,is_flush_only?1:0, is_max_batch?1:0 );
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   cal_id = inst_state->cal.id;
@@ -424,7 +431,8 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                               inst_state->cal.id,
                               version,
                               chosen_flush_period,
-                              is_flush_only);
+                              is_flush_only,
+                              is_max_batch);
 }
 
 static sns_rc ak0991x_register_com_port(sns_sensor *const this)
@@ -665,6 +673,7 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
   return rv;
 }
 
+#ifndef AK0991X_ENABLE_I3C_TEST
 static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                                   sns_sensor_event *event)
 {
@@ -1028,6 +1037,80 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                              event->message_id);
   }
 }
+#else
+sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
+{
+  AK0991X_PRINT(LOW, this, "ak0991x_set_default_registry_cfg");
+
+  sns_rc rv = SNS_RC_SUCCESS;
+  ak0991x_state *state = (ak0991x_state *)this->state->state;
+  uint8_t i;
+
+  state->is_dri = 1;
+  state->hardware_id = 0;
+  state->resolution_idx = 0;
+  state->supports_sync_stream = false;
+
+  state->use_fifo = true;
+  state->nsf = 0;
+  state->sdr = 0;
+
+  state->com_port_info.com_config.bus_instance = I2C_BUS_INSTANCE;
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
+  state->com_port_info.com_config.bus_type = BUS_TYPE;
+  state->com_port_info.com_config.slave_control =
+    BUS_TYPE == SNS_BUS_I3C_SDR ? I3C_ADDR : SLAVE_ADDRESS;
+#else
+  state->com_port_info.com_config.bus_type = SNS_BUS_I2C;
+  state->com_port_info.com_config.slave_control = SLAVE_ADDRESS;
+#endif
+  state->com_port_info.i2c_address = SLAVE_ADDRESS;
+  state->com_port_info.i3c_address = I3C_ADDR;
+  state->com_port_info.com_config.min_bus_speed_KHz = BUS_FREQ_MIN;
+  state->com_port_info.com_config.max_bus_speed_KHz = BUS_FREQ_MAX;
+  state->com_port_info.com_config.reg_addr_type = SNS_REG_ADDR_8_BIT;
+  state->irq_config.interrupt_num = IRQ_NUM;
+  state->irq_config.interrupt_pull_type = 3;
+  state->irq_config.is_chip_pin = 1;
+  state->irq_config.interrupt_drive_strength = 0;
+  state->irq_config.interrupt_trigger_type = 1;
+  state->rail_config.num_of_rails = NUM_OF_RAILS;
+  state->registry_rail_on_state = 1;
+  sns_strlcpy(state->rail_config.rails[0].name, RAIL_1, sizeof(RAIL_1));
+  sns_strlcpy(state->rail_config.rails[1].name, RAIL_2, sizeof(RAIL_2));
+
+  state->registry_placement_received = true;
+  sns_memset(state->placement, 0, sizeof(state->placement));
+
+  state->axis_map[0] = (triaxis_conversion)
+    { .ipaxis = TRIAXIS_X,
+      .opaxis = TRIAXIS_X,
+      .invert = false, };
+  state->axis_map[1] = (triaxis_conversion)
+    { .ipaxis = TRIAXIS_Y,
+      .opaxis = TRIAXIS_Y,
+      .invert = false, };
+  state->axis_map[2] = (triaxis_conversion)
+    { .ipaxis = TRIAXIS_Z,
+      .opaxis = TRIAXIS_Z,
+      .invert = false, };
+
+  for (i = 0; i < MAX_DEVICE_MODE_SUPPORTED; i++)
+  {
+    state->cal_params[i].registry_fac_cal_received = true;
+    state->cal_params[i].corr_mat.e00 = 1;
+    state->cal_params[i].corr_mat.e11 = 1;
+    state->cal_params[i].corr_mat.e22 = 1;
+    state->cal_params[i].bias[0] =
+      state->cal_params[i].bias[1] =
+      state->cal_params[i].bias[2] = 0;
+  }
+
+  ak0991x_publish_hw_attributes(this, state->device_select);
+
+  return rv;
+}
+#endif //AK0991X_ENABLE_I3C_TEST
 
 /**
  * Publish attributes read from registry
@@ -1837,7 +1920,16 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
     }
   }
 
+#ifndef AK0991X_ENABLE_I3C_TEST
   rv = ak0991x_process_registry_events(this);
+#else
+  ak0991x_set_default_registry_cfg(this);
+  rv = ak0991x_register_com_port(this);
+  if(rv == SNS_RC_SUCCESS)
+  {
+    ak0991x_register_power_rails(this);
+  }
+#endif // AK0991X_ENABLE_I3C_TEST
 
   if(rv == SNS_RC_SUCCESS)
   {

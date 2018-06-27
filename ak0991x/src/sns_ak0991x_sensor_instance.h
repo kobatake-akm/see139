@@ -160,6 +160,7 @@ typedef struct ak0991x_mag_info
   uint8_t        use_dri; // 0: polling.  1:DRI.   2:IBI.
   bool           use_fifo;
   bool           flush_only;
+  bool           max_batch;
   bool           use_sync_stream;
   uint8_t        nsf;
   uint8_t        sdr;
@@ -305,6 +306,7 @@ typedef struct sns_ak0991x_mag_req
   float report_rate;
   uint32_t flush_period;
   bool is_flush_only;
+  bool is_max_batch;
   uint32_t cal_id;
   uint32_t cal_version;
 } sns_ak0991x_mag_req;

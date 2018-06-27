@@ -60,6 +60,22 @@
 #define AK0991X_MAG_CONFIG_STR          ".mag.config"
 #define AK0991X_REG_CONFIG_STR          ".mag.config_2"
 
+#ifdef AK0991X_ENABLE_I3C_TEST
+/** TODO Using SDM855 Platform config as defaults. This is for
+ *  test purpose only. All platform specific information will
+ *  be available to the Sensor driver via Registry. */
+#define BUS_TYPE                   SNS_BUS_I3C_SDR
+#define RAIL_1                     "/pmic/client/sensor_vddio"
+#define RAIL_2                     "/pmic/client/sensor_vdd"
+#define IRQ_NUM                    134
+#define NUM_OF_RAILS               1
+#define BUS_FREQ_MIN               400
+#define BUS_FREQ_MAX               12500
+#define SLAVE_ADDRESS              0x0C
+#define I3C_ADDR                   20    //Dynamic address
+#define I2C_BUS_INSTANCE           0x01
+#endif //AK0991X_ENABLE_I3C_TEST
+
 /** Forward Declaration of Magnetic Sensor API */
 extern sns_sensor_api ak0991x_mag_sensor_api;
 

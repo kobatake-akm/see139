@@ -922,9 +922,16 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   // QC - is it not possible to miss any of the interrupts during dummy measurement?
   if(state->mag_info.use_dri && !state->in_clock_error_procedure)
   {
-    AK0991X_INST_PRINT(HIGH, this, "register heart beat timer for DRI");
-    ak0991x_set_timer_request_payload(this);
-    ak0991x_register_heart_beat_timer(this);
+    if (state->mag_info.req_wmk == UINT32_MAX)
+    {
+      sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+    }
+    else
+    {
+      AK0991X_INST_PRINT(HIGH, this, "register heart beat timer for DRI");
+      ak0991x_set_timer_request_payload(this);
+      ak0991x_register_heart_beat_timer(this);
+    }
   }
   return SNS_RC_SUCCESS;
 }
@@ -2857,17 +2864,19 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
 void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-  state->req_payload.start_time = state->system_time;
-  state->hb_timer_fire_time = state->req_payload.start_time + state->req_payload.timeout_period;
 
-  if (SNS_RC_SUCCESS != ak0991x_send_timer_request(this))
+  if ( state->mag_info.req_wmk != UINT32_MAX )
   {
-    AK0991X_INST_PRINT(LOW, this, "Failed send timer request");
+    state->req_payload.start_time = state->system_time;
+    state->hb_timer_fire_time = state->req_payload.start_time + state->req_payload.timeout_period;
+    if (SNS_RC_SUCCESS != ak0991x_send_timer_request(this))
+    {
+      AK0991X_INST_PRINT(LOW, this, "Failed send timer request");
+    }
+
+    AK0991X_INST_PRINT(LOW, this, "hb_timer start %u fire %u period %u",
+        (uint32_t)state->req_payload.start_time, (uint32_t)state->hb_timer_fire_time, (uint32_t)state->req_payload.timeout_period);
   }
-
-  AK0991X_INST_PRINT(LOW, this, "hb_timer start %u fire %u period %u",
-      (uint32_t)state->req_payload.start_time, (uint32_t)state->hb_timer_fire_time, (uint32_t)state->req_payload.timeout_period);
-
 }
 
 void ak0991x_register_timer(sns_sensor_instance *const this)

@@ -151,8 +151,17 @@ static bool send_mag_config(sns_sensor_instance *this)
   }
 
   config_req.has_data_age_limit_ticks = true;
-  config_req.data_age_limit_ticks =
-    sns_convert_ns_to_ticks((uint64_t)mag_info->flush_period*1000ULL);
+
+  if (mag_info->max_batch )
+  {
+     config_req.data_age_limit_ticks = UINT64_MAX;
+  }
+  else
+  {
+    config_req.data_age_limit_ticks =
+      sns_convert_ns_to_ticks((uint64_t)mag_info->flush_period*1000ULL);
+    config_req.data_age_limit_ticks += config_req.data_age_limit_ticks / 10;
+  }
 
   config_req.has_polling_config  = !mag_info->use_dri;
   if( config_req.has_polling_config )
@@ -178,7 +187,11 @@ static bool send_mag_config(sns_sensor_instance *this)
 
   config_req.has_expected_get_data_bytes = true;
   config_req.expected_get_data_bytes = 
-    wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
+      (wm+1) * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
+
+    AK0991X_INST_PRINT(HIGH, this, "dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
+                       config_req.dae_watermark, (uint32_t)(config_req.data_age_limit_ticks>>32),(uint32_t)(config_req.data_age_limit_ticks &0xFFFFFFFF),
+                        wm, config_req.expected_get_data_bytes);
 
   if((req.request_len =
       pb_encode_request(encoded_msg,
