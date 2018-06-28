@@ -539,6 +539,7 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
   }
 }
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
                                                  char *reg_group_name)
 {
@@ -672,7 +673,6 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
   return rv;
 }
 
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                                   sns_sensor_event *event)
 {
@@ -1109,7 +1109,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
 
   return rv;
 }
-#endif //AK0991X_ENABLE_REGISTRY_ACCESS
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
 /**
  * Publish attributes read from registry
@@ -1118,6 +1118,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
  *
  * @return none
  */
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static void
 ak0991x_publish_registry_attributes(sns_sensor *const this)
 {
@@ -1213,6 +1214,7 @@ static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
   }
   return rv;
 }
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
 static void
 ak0991x_sensor_publish_available(sns_sensor *const this)
@@ -1803,7 +1805,9 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             AK0991X_PRINT(LOW,this,"Request for resetting cal data.");
             ak0991x_reset_cal_data(instance);
             ak0991x_update_sensor_state(this, instance);
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
             ak0991x_update_registry(this, instance);
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
             ak0991x_send_cal_event(instance);
           }
 
@@ -2203,6 +2207,7 @@ void ak0991x_update_registry(sns_sensor *const this,
     state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
   }
 }
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
 void ak0991x_update_sensor_state(sns_sensor *const this,
         sns_sensor_instance *const instance)
@@ -2236,5 +2241,4 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
     }
   }
 }
-#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 

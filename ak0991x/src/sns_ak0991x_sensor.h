@@ -64,6 +64,18 @@
 /** TODO Using SDM855 Platform config as defaults. This is for
  *  test purpose only. All platform specific information will
  *  be available to the Sensor driver via Registry. */
+#ifdef AK0991X_BOARD_HDK845
+#define BUS_TYPE                   SNS_BUS_I2C
+#define RAIL_1                     "/pmic/client/sensor_vddio"
+#define RAIL_2                     "/pmic/client/sensor_vdd"
+#define IRQ_NUM                    119
+#define NUM_OF_RAILS               1
+#define BUS_FREQ_MIN               400
+#define BUS_FREQ_MAX               400
+#define SLAVE_ADDRESS              0x0C
+#define I3C_ADDR                   20    //Dynamic address
+#define I2C_BUS_INSTANCE           0x01
+#else
 #define BUS_TYPE                   SNS_BUS_I3C_SDR
 #define RAIL_1                     "/pmic/client/sensor_vddio"
 #define RAIL_2                     "/pmic/client/sensor_vdd"
@@ -74,6 +86,7 @@
 #define SLAVE_ADDRESS              0x0C
 #define I3C_ADDR                   20    //Dynamic address
 #define I2C_BUS_INSTANCE           0x01
+#endif // AK0991X_BOARD_HDK845
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /** Forward Declaration of Magnetic Sensor API */
