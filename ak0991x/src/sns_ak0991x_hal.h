@@ -20,10 +20,8 @@
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_sensor.h"
 #include "sns_sensor_uid.h"
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
 #include "sns_diag.pb.h"
 #include "sns_std.pb.h"
-#endif
 #include "sns_std_sensor.pb.h"
 #include "sns_registry_util.h"
 
@@ -149,11 +147,9 @@
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  7200 //us (TYP)
 #define AK09918_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 
-#ifdef AK0991X_ENABLE_S4S
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
 #define AK0991X_S4S_RR                              1
-#endif // AK0991X_ENABLE_S4S
 
 /** Limit of factory shipment test */
 #define TLIMIT_NO_READ_ID                           0x001
@@ -194,7 +190,6 @@
 #define TLIMIT_HI_SLF_ST2                           0
 #define TLIMIT_ST2_MASK                             (0x08)
 
-#if !defined(AK0991X_ENABLE_SEE_LITE)
 /*******************************
 * AK09918 dependent value
 */
@@ -265,80 +260,6 @@
 #define TLIMIT_LO_SLF_RVHZ_AK09911                  -400
 #define TLIMIT_HI_SLF_RVHZ_AK09911                  -50
 
-#elif     defined(AK0991X_TARGET_AK09911)
-#define TLIMIT_LO_SLF_RVHX                          -30
-#define TLIMIT_HI_SLF_RVHX                          30
-#define TLIMIT_LO_SLF_RVHY                          -30
-#define TLIMIT_HI_SLF_RVHY                          30
-#define TLIMIT_LO_SLF_RVHZ                          -400
-#define TLIMIT_HI_SLF_RVHZ                          -50
-
-#elif   defined(AK0991X_TARGET_AK09912)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1600
-#define TLIMIT_HI_SLF_RVHZ                          -400
-
-#elif   defined(AK0991X_TARGET_AK09913)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09915C)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -800
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09915D)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -800
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09916C)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09916D)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -200
-
-#elif   defined(AK0991X_TARGET_AK09917)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -150
-
-#elif   defined(AK0991X_TARGET_AK09918)
-#define TLIMIT_LO_SLF_RVHX                          -200
-#define TLIMIT_HI_SLF_RVHX                          200
-#define TLIMIT_LO_SLF_RVHY                          -200
-#define TLIMIT_HI_SLF_RVHY                          200
-#define TLIMIT_LO_SLF_RVHZ                          -1000
-#define TLIMIT_HI_SLF_RVHZ                          -150
-
-#endif // AK0991X_ENABLE_SEE_LITE
-
 /*******************************
  * Number of axes in a 3 axis sensor
  */
@@ -356,7 +277,6 @@
 #define AK0991X_CALC_BIT_ERROR                      40
 #endif
 
-#ifdef AK0991X_ENABLE_DIAG_LOGGING
 /*******************************
  * Log structure definition
  */
@@ -397,12 +317,6 @@ typedef struct
   /* Data status.*/
   sns_std_sensor_sample_status status;
 } ak0991x_batch_sample;
-#else
-typedef struct log_sensor_state_raw_info
-{
-  // enmpty
-} log_sensor_state_raw_info;
-#endif
 
 /******************* Function Declarations ***********************************/
 /**
@@ -712,7 +626,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *instance,
  */
 void ak0991x_run_self_test(sns_sensor_instance *instance);
 
-#ifdef AK0991X_ENABLE_DRI
 /**
  * Clock error procedure for DRI mode.
  *
@@ -723,7 +636,6 @@ void ak0991x_run_self_test(sns_sensor_instance *instance);
  */
 void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance,
                                         uint8_t const *st1_buf);
-#endif // AK0991X_ENABLE_DRI
 
 /**
  * Continues processing client config request
@@ -746,7 +658,6 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
  */
 void ak0991x_send_cal_event(sns_sensor_instance * const instance);
 
-#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 /**
  * Reset Calibration values
  *
@@ -754,9 +665,4 @@ void ak0991x_send_cal_event(sns_sensor_instance * const instance);
  * @return none
  */
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
-
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-uint32_t ak0991x_device_mode2cal_id(sns_sensor_instance *const instance);
-#endif
 

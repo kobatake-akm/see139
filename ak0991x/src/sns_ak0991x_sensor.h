@@ -52,7 +52,6 @@
   }
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
-//#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 #define AK0991X_STR                     "ak0991x_"
 #define AK0991X_PLATFORM_CONFIG_STR     "_platform.config"
 #define AK0991X_PLATFORM_PLACEMENT_STR  "_platform.placement"
@@ -60,9 +59,8 @@
 #define AK0991X_PLATFORM_FACCAL_STR     "_platform.mag.fac_cal"
 #define AK0991X_MAG_CONFIG_STR          ".mag.config"
 #define AK0991X_REG_CONFIG_STR          ".mag.config_2"
-//#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
-#ifndef AK0991X_ENABLE_REGISTRY_ACCESS
+#ifdef AK0991X_ENABLE_I3C_TEST
 /** TODO Using SDM855 Platform config as defaults. This is for
  *  test purpose only. All platform specific information will
  *  be available to the Sensor driver via Registry. */
@@ -76,7 +74,7 @@
 #define SLAVE_ADDRESS              0x0C
 #define I3C_ADDR                   20    //Dynamic address
 #define I2C_BUS_INSTANCE           0x01
-#endif //AK0991X_ENABLE_REGISTRY_ACCESS
+#endif //AK0991X_ENABLE_I3C_TEST
 
 /** Forward Declaration of Magnetic Sensor API */
 extern sns_sensor_api ak0991x_mag_sensor_api;
@@ -155,21 +153,15 @@ typedef enum
   AK0991X_POWER_RAIL_PENDING_OFF,
 } ak0991x_power_rail_pending_state;
 
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 /** Registry items supported as part of physical sensor
  *  configuraton registry group
  */
-#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
 typedef struct ak0991x_registry_phy_sensor_cfg
 {
-#ifdef AK0991X_ENABLE_FIFO
   bool    use_fifo;
-#endif //AK0991X_ENABLE_FIFO
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
-#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
-#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /** Interrupt Sensor State. */
 
@@ -183,9 +175,7 @@ typedef struct ak0991x_state
   SNS_SUID_LOOKUP_DATA(6) suid_lookup_data;
 
   ak0991x_com_port_info com_port_info;
-#ifdef AK0991X_ENABLE_DRI
   sns_interrupt_req      irq_config;
-#endif //AK0991X_ENABLE_DRI
   sns_pwr_rail_service  *pwr_rail_service;
   sns_rail_config       rail_config;
   sns_power_rail_state  registry_rail_on_state;
@@ -212,29 +202,23 @@ typedef struct ak0991x_state
   uint32_t registration_idx;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
-#if defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   // registry sensor reg config
   bool registry_reg_cfg_received;
   ak0991x_registry_phy_sensor_cfg registry_reg_cfg;
-#endif //defined(AK0991X_TARGET_AK09912) || defined(AK0991X_TARGET_AK09915C) || defined(AK0991X_TARGET_AK09915D) || defined(AK0991X_TARGET_AK09917)
   // registry sensor platform config
   bool registry_pf_cfg_received;
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
   // axis conversion
   bool registry_orient_received;
-#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
   // factory calibration
-  ak0991x_cal_param cal_parameter[MAX_DEVICE_MODE_SUPPORTED];
-#ifdef AK0991X_ENABLE_REG_FAC_CAL
-  uint32_t                fac_cal_version;
-#endif //AK0991X_ENABLE_REG_FAC_CAL
+  ak0991x_cal_param cal_params[MAX_DEVICE_MODE_SUPPORTED];
+
 
   // placement
   bool                    registry_placement_received;
@@ -289,20 +273,16 @@ void ak0991x_mag_init_attributes(sns_sensor *const this,
 
 
 sns_rc ak0991x_mag_init(sns_sensor *const this);
-#ifdef AK0991X_ENABLE_DEINIT
 sns_rc ak0991x_mag_deinit(sns_sensor *const this);
-#endif //AK0991X_ENABLE_DEINIT
 
 sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
                              float *chosen_sample_rate,
                              ak0991x_mag_odr *chosen_reg_value,
                              akm_device_type device_select);
 
-#ifdef AK0991X_ENABLE_REG_WRITE_ACCESS
 void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance);
 
 void ak0991x_update_sensor_state(sns_sensor *const this,
         sns_sensor_instance *const instance);
-#endif //AK0991X_ENABLE_REG_WRITE_ACCESS
 
