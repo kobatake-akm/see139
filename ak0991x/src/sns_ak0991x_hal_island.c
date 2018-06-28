@@ -2278,7 +2278,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  uint8_t buffer[AK0991X_MAX_FIFO_SIZE];
+  uint8_t buffer[AK0991X_MAX_PHYSICAL_FIFO_SIZE*AK0991X_NUM_DATA_HXL_TO_ST2];// Sometimes, mag is taking scp path with number of samples 32
 
   // FIFO mode
   if(state->mag_info.use_fifo)

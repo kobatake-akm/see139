@@ -4,7 +4,7 @@
  *
  * Hardware Access Layer functions.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
@@ -118,6 +118,7 @@
 #define AK09918_FIFO_SIZE                           0
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2
+#define AK0991X_MAX_PHYSICAL_FIFO_SIZE              32 // Physical mag senosr allows maximum upto 32 samples
 
 /** Off to idle time */
 #define AK0991X_OFF_TO_IDLE_MS                      100 //ms
