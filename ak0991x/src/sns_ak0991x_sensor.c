@@ -293,13 +293,12 @@ static void ak0991x_get_mag_config(
           }
           else
           {
-            report_rate = decoded_payload.sample_rate;
             flush_period = UINT32_MAX;
           }
         }
         else
         {
-          report_rate = *chosen_sample_rate;
+          report_rate = decoded_payload.sample_rate;
           flush_period = UINT32_MAX;
         }
 
@@ -673,7 +672,7 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
   return rv;
 }
 
-#ifndef AK0991X_ENABLE_I3C_TEST
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                                                   sns_sensor_event *event)
 {
@@ -1110,7 +1109,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
 
   return rv;
 }
-#endif //AK0991X_ENABLE_I3C_TEST
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /**
  * Publish attributes read from registry
@@ -1734,6 +1733,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       sns_time on_timestamp;
       sns_time delta;
       state->rail_config.rail_vote = state->registry_rail_on_state;
+
       state->pwr_rail_service->api->sns_vote_power_rail_update(
         state->pwr_rail_service,
         this,
@@ -1905,6 +1905,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         }
       }
     }
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
     sns_sensor_uid reg_suid;
     if (sns_suid_lookup_get(&state->suid_lookup_data, "registry", &reg_suid))
     {
@@ -1913,6 +1914,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
         ak0991x_request_registry(this);
       }
     }
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
     if(sns_suid_lookup_complete(&state->suid_lookup_data))
     {
@@ -1920,7 +1922,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
     }
   }
 
-#ifndef AK0991X_ENABLE_I3C_TEST
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   rv = ak0991x_process_registry_events(this);
 #else
   ak0991x_set_default_registry_cfg(this);
@@ -1929,7 +1931,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   {
     ak0991x_register_power_rails(this);
   }
-#endif // AK0991X_ENABLE_I3C_TEST
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
   if(rv == SNS_RC_SUCCESS)
   {
@@ -2027,6 +2029,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   return SNS_RC_SUCCESS;
 }
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static bool
 ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s const *field,
     void *const *arg)
@@ -2233,4 +2236,5 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
     }
   }
 }
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 

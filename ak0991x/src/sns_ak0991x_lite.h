@@ -26,7 +26,6 @@
 #define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 //#define AK0991X_ENABLE_DAE                // Enable DAE
 //#define AK0991X_ENABLE_I3C_SUPPORT        // Enable support for I3C bus
-//#define AK0991X_ENABLE_I3C_TEST           //
 //#define AK0991X_ENABLE_I3C_DEBUG
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 #define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor

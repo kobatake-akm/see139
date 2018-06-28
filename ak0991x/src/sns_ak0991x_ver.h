@@ -26,7 +26,8 @@
  * 06/24/18     020009     AKM              Removed macros for SEE_LIET mode
  * 06/22/18                AKM              Refactor for the device_mode.
  * 06/20/18     020008     AKM/Qualcomm     Sometimes, mag is taking scp path with number of samples 32. 
- *                                          Changed local buffer size according to physical senosor Debugged mul-function when the AK0991X_FORCE_MAX_ODR_50HZ is set.
+ *                                          Changed local buffer size according to physical senosor
+ *                                          Debugged mul-function when the AK0991X_FORCE_MAX_ODR_50HZ is set.
  *                                          Fixed watermark calculation for max batch
  *                                          Fixed flush only request handling
  *                                          Fixed wrong report rate calculation

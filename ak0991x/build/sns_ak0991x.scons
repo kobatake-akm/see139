@@ -5,18 +5,12 @@
 # GENERAL DESCRIPTION
 #    build script
 #
-# Copyright (c) 2016-2017 by Qualcomm Technologies, Inc.
-# Copyright (c) 2016-2017 by Asahi Kasei Microdevices
+# Copyright (c) 2016-2018 by Qualcomm Technologies, Inc.
+# Copyright (c) 2016-2018 by Asahi Kasei Microdevices
 # All Rights Reserved.
 #
 # Confidential and Proprietary - Qualcomm Technologies, Inc.
 # Confidential and Proprietary - Asahi Kasei Microdevices
-#
-#-------------------------------------------------------------------------------
-#
-#  $Id: //components/dev/ssc.slpi/3.0/maansyw.ssc.slpi.3.0.napali_08_24/sensors/ak0991x/build/sns_ak0991x.scons#1 $
-#  $DateTime: 2017/08/24 10:52:47 $
-#  $Change: 14178374 $
 #
 #===============================================================================
 Import('env')
@@ -24,25 +18,27 @@ import inspect
 
 ak0991x_island_enable = False
 
+if ('SSC_TARGET_HEXAGON_MDSP' in env['CPPDEFINES']):
+  Return()
+
 if 'SNS_ISLAND_INCLUDE_AK0991X' in env:
   ak0991x_island_enable = True
 
-if 'FORCE_ISLAND_DISABLE_AK0991X' in env:
-  ak0991x_island_enable = False
+if 'SNS_DISABLE_REGISTRY' not in env:
+  env.Append( CPPDEFINES = ['AK0991X_ENABLE_REGISTRY_ACCESS'])
 
-akm_cflags = [
-  '-Wno-sign-compare'
-  ]
+binlib= False
+#if('SENSORS_DD_DEV_FLAG' not in env):
+#  binlib= False
+#else:
+#  binlib= True
 
-header = 'sns_ak0991x.scons comments: '
-
+   
 if 'USES_SSC_STATIC_LIB_BUILDER' in env:
   if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):
-    print header + 'AddSSCSU'
     env.AddSSCSU(inspect.getfile(inspect.currentframe()),
-               register_func_name = "sns_register_ak0991x",
-               binary_lib = False,
-               cflags = akm_cflags,
-               add_island_files = ak0991x_island_enable,
-               diag_ssid = "MSG_SSID_SNS_SENSOR_EXT")
-
+                 register_func_name = "sns_register_ak0991x",
+                 binary_lib =binlib,
+                 cflags = ['-Wno-sign-compare'],
+                 add_island_files = ak0991x_island_enable,
+                 diag_ssid = "MSG_SSID_SNS_SENSOR_EXT")
