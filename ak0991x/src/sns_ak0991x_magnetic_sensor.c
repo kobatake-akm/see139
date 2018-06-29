@@ -160,7 +160,9 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   sns_suid_lookup_add(this, &state->suid_lookup_data, "interrupt");
   sns_suid_lookup_add(this, &state->suid_lookup_data, "async_com_port");
   sns_suid_lookup_add(this, &state->suid_lookup_data, "timer");
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   sns_suid_lookup_add(this, &state->suid_lookup_data, "registry");
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   sns_suid_lookup_add(this, &state->suid_lookup_data, "device_mode");
 #endif

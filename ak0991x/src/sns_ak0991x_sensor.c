@@ -1734,7 +1734,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     {
       sns_time on_timestamp;
       sns_time delta;
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
       state->rail_config.rail_vote = state->registry_rail_on_state;
+#else
+      state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
+#endif
 
       state->pwr_rail_service->api->sns_vote_power_rail_update(
         state->pwr_rail_service,
@@ -1951,7 +1955,11 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
      state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
   {
     sns_time timeticks;
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
     state->rail_config.rail_vote = state->registry_rail_on_state;
+#else
+    state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
+#endif
     state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                              this,
                                                              &state->rail_config,

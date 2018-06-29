@@ -662,6 +662,8 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
 
   ak0991x_enter_i3c_mode(this, com_port, scp_service);
 
+//  AK0991X_INST_PRINT(LOW, this, "ak0991x_com_write_wrapper before");
+
   buffer[0] = AK0991X_SOFT_RESET;
   rv = ak0991x_com_write_wrapper(this,
                                  scp_service,
@@ -671,6 +673,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                  1,
                                  &xfer_bytes,
                                  false);
+//  AK0991X_INST_PRINT(LOW, this, "ak0991x_com_write_wrapper after");
 
   if (xfer_bytes != 1)
   {
@@ -688,6 +691,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
 
   ak0991x_enter_i3c_mode(this, com_port, scp_service);
 
+//  AK0991X_INST_PRINT(LOW, this, "device_sw_reset done.");
   return SNS_RC_SUCCESS;
 }
 
@@ -1675,16 +1679,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
-
-  /*
-  AK0991X_INST_PRINT(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
-        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e00,
-        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e11,
-        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e22,
-        (uint32_t)state->mag_registry_cfg.fac_cal_bias[0],
-        (uint32_t)state->mag_registry_cfg.fac_cal_bias[1],
-        (uint32_t)state->mag_registry_cfg.fac_cal_bias[2]);
-   */
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
@@ -2957,7 +2951,17 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
 
   if(reset_device)
   {
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset before");
+    AK0991X_INST_PRINT(LOW, this, "type:       %d", (int)state->scp_service->service.type);
+    AK0991X_INST_PRINT(LOW, this, "I2C add:    %d", (int)state->com_port_info.i2c_address);
+    AK0991X_INST_PRINT(LOW, this, "BUS INST:   %d", (int)state->com_port_info.com_config.bus_instance);
+    AK0991X_INST_PRINT(LOW, this, "BUS TYPE:   %d", (int)state->com_port_info.com_config.bus_type);
+    AK0991X_INST_PRINT(LOW, this, "BUS MAX :   %d", (int)state->com_port_info.com_config.max_bus_speed_KHz);
+    AK0991X_INST_PRINT(LOW, this, "BUS MIN :   %d", (int)state->com_port_info.com_config.min_bus_speed_KHz);
+    AK0991X_INST_PRINT(LOW, this, "ADDR TYPE:  %d", (int)state->com_port_info.com_config.reg_addr_type);
+    AK0991X_INST_PRINT(LOW, this, "SLAVE CNT:  %d", (int)state->com_port_info.com_config.slave_control);
     ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset after");
   }
 
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
@@ -2979,6 +2983,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   }
   else
   {
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_stop_mag_streaming");
     rv = ak0991x_stop_mag_streaming(this);
 
     if (rv != SNS_RC_SUCCESS)

@@ -166,6 +166,7 @@ typedef enum
   AK0991X_POWER_RAIL_PENDING_OFF,
 } ak0991x_power_rail_pending_state;
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 /** Registry items supported as part of physical sensor
  *  configuraton registry group
  */
@@ -175,6 +176,7 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /** Interrupt Sensor State. */
 
@@ -215,6 +217,7 @@ typedef struct ak0991x_state
   uint32_t registration_idx;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
@@ -226,6 +229,7 @@ typedef struct ak0991x_state
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
   // axis conversion
   bool registry_orient_received;
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
   triaxis_conversion axis_map[TRIAXIS_NUM];
 

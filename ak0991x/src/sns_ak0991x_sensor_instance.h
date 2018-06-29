@@ -278,7 +278,7 @@ typedef struct ak0991x_instance_state
   /**----------Axis Conversion----------*/
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
-  /**----------Sensor specific registry configuration----------*/
+  /**----------Sensor specific istry configuration----------*/
   ak0991x_cal           cal;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   sns_data_stream       *device_mode_stream;
