@@ -662,8 +662,6 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
 
   ak0991x_enter_i3c_mode(this, com_port, scp_service);
 
-//  AK0991X_INST_PRINT(LOW, this, "ak0991x_com_write_wrapper before");
-
   buffer[0] = AK0991X_SOFT_RESET;
   rv = ak0991x_com_write_wrapper(this,
                                  scp_service,
@@ -673,8 +671,6 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                  1,
                                  &xfer_bytes,
                                  false);
-//  AK0991X_INST_PRINT(LOW, this, "ak0991x_com_write_wrapper after");
-
   if (xfer_bytes != 1)
   {
     rv = SNS_RC_FAILED;
@@ -691,7 +687,6 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
 
   ak0991x_enter_i3c_mode(this, com_port, scp_service);
 
-//  AK0991X_INST_PRINT(LOW, this, "device_sw_reset done.");
   return SNS_RC_SUCCESS;
 }
 
@@ -2951,17 +2946,8 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
 
   if(reset_device)
   {
-    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset before");
-    AK0991X_INST_PRINT(LOW, this, "type:       %d", (int)state->scp_service->service.type);
-    AK0991X_INST_PRINT(LOW, this, "I2C add:    %d", (int)state->com_port_info.i2c_address);
-    AK0991X_INST_PRINT(LOW, this, "BUS INST:   %d", (int)state->com_port_info.com_config.bus_instance);
-    AK0991X_INST_PRINT(LOW, this, "BUS TYPE:   %d", (int)state->com_port_info.com_config.bus_type);
-    AK0991X_INST_PRINT(LOW, this, "BUS MAX :   %d", (int)state->com_port_info.com_config.max_bus_speed_KHz);
-    AK0991X_INST_PRINT(LOW, this, "BUS MIN :   %d", (int)state->com_port_info.com_config.min_bus_speed_KHz);
-    AK0991X_INST_PRINT(LOW, this, "ADDR TYPE:  %d", (int)state->com_port_info.com_config.reg_addr_type);
-    AK0991X_INST_PRINT(LOW, this, "SLAVE CNT:  %d", (int)state->com_port_info.com_config.slave_control);
-    ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
-    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset after");
+    rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. error = %d", (int)rv);
   }
 
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)

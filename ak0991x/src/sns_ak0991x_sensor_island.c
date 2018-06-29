@@ -3,11 +3,11 @@
  *
  * Common implementation for AK0991X Sensors.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *

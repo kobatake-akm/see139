@@ -3,11 +3,11 @@
  *
  * AK0991X Magnetic virtual Sensor implementation.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -148,9 +148,9 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   uint8_t j;
   for(j = 0; j < MAX_DEVICE_MODE_SUPPORTED; j++)
   {
-    state->cal_params[j].corr_mat.e00 = 1.0;
-    state->cal_params[j].corr_mat.e11 = 1.0;
-    state->cal_params[j].corr_mat.e22 = 1.0;
+    state->cal_params[j].corr_mat.e00 = 1.0f;
+    state->cal_params[j].corr_mat.e11 = 1.0f;
+    state->cal_params[j].corr_mat.e22 = 1.0f;
   }
 
   SNS_SUID_LOOKUP_INIT(state->suid_lookup_data, NULL);

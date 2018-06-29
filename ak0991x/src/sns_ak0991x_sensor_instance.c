@@ -325,9 +325,11 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     }
   }
 
+#ifdef AK0991X_ENABLE_DAE
   sns_sensor_uid dae_suid;
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, sensor_state);
+#endif // AK0991X_ENABLE_DAE
 
   return SNS_RC_SUCCESS;
 }

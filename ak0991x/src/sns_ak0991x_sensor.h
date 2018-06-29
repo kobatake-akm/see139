@@ -4,7 +4,7 @@
  *
  * AK0991X Sensor implementation.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
@@ -182,12 +182,14 @@ typedef struct ak0991x_registry_phy_sensor_cfg
 
 typedef struct ak0991x_state
 {
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   sns_data_stream       *reg_data_stream;
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
   sns_data_stream       *fw_stream;
   sns_data_stream       *timer_stream;
 
   // Registry, IRQ, Timer, ASCP, DAE, device_mode
-  SNS_SUID_LOOKUP_DATA(6) suid_lookup_data;
+  SNS_SUID_LOOKUP_DATA(SUID_NUM) suid_lookup_data;
 
   ak0991x_com_port_info com_port_info;
   sns_interrupt_req      irq_config;
@@ -229,6 +231,8 @@ typedef struct ak0991x_state
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
   // axis conversion
   bool registry_orient_received;
+  // placement
+  bool registry_placement_received;
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
   triaxis_conversion axis_map[TRIAXIS_NUM];
@@ -237,8 +241,6 @@ typedef struct ak0991x_state
   ak0991x_cal_param cal_params[MAX_DEVICE_MODE_SUPPORTED];
 
 
-  // placement
-  bool                    registry_placement_received;
   float                   placement[12];
   ak0991x_dae_if_info     dae_if;
 

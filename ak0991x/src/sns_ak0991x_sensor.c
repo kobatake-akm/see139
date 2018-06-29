@@ -1074,38 +1074,44 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   state->irq_config.interrupt_drive_strength = 0;
   state->irq_config.interrupt_trigger_type = 1;
   state->rail_config.num_of_rails = NUM_OF_RAILS;
-  state->registry_rail_on_state = 1;
+  state->registry_rail_on_state = SNS_RAIL_ON_LPM;
   sns_strlcpy(state->rail_config.rails[0].name, RAIL_1, sizeof(RAIL_1));
   sns_strlcpy(state->rail_config.rails[1].name, RAIL_2, sizeof(RAIL_2));
 
-  state->registry_placement_received = true;
   sns_memset(state->placement, 0, sizeof(state->placement));
 
   state->axis_map[0] = (triaxis_conversion)
     { .ipaxis = TRIAXIS_X,
       .opaxis = TRIAXIS_X,
-      .invert = false, };
+      .invert = false };
   state->axis_map[1] = (triaxis_conversion)
     { .ipaxis = TRIAXIS_Y,
       .opaxis = TRIAXIS_Y,
-      .invert = false, };
+      .invert = false };
   state->axis_map[2] = (triaxis_conversion)
     { .ipaxis = TRIAXIS_Z,
       .opaxis = TRIAXIS_Z,
-      .invert = false, };
+      .invert = false };
 
   for (i = 0; i < MAX_DEVICE_MODE_SUPPORTED; i++)
   {
     state->cal_params[i].registry_fac_cal_received = true;
-    state->cal_params[i].corr_mat.e00 = 1;
-    state->cal_params[i].corr_mat.e11 = 1;
-    state->cal_params[i].corr_mat.e22 = 1;
+    state->cal_params[i].corr_mat.e00 = 1.0f;
+    state->cal_params[i].corr_mat.e11 = 1.0f;
+    state->cal_params[i].corr_mat.e22 = 1.0f;
     state->cal_params[i].bias[0] =
       state->cal_params[i].bias[1] =
-      state->cal_params[i].bias[2] = 0;
+      state->cal_params[i].bias[2] = 0.0f;
   }
 
-  ak0991x_publish_hw_attributes(this, state->device_select);
+  /**---------------------Register Com Ports --------------------------*/
+  rv = ak0991x_register_com_port(this);
+
+  /**---------------------Register Power Rails --------------------------*/
+  if(NULL == state->pwr_rail_service && rv == SNS_RC_SUCCESS)
+  {
+    ak0991x_register_power_rails(this);
+  }
 
   return rv;
 }
@@ -1118,7 +1124,6 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
  *
  * @return none
  */
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static void
 ak0991x_publish_registry_attributes(sns_sensor *const this)
 {
@@ -1160,12 +1165,15 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
     value.sint = state->registry_pf_cfg.rigid_body_type;
+#endif
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_RIGID_BODY, &value, 1, false);
   }
 }
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 static sns_rc ak0991x_process_registry_events(sns_sensor *const this)
 {
   AK0991X_PRINT(LOW, this, "ak0991x_process_registry_events");
@@ -1734,11 +1742,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     {
       sns_time on_timestamp;
       sns_time delta;
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
       state->rail_config.rail_vote = state->registry_rail_on_state;
-#else
-      state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
-#endif
 
       state->pwr_rail_service->api->sns_vote_power_rail_update(
         state->pwr_rail_service,
@@ -1933,12 +1937,13 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   rv = ak0991x_process_registry_events(this);
 #else
-  ak0991x_set_default_registry_cfg(this);
-  rv = ak0991x_register_com_port(this);
-  if(rv == SNS_RC_SUCCESS)
+  rv = ak0991x_set_default_registry_cfg(this);
+
+//  if(rv == SNS_RC_SUCCESS)
   {
-    ak0991x_register_power_rails(this);
+    ak0991x_publish_registry_attributes(this);
   }
+
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
   if(rv == SNS_RC_SUCCESS)
@@ -1955,11 +1960,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
      state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
   {
     sns_time timeticks;
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
     state->rail_config.rail_vote = state->registry_rail_on_state;
-#else
-    state->rail_config.rail_vote = SNS_RAIL_ON_LPM;
-#endif
     state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                              this,
                                                              &state->rail_config,
