@@ -441,6 +441,19 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
 
   AK0991X_PRINT(LOW, this, "ak0991x_register_com_port");
+  AK0991X_PRINT(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
+             state->com_port_info.com_config.bus_type,
+             state->com_port_info.com_config.bus_instance,
+             state->com_port_info.com_config.slave_control);
+
+  AK0991X_PRINT(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
+             state->com_port_info.com_config.min_bus_speed_KHz,
+             state->com_port_info.com_config.max_bus_speed_KHz,
+             state->com_port_info.com_config.reg_addr_type);
+
+  AK0991X_PRINT(LOW, this, "num_rail:%d, rail_on_state:%d",
+             state->rail_config.num_of_rails,
+             state->registry_rail_on_state);
 
   if (NULL == state->com_port_info.port_handle)
   {
@@ -454,7 +467,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
     if(rv == SNS_RC_SUCCESS)
     {
       rv = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
-      AK0991X_PRINT(LOW, this, "Open port: %u",rv);
+      AK0991X_PRINT(LOW, this, "Failed Open port: error = %d",rv);
     }
     else
     {
@@ -870,19 +883,6 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           sns_strlcpy(state->rail_config.rails[1].name,
                       state->registry_pf_cfg.vdd_rail,
                       sizeof(state->rail_config.rails[1].name));
-          AK0991X_PRINT(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
-                     state->com_port_info.com_config.bus_type,
-                     state->com_port_info.com_config.bus_instance,
-                     state->com_port_info.com_config.slave_control);
-
-          AK0991X_PRINT(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
-                     state->com_port_info.com_config.min_bus_speed_KHz,
-                     state->com_port_info.com_config.max_bus_speed_KHz,
-                     state->com_port_info.com_config.reg_addr_type);
-
-          AK0991X_PRINT(LOW, this, "num_rail:%d, rail_on_state:%d",
-                     state->rail_config.num_of_rails,
-                     state->registry_rail_on_state);
 
           /**---------------------Register Com Ports --------------------------*/
           rc = ak0991x_register_com_port(this);
@@ -1045,12 +1045,12 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   uint8_t i;
 
-  state->is_dri = 1;
+  state->is_dri = 0;
   state->hardware_id = 0;
   state->resolution_idx = 0;
   state->supports_sync_stream = false;
 
-  state->use_fifo = true;
+  state->use_fifo = false;
   state->nsf = 0;
   state->sdr = 0;
 
@@ -1931,19 +1931,22 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
     if(sns_suid_lookup_complete(&state->suid_lookup_data))
     {
       sns_suid_lookup_deinit(this, &state->suid_lookup_data);
+      SNS_PRINTF(LOW, this, "sns_suid_lookup_deinit");
     }
   }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   rv = ak0991x_process_registry_events(this);
 #else
-  rv = ak0991x_set_default_registry_cfg(this);
 
-//  if(rv == SNS_RC_SUCCESS)
+  if (state->timer_stream != NULL && sns_suid_lookup_complete(&state->suid_lookup_data))
   {
-    ak0991x_publish_registry_attributes(this);
+    rv = ak0991x_set_default_registry_cfg(this);
+    if(rv == SNS_RC_SUCCESS)
+    {
+      ak0991x_publish_registry_attributes(this);
+    }
   }
-
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
   if(rv == SNS_RC_SUCCESS)

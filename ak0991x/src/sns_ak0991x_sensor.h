@@ -74,7 +74,7 @@
 #define BUS_FREQ_MAX               400
 #define SLAVE_ADDRESS              0x0C
 #define I3C_ADDR                   20    //Dynamic address
-#define I2C_BUS_INSTANCE           0x01
+#define I2C_BUS_INSTANCE           0x01  //HDK845:0x01, DragonBoard820:0x03
 #else
 #define BUS_TYPE                   SNS_BUS_I3C_SDR
 #define RAIL_1                     "/pmic/client/sensor_vddio"
