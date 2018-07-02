@@ -467,7 +467,10 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
     if(rv == SNS_RC_SUCCESS)
     {
       rv = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
-      AK0991X_PRINT(LOW, this, "Failed Open port: error = %d",rv);
+      if(rv != SNS_RC_SUCCESS)
+      {
+        AK0991X_PRINT(LOW, this, "Failed Open port: error = %d",rv);
+      }
     }
     else
     {

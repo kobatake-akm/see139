@@ -38,7 +38,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
   }
   {
     sns_std_attr_value_data values[] = {SNS_ATTR};
-    char const proto1[] = "sns_mag.proto";
+    static char const proto1[] = "sns_mag.proto";
     values[0].str.funcs.encode = pb_encode_string_cb;
     values[0].str.arg = &((pb_buffer_arg)
         { .buf = proto1, .buf_len = sizeof(proto1) });
@@ -46,7 +46,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         values, ARR_SIZE(values), false);
   }
   {
-    char const name[] = "ak0991x";
+    static char const name[] = "ak0991x";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)
@@ -55,7 +55,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
   }
   {
-    char const type[] = "mag";
+    static char const type[] = "mag";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)
@@ -64,7 +64,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
   }
   {
-    char const vendor[] = "akm";
+    static char const vendor[] = "akm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)
