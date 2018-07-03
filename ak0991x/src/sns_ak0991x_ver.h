@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 07/03/18                AKM              Debugged when the registry access is disabled.
  * 07/02/18     020010     AKM/Qualcomm     Modified for the upgrated LLVM
  * 06/27/18                AKM/Qualcomm     Merged Qualcomm's modification and AKM's 020009
  * 06/24/18     020009     AKM              Removed macros for SEE_LIET mode

@@ -57,7 +57,7 @@ float ak09913_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09913_ope_mode_table[] = {AK0991X_NORMAL};
 
-float ak09915_odr_table[] = 
+float ak09915_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09915_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 
@@ -440,23 +440,23 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   sns_service_manager *service_mgr = this->cb->get_service_manager(this);
 
-  AK0991X_PRINT(LOW, this, "ak0991x_register_com_port");
-  AK0991X_PRINT(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
-             state->com_port_info.com_config.bus_type,
-             state->com_port_info.com_config.bus_instance,
-             state->com_port_info.com_config.slave_control);
-
-  AK0991X_PRINT(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
-             state->com_port_info.com_config.min_bus_speed_KHz,
-             state->com_port_info.com_config.max_bus_speed_KHz,
-             state->com_port_info.com_config.reg_addr_type);
-
-  AK0991X_PRINT(LOW, this, "num_rail:%d, rail_on_state:%d",
-             state->rail_config.num_of_rails,
-             state->registry_rail_on_state);
-
   if (NULL == state->com_port_info.port_handle)
   {
+    AK0991X_PRINT(LOW, this, "ak0991x_register_com_port");
+    AK0991X_PRINT(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
+               state->com_port_info.com_config.bus_type,
+               state->com_port_info.com_config.bus_instance,
+               state->com_port_info.com_config.slave_control);
+
+    AK0991X_PRINT(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
+               state->com_port_info.com_config.min_bus_speed_KHz,
+               state->com_port_info.com_config.max_bus_speed_KHz,
+               state->com_port_info.com_config.reg_addr_type);
+
+    AK0991X_PRINT(LOW, this, "num_rail:%d, rail_on_state:%d",
+               state->rail_config.num_of_rails,
+               state->registry_rail_on_state);
+
     state->scp_service =  (sns_sync_com_port_service *)
         service_mgr->get_service(service_mgr, SNS_SYNC_COM_PORT_SERVICE);
 
@@ -1048,12 +1048,12 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   uint8_t i;
 
-  state->is_dri = 0;
+  state->is_dri = 1;
   state->hardware_id = 0;
   state->resolution_idx = 0;
   state->supports_sync_stream = false;
 
-  state->use_fifo = false;
+  state->use_fifo = true;
   state->nsf = 0;
   state->sdr = 0;
 
@@ -1115,7 +1115,6 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   {
     ak0991x_register_power_rails(this);
   }
-
   return rv;
 }
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
@@ -1273,7 +1272,11 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  {
    uint32_t value_len = 0;
    float *odr_table = NULL;
-   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
+#ifdef AK0991X_FORCE_MAX_ODR_50HZ
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR};
+#else
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
+#endif // AK0991X_FORCE_MAX_ODR_50HZ
 
    if((state->device_select == AK09915C) || (state->device_select == AK09915D))
    {
@@ -1941,8 +1944,10 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   rv = ak0991x_process_registry_events(this);
 #else
-
-  if (state->timer_stream != NULL && sns_suid_lookup_complete(&state->suid_lookup_data))
+  if (state->timer_stream != NULL &&
+      sns_suid_lookup_complete(&state->suid_lookup_data) &&
+      (state->com_port_info.port_handle == NULL) &&
+      (state->pwr_rail_service == NULL) )
   {
     rv = ak0991x_set_default_registry_cfg(this);
     if(rv == SNS_RC_SUCCESS)
