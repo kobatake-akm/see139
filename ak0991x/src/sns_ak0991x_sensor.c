@@ -1048,12 +1048,12 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   uint8_t i;
 
-  state->is_dri = 0;
+  state->is_dri = 1;
   state->hardware_id = 0;
   state->resolution_idx = 0;
   state->supports_sync_stream = false;
 
-  state->use_fifo = false;
+  state->use_fifo = true;
   state->nsf = 0;
   state->sdr = 0;
 
