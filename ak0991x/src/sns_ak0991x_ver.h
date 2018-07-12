@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 07/12/18     020012     AKM/Qualcomm     Fixed compile error when DAE is enabled
  * 07/03/18     020011     AKM              Debugged when the registry access is disabled.
  * 06/28/18                Qualcomm         Retry 5 times if sw reset fails
  * 07/02/18     020010     AKM/Qualcomm     Modified for the upgrated LLVM
@@ -178,5 +179,5 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20011  // major:02 minor:00 revision:11
+#define AK0991X_DRIVER_VERSION 20012  // major:02 minor:00 revision:12
 

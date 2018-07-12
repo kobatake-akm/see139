@@ -75,7 +75,29 @@ static void build_static_config_request(
                    .bus_instance = sensor_state->com_port_info.com_config.bus_instance,
                    .ibi_data_bytes = 0, };
   }
-  config_req->has_s4s_config         = state->mag_info.use_sync_stream;
+  switch (sensor_state->device_select)
+  {
+  case AK09911:
+  case AK09912:
+  case AK09913:
+  case AK09916C:
+  case AK09916D:
+  case AK09918:
+    config_req->has_s4s_config       = false;
+    break;
+  case AK09915C:
+  case AK09915D:
+  case AK09917:
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
+    config_req->has_s4s_config       = sensor_state->registry_cfg.sync_stream;
+#else
+    config_req->has_s4s_config       = false;
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
+    break;
+  default:
+    config_req->has_s4s_config       = false;
+    break;
+  }
   config_req->s4s_config.st_reg_addr = AKM_AK0991X_REG_SYT;
   config_req->s4s_config.st_reg_data = 0;
   config_req->s4s_config.dt_reg_addr = AKM_AK0991X_REG_DT;
