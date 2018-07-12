@@ -3,11 +3,11 @@
  *
  * AK0991X Magnetic virtual Sensor implementation.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -38,7 +38,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
   }
   {
     sns_std_attr_value_data values[] = {SNS_ATTR};
-    char const proto1[] = "sns_mag.proto";
+    static char const proto1[] = "sns_mag.proto";
     values[0].str.funcs.encode = pb_encode_string_cb;
     values[0].str.arg = &((pb_buffer_arg)
         { .buf = proto1, .buf_len = sizeof(proto1) });
@@ -46,7 +46,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         values, ARR_SIZE(values), false);
   }
   {
-    char const name[] = "ak0991x";
+    static char const name[] = "ak0991x";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)
@@ -55,7 +55,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
   }
   {
-    char const type[] = "mag";
+    static char const type[] = "mag";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)
@@ -64,7 +64,7 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
         this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
   }
   {
-    char const vendor[] = "akm";
+    static char const vendor[] = "akm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
     value.str.arg = &((pb_buffer_arg)
@@ -148,9 +148,9 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   uint8_t j;
   for(j = 0; j < MAX_DEVICE_MODE_SUPPORTED; j++)
   {
-    state->cal_params[j].corr_mat.e00 = 1.0;
-    state->cal_params[j].corr_mat.e11 = 1.0;
-    state->cal_params[j].corr_mat.e22 = 1.0;
+    state->cal_params[j].corr_mat.e00 = 1.0f;
+    state->cal_params[j].corr_mat.e11 = 1.0f;
+    state->cal_params[j].corr_mat.e22 = 1.0f;
   }
 
   SNS_SUID_LOOKUP_INIT(state->suid_lookup_data, NULL);
@@ -160,7 +160,9 @@ sns_rc ak0991x_mag_init(sns_sensor *const this)
   sns_suid_lookup_add(this, &state->suid_lookup_data, "interrupt");
   sns_suid_lookup_add(this, &state->suid_lookup_data, "async_com_port");
   sns_suid_lookup_add(this, &state->suid_lookup_data, "timer");
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   sns_suid_lookup_add(this, &state->suid_lookup_data, "registry");
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   sns_suid_lookup_add(this, &state->suid_lookup_data, "device_mode");
 #endif

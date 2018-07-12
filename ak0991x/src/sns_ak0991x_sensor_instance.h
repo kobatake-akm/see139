@@ -4,7 +4,7 @@
  *
  * AK0991X Mag virtual Sensor Instance implementation.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
@@ -278,7 +278,7 @@ typedef struct ak0991x_instance_state
   /**----------Axis Conversion----------*/
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
-  /**----------Sensor specific registry configuration----------*/
+  /**----------Sensor specific istry configuration----------*/
   ak0991x_cal           cal;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   sns_data_stream       *device_mode_stream;

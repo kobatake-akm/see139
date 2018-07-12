@@ -456,7 +456,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
 
   if(NULL != instance)
   {
-    AK0991X_INST_PRINT(LOW, instance, "enter i3c mode");
+    SNS_INST_PRINTF(LOW, instance, "enter i3c mode");
   }
 
   i2c_com_config.slave_control = com_port->i2c_address;
@@ -483,6 +483,14 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   if(NULL != instance && rv == SNS_RC_SUCCESS)
   {
     AK0991X_INST_PRINT(HIGH, instance, "I3C address assigned: 0x%x",((uint32_t)buffer[0])>>1);
+  }
+  else
+  {
+     if ( NULL != instance && rv != SNS_RC_SUCCESS )
+     {
+        SNS_INST_PRINTF(HIGH, instance, "assign i3c address failed");
+        return SNS_RC_FAILED;
+     }
   }
 
   /**-------------Set max read size to the size of the FIFO------------------*/
@@ -651,8 +659,14 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                ak0991x_com_port_info *com_port)
 {
   uint8_t  buffer[1];
-  sns_rc   rv = SNS_RC_SUCCESS;
+  int8_t   num_attempts = 5;
+  sns_rc   rv = SNS_RC_FAILED;
   uint32_t xfer_bytes;
+
+  if(this != NULL)
+  {
+    SNS_INST_PRINTF(LOW, this, "device_sw_reset called");
+  }
 
   // clear old events
   if(this != NULL)
@@ -660,10 +674,11 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
     ak0991x_clear_old_events(this);
   }
 
-  ak0991x_enter_i3c_mode(this, com_port, scp_service);
-
-  buffer[0] = AK0991X_SOFT_RESET;
-  rv = ak0991x_com_write_wrapper(this,
+  while(num_attempts-- > 0 && SNS_RC_SUCCESS != rv)
+  {
+    ak0991x_enter_i3c_mode(this, com_port, scp_service);
+    buffer[0] = AK0991X_SOFT_RESET;
+    rv = ak0991x_com_write_wrapper(this,
                                  scp_service,
                                  com_port->port_handle,
                                  AKM_AK0991X_REG_CNTL3,
@@ -671,24 +686,34 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                  1,
                                  &xfer_bytes,
                                  false);
-
-  if (xfer_bytes != 1)
-  {
-    rv = SNS_RC_FAILED;
-  }
-
-  if (rv != SNS_RC_SUCCESS)
-  {
-    if(this != NULL)
+    if( (SNS_RC_SUCCESS != rv) || (xfer_bytes != 1))
     {
-      SNS_INST_PRINTF(ERROR, this, "device_sw_reset failed");
+      if (xfer_bytes != 1)
+      {
+        rv = SNS_RC_FAILED;
+      }
+      if(this != NULL)
+      {
+        SNS_INST_PRINTF(HIGH, this, "device_sw_reset failed rc=%d, xfer_bytes=%d", rv, xfer_bytes);
+      }
+      sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
     }
-    return rv;
+    else
+    {
+      if(this!= NULL)
+      {
+         SNS_INST_PRINTF(LOW, this, "device_sw_reset sucessful");
+      }
+    }
   }
-
   ak0991x_enter_i3c_mode(this, com_port, scp_service);
 
-  return SNS_RC_SUCCESS;
+  if(num_attempts <= 0)
+  {
+    SNS_INST_PRINTF(ERROR, this, "sw_rst: failed all attempts");
+  }
+
+  return rv;
 }
 
 /**
@@ -1675,16 +1700,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status;
   vector3 opdata_cal;
-
-  /*
-  AK0991X_INST_PRINT(LOW, instance, "fac_cal_corr_mat 00=%d 11=%d 22=%d, fac_cal_bias0=%d 1=%d 2=%d",
-        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e00,
-        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e11,
-        (uint32_t)state->mag_registry_cfg.fac_cal_corr_mat.e22,
-        (uint32_t)state->mag_registry_cfg.fac_cal_bias[0],
-        (uint32_t)state->mag_registry_cfg.fac_cal_bias[1],
-        (uint32_t)state->mag_registry_cfg.fac_cal_bias[2]);
-   */
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
@@ -2869,6 +2884,7 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
   {
     state->req_payload.start_time = state->system_time;
     state->hb_timer_fire_time = state->req_payload.start_time + state->req_payload.timeout_period;
+
     if (SNS_RC_SUCCESS != ak0991x_send_timer_request(this))
     {
       AK0991X_INST_PRINT(LOW, this, "Failed send timer request");
@@ -2957,7 +2973,8 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
 
   if(reset_device)
   {
-    ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
+    rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. error = %d", (int)rv);
   }
 
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
@@ -2979,6 +2996,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   }
   else
   {
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_stop_mag_streaming");
     rv = ak0991x_stop_mag_streaming(this);
 
     if (rv != SNS_RC_SUCCESS)

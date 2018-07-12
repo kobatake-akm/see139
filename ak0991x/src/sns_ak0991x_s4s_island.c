@@ -3,11 +3,11 @@
  *
  * AK0991X - S4S functions
  *
- * Copyright (c) 2017 Asahi Kasei Microdevices
+ * Copyright (c) 2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017 Qualcomm Technologies, Inc.
+ * Copyright (c) 2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -138,7 +138,11 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
                            sns_sensor_state const *sstate)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   ak0991x_state *sensor_state = (ak0991x_state *)sstate->state;
+#else
+  UNUSED_VAR(sstate);
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
 
   /** Init Mag State */
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
@@ -148,33 +152,24 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
   switch (state->mag_info.device_select)
   {
   case AK09911:
-    state->mag_info.use_sync_stream = false;
-    break;
   case AK09912:
-    state->mag_info.use_sync_stream = false;
-    break;
   case AK09913:
-    state->mag_info.use_sync_stream = false;
-    break;
-  case AK09915C:
-    state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
-    break;
-  case AK09915D:
-    state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
-    break;
   case AK09916C:
-    state->mag_info.use_sync_stream = false;
-    break;
   case AK09916D:
-    state->mag_info.use_sync_stream = false;
-    break;
-  case AK09917:
-    state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
-    break;
   case AK09918:
     state->mag_info.use_sync_stream = false;
     break;
+  case AK09915C:
+  case AK09915D:
+  case AK09917:
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
+    state->mag_info.use_sync_stream = sensor_state->registry_cfg.sync_stream;
+#else
+    state->mag_info.use_sync_stream = false;
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
+    break;
   default:
+    state->mag_info.use_sync_stream = false;
     break;
   }
 

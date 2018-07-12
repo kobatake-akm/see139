@@ -4,7 +4,7 @@
  *
  * AK0991X Sensor implementation.
  *
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
@@ -74,7 +74,7 @@
 #define BUS_FREQ_MAX               400
 #define SLAVE_ADDRESS              0x0C
 #define I3C_ADDR                   20    //Dynamic address
-#define I2C_BUS_INSTANCE           0x01
+#define I2C_BUS_INSTANCE           0x01  //HDK845:0x01, DragonBoard820:0x03
 #else
 #define BUS_TYPE                   SNS_BUS_I3C_SDR
 #define RAIL_1                     "/pmic/client/sensor_vddio"
@@ -166,6 +166,7 @@ typedef enum
   AK0991X_POWER_RAIL_PENDING_OFF,
 } ak0991x_power_rail_pending_state;
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
 /** Registry items supported as part of physical sensor
  *  configuraton registry group
  */
@@ -175,17 +176,20 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   uint8_t nsf;
   uint8_t sdr;
 } ak0991x_registry_phy_sensor_cfg;
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /** Interrupt Sensor State. */
 
 typedef struct ak0991x_state
 {
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   sns_data_stream       *reg_data_stream;
+#endif // AK0991X_ENABLE_REGISTRY_ACCESS
   sns_data_stream       *fw_stream;
   sns_data_stream       *timer_stream;
 
   // Registry, IRQ, Timer, ASCP, DAE, device_mode
-  SNS_SUID_LOOKUP_DATA(6) suid_lookup_data;
+  SNS_SUID_LOOKUP_DATA(SUID_NUM) suid_lookup_data;
 
   ak0991x_com_port_info com_port_info;
   sns_interrupt_req      irq_config;
@@ -215,6 +219,7 @@ typedef struct ak0991x_state
   uint32_t registration_idx;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
+#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
   // registry sensor config
   bool registry_cfg_received;
   sns_registry_phy_sensor_cfg registry_cfg;
@@ -226,6 +231,9 @@ typedef struct ak0991x_state
   sns_registry_phy_sensor_pf_cfg registry_pf_cfg;
   // axis conversion
   bool registry_orient_received;
+  // placement
+  bool registry_placement_received;
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
   triaxis_conversion axis_map[TRIAXIS_NUM];
 
@@ -233,8 +241,6 @@ typedef struct ak0991x_state
   ak0991x_cal_param cal_params[MAX_DEVICE_MODE_SUPPORTED];
 
 
-  // placement
-  bool                    registry_placement_received;
   float                   placement[12];
   ak0991x_dae_if_info     dae_if;
 
