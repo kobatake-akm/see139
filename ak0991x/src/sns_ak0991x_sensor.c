@@ -442,18 +442,13 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
 
   if (NULL == state->com_port_info.port_handle)
   {
-    AK0991X_PRINT(LOW, this, "ak0991x_register_com_port");
-    AK0991X_PRINT(LOW, this, "bus_type:%d bus_instance:%d slave_control:%d",
+    AK0991X_PRINT(LOW, this, "bus_type:%d bus_inst:%d slave_cntl:%d min:%d max:%d reg_addr_type:%d num_rail:%d rail_on_state:%d",
                state->com_port_info.com_config.bus_type,
                state->com_port_info.com_config.bus_instance,
-               state->com_port_info.com_config.slave_control);
-
-    AK0991X_PRINT(LOW, this, "min_bus_speed_KHz :%d max_bus_speed_KHz:%d reg_addr_type:%d",
+               state->com_port_info.com_config.slave_control,
                state->com_port_info.com_config.min_bus_speed_KHz,
                state->com_port_info.com_config.max_bus_speed_KHz,
-               state->com_port_info.com_config.reg_addr_type);
-
-    AK0991X_PRINT(LOW, this, "num_rail:%d, rail_on_state:%d",
+               state->com_port_info.com_config.reg_addr_type,
                state->rail_config.num_of_rails,
                state->registry_rail_on_state);
 
