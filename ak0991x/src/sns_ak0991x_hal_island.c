@@ -710,7 +710,10 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
 
   if(num_attempts <= 0)
   {
-    SNS_INST_PRINTF(ERROR, this, "sw_rst: failed all attempts");
+    if(this != NULL)
+    {
+      SNS_INST_PRINTF(ERROR, this, "sw_rst: failed all attempts");
+    }
   }
 
   return rv;
