@@ -13,8 +13,6 @@
  *
  **/
 
-#include <string.h>
-#include <stdio.h>
 #include "sns_mem_util.h"
 #include "sns_service_manager.h"
 #include "sns_stream_service.h"
@@ -576,25 +574,22 @@ static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
       .message_id = SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_REQ };
     rc = state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
   }
-
-  //SENSOR_PRINTF_LOW_FULL(this, "Sending registry request for group name:%s", reg_group_name);
 }
 
 
-static char* ak0991x_create_registry_str(int hw_id, char* type, char *str, uint16_t str_len)
+static void ak0991x_create_registry_str(int hw_id, char* type, char *str, uint16_t str_len)
 {
-  snprintf(str, str_len, "ak0991x_%d%s",hw_id,type);
-  return str;
+  static const char* hw_id_str[] = {"0","1","2","3"};
+  sns_strlcpy(str, AK0991X_STR, str_len);
+  sns_strlcat(str, hw_id_str[hw_id], str_len);
+  sns_strlcat(str, type, str_len);
 }
 
-static char* ak0991x_create_registry_faccal_str(int hw_id, int cal_id, char *str, uint16_t str_len)
+static void ak0991x_create_registry_faccal_str(int hw_id, int cal_id, char *str, uint16_t str_len)
 {
-  str = ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_FACCAL_STR, str, str_len);
-  if(cal_id != 0)
-  {
-    snprintf(str, str_len, "%s_%d", str, cal_id + 1);
-  }
-  return str;
+  static const char* cal_id_str[] = {"", "_2","_3","_4"};
+  ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_FACCAL_STR, str, str_len);
+  sns_strlcat(str, cal_id_str[cal_id], str_len);
 }
 
 static void ak0991x_request_registry(sns_sensor *const this)
@@ -628,14 +623,25 @@ static void ak0991x_request_registry(sns_sensor *const this)
     hw_id = state->registration_idx;
 #endif // AK0991X_ENABLE_DUAL_SENSOR
 
-    ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_CONFIG_STR, buffer, sizeof(buffer)));
-    ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_PLACEMENT_STR, buffer, sizeof(buffer)));
-    ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_ORIENT_STR, buffer, sizeof(buffer)));
-    ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_str(hw_id, AK0991X_MAG_CONFIG_STR, buffer, sizeof(buffer)));
-    ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_str(hw_id, AK0991X_REG_CONFIG_STR, buffer, sizeof(buffer)));
+    ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_CONFIG_STR, buffer, sizeof(buffer));
+    ak0991x_sensor_send_registry_request(this, buffer);
+
+    ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_PLACEMENT_STR, buffer, sizeof(buffer));
+    ak0991x_sensor_send_registry_request(this, buffer);
+
+    ak0991x_create_registry_str(hw_id, AK0991X_PLATFORM_ORIENT_STR, buffer, sizeof(buffer));
+    ak0991x_sensor_send_registry_request(this, buffer);
+
+    ak0991x_create_registry_str(hw_id, AK0991X_MAG_CONFIG_STR, buffer, sizeof(buffer));
+    ak0991x_sensor_send_registry_request(this, buffer);
+
+    ak0991x_create_registry_str(hw_id, AK0991X_REG_CONFIG_STR, buffer, sizeof(buffer));
+    ak0991x_sensor_send_registry_request(this, buffer);
+
     for(i=0; i<MAX_DEVICE_MODE_SUPPORTED; i++)
     {
-      ak0991x_sensor_send_registry_request(this, ak0991x_create_registry_faccal_str(hw_id, i, buffer, sizeof(buffer)));
+      ak0991x_create_registry_faccal_str(hw_id, i, buffer, sizeof(buffer));
+      ak0991x_sensor_send_registry_request(this, buffer);
     }
   }
 }
@@ -729,15 +735,20 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
       for(i=0; i<=hw_id; i++)
       {
-        mag_config |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_str(i, AK0991X_MAG_CONFIG_STR, buffer, sizeof(buffer)),
+        ak0991x_create_registry_str(i, AK0991X_MAG_CONFIG_STR, buffer, sizeof(buffer));
+        mag_config |= (0 == strncmp((char*)group_name.buf, buffer,
                              group_name.buf_len));
-        reg_config |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_str(i, AK0991X_REG_CONFIG_STR, buffer, sizeof(buffer)),
+        ak0991x_create_registry_str(i, AK0991X_REG_CONFIG_STR, buffer, sizeof(buffer));
+        reg_config |= (0 == strncmp((char*)group_name.buf, buffer,
                              group_name.buf_len));
-        pf_config |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_str(i, AK0991X_PLATFORM_CONFIG_STR, buffer, sizeof(buffer)),
+        ak0991x_create_registry_str(i, AK0991X_PLATFORM_CONFIG_STR, buffer, sizeof(buffer));
+        pf_config |= (0 == strncmp((char*)group_name.buf, buffer,
                              group_name.buf_len));
-        place |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_str(i, AK0991X_PLATFORM_PLACEMENT_STR, buffer, sizeof(buffer)),
+        ak0991x_create_registry_str(i, AK0991X_PLATFORM_PLACEMENT_STR, buffer, sizeof(buffer));
+        place |= (0 == strncmp((char*)group_name.buf, buffer,
                              group_name.buf_len));
-        orient |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_str(i, AK0991X_PLATFORM_ORIENT_STR, buffer, sizeof(buffer)),
+        ak0991x_create_registry_str(i, AK0991X_PLATFORM_ORIENT_STR, buffer, sizeof(buffer));
+        orient |= (0 == strncmp((char*)group_name.buf, buffer,
                                group_name.buf_len));
 
         AK0991X_PRINT(LOW, this,
@@ -746,7 +757,8 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
 
         for(j=0; j<MAX_DEVICE_MODE_SUPPORTED; j++)
         {
-          faccal |= (0 == strncmp((char*)group_name.buf, ak0991x_create_registry_faccal_str(i, j, buffer, sizeof(buffer)),
+          ak0991x_create_registry_faccal_str(i, j, buffer, sizeof(buffer));
+          faccal |= (0 == strncmp((char*)group_name.buf, buffer,
               group_name.buf_len));
           AK0991X_PRINT(LOW, this,"faccal[%d]=%d", j, (int)faccal);
           if(faccal)

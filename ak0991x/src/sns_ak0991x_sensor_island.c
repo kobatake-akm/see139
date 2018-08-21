@@ -13,7 +13,6 @@
  *
  **/
 
-#include <string.h>
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
