@@ -515,11 +515,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       desired_report_rate = desired_sample_rate;
     }
 
-    AK0991X_INST_PRINT(LOW, this, "desired_SR=%d desired_RR=%d/100",
-        (int)desired_sample_rate, (int)(desired_report_rate*100));
+    AK0991X_INST_PRINT(LOW, this, "desired_SR=%d desired_RR=%d/100, req_wmk=%d",
+        (int)desired_sample_rate, (int)(desired_report_rate*100), (int)state->mag_info.req_wmk);
 
-    // If already streaming, send out existing config before the next data events are sent
-    if (state->mag_info.use_fifo && !state->this_is_first_data && desired_sample_rate > 0)
+    // If already a request, send out existing config before the next data events are sent
+    if (state->mag_info.use_fifo &&  state->mag_info.req_wmk > 0)
     {
       ak0991x_send_config_event(this);
     }

@@ -23,6 +23,7 @@
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
  * 08/03/18     020014     AKM              Debugged for the Klocwork P1 errors(#03603537)
+ * 07/28/18                Qualcomm         Send CFG Event for new request even no change 
  * 07/24/18     020013     AKM/Qualcomm     Enabled device mode as default and cleaned related code.
  * 07/12/18     020012     AKM/Qualcomm     Fixed compile error when DAE is enabled
  * 07/03/18     020011     AKM              Debugged when the registry access is disabled.
