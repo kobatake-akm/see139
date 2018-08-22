@@ -710,7 +710,10 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
 
   if(num_attempts <= 0)
   {
-    SNS_INST_PRINTF(ERROR, this, "sw_rst: failed all attempts");
+    if(this != NULL)
+    {
+      SNS_INST_PRINTF(ERROR, this, "sw_rst: failed all attempts");
+    }
   }
 
   return rv;
@@ -2431,23 +2434,6 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
     ak0991x_read_fifo_buffer(instance);
   }
-}
-
-void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
-{
-  uint32_t cal_id = 0;
-  ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-#ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
-  for(int i = 0; i < MAX_DEVICE_MODE_SUPPORTED; ++i)
-  {
-    if(state->device_mode[i].mode == 0 &&
-       state->device_mode[i].state == 0)
-      break;
-    uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
-    cal_id += state_set*(uint32_t)powf(2, i);
-  }
-#endif
-  state->cal.id = cal_id;
 }
 
 void ak0991x_send_cal_event(sns_sensor_instance *const instance)

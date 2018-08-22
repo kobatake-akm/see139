@@ -14,8 +14,6 @@
  *
  **/
 
-#include <stdint.h>
-
 #include "sns_ak0991x_lite.h"
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_sensor.h"
