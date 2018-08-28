@@ -38,8 +38,6 @@
 #include "sns_async_com_port_pb_utils.h"
 #include "sns_sync_com_port_service.h"
 
-extern log_sensor_state_raw_info log_mag_state_raw_info;
-
 const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   {
     .odr = AK0991X_ODR_0,
@@ -224,7 +222,7 @@ static void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
 }
 #endif // AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
-sns_rc ak0991x_handle_device_mode_stream(sns_sensor_instance *const this)
+static sns_rc ak0991x_handle_device_mode_stream(sns_sensor_instance *const this)
 {
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
