@@ -49,10 +49,20 @@
 #if defined(AK0991X_ENABLE_DAE)
 static void build_static_config_request(
   ak0991x_state             *sensor_state,
-  sns_dae_set_static_config *config_req)
+  sns_dae_set_static_config *config_req,
+  int64_t hardware_id)
 {
-  sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table",
+	
+	if(hardware_id == 0){
+	  sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table",
               sizeof(config_req->func_table_name));
+	}
+	else
+	{
+	  sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table2",
+              sizeof(config_req->func_table_name));
+	}
+
 
 #ifdef AK0991X_DAE_FORCE_POLLING
   config_req->interrupt              = 0;
@@ -674,7 +684,7 @@ void ak0991x_dae_if_check_support(sns_sensor *this)
     if(state->dae_if.mag.state == PRE_INIT)
     {
       state->dae_if.mag.state = INIT_PENDING;
-      build_static_config_request(state, &config_req);
+      build_static_config_request(state, &config_req, state->hardware_id);
     }
 
     if(SNS_RC_SUCCESS != send_static_config_request(state->dae_if.mag.stream, &config_req))
@@ -785,7 +795,7 @@ sns_rc ak0991x_dae_if_init(
     if(NULL != dae_if->mag.stream)
     {
       sns_dae_set_static_config config_req = sns_dae_set_static_config_init_default;
-      build_static_config_request(sensor_state, &config_req);
+      build_static_config_request(sensor_state, &config_req, sensor_state->hardware_id);
       rc = send_static_config_request(dae_if->mag.stream, &config_req);
     }
   }
