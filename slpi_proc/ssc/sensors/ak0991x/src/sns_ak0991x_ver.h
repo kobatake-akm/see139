@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/03/18     020015     AKM              Modified for Dual Sensor on DAE
  * 08/03/18     020014     AKM              Debugged for the Klocwork P1 errors(#03603537)
  * 07/28/18                Qualcomm         Send CFG Event for new request even no change 
  * 07/24/18     020013     AKM/Qualcomm     Enabled device mode as default and cleaned related code.
@@ -182,5 +183,5 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20014  // major:02 minor:00 revision:14
+#define AK0991X_DRIVER_VERSION 20015  // major:02 minor:00 revision:15
 
