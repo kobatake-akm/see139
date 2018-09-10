@@ -76,16 +76,24 @@
 #define I3C_ADDR                   20    //Dynamic address
 #define I2C_BUS_INSTANCE           0x01  //HDK845:0x01, DragonBoard820:0x03
 #else
-#define BUS_TYPE                   SNS_BUS_I3C_SDR
 #define RAIL_1                     "/pmic/client/sensor_vddio"
 #define RAIL_2                     "/pmic/client/sensor_vdd"
-#define IRQ_NUM                    134
 #define NUM_OF_RAILS               1
 #define BUS_FREQ_MIN               400
 #define BUS_FREQ_MAX               12500
 #define SLAVE_ADDRESS              0x0C
 #define I3C_ADDR                   20    //Dynamic address
 #define I2C_BUS_INSTANCE           0x01
+#ifdef SSC_TARGET_SM6150
+#define BUS_TYPE                   SNS_BUS_I2C
+#define IRQ_NUM                    83
+#elif SSC_TARGET_SM7150
+#define BUS_TYPE                   SNS_BUS_I3C_SDR
+#define IRQ_NUM                    88
+#else
+#define BUS_TYPE                   SNS_BUS_I3C_SDR
+#define IRQ_NUM                    134
+#endif // SSC_TARGET_SM6150
 #endif // AK0991X_BOARD_HDK845
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
 

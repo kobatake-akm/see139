@@ -369,7 +369,13 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   ak0991x_state *state = (ak0991x_state*)this->state->state;
   ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
 
-  AK0991X_PRINT(LOW, this, "ak0991x_reval_instance_config");
+  AK0991X_PRINT(MED, this, "reval: rail state = %u", state->power_rail_pend_state);
+
+  if(AK0991X_POWER_RAIL_PENDING_NONE != state->power_rail_pend_state)
+  {
+    AK0991X_PRINT(LOW, this, "reval: sensor is still warming up...");
+    return;
+  }
 
   ak0991x_get_mag_config(
                          this,
@@ -464,7 +470,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
       rv = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
       if(rv != SNS_RC_SUCCESS)
       {
-        AK0991X_PRINT(LOW, this, "Failed Open port: error = %d",rv);
+        SNS_PRINTF(ERROR, this, "Failed Open port: error = %d", rv);
       }
     }
     else
@@ -1030,8 +1036,8 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   }
   else
   {
-    AK0991X_PRINT(ERROR, this, "Received unsupported registry event msg id %u",
-                             event->message_id);
+    SNS_PRINTF(ERROR, this, "Received unsupported registry event msg id %u",
+               event->message_id);
   }
 }
 #else
@@ -1622,7 +1628,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               state->rail_config.rail_vote = SNS_RAIL_OFF;
               state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
-                            &state->rail_config,     NULL);
+                                         &state->rail_config,     NULL);
               state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
               state->remove_timer_stream = true;
             }
@@ -1632,6 +1638,11 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
 
             AK0991X_PRINT(LOW, this, "state = SET_CLIENT_REQ");
+
+            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
+
+            ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
 
             if (NULL != instance)
             {
@@ -1645,12 +1656,11 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 ak0991x_set_self_test_inst_config(this, instance);
               }
             }
-            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-            state->remove_timer_stream = true;
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF)
           {
             AK0991X_PRINT(LOW, this, "state = POWER_RAIL_PENDING_OFF");
+            state->com_port_info.in_i3c_mode = false;
             state->rail_config.rail_vote = SNS_RAIL_OFF;
             state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
@@ -1764,14 +1774,13 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       else
       {
         // rail is already ON
-        AK0991X_PRINT(LOW, this, "rail is already ON");
+        AK0991X_PRINT(MED, this, "rail is already ON");
         state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
         state->remove_timer_stream = true;
+        ak0991x_enter_i3c_mode(NULL, &state->com_port_info, state->scp_service);
       }
-      state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-      // rail is already ON
-      AK0991X_PRINT(LOW, this, "rail is already ON");
-      AK0991X_PRINT(LOW, this, "Creating instance");
+
+      AK0991X_PRINT(HIGH, this, "Creating instance");
 
       /** create_instance() calls init() for the Sensor Instance */
       instance = this->cb->create_instance(this,
@@ -1833,10 +1842,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             }
           }
 
-          if(AK0991X_POWER_RAIL_PENDING_NONE == state->power_rail_pend_state)
-          {
-            ak0991x_reval_instance_config(this, instance);
-          }
+          ak0991x_reval_instance_config(this, instance);
         }
         else
         {

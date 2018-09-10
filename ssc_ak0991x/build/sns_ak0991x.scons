@@ -26,19 +26,12 @@ if 'SNS_ISLAND_INCLUDE_AK0991X' in env:
 
 if 'SNS_DISABLE_REGISTRY' not in env:
   env.Append( CPPDEFINES = ['AK0991X_ENABLE_REGISTRY_ACCESS'])
-
-binlib= False
-#if('SENSORS_DD_DEV_FLAG' not in env):
-#  binlib= False
-#else:
-#  binlib= True
-
    
 if 'USES_SSC_STATIC_LIB_BUILDER' in env:
-  if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']):
+  if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']): 
     env.AddSSCSU(inspect.getfile(inspect.currentframe()),
                  register_func_name = "sns_register_ak0991x",
-                 binary_lib =binlib,
+                 binary_lib =False,
                  cflags = ['-Wno-sign-compare'],
                  add_island_files = ak0991x_island_enable,
                  diag_ssid = "MSG_SSID_SNS_SENSOR_EXT")
