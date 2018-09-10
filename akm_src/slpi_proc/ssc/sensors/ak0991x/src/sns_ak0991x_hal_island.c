@@ -456,18 +456,28 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
 
   if(NULL != instance)
   {
-    SNS_INST_PRINTF(LOW, instance, "enter i3c mode");
+    AK0991X_INST_PRINT(LOW, instance, "enter i3c mode");
+  }
+  if(com_port->in_i3c_mode)
+  {
+    if(NULL != instance)
+    {
+      SNS_INST_PRINTF(MED, instance, "already in i3c mode");
+    }
+    return SNS_RC_SUCCESS;
   }
 
   i2c_com_config.slave_control = com_port->i2c_address;
   rv = scp_service->api->sns_scp_register_com_port(&i2c_com_config, &i2c_port_handle);
   if( rv != SNS_RC_SUCCESS )
   {
+    SNS_INST_PRINTF(ERROR, instance, "i3c_mode: register_com_port() rv=%d", rv);
     return SNS_RC_FAILED;
   }
   rv = scp_service->api->sns_scp_open(i2c_port_handle);
   if( rv != SNS_RC_SUCCESS )
   {
+    SNS_INST_PRINTF(ERROR, instance, "i3c_mode: open() rv=%d", rv);
     return SNS_RC_FAILED;
   }
 
@@ -479,50 +489,55 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
                        buffer, 1, &xfer_bytes );
   scp_service->api->sns_scp_close(i2c_port_handle);
   scp_service->api->sns_scp_deregister_com_port(&i2c_port_handle);
+  com_port->in_i3c_mode = true;
 
-  if(NULL != instance && rv == SNS_RC_SUCCESS)
+  if(NULL != instance)
   {
-    AK0991X_INST_PRINT(HIGH, instance, "I3C address assigned: 0x%x",((uint32_t)buffer[0])>>1);
-  }
-  else
-  {
-     if ( NULL != instance && rv != SNS_RC_SUCCESS )
-     {
-        SNS_INST_PRINTF(HIGH, instance, "assign i3c address failed");
-        return SNS_RC_FAILED;
-     }
+    if(rv == SNS_RC_SUCCESS)
+    {
+      SNS_INST_PRINTF(HIGH, instance, "I3C address assigned: 0x%x",((uint32_t)buffer[0])>>1);
+    }
+    else
+    {
+      SNS_INST_PRINTF(ERROR, instance, "assign i3c address failed; rv=%d", rv);
+    }
   }
 
   /**-------------Set max read size to the size of the FIFO------------------*/
-  buffer[0] = (uint8_t)((AK0991X_MAX_FIFO_SIZE >> 8) & 0xFF);
-  buffer[1] = (uint8_t)(AK0991X_MAX_FIFO_SIZE & 0xFF);
-  buffer[2] = 0;
-  rv = scp_service->api->
-    sns_scp_issue_ccc( com_port->port_handle,
-                       SNS_SYNC_COM_PORT_CCC_SETMRL,
-                       buffer, 3, &xfer_bytes );
-  if( rv != SNS_RC_SUCCESS ) {
-    if(NULL != instance)
-    {
-      SNS_INST_PRINTF(ERROR, instance, "Set max read length failed!");
+  if(com_port->port_handle != NULL)
+  {
+    buffer[0] = (uint8_t)((AK0991X_MAX_FIFO_SIZE >> 8) & 0xFF);
+    buffer[1] = (uint8_t)(AK0991X_MAX_FIFO_SIZE & 0xFF);
+    buffer[2] = 0;
+    rv = scp_service->api->
+      sns_scp_issue_ccc( com_port->port_handle,
+                         SNS_SYNC_COM_PORT_CCC_SETMRL,
+                         buffer, 3, &xfer_bytes );
+    if( rv != SNS_RC_SUCCESS ) {
+      if(NULL != instance)
+      {
+        SNS_INST_PRINTF(ERROR, instance, "Set max read length failed! rv=%d hndl=0x%x", 
+                        rv, com_port->port_handle);
+      }
     }
   }
 
   /**-------------------Disable IBI------------------------*/
-  buffer[0] = 0x1;
-  rv = scp_service->api->
-    sns_scp_issue_ccc( com_port->port_handle,
-                       SNS_SYNC_COM_PORT_CCC_DISEC,
-                       buffer, 1, &xfer_bytes );
-  if( rv == SNS_RC_SUCCESS ) {
+  if(com_port->port_handle != NULL)
+  {
+    buffer[0] = 0x1;
+    rv = scp_service->api->
+      sns_scp_issue_ccc( com_port->port_handle,
+                         SNS_SYNC_COM_PORT_CCC_DISEC,
+                         buffer, 1, &xfer_bytes );
     if(NULL != instance)
     {
-      AK0991X_INST_PRINT(LOW, instance, "IBI disabled");
-    }
-  } else {
-    if(NULL != instance)
-    {
-      SNS_INST_PRINTF(ERROR, instance, "IBI disable FAILED!");
+      if( rv == SNS_RC_SUCCESS ) {
+        AK0991X_INST_PRINT(LOW, instance, "IBI disabled");
+      } else {
+        SNS_INST_PRINTF(ERROR, instance, "IBI disable FAILED! rv=%d hndl=0x%x", 
+                        rv, com_port->port_handle);
+      }
     }
   }
 
@@ -665,7 +680,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
 
   if(this != NULL)
   {
-    SNS_INST_PRINTF(LOW, this, "device_sw_reset called");
+    AK0991X_INST_PRINT(LOW, this, "device_sw_reset called");
   }
 
   // clear old events
@@ -676,7 +691,6 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
 
   while(num_attempts-- > 0 && SNS_RC_SUCCESS != rv)
   {
-    ak0991x_enter_i3c_mode(this, com_port, scp_service);
     buffer[0] = AK0991X_SOFT_RESET;
     rv = ak0991x_com_write_wrapper(this,
                                  scp_service,
@@ -694,7 +708,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       }
       if(this != NULL)
       {
-        SNS_INST_PRINTF(HIGH, this, "device_sw_reset failed rc=%d, xfer_bytes=%d", rv, xfer_bytes);
+        SNS_INST_PRINTF(ERROR, this, "device_sw_reset failed rc=%d, xfer_bytes=%d", rv, xfer_bytes);
       }
       sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
     }
@@ -702,10 +716,11 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
     {
       if(this!= NULL)
       {
-         SNS_INST_PRINTF(LOW, this, "device_sw_reset sucessful");
+         AK0991X_INST_PRINT(LOW, this, "device_sw_reset sucessful");
       }
     }
   }
+  com_port->in_i3c_mode = false;
   ak0991x_enter_i3c_mode(this, com_port, scp_service);
 
   if(num_attempts <= 0)
@@ -1844,6 +1859,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
                               state,
                               &log_mag_state_raw_info);
 
+#ifdef AK0991X_ENABLE_TS_DEBUG
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
       AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %d of %d wm %d flush %d",
@@ -1857,6 +1873,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
           (state->mag_info.cur_wmk + 1),
           state->fifo_flush_in_progress);
     }
+#endif
   }
 
   // store previous measurement is irq and also right WM
@@ -2873,11 +2890,8 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 
     if (SNS_RC_SUCCESS != ak0991x_send_timer_request(this))
     {
-      AK0991X_INST_PRINT(LOW, this, "Failed send timer request");
+      SNS_INST_PRINTF(ERROR, this, "Failed send timer request");
     }
-
-    AK0991X_INST_PRINT(LOW, this, "hb_timer start %u fire %u period %u",
-        (uint32_t)state->req_payload.start_time, (uint32_t)state->hb_timer_fire_time, (uint32_t)state->req_payload.timeout_period);
   }
 }
 

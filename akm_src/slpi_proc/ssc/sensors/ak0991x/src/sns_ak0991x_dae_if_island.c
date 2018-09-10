@@ -406,7 +406,7 @@ static void process_fifo_samples(
         }
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch");
       }
-
+#ifdef AK0991X_ENABLE_TS_DEBUG
       if(state->num_samples > 1)
       {
         AK0991X_INST_PRINT(
@@ -414,6 +414,7 @@ static void process_fifo_samples(
           odr, (uint32_t)sampling_intvl, state->num_samples, 
           (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
       }
+#endif
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,

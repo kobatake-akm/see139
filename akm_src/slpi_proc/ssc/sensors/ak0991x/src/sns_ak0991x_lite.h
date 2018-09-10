@@ -22,6 +22,7 @@
 // Target board HDK845
 //#define AK0991X_BOARD_HDK845
 
+//#define AK0991X_ENABLE_TS_DEBUG           // Enable timestamp debug messages
 //#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 #ifndef SSC_TARGET_DAE_BYPASS
 #define AK0991X_ENABLE_DAE                // Enable DAE
@@ -30,7 +31,7 @@
 #define AK0991X_ENABLE_I3C_SUPPORT        // Enable support for I3C bus
 #endif
 //#define AK0991X_ENABLE_I3C_DEBUG
-#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
+//#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 #define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
 //#define AK0991X_ENABLE_REGISTRY_ACCESS

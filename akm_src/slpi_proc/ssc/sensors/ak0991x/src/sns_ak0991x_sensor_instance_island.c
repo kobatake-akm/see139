@@ -216,7 +216,10 @@ static void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
       break;
     }
     uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
-    cal_id += state_set*(uint32_t)powf(2, i);
+    if(state_set)
+    {
+      cal_id |= state_set << (state->device_mode[i].mode - SNS_DEVICE_MODE_FLIP_OPEN);
+    }
   }
   state->cal.id = cal_id;
 }
