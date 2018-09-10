@@ -1651,6 +1651,11 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
             AK0991X_PRINT(LOW, this, "state = SET_CLIENT_REQ");
 
+            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
+
+            ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
+
             if (NULL != instance)
             {
               AK0991X_PRINT(LOW, this, "state = SET_CLIENT_REQ && instance is Not NULL");
@@ -1663,10 +1668,6 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 ak0991x_set_self_test_inst_config(this, instance);
               }
             }
-            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-            state->remove_timer_stream = true;
-
-            ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF)
           {
