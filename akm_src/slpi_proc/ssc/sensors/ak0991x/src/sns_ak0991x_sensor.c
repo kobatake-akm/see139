@@ -601,6 +601,7 @@ static void ak0991x_create_registry_faccal_str(int hw_id, int cal_id, char *str,
 static void ak0991x_request_registry(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state*)this->state->state;
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
   sns_stream_service *stream_svc = (sns_stream_service*)
     service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
   int hw_id = 0;
@@ -2271,6 +2272,3 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
   }
 }
 
-
-#include "sns_sensor_util.h"
-  return str;

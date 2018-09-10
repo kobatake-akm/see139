@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 09/03/18     020016     Qualcomm         Changed when to enter i3c
+ * 09/10/18     020016     AKM              Merged Qualcomm's 020015 and AKM's 020015.
+ * 09/06/18     020015     Qualcomm         Changed when to enter i3c
  * 09/03/18     020015     AKM              Modified for Dual Sensor on DAE
  * 08/03/18     020014     AKM              Debugged for the Klocwork P1 errors(#03603537)
  * 07/28/18                Qualcomm         Send CFG Event for new request even no change 
