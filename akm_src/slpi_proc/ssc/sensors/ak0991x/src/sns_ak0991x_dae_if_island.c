@@ -410,7 +410,7 @@ static void process_fifo_samples(
       if(state->num_samples > 1)
       {
         AK0991X_INST_PRINT(
-          MED, this, "fifo_samples:: odr=0x%X invtl=%u #samples=%u ts=%X-%X", 
+          MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
           odr, (uint32_t)sampling_intvl, state->num_samples, 
           (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
       }
