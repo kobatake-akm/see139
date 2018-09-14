@@ -106,6 +106,7 @@ typedef struct ak0991x_com_port_info
   sns_sync_com_port_handle *port_handle;
   uint8_t                  i2c_address;
   uint8_t                  i3c_address;
+  bool                     in_i3c_mode;
 } ak0991x_com_port_info;
 
 /**

@@ -1,3 +1,4 @@
+#include "sns_ak0991x_dae_if.h"
 #pragma once
 /**
  * @file sns_ak0991x_sensor.h
@@ -87,6 +88,9 @@
 #ifdef SSC_TARGET_SM6150
 #define BUS_TYPE                   SNS_BUS_I2C
 #define IRQ_NUM                    83
+#elif SSC_TARGET_SM7150
+#define BUS_TYPE                   SNS_BUS_I3C_SDR
+#define IRQ_NUM                    88
 #else
 #define BUS_TYPE                   SNS_BUS_I3C_SDR
 #define IRQ_NUM                    134

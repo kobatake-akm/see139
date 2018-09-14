@@ -1,6 +1,5 @@
 # Other folder
 async_com_port/
-build/
 gravity/
 gyro_cal/
 gyro_rot_matrix/
