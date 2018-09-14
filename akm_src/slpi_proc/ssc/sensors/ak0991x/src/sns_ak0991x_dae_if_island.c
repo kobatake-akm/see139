@@ -358,7 +358,7 @@ static void process_fifo_samples(
 
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
-      state->irq_info.detect_irq_event = true;
+      state->irq_info.detect_irq_event = state->data_is_ready;
 
       if(odr == state->mag_info.curr_odr)
       {
@@ -407,7 +407,7 @@ static void process_fifo_samples(
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch");
       }
 #ifdef AK0991X_ENABLE_TS_DEBUG
-      if(state->num_samples > 1)
+      if(state->num_samples > 0)
       {
         AK0991X_INST_PRINT(
           MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
