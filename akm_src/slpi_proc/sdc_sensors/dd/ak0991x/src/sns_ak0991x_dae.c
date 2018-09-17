@@ -27,7 +27,7 @@
 #define AKM_AK0991X_REG_HXL                         (0x11)
 #define AKM_AK0991X_REG_CNTL1                       (0x30)
 #define AKM_AK0991X_REG_CNTL2                       (0x31)
-#define AK09917_WHOAMI_DEV_ID                       (0xD)  /** Who Am I device ID */
+#define AK09917_WHOAMI_DEV_ID                       (0x0D)  /** Who Am I device ID */
 
 /**
 *****************************************************************************************
@@ -57,17 +57,14 @@ ak0991x_get_data( sns_dd_handle_s*    dd_handle,
   /* Status registers for use in this function */
   sns_com_port_vector_s state_vector_ptr[] =
     {
-#if 0
       /* QC: Assume high speed mode is not used, so no need to check for 9917 vs. 9915 */
       { .reg_addr = AKM_AK0991X_REG_WIA2,
         .buf_sz = 1,
         .buf = &device_select },
-#endif /* 0 */
       { .reg_addr = AKM_AK0991X_REG_ST1,
         .buf_sz = 1,
         .buf = &fifo_status },
-      {
-        .reg_addr = AKM_AK0991X_REG_CNTL1,
+      { .reg_addr = AKM_AK0991X_REG_CNTL1,
         .buf_sz = 2,
         .buf = &reg_ctl },
     };
@@ -80,18 +77,13 @@ ak0991x_get_data( sns_dd_handle_s*    dd_handle,
   {
     if((reg_ctl.fifo_mode & 0x80) != 0)
     {
-#if 0
       if (device_select == AK09917_WHOAMI_DEV_ID)
-#endif /* 0 */
       {
         // AK09917D has FNUM bits
         // correspond to how many samples are currently in the FIFO buffer
         // QC: For non 9917D devices, this will be 0 (assuming high speed is disabled).
         *num_samples = ((fifo_status & 0xFC) >> 2);
       }
-#if 1
-      if( *num_samples != 0 ) { }
-#endif /* 1 */
       else
       {
         *num_samples = (reg_ctl.water_mark & 0x1F) + 1;

@@ -1953,12 +1953,20 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
       // keep re-calculating for clock frequency drifting.
       ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
 
+#ifdef AK0991X_ENABLE_DAE
+      if( state->num_samples == (state->mag_info.cur_wmk+1) )
+      {
+        state->averaged_interval = ((state->interrupt_timestamp - state->previous_irq_time) /
+                                    state->mag_info.data_count);
+      }
+#else
       if( (state->previous_meas_is_irq) &&
           (state->num_samples == (state->mag_info.cur_wmk+1)) )
       {
         state->averaged_interval = ((state->interrupt_timestamp - state->previous_irq_time) / 
                                     (state->mag_info.cur_wmk + 1));
       }
+#endif //AK0991X_ENABLE_DAE
       else
       {
         SNS_INST_PRINTF(LOW, instance, "Unreliable irq. prev_irq_ok= %d current_wm_ok= %d",

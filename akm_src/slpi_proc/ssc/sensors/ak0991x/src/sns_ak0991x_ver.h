@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/17/18     020017     AKM              Modified for MAG023/MAG025/MAG027 timing error on DAE mode
  * 09/10/18     020016     AKM              Merged Qualcomm's 020015 and AKM's 020015.
  * 09/06/18     020015     Qualcomm         Changed when to enter i3c
  * 09/03/18     020015     AKM              Modified for Dual Sensor on DAE
@@ -185,4 +186,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20016  // major:02 minor:00 revision:16
+#define AK0991X_DRIVER_VERSION 20017  // major:02 minor:00 revision:17

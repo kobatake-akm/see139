@@ -358,7 +358,6 @@ static void process_fifo_samples(
 
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
-      state->irq_info.detect_irq_event = state->data_is_ready;
 
       if(odr == state->mag_info.curr_odr)
       {
@@ -380,6 +379,7 @@ static void process_fifo_samples(
             (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
           state->pre_timestamp = state->odr_change_timestamp +
             (state->half_measurement_time<<1) - state->averaged_interval;
+          state->previous_irq_time = state->pre_timestamp;
         }
 
         if(state->mag_info.use_dri)
@@ -468,24 +468,24 @@ static void process_data_event(
     // Handle interrupts
     if (NULL != state->interrupt_data_stream)
     {
-//      AK0991X_INST_PRINT(LOW, this, "process_data_event called. interrupt_data_stream");
-      state->previous_irq_time = state->interrupt_timestamp;
-      state->irq_event_time = data_event.timestamp;
+      state->irq_info.detect_irq_event = state->fifo_flush_in_progress ? false : true;
+      AK0991X_INST_PRINT(LOW, this, "process_data_event called. prev_irq_time %u detect_irq_event=%d count: %d",
+          (uint32_t)state->previous_irq_time,
+          state->irq_info.detect_irq_event,
+          state->mag_info.data_count);
+      if(state->irq_info.detect_irq_event)
+      {
+        state->irq_event_time = data_event.timestamp;
+      }
     }
 
-    // Handle Async Com Port events
-    if (NULL != state->async_com_port_data_stream)
-    {
-//      AK0991X_INST_PRINT(LOW, this, "process_data_event called. async_com_port_data_stream");
-    }
-
-    // Handle timer event
-    if (NULL != state->timer_data_stream)
-    {
-//      AK0991X_INST_PRINT(LOW, this, "process_data_event called. timer_data_stream");
-    }
     process_fifo_samples(
       this, (uint8_t*)decode_arg.buf, decode_arg.buf_len);
+
+    if(state->irq_info.detect_irq_event)
+    {
+      state->previous_irq_time = state->interrupt_timestamp;
+    }
   }
 }
 
@@ -619,8 +619,6 @@ static void process_response(
 static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_stream)
 {
   sns_sensor_event *event;
-
-  AK0991X_INST_PRINT(LOW, this,"process_events called.");
 
   while(NULL != dae_stream->stream &&
         NULL != (event = dae_stream->stream->api->peek_input(dae_stream->stream)))
