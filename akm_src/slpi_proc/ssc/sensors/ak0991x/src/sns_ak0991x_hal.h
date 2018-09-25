@@ -91,6 +91,9 @@
 #define AK09915C_SUB_ID                             0x0
 #define AK09915D_SUB_ID                             0x2
 
+/** FIFO enable bit */
+#define AK0991X_FIFO_BIT                            0x80
+
 /** Data ready bit */
 #define AK0991X_DRDY_BIT                            0x1
 

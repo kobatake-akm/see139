@@ -1,19 +1,7 @@
-# Other folder
-async_com_port/
-gravity/
-gyro_cal/
-gyro_rot_matrix/
-interrupt/
-pb/
-quat/
-resampler/
-signal/
-sim/
-timer/
-flush_test/
-md_test/
-test/
-lsm6ds3/
+## Other folder
+akm_src
+!akm_src/slpi_proc/sdc_sensors/dd/ak0991x
+!akm_src/slpi_proc/ssc/sensors/ak0991x
 
 # Object files
 *.o
@@ -51,4 +39,3 @@ lsm6ds3/
 
 *.zip
 
-ak0991x/sdm845_ak991x_0\.json

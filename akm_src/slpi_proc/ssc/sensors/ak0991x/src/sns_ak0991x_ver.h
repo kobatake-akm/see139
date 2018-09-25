@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/25/18     020018     AKM              Modified for MAG221 with AK09917D RevA parts.
+ * 09/17/18     020017     AKM              Modified for MAG023/MAG025/MAG027 timing error on DAE mode
  * 09/20/18     020017     Qualcomm         Fixed setting of FIFO watermark.
  *                                          Previous incorrect logic was causing garbage values to be reported
  *                                          in the extra data samples above the 25 max for AK09917
@@ -188,4 +190,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20017  // major:02 minor:00 revision:17
+#define AK0991X_DRIVER_VERSION 20018  // major:02 minor:00 revision:18

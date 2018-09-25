@@ -366,7 +366,6 @@ static void process_fifo_samples(
 
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
-      state->irq_info.detect_irq_event = state->data_is_ready;
 
       if(odr == state->mag_info.curr_odr)
       {
@@ -380,14 +379,15 @@ static void process_fifo_samples(
           ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
           state->this_is_first_data = true;
           state->mag_info.data_count = 0;
-          state->half_measurement_time = 
-            ((sns_convert_ns_to_ticks(meas_usec * 1000) * 
+          state->half_measurement_time =
+            ((sns_convert_ns_to_ticks(meas_usec * 1000) *
               state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
           state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-          state->averaged_interval = 
+          state->averaged_interval =
             (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-          state->pre_timestamp = state->odr_change_timestamp + 
+          state->pre_timestamp = state->odr_change_timestamp +
             (state->half_measurement_time<<1) - state->averaged_interval;
+          state->previous_irq_time = state->pre_timestamp;
         }
 
         if(state->mag_info.use_dri)
@@ -402,7 +402,7 @@ static void process_fifo_samples(
       }
       else
       {
-        sampling_intvl = (ak0991x_get_sample_interval(odr) * 
+        sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
         state->previous_meas_is_irq = false;
         state->previous_meas_is_correct_wm = false;
@@ -415,11 +415,11 @@ static void process_fifo_samples(
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch");
       }
 #ifdef AK0991X_ENABLE_TS_DEBUG
-      if(state->num_samples > 1)
+      if(state->num_samples > 0)
       {
         AK0991X_INST_PRINT(
           MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
-          odr, (uint32_t)sampling_intvl, state->num_samples, 
+          odr, (uint32_t)sampling_intvl, state->num_samples,
           (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
       }
 #endif
@@ -471,13 +471,29 @@ static void process_data_event(
   if(pb_decode(pbstream, sns_dae_data_event_fields, &data_event))
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-
     state->system_time = sns_get_system_time();
-    state->previous_irq_time = state->irq_event_time;
-    state->irq_event_time = data_event.timestamp;
+
+    // Handle interrupts
+    if (NULL != state->interrupt_data_stream)
+    {
+      state->irq_info.detect_irq_event = state->fifo_flush_in_progress ? false : true;
+      AK0991X_INST_PRINT(LOW, this, "process_data_event called. prev_irq_time %u detect_irq_event=%d count: %d",
+          (uint32_t)state->previous_irq_time,
+          state->irq_info.detect_irq_event,
+          state->mag_info.data_count);
+      if(state->irq_info.detect_irq_event)
+      {
+        state->irq_event_time = data_event.timestamp;
+      }
+    }
 
     process_fifo_samples(
       this, (uint8_t*)decode_arg.buf, decode_arg.buf_len);
+
+    if(state->irq_info.detect_irq_event)
+    {
+      state->previous_irq_time = state->interrupt_timestamp;
+    }
   }
 }
 
@@ -622,6 +638,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 
       if (SNS_DAE_MSGID_SNS_DAE_DATA_EVENT == event->message_id)
       {
+        AK0991X_INST_PRINT(LOW, this,"DAE_DATA_EVENT");
         process_data_event(this, &pbstream);
       }
       else if(SNS_DAE_MSGID_SNS_DAE_INTERRUPT_EVENT == event->message_id)
@@ -866,6 +883,8 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  state->irq_info.detect_irq_event = false;
 
   if(stream_usable(&dae_if->mag) && dae_if->mag.state >= IDLE)
   {
