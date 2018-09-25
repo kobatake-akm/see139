@@ -1305,6 +1305,7 @@ static sns_rc ak0991x_wait_drdy_poll(sns_sensor_instance *const this,
       /* OK, DRDY bit is high */
       return SNS_RC_SUCCESS;
     }
+
     /* DRDY bit is still LOW, wait for a while and read again */
     sns_busy_wait(sns_convert_ns_to_ticks(1 * 1000 * 1000)); // Wait 1ms
   }
@@ -1350,7 +1351,6 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
-
   /** Step 1
    *   If the device has FUSE ROM, test the sensitivity value
    **/
@@ -1376,20 +1376,28 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /** Step 2
    *   Continuous mode check
    **/
+
   /* Set to CNT measurement mode3 (50Hz) */
-  buffer[0] = AK0991X_MAG_ODR50;
+  buffer[0] = 0x00;
+  buffer[1] = AK0991X_MAG_ODR50;
+
+  /* Enable FIFO for AK09917D RevA bug */
+  if (state->mag_info.device_select == AK09917)
+  {
+    buffer[1] |= AK0991X_FIFO_BIT;
+  }
   rv = ak0991x_com_write_wrapper(this,
                    state->scp_service,
                    state->com_port_info.port_handle,
-                   AKM_AK0991X_REG_CNTL2,
+                   AKM_AK0991X_REG_CNTL1,
                    buffer,
-                   1,
+                   2,
                    &xfer_bytes,
                    false);
 
   if (rv != SNS_RC_SUCCESS
     ||
-    xfer_bytes != 1)
+    xfer_bytes != 2)
   {
     *err = ((TLIMIT_NO_CNT_CNTL2) << 16);
     goto TEST_SEQUENCE_FAILED;
@@ -3094,6 +3102,8 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
     {
       bool hw_success = false;
       uint32_t err;
+
+      ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
 
       AK0991X_INST_PRINT(LOW, instance, "hw self-test start!");
       rv = ak0991x_hw_self_test(instance, &err);
