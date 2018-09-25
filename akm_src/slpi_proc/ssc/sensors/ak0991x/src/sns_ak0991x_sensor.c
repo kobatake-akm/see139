@@ -468,7 +468,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
       rv = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
       if(rv != SNS_RC_SUCCESS)
       {
-        AK0991X_PRINT(ERROR, this, "Failed Open port: error = %d",rv);
+        SNS_PRINTF(ERROR, this, "Failed Open port: error = %d",rv);
       }
     }
     else
@@ -1048,7 +1048,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   }
   else
   {
-    AK0991X_PRINT(ERROR, this, "Received unsupported registry event msg id %u",
+    SNS_PRINTF(ERROR, this, "Received unsupported registry event msg id %u",
                              event->message_id);
   }
 }
@@ -1428,7 +1428,7 @@ static bool ak0991x_get_decoded_self_test_request(
                                   request->request_len);
   if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-    AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+    SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
 #ifndef AK0991X_ENABLE_DEBUG_MSG

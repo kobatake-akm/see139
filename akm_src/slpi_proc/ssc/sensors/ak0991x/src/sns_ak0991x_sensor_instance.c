@@ -12,6 +12,7 @@
  *
  **/
 
+#include "sns_event_service.h"
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
@@ -367,42 +368,39 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 }
 
 static uint16_t ak0991x_set_wmk(sns_sensor_instance *const this,
-                                float desired_report_rate)
+                                float desired_report_rate,
+								float mag_chosen_sample_rate)
 {
   uint16_t desired_wmk = 0;
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  if (state->mag_info.use_fifo)
+  switch (state->mag_info.device_select)
   {
-    if (desired_report_rate != 0)
-    {
-      /* Water mark level : 0x00 -> 1step, 0x01F ->32step*/
-      desired_wmk = state->mag_info.req_wmk - 1;
-    }
+    case AK09915C:
+    case AK09915D:
+    case AK09917:
+      desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01 * desired_report_rate) / desired_report_rate;
+      if (state->mag_info.max_batch)
+      {
+        desired_wmk = state->mag_info.max_fifo_size - 1;
+      }
+	  else if ( desired_wmk >= (UINT16_MAX - (state->mag_info.max_fifo_size - 1))) 
+	  {
+		desired_wmk = state->mag_info.max_fifo_size - 1;
+	  }	
+       else if ( desired_wmk >= state->mag_info.max_fifo_size)
+      {
+         uint32_t divider = 1;
+         divider = (state->mag_info.max_fifo_size - 1 + desired_wmk) / state->mag_info.max_fifo_size;
+         desired_wmk = desired_wmk / SNS_MAX(divider,1);
+         desired_wmk = desired_wmk - 1;
+      }
+      break;
 
-    switch (state->mag_info.device_select)
-    {
-      case AK09915C:
-      case AK09915D:
-      case AK09917:
-        if (state->mag_info.max_batch)
-        {
-          desired_wmk = AK09917_FIFO_SIZE - 1;
-        }
-        else if (AK09917_FIFO_SIZE <= desired_wmk)
-        {
-          uint32_t divider = 1;
-          divider = (AK09917_FIFO_SIZE - 1 + state->mag_info.req_wmk) / AK09917_FIFO_SIZE;
-          desired_wmk = state->mag_info.req_wmk / SNS_MAX(divider,1);
-          desired_wmk = desired_wmk - 1;
-        }
-        break;
-
-      default:
-        desired_wmk = 0;
-        break;
-    }
+    default:
+      desired_wmk = 0;
+      break;
   }
   AK0991X_INST_PRINT(LOW, this, "set_wmk:: rr=%u/100 wm=%u", 
                      (int)(desired_report_rate*100), desired_wmk);
@@ -519,7 +517,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         (int)desired_sample_rate, (int)(desired_report_rate*100), (int)state->mag_info.req_wmk);
 
     // If already a request, send out existing config before the next data events are sent
-    if (state->mag_info.use_fifo &&  state->mag_info.req_wmk > 0)
+    if (desired_sample_rate > 0)
     {
       ak0991x_send_config_event(this);
     }
@@ -531,8 +529,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                state->mag_info.device_select);
     if (rv != SNS_RC_SUCCESS)
     {
-      // TODO Unsupported rate. Report error using sns_std_error_event.
-      // return rv;
+      sns_service_manager *manager =
+        this->cb->get_service_manager(this);
+      sns_event_service *event_service =
+      	(sns_event_service*)manager->get_service(manager, SNS_EVENT_SERVICE);
+      SNS_INST_PRINTF(ERROR, this, "Cannot find match ODR: rv=%d, desired_SR=%d, mag device=%d",
+        rv, (int)desired_sample_rate, state->mag_info.device_select);
+      event_service->api->publish_error(event_service,this, SNS_RC_NOT_SUPPORTED);
+      return rv;
     }
 
     if (state->mag_info.max_batch)
@@ -556,7 +560,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.req_wmk = 0;
     }
 
-    desired_wmk = ak0991x_set_wmk(this, desired_report_rate);
+    desired_wmk = ak0991x_set_wmk(this, desired_report_rate, mag_chosen_sample_rate);
     AK0991X_INST_PRINT(LOW, this, "req_wmk=%u desired_wmk=%u,flush_period=%u, flushonly=%d, max_batch=%d",
                        state->mag_info.req_wmk, desired_wmk, state->mag_info.flush_period,
                        state->mag_info.flush_only?1:0, state->mag_info.max_batch?1:0 );

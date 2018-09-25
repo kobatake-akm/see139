@@ -1,4 +1,3 @@
-#include "sns_ak0991x_dae_if.h"
 #pragma once
 /**
  * @file sns_ak0991x_sensor.h

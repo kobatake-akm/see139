@@ -22,11 +22,14 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/20/18     020017     Qualcomm         Fixed setting of FIFO watermark.
+ *                                          Previous incorrect logic was causing garbage values to be reported
+ *                                          in the extra data samples above the 25 max for AK09917
  * 09/10/18     020016     AKM              Merged Qualcomm's 020015 and AKM's 020015.
  * 09/06/18     020015     Qualcomm         Changed when to enter i3c
  * 09/03/18     020015     AKM              Modified for Dual Sensor on DAE
  * 08/03/18     020014     AKM              Debugged for the Klocwork P1 errors(#03603537)
- * 07/28/18                Qualcomm         Send CFG Event for new request even no change 
+ * 07/28/18     020013     Qualcomm         Send CFG Event for new request even no change 
  * 07/24/18     020013     AKM/Qualcomm     Enabled device mode as default and cleaned related code.
  * 07/12/18     020012     AKM/Qualcomm     Fixed compile error when DAE is enabled
  * 07/03/18     020011     AKM              Debugged when the registry access is disabled.
@@ -185,4 +188,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20016  // major:02 minor:00 revision:16
+#define AK0991X_DRIVER_VERSION 20017  // major:02 minor:00 revision:17

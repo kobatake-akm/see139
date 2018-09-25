@@ -471,13 +471,19 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   rv = scp_service->api->sns_scp_register_com_port(&i2c_com_config, &i2c_port_handle);
   if( rv != SNS_RC_SUCCESS )
   {
-    SNS_INST_PRINTF(ERROR, instance, "i3c_mode: register_com_port() rv=%d", rv);
+    if (NULL != instance)
+    {
+      SNS_INST_PRINTF(ERROR, instance, "i3c_mode: register_com_port() rv=%d", rv);
+    }
     return SNS_RC_FAILED;
   }
   rv = scp_service->api->sns_scp_open(i2c_port_handle);
   if( rv != SNS_RC_SUCCESS )
   {
-    SNS_INST_PRINTF(ERROR, instance, "i3c_mode: open() rv=%d", rv);
+    if (NULL != instance)
+    {
+      SNS_INST_PRINTF(ERROR, instance, "i3c_mode: open() rv=%d", rv);
+    }
     return SNS_RC_FAILED;
   }
 

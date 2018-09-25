@@ -52,16 +52,16 @@ static void build_static_config_request(
   sns_dae_set_static_config *config_req,
   int64_t hardware_id)
 {
-	
-	if(hardware_id == 0){
-	  sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table",
-              sizeof(config_req->func_table_name));
-	}
-	else
-	{
-	  sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table2",
-              sizeof(config_req->func_table_name));
-	}
+  if(hardware_id == 0)
+  {
+    sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table",
+               sizeof(config_req->func_table_name));
+  }
+  else
+  {
+    sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table2",
+               sizeof(config_req->func_table_name));
+  }
 
 
 #ifdef AK0991X_DAE_FORCE_POLLING
@@ -337,7 +337,15 @@ static void process_fifo_samples(
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
 
-  state->num_samples          = buf[2] >> 2;
+  if((buf[1] & 0x80) == 0)
+  {
+    state->num_samples = 1;
+  }
+  else
+  {
+    state->num_samples = buf[2] >> 2;
+  }
+
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
     SNS_INST_PRINTF(
