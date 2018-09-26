@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/26/18     020019     AKM              Merged Qualcomm 010017 and AKM 020018 and modified for WM
  * 09/25/18     020018     AKM              Modified for MAG221 with AK09917D RevA parts.
  * 09/17/18     020017     AKM              Modified for MAG023/MAG025/MAG027 timing error on DAE mode
  * 09/20/18     020017     Qualcomm         Fixed setting of FIFO watermark.
@@ -190,4 +191,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20018  // major:02 minor:00 revision:18
+#define AK0991X_DRIVER_VERSION 20019  // major:02 minor:00 revision:19
