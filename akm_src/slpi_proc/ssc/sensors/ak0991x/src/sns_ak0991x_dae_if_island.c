@@ -173,7 +173,8 @@ static bool send_mag_config(sns_sensor_instance *this)
                      state->in_clock_error_procedure,
                      state->mag_info.clock_error_meas_count);
 
-  if(!state->mag_info.use_dri || state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
+  if(!state->mag_info.use_dri ||
+      state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     config_req.dae_watermark = SNS_MAX(mag_info->req_wmk, 1);
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
@@ -181,7 +182,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   }
   else
   {
-    config_req.dae_watermark = wm = 1;
+    config_req.dae_watermark = wm = 1;  // go into clock error procedure
   }
 
   config_req.has_data_age_limit_ticks = true;
@@ -359,8 +360,7 @@ static void process_fifo_samples(
 
   if(state->num_samples >= 1)
   {
-    if(!state->mag_info.use_dri ||
-       (!state->in_clock_error_procedure && state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC))
+    if(!state->in_clock_error_procedure)
     {
       uint32_t sampling_intvl;
       uint8_t wm = (buf[0] & 0x1F) + 1;
@@ -448,19 +448,12 @@ static void process_fifo_samples(
     }
     else  // in clock error procedure
     {
-      if(state->irq_info.detect_irq_event)
+      AK0991X_INST_PRINT(LOW, this, "ak0991x_clock_error_calc_procedure call in DAE");
+      ak0991x_clock_error_calc_procedure(this, &buf[2]);
+      if (!state->in_clock_error_procedure && ak0991x_dae_if_stop_streaming(this))
       {
-        AK0991X_INST_PRINT(LOW, this, "ak0991x_clock_error_calc_procedure call in DAE");
-        ak0991x_clock_error_calc_procedure(this, &buf[2]);
-        if (!state->in_clock_error_procedure && ak0991x_dae_if_stop_streaming(this))
-        {
-          AK0991X_INST_PRINT(LOW, this, "DONE clock error procedure");
-          state->config_step = AK0991X_CONFIG_UPDATING_HW;
-        }
-      }
-      else
-      {
-        AK0991X_INST_PRINT(HIGH, this, "Discarding %u stale samples.", state->num_samples);
+        AK0991X_INST_PRINT(LOW, this, "DONE clock error procedure");
+        state->config_step = AK0991X_CONFIG_UPDATING_HW;
       }
     }
   }
