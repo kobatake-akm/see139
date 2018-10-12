@@ -168,12 +168,14 @@ static bool send_mag_config(sns_sensor_instance *this)
   sns_time meas_usec;
   ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 
-  AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x in_clk_err=%d #clk_err=%u",
-                     dae_stream->stream,
+  AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x, #clk_err_meas_count=%u/%u, in_clk_err_proc=%u, use_dri=%u",
+                     dae_stream->stream, 
+                     state->mag_info.clock_error_meas_count,
+                     AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC,
                      state->in_clock_error_procedure,
-                     state->mag_info.clock_error_meas_count);
+                     state->mag_info.use_dri);
 
-  if(!state->mag_info.use_dri ||
+  if(!state->mag_info.use_dri || 
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     config_req.dae_watermark = SNS_MAX(mag_info->req_wmk, 1);
@@ -440,6 +442,10 @@ static void process_fifo_samples(
         AK0991X_INST_PRINT(LOW, this, "DONE clock error procedure");
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
       }
+      else
+      {
+        AK0991X_INST_PRINT(HIGH, this, "Discarding %u stale samples.", state->num_samples);
+      }
     }
 
     if(state->mag_info.use_dri)
@@ -476,6 +482,7 @@ static void process_data_event(
   if(pb_decode(pbstream, sns_dae_data_event_fields, &data_event))
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+
     state->system_time = sns_get_system_time();
 
     // Handle interrupts
@@ -488,7 +495,7 @@ static void process_data_event(
           state->mag_info.data_count);
       if(state->irq_info.detect_irq_event)
       {
-        state->irq_event_time = data_event.timestamp;
+    state->irq_event_time = data_event.timestamp;
       }
     }
 
