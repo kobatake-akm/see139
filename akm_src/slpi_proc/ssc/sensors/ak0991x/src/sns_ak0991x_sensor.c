@@ -291,7 +291,10 @@ static void ak0991x_get_mag_config(
           }
           else
           {
-            flush_period = UINT32_MAX;
+            // To ensure there is a reasonable age to direct the "throw away" of "aged" samples
+            // from DDR memory, thereby preventing DDR from getting full,
+            // use batch period when given, and when flush period is not given.
+            flush_period = decoded_request.batching.batch_period; 
           }
         }
         else
