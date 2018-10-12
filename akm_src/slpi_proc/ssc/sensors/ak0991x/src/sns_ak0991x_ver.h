@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/12/18     020021     AKM              HB timer perform while 100Hz dummy meas. Pause HB timer while self test.
  * 10/12/18     020020     Qualcomm/AKM     Fixed setting of flush period for FlushOnly = True use case.
  * 09/26/18     020019     AKM              Merged Qualcomm 010017 and AKM 020018 and modified for WM
  * 09/25/18     020018     AKM              Modified for MAG221 with AK09917D RevA parts.
@@ -192,4 +193,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20020  // major:02 minor:00 revision:20
+#define AK0991X_DRIVER_VERSION 20021  // major:02 minor:00 revision:21
