@@ -708,10 +708,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         if (!state->this_is_first_data && state->mag_info.use_fifo)
         {
           ak0991x_care_fifo_buffer(this,
-                                   mag_chosen_sample_rate,
-                                   mag_chosen_sample_rate_reg_value);
+              state->mag_req.sample_rate,
+              state->mag_info.desired_odr);
         }
-
+/*
         // hardware setting for measurement mode
         if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
        	{
@@ -724,6 +724,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_reconfig_hw(this, false);
           ak0991x_register_timer(this);
         }
+*/
       }
 
       ak0991x_dae_if_process_events(this);

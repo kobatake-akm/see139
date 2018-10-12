@@ -852,31 +852,35 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   }
 
   // Force 100Hz DRI measurement starts to get the clock error.
-  if(!force_off && state->mag_info.use_dri && 
-     (state->mag_info.clock_error_meas_count == 0) && !state->in_clock_error_procedure)
+  if(!force_off)
   {
-    buffer[0] = 0x0;
-    if (state->mag_info.device_select == AK09917)
+    if(state->mag_info.use_dri &&
+       (state->mag_info.clock_error_meas_count == 0) &&
+       !state->in_clock_error_procedure)
     {
-      buffer[1] = 0x0
-        | (0x01 << 7)                              // FIFO bit, FIFO enable for AK09917 RevA Bug
-        | (state->mag_info.sdr << 6)               // SDR bit
-        | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
+      buffer[0] = 0x0;
+      if (state->mag_info.device_select == AK09917)
+      {
+        buffer[1] = 0x0
+          | (0x01 << 7)                              // FIFO bit, FIFO enable for AK09917 RevA Bug
+          | (state->mag_info.sdr << 6)               // SDR bit
+          | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
+      }
+      else
+      {
+        buffer[1] = 0x0
+          | (state->mag_info.sdr << 6)               // SDR bit
+          | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
+      }
+
+      AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement start. Now in_clk_err_prcdr is TRUE");
+
+      state->in_clock_error_procedure = true;
     }
     else
     {
-      buffer[1] = 0x0
-        | (state->mag_info.sdr << 6)               // SDR bit
-        | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
+      AK0991X_INST_PRINT(LOW, this, "Real measurement start.");
     }
-
-    AK0991X_INST_PRINT(HIGH, this, "100Hz dummy measurement start.");
-
-    state->in_clock_error_procedure = true;
-  }
-  else
-  {
-    AK0991X_INST_PRINT(HIGH, this, "Real measurement start.");
   }
 
   AK0991X_INST_PRINT(LOW, this, "%x %x -> CTRL1", buffer[0], buffer[1]);
@@ -969,15 +973,16 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
                      (uint32_t)state->averaged_interval, (uint32_t)state->half_measurement_time);
 
   // QC - is it not possible to miss any of the interrupts during dummy measurement?
-  if(state->mag_info.use_dri && !state->in_clock_error_procedure)
+  if(state->mag_info.use_dri)
   {
-    if (state->mag_info.req_wmk == UINT32_MAX)
+    if(!state->in_clock_error_procedure && state->mag_info.req_wmk == UINT32_MAX)
     {
+      AK0991X_INST_PRINT(LOW, this, "req_wmk is MAX then heart beat timer is not registered.");
       sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
     }
     else
     {
-      AK0991X_INST_PRINT(HIGH, this, "register heart beat timer for DRI");
+      AK0991X_INST_PRINT(LOW, this, "Register heart beat timer for DRI");
       ak0991x_set_timer_request_payload(this);
       ak0991x_register_heart_beat_timer(this);
     }
@@ -2426,8 +2431,10 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     state->heart_beat_attempt_count = 0;
   }
   if( state->mag_info.use_dri &&
-      (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) )
+      (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) &&
+      (state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX))
   {
+    SNS_INST_PRINTF(LOW, instance, "Re register heart beat timer");
     ak0991x_register_heart_beat_timer(instance);
   }
 }
@@ -2816,18 +2823,26 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     // or 5 FIFO buffers time for FIFO+DRI
     if (state->mag_info.use_fifo)
     {
-      if(!ak0991x_dae_if_available(this))
+      if(state->in_clock_error_procedure)
       {
-        sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
-        req_payload.timeout_period = sample_period * 5 * (state->mag_info.cur_wmk + 1);
-        if(req_payload.timeout_period > max_timeout)
-        {
-          req_payload.timeout_period = max_timeout; // to avoid large data gap
-        }
+        // 100Hz dummy measurement fixed.
+        req_payload.timeout_period = sns_convert_ns_to_ticks(10 * 1000 * 1000) * 5 * 11 / 10;
       }
       else
       {
-        req_payload.timeout_period = (sample_period* 5 * state->mag_info.req_wmk) * 11 / 10;
+        if(!ak0991x_dae_if_available(this))
+        {
+          sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
+          req_payload.timeout_period = sample_period * 5 * (state->mag_info.cur_wmk + 1);
+          if(req_payload.timeout_period > max_timeout)
+          {
+            req_payload.timeout_period = max_timeout; // to avoid large data gap
+          }
+        }
+        else
+        {
+          req_payload.timeout_period = (sample_period* 5 * state->mag_info.req_wmk) * 11 / 10;
+        }
       }
     }
     else
@@ -3018,7 +3033,6 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   }
   else
   {
-    AK0991X_INST_PRINT(HIGH, this, "ak0991x_stop_mag_streaming");
     rv = ak0991x_stop_mag_streaming(this);
 
     if (rv != SNS_RC_SUCCESS)

@@ -430,21 +430,6 @@ static void process_fifo_samples(
                                       sampling_intvl,
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
-      if(state->mag_info.use_dri)
-      {
-        state->heart_beat_attempt_count = 0;
-        if (NULL != state->timer_data_stream)
-        {
-          sns_sensor_event *event =
-            state->timer_data_stream->api->peek_input(state->timer_data_stream);
-
-          while (NULL != event)
-          {
-            event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
-          }
-        }
-        ak0991x_register_heart_beat_timer(this);
-      }
     }
     else  // in clock error procedure
     {
@@ -454,6 +439,26 @@ static void process_fifo_samples(
       {
         AK0991X_INST_PRINT(LOW, this, "DONE clock error procedure");
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
+      }
+    }
+
+    if(state->mag_info.use_dri)
+    {
+      state->heart_beat_attempt_count = 0;
+      if (NULL != state->timer_data_stream)
+      {
+        sns_sensor_event *event =
+          state->timer_data_stream->api->peek_input(state->timer_data_stream);
+
+        while (NULL != event)
+        {
+          event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
+        }
+      }
+      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX)
+      {
+        SNS_INST_PRINTF(LOW, this, "Re register heart beat timer in DAE");
+        ak0991x_register_heart_beat_timer(this);
       }
     }
   }
