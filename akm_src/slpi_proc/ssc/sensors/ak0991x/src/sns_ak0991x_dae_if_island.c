@@ -485,18 +485,14 @@ static void process_data_event(
 
     state->system_time = sns_get_system_time();
 
-    // Handle interrupts
-    if (NULL != state->interrupt_data_stream)
+    state->irq_info.detect_irq_event = state->fifo_flush_in_progress ? false : true;
+    AK0991X_INST_PRINT(LOW, this, "process_data_event called. prev_irq_time %u detect_irq_event=%d count: %d",
+        (uint32_t)state->previous_irq_time,
+        state->irq_info.detect_irq_event,
+        state->mag_info.data_count);
+    if(state->irq_info.detect_irq_event)
     {
-      state->irq_info.detect_irq_event = state->fifo_flush_in_progress ? false : true;
-      AK0991X_INST_PRINT(LOW, this, "process_data_event called. prev_irq_time %u detect_irq_event=%d count: %d",
-          (uint32_t)state->previous_irq_time,
-          state->irq_info.detect_irq_event,
-          state->mag_info.data_count);
-      if(state->irq_info.detect_irq_event)
-      {
-    state->irq_event_time = data_event.timestamp;
-      }
+      state->irq_event_time = data_event.timestamp;
     }
 
     process_fifo_samples(

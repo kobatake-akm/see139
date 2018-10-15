@@ -2042,8 +2042,16 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   }
   else
   {
-    // from timer event
-    state->interrupt_timestamp = state->system_time;
+    if(ak0991x_dae_if_available(instance))
+    {
+      // from DAE process_fifo_samples() use event time.
+      state->interrupt_timestamp = state->irq_event_time;
+    }
+    else
+    {
+      // from timer event
+      state->interrupt_timestamp = state->system_time;
+    }
   }
 
   state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
