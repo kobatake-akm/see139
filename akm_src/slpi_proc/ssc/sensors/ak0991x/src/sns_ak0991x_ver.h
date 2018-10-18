@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/17/18     020023     AKM              Implemented HB timer for Polling when DAE enabled.
  * 10/15/18     020022     AKM              Debugged for I2C+Polling+DAE mode.
  * 10/12/18     020021     AKM              HB timer perform while 100Hz dummy meas. Pause HB timer while self test.
  * 10/12/18     020020     Qualcomm/AKM     Fixed setting of flush period for FlushOnly = True use case.
@@ -194,4 +195,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20022  // major:02 minor:00 revision:22
+#define AK0991X_DRIVER_VERSION 20023  // major:02 minor:00 revision:23

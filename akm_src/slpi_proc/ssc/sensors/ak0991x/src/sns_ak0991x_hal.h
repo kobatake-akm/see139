@@ -577,6 +577,12 @@ void ak0991x_register_interrupt(sns_sensor_instance *this);
 void ak0991x_register_heart_beat_timer(sns_sensor_instance *this);
 
 /**
+ * Heart beat timer event
+ *
+ */
+sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this);
+
+/**
  * Enable timer if not already enabled
  *
  */
@@ -667,4 +673,3 @@ void ak0991x_send_cal_event(sns_sensor_instance * const instance);
  * @return none
  */
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
-

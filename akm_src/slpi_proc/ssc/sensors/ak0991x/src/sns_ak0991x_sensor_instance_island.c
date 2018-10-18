@@ -69,14 +69,6 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
-static void ak0991x_inst_exit_island(sns_sensor_instance *this)
-{
-  sns_service_manager *smgr = this->cb->get_service_manager(this);
-  sns_island_service  *island_svc  =
-    (sns_island_service *)smgr->get_service(smgr, SNS_ISLAND_SERVICE);
-  island_svc->api->sensor_instance_island_exit(island_svc, this);
-}
-
 static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                      void *user_arg)
 {
@@ -97,95 +89,6 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
       AK0991X_INST_PRINT(LOW, instance, "skip ak0991x_process_mag_data_buffer because vector->bytes=%d detected.", vector->bytes);
     }
   }
-}
-
-static sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
-  sns_rc rv = SNS_RC_SUCCESS;
-
-  if(state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
-  {
-    SNS_INST_PRINTF(ERROR, this, "heart beat timer event is skipped since ODR=0.");
-    return rv;
-  }
-
-  if (state->mag_info.use_dri)
-  {
-    SNS_INST_PRINTF(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
-                         state->heart_beat_attempt_count,
-                         (uint32_t)state->req_payload.start_time,
-                         (uint32_t)state->req_payload.timeout_period,
-                         (uint32_t)state->hb_timer_fire_time,
-                         (uint32_t)state->system_time);
-    // Streaming is unable to resume after 4 attempts
-    if (state->heart_beat_attempt_count >= 4)
-    {
-      ak0991x_inst_exit_island(this);
-      SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
-      rv = SNS_RC_INVALID_STATE;
-    }
-    // Perform a reset operation in an attempt to revive the sensor
-    else
-    {
-      state->heart_beat_attempt_count++;
-      if(!ak0991x_dae_if_flush_hw(this))
-      {
-        ak0991x_read_mag_samples(this);
-        if(state->heart_beat_attempt_count >= 3)
-        {
-          ak0991x_inst_exit_island(this);
-          ak0991x_reconfig_hw(this, true);
-          // Indicate streaming error
-          rv = SNS_RC_NOT_AVAILABLE;
-        }
-      }
-    }
-  }
-  else
-  {
-    uint8_t heart_beat_thresthold =
-      ( state->mag_info.use_fifo )? 1 : 4;
-    if (state->heart_beat_sample_count < heart_beat_thresthold)
-    {
-      state->heart_beat_sample_count++;
-    }
-    else
-    {
-      AK0991X_INST_PRINT(LOW, this, "heart_beat_gap=%u, heart_beat_timeout=%u",
-        (uint32_t)(state->interrupt_timestamp-state->heart_beat_timestamp),
-        (uint32_t)state->heart_beat_timeout_period);
-      // Detect streaming has stopped
-      if (state->interrupt_timestamp > state->heart_beat_timestamp + state->heart_beat_timeout_period)
-      {
-        AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
-        // Streaming is unable to resume after 3 attempts
-        if (state->heart_beat_attempt_count >= 3)
-        {
-          ak0991x_inst_exit_island(this);
-          SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
-          rv = SNS_RC_INVALID_STATE;
-        }
-        // Perform a reset operation in an attempt to revive the sensor
-        else
-        {
-          ak0991x_inst_exit_island(this);
-          ak0991x_reconfig_hw(this, true);
-          // Indicate streaming error
-          rv = SNS_RC_NOT_AVAILABLE;
-          state->heart_beat_attempt_count++;
-        }
-      }
-      else
-      {
-        state->heart_beat_timestamp = state->interrupt_timestamp;
-        state->heart_beat_sample_count = 0;
-        state->heart_beat_attempt_count = 0;
-      }
-    }
-  }
-
-  return rv;
 }
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR

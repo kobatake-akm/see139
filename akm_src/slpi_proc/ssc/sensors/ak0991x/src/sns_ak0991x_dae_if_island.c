@@ -341,14 +341,40 @@ static void process_fifo_samples(
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
+  uint32_t sampling_intvl;
+  uint8_t wm = 1;
+  ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
 
-  if((buf[1] & 0x80) == 0)
+  // set num samples=1 when Polling mode. Check DRDY status for DRI.
+  state->num_samples = (state->mag_info.use_dri) ? ((buf[2] & AK0991X_DRDY_BIT) ? 1 : 0) : 1;
+
+  // update num_samples when FIFO enabled.
+  if(state->mag_info.device_select == AK09917)
   {
-    state->num_samples = 1;
+    if((buf[1] & 0x80) != 0)
+    {
+      state->num_samples = buf[2] >> 2;
+    }
+    wm = (buf[0] & 0x1F) + 1;
   }
-  else
+  else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
   {
-    state->num_samples = buf[2] >> 2;
+    if((buf[1] & 0x80) != 0)
+    {
+      state->num_samples = state->mag_info.cur_wmk + 1;
+    }
+    wm = state->mag_info.cur_wmk;
+  }
+
+  // reset num_samples when non-FIFO in order to prevent zero/negative timestamp
+  if( (!state->in_clock_error_procedure) &&
+      (odr == state->mag_info.curr_odr) &&
+      (state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm) &&
+      (!state->mag_info.use_fifo) &&
+      !(buf[2] & AK0991X_DRDY_BIT) )
+  {
+    state->num_samples = 0;
+    AK0991X_INST_PRINT(MED, this, "Reset num_samples = %d", state->num_samples);
   }
 
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
@@ -364,10 +390,6 @@ static void process_fifo_samples(
   {
     if(!state->in_clock_error_procedure)
     {
-      uint32_t sampling_intvl;
-      uint8_t wm = (buf[0] & 0x1F) + 1;
-      ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
-
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
 
@@ -378,6 +400,8 @@ static void process_fifo_samples(
           sns_time meas_usec;
           state->new_cfg.odr      = odr;
           state->new_cfg.fifo_wmk = wm;
+
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE");
           ak0991x_send_config_event(this);
 
           ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
@@ -414,24 +438,27 @@ static void process_fifo_samples(
         if(state->irq_info.detect_irq_event)
         {
           state->interrupt_timestamp = state->irq_event_time;
+          if(!state->mag_info.use_fifo)
+          {
+            state->first_data_ts_of_batch = state->interrupt_timestamp;
+          }
           state->previous_meas_is_correct_wm = (wm == state->num_samples);
         }
-        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch");
+        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch ODR=%d",odr);
       }
-#ifdef AK0991X_ENABLE_TS_DEBUG
-      if(state->num_samples > 0)
-      {
-        AK0991X_INST_PRINT(
-          MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
-          odr, (uint32_t)sampling_intvl, state->num_samples,
-          (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
-      }
-#endif
+
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
+#ifdef AK0991X_ENABLE_TS_DEBUG
+      AK0991X_INST_PRINT(
+        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
+        odr, (uint32_t)sampling_intvl, state->num_samples,
+        (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
+#endif
+
     }
     else  // in clock error procedure
     {
@@ -448,7 +475,7 @@ static void process_fifo_samples(
       }
     }
 
-    if(state->mag_info.use_dri)
+    if(state->mag_info.use_dri) // for DRI mode
     {
       state->heart_beat_attempt_count = 0;
       if (NULL != state->timer_data_stream)
@@ -461,10 +488,19 @@ static void process_fifo_samples(
           event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
         }
       }
-      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX)
+      if( (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) &&
+          (state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX))
       {
         SNS_INST_PRINTF(LOW, this, "Re register heart beat timer in DAE");
         ak0991x_register_heart_beat_timer(this);
+      }
+    }
+    else  // for Polling mode
+    {
+      // check heart beat fire time
+      if(state->system_time > state->hb_timer_fire_time)
+      {
+        ak0991x_heart_beat_timer_event(this);
       }
     }
   }
@@ -482,9 +518,7 @@ static void process_data_event(
   if(pb_decode(pbstream, sns_dae_data_event_fields, &data_event))
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-
     state->system_time = sns_get_system_time();
-
     state->irq_info.detect_irq_event = state->fifo_flush_in_progress ? false : true;
     AK0991X_INST_PRINT(LOW, this, "process_data_event called. prev_irq_time %u detect_irq_event=%d count: %d",
         (uint32_t)state->previous_irq_time,
@@ -651,6 +685,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
       }
       else if(SNS_DAE_MSGID_SNS_DAE_INTERRUPT_EVENT == event->message_id)
       {
+        AK0991X_INST_PRINT(LOW, this,"DAE_INTERRUPT_EVENT");
       }
       else if(SNS_DAE_MSGID_SNS_DAE_RESP == event->message_id)
       {
