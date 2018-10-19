@@ -2075,7 +2075,8 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
 
-    if(rc == SNS_RC_SUCCESS){
+    // When DAE disabled
+    if( !ak0991x_dae_if_available(instance) && (rc != SNS_RC_SUCCESS) ){
       state->previous_irq_time = state->interrupt_timestamp;
     }
   }
