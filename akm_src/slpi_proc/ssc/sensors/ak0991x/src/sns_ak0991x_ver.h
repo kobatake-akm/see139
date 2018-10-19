@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 10/17/18     020023     AKM              Implemented HB timer for Polling when DAE enabled.
+ * 10/19/18     020023     AKM              Merged Qualcomm 20021 and AKM 20023
+ * 10/17/18                AKM              Implemented HB timer for Polling when DAE enabled.
  * 10/15/18     020022     AKM              Debugged for I2C+Polling+DAE mode.
  * 10/12/18     020021     AKM              HB timer perform while 100Hz dummy meas. Pause HB timer while self test.
  * 10/19/18     020022     Qualcomm         Retry enter i3c mode if fails
