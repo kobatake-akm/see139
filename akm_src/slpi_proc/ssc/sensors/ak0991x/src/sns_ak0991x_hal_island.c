@@ -2075,7 +2075,7 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
 
-    if(rc != SNS_RC_SUCCESS){
+    if(rc == SNS_RC_SUCCESS){
       state->previous_irq_time = state->interrupt_timestamp;
     }
   }
@@ -2492,7 +2492,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
       (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) &&
       (state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX))
   {
-    SNS_INST_PRINTF(LOW, instance, "Re register heart beat timer");
+    SNS_INST_PRINTF(LOW, instance, "Re register heart beat timer req_wm:%d cur_wm:%d", state->mag_info.req_wmk, state->mag_info.cur_wmk);
     ak0991x_register_heart_beat_timer(instance);
   }
 }
@@ -2898,8 +2898,9 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
             req_payload.timeout_period = max_timeout; // to avoid large data gap
           }
         }
-        else
+        else  // DAE enabled
         {
+          // use req_wmk for DAE mode.
           req_payload.timeout_period = (sample_period* 5 * state->mag_info.req_wmk) * 11 / 10;
         }
       }
@@ -2908,7 +2909,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     {
       req_payload.timeout_period = sample_period * 5;
     }
-    AK0991X_INST_PRINT(MED, this, "HB timeout=%u", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(MED, this, "HB timeout=%u cur_wmk=%d req_wmk=%d", (uint32_t)req_payload.timeout_period, state->mag_info.cur_wmk, state->mag_info.req_wmk);
   }
   // for S4S timer
   else if (state->mag_info.use_sync_stream)

@@ -366,17 +366,6 @@ static void process_fifo_samples(
     wm = state->mag_info.cur_wmk;
   }
 
-  // reset num_samples when non-FIFO in order to prevent zero/negative timestamp
-  if( (!state->in_clock_error_procedure) &&
-      (odr == state->mag_info.curr_odr) &&
-      (state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm) &&
-      (!state->mag_info.use_fifo) &&
-      !(buf[2] & AK0991X_DRDY_BIT) )
-  {
-    state->num_samples = 0;
-    AK0991X_INST_PRINT(MED, this, "Reset num_samples = %d", state->num_samples);
-  }
-
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
     SNS_INST_PRINTF(
@@ -488,10 +477,11 @@ static void process_fifo_samples(
           event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
         }
       }
-      if( (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) &&
-          (state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX))
+
+      // keep re-register HB timer when DAE enabled.
+      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX)
       {
-        SNS_INST_PRINTF(LOW, this, "Re register heart beat timer in DAE");
+        SNS_INST_PRINTF(LOW, this, "Re register heart beat timer in DAE req_wm:%d cur_wm:%d", state->mag_info.req_wmk, state->mag_info.cur_wmk);
         ak0991x_register_heart_beat_timer(this);
       }
     }
@@ -519,7 +509,9 @@ static void process_data_event(
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
     state->system_time = sns_get_system_time();
+
     state->irq_info.detect_irq_event = state->fifo_flush_in_progress ? false : true;
+
     AK0991X_INST_PRINT(LOW, this, "process_data_event called. prev_irq_time %u detect_irq_event=%d count: %d",
         (uint32_t)state->previous_irq_time,
         state->irq_info.detect_irq_event,
@@ -534,7 +526,18 @@ static void process_data_event(
 
     if(state->irq_info.detect_irq_event)
     {
-      state->previous_irq_time = state->interrupt_timestamp;
+      if(state->mag_info.use_dri)
+      {
+        // When DAE enable, validate timestamp can return false.
+        if(state->mag_info.data_count == 0)
+        {
+          state->previous_irq_time = state->interrupt_timestamp;
+        }
+      }
+      else
+      {
+        state->previous_irq_time = state->interrupt_timestamp;
+      }
     }
   }
 }
