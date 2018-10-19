@@ -506,7 +506,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     }
     else
     {
-      SNS_INST_PRINTF(ERROR, instance, "assign i3c address failed; rv=%d", rv);
+      SNS_INST_PRINTF(HIGH, instance, "assign i3c address failed; rv=%d", rv);
     }
   }
 
@@ -525,6 +525,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       {
         SNS_INST_PRINTF(ERROR, instance, "Set max read length failed! rv=%d hndl=0x%x", 
                         rv, com_port->port_handle);
+        com_port->in_i3c_mode = false;						
       }
     }
   }
@@ -544,6 +545,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       } else {
         SNS_INST_PRINTF(ERROR, instance, "IBI disable FAILED! rv=%d hndl=0x%x", 
                         rv, com_port->port_handle);
+		com_port->in_i3c_mode = false;				
       }
     }
   }
@@ -727,9 +729,8 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       }
     }
   }
+  
   com_port->in_i3c_mode = false;
-  ak0991x_enter_i3c_mode(this, com_port, scp_service);
-
   if(num_attempts <= 0)
   {
     if(this != NULL)
@@ -737,6 +738,23 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       SNS_INST_PRINTF(ERROR, this, "sw_rst: failed all attempts");
     }
   }
+  else
+  {
+    num_attempts = 5;
+    rv = SNS_RC_FAILED;
+    while(num_attempts-- > 0 && SNS_RC_SUCCESS != rv)
+    {	
+       rv = ak0991x_enter_i3c_mode(this, com_port, scp_service);
+       sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
+    }
+    if(num_attempts <= 0)
+    {
+      if(this != NULL)
+      {
+        SNS_INST_PRINTF(ERROR, this, "sw_rst: enter i3c failed all attempts");
+      }
+    }
+  } 
 
   return rv;
 }
