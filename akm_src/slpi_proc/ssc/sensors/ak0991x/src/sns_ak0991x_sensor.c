@@ -270,9 +270,15 @@ static void ak0991x_get_mag_config(
       {
         float report_rate;
         uint32_t flush_period;
+        bool max_batch  = false;
+        bool flush_only = false;
 
-        *is_flush_only &= decoded_request.batching.flush_only;
-        *is_max_batch  &= decoded_request.batching.has_max_batch && decoded_request.batching.max_batch;
+        if (decoded_request.has_batching) {
+          flush_only = (decoded_request.batching.has_flush_only && decoded_request.batching.flush_only);
+          if (!flush_only){
+            max_batch = (decoded_request.batching.has_max_batch && decoded_request.batching.max_batch);
+          }
+        }
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
 
@@ -303,7 +309,8 @@ static void ak0991x_get_mag_config(
           flush_period = UINT32_MAX;
         }
 
-
+        *is_max_batch  &= max_batch;
+        *is_flush_only &= flush_only;
         *chosen_report_rate = SNS_MAX(*chosen_report_rate,
                                       report_rate);
         *chosen_flush_period = SNS_MAX(*chosen_flush_period,
