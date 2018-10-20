@@ -685,6 +685,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   uint8_t  buffer[1];
   int8_t   num_attempts = 5;
   sns_rc   rv = SNS_RC_FAILED;
+  sns_rc   rv_enter_i3c = SNS_RC_FAILED;
   uint32_t xfer_bytes;
 
   if(this != NULL)
@@ -736,16 +737,16 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
     if(this != NULL)
     {
       SNS_INST_PRINTF(ERROR, this, "sw_rst: failed all attempts");
+      rv = SNS_RC_FAILED;
     }
   }
   else
   {
     num_attempts = 5;
-    rv = SNS_RC_FAILED;
-    while(num_attempts-- > 0 && SNS_RC_SUCCESS != rv)
-    {	
-       rv = ak0991x_enter_i3c_mode(this, com_port, scp_service);
-       sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
+    while(num_attempts-- > 0 && SNS_RC_SUCCESS != rv_enter_i3c)
+    {
+      rv_enter_i3c = ak0991x_enter_i3c_mode(this, com_port, scp_service);
+      sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
     }
     if(num_attempts <= 0)
     {
