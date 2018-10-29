@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/29/18     020025     AKM              Debugged for very first data for Polling+DAE
  * 10/19/18     020024     AKM              Debugged for I2C mode at ak0991x_device_sw_reset
  * 10/19/18     020023     AKM              Merged Qualcomm 20021 and AKM 20023
  * 10/17/18                AKM              Implemented HB timer for Polling when DAE enabled.
@@ -199,4 +200,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20024  // major:02 minor:00 revision:24
+#define AK0991X_DRIVER_VERSION 20025  // major:02 minor:00 revision:25
