@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/30/18     020026     AKM              Modified to use UNRELIABLE for the first data if data is not ready.
  * 10/29/18     020025     AKM              Debugged for very first data for Polling+DAE
  * 10/19/18     020024     AKM              Debugged for I2C mode at ak0991x_device_sw_reset
  * 10/19/18     020023     AKM              Merged Qualcomm 20021 and AKM 20023
@@ -200,4 +201,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20025  // major:02 minor:00 revision:25
+#define AK0991X_DRIVER_VERSION 20026  // major:02 minor:00 revision:26

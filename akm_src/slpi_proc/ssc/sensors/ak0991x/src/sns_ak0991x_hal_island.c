@@ -1858,7 +1858,19 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       make_vector3_from_array(opdata_raw),
       make_vector3_from_array(state->cal.params[state->cal.id].bias),
       state->cal.params[state->cal.id].corr_mat);
-/*
+
+  if(!state->mag_info.use_dri &&
+      !state->data_is_ready &&
+      (opdata_raw[0] == 0) &&
+      (opdata_raw[1] == 0) &&
+      (opdata_raw[2] == 0)
+      )
+  {
+    AK0991X_INST_PRINT(LOW, instance, "raw_data(0,0,0) UNRELIABLE");
+    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
+  }
+
+  /*
   AK0991X_INST_PRINT(LOW, instance, "before ,X,Y,Z: %d %d %d end",
       (int)opdata_raw[0],
       (int)opdata_raw[1],
@@ -3133,7 +3145,14 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
    else
    {
      state->heart_beat_attempt_count++;
-     if(!ak0991x_dae_if_flush_hw(this))
+     if(ak0991x_dae_if_available(this))
+     {
+       if(!ak0991x_dae_if_flush_hw(this))
+       {
+         AK0991X_INST_PRINT(LOW, this, "ak0991x_dae_if_flush_hw return false");
+       }
+     }
+     else
      {
        ak0991x_read_mag_samples(this);
        if(state->heart_beat_attempt_count >= 3)

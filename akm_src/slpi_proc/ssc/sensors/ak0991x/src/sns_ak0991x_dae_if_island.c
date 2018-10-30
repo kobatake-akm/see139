@@ -347,20 +347,10 @@ static void process_fifo_samples(
   // set num samples=1 when Polling mode. Check DRDY status for DRI.
   state->num_samples = (state->mag_info.use_dri) ? ((buf[2] & AK0991X_DRDY_BIT) ? 1 : 0) : 1;
 
-  // take care when polling mode prevent (0,0,0) data
-  if(!state->mag_info.use_dri && state->this_is_first_data)
-  {
-    state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-    if(state->num_samples == 0)
-    {
-      AK0991X_INST_PRINT(MED, this, "This is first data but no DRDY on DAE_Polling. Skip!!!");
-    }
-  }
-
   // update num_samples when FIFO enabled.
   if(state->mag_info.device_select == AK09917)
   {
-    if((buf[1] & 0x80) != 0)
+    if(state->mag_info.use_fifo)
     {
       state->num_samples = buf[2] >> 2;
     }
@@ -368,7 +358,7 @@ static void process_fifo_samples(
   }
   else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
   {
-    if((buf[1] & 0x80) != 0)
+    if(state->mag_info.use_fifo)
     {
       state->num_samples = state->mag_info.cur_wmk + 1;
     }
