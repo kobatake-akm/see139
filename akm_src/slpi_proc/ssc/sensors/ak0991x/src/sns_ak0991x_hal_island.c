@@ -879,14 +879,16 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
        !state->in_clock_error_procedure)
     {
       buffer[0] = 0x0;
+#ifdef AK0991X_ENABLE_AK09917REVA_PATCH
       if (state->mag_info.device_select == AK09917)
       {
         buffer[1] = 0x0
-          | (0x01 << 7)                              // FIFO bit, FIFO enable for AK09917 RevA Bug
+          | AK0991X_FIFO_BIT                         // FIFO bit, FIFO enable for AK09917 RevA Bug
           | (state->mag_info.sdr << 6)               // SDR bit
           | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
       }
       else
+#endif
       {
         buffer[1] = 0x0
           | (state->mag_info.sdr << 6)               // SDR bit
@@ -1460,12 +1462,13 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /* Set to CNT measurement mode3 (50Hz) */
   buffer[0] = 0x00;
   buffer[1] = AK0991X_MAG_ODR50;
-
+#ifdef AK0991X_ENABLE_AK09917REVA_PATCH
   /* Enable FIFO for AK09917D RevA bug */
   if (state->mag_info.device_select == AK09917)
   {
     buffer[1] |= AK0991X_FIFO_BIT;
   }
+#endif
   rv = ak0991x_com_write_wrapper(this,
                    state->scp_service,
                    state->com_port_info.port_handle,
