@@ -622,7 +622,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(!ak0991x_dae_if_available(this))
     {
       // care the FIFO buffer if enabled FIFO and already streaming
-      if ( !state->this_is_first_data && state->mag_info.use_fifo )
+      if ( !state->this_is_first_data && state->mag_info.use_fifo
+           && state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
       {
         ak0991x_care_fifo_buffer(this,
                                  mag_chosen_sample_rate,
@@ -705,7 +706,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if (state->config_step == AK0991X_CONFIG_IDLE)
       {
         // care the FIFO buffer if enabled FIFO and already streaming
-        if (!state->this_is_first_data && state->mag_info.use_fifo)
+        if (!state->this_is_first_data && state->mag_info.use_fifo
+            && state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
         {
           ak0991x_care_fifo_buffer(this,
               state->mag_req.sample_rate,
