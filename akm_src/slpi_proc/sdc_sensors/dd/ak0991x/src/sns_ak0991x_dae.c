@@ -2,9 +2,10 @@
  * @file sns_ak0991x_dae.c
  *
  * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
- * Copyright (c) 2016-2017 Asahi Kasei Microdevices
- * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ * All Rights Reserved.
+ *
+ * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * Confidential and Proprietary - Asahi Kasei Microdevices
  **/
 
