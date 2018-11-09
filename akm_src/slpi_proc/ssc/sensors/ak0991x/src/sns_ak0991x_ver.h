@@ -22,13 +22,15 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 10/30/18     020026     AKM              Modified to use UNRELIABLE for the first data if data is not ready.
+ * 11/08/18     020026     AKM/Qualcomm     AKM: Modified to use UNRELIABLE for the first data if data is not ready.
+ *                                          Qualcomm fixed a handful of changes, in this version, made by AKM.
  * 10/29/18     020025     AKM              Debugged for very first data for Polling+DAE
  * 10/19/18     020024     AKM              Debugged for I2C mode at ak0991x_device_sw_reset
  * 10/19/18     020023     AKM              Merged Qualcomm 20021 and AKM 20023
  * 10/17/18                AKM              Implemented HB timer for Polling when DAE enabled.
  * 10/15/18     020022     AKM              Debugged for I2C+Polling+DAE mode.
  * 10/12/18     020021     AKM              HB timer perform while 100Hz dummy meas. Pause HB timer while self test.
+ * 10/24/18     020023     Qualcomm         Do not add a cal reset request to the instance
  * 10/19/18     020022     Qualcomm         Retry enter i3c mode if fails
  * 10/16/18     020021     Qualcomm         Fixed setting of max batch, for max-batch = True and flush-only = True use case 
  * 10/12/18     020020     Qualcomm/AKM     Fixed setting of flush period for FlushOnly = True use case.

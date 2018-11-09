@@ -2107,7 +2107,8 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
     state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
 
     // When DAE disabled
-    if( !ak0991x_dae_if_available(instance) && (rc != SNS_RC_SUCCESS) ){
+    if( !ak0991x_dae_if_available(instance) && (rc != SNS_RC_SUCCESS) )
+    {
       state->previous_irq_time = state->interrupt_timestamp;
     }
   }
@@ -3145,14 +3146,7 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
    else
    {
      state->heart_beat_attempt_count++;
-     if(ak0991x_dae_if_available(this))
-     {
-       if(!ak0991x_dae_if_flush_hw(this))
-       {
-         AK0991X_INST_PRINT(LOW, this, "ak0991x_dae_if_flush_hw return false");
-       }
-     }
-     else
+     if(!ak0991x_dae_if_flush_hw(this))
      {
        ak0991x_read_mag_samples(this);
        if(state->heart_beat_attempt_count >= 3)

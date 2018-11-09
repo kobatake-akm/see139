@@ -1819,48 +1819,51 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         // Keep the exist_request and Reject the incoming stream request.
         if (!inst_state->new_self_test_request)
         {
-          // An existing client is changing request
-          if (NULL != exist_request)
+          if(SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id) 
           {
-            AK0991X_PRINT(LOW, this, "Removing existing request");
-            instance->cb->remove_client_request(instance, exist_request);
-          }
-
-          if(SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG == new_request->message_id)
-          {
-            sns_std_request decoded_request;
-            sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
-            ak0991x_get_decoded_mag_request(this, new_request, &decoded_request, 
-                                            &decoded_payload);
-            AK0991X_PRINT(
-              MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate, 
-              decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
-          }
-
-          AK0991X_PRINT(LOW, this, "Add the new request to list");
-          instance->cb->add_client_request(instance, new_request);
-
-          if(SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id) {
-            AK0991X_PRINT(LOW,this,"Request for resetting cal data.");
-            ak0991x_reset_cal_data(instance);
-            ak0991x_update_sensor_state(this, instance);
+             AK0991X_PRINT(LOW,this,"Request for resetting cal data.");
+             ak0991x_reset_cal_data(instance);
+             ak0991x_update_sensor_state(this, instance);
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-            ak0991x_update_registry(this, instance);
+             ak0991x_update_registry(this, instance);
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
-            ak0991x_send_cal_event(instance);
+             ak0991x_send_cal_event(instance);
           }
-
-          if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
-             new_request->message_id)
+          else 
           {
-            if(ak0991x_extract_self_test_info(this, instance, new_request))
-            {
-              AK0991X_PRINT(LOW, this, "new_self_test_request = true");
-              inst_state->new_self_test_request = true;
+             // An existing client is changing request
+             if (NULL != exist_request)
+             {
+               AK0991X_PRINT(LOW, this, "Removing existing request");
+               instance->cb->remove_client_request(instance, exist_request);
+             }
 
-              AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
-              ak0991x_set_self_test_inst_config(this, instance);
-            }
+             if(SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG == new_request->message_id)
+             {
+               sns_std_request decoded_request;
+               sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
+               ak0991x_get_decoded_mag_request(this, new_request, &decoded_request, 
+                                               &decoded_payload);
+               AK0991X_PRINT(
+                 MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate, 
+                 decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
+             }
+
+             AK0991X_PRINT(LOW, this, "Add the new request to list");
+             instance->cb->add_client_request(instance, new_request);
+
+             if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
+                new_request->message_id)
+             {
+               if(ak0991x_extract_self_test_info(this, instance, new_request))
+               {
+                 AK0991X_PRINT(LOW, this, "new_self_test_request = true");
+                 inst_state->new_self_test_request = true;
+
+                 AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
+                 ak0991x_set_self_test_inst_config(this, instance);
+               }
+             }
           }
           ak0991x_reval_instance_config(this, instance);
         }

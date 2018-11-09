@@ -5,18 +5,13 @@
 # GENERAL DESCRIPTION
 #    build script
 #
-# Copyright (c) 2016-2017 by Qualcomm Technologies, Inc.
-# Copyright (c) 2016-2017 by Asahi Kasei Microdevices
+# Copyright (c) 2016-2018 by Qualcomm Technologies, Inc.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
 # All Rights Reserved.
 #
-# Confidential and Proprietary - Qualcomm Technologies, Inc.
+# Copyright (c) 2016-2018 by Asahi Kasei Microdevices
 # Confidential and Proprietary - Asahi Kasei Microdevices
 #
-#-------------------------------------------------------------------------------
-#
-#  $Id: //components/rel/ssc.sdc/2.0/dd/ak0991x/build/sns_ak0991x.scons#1 $
-#  $DateTime: 2018/02/26 16:15:25 $
-#  $Change: 15547771 $
 #
 #===============================================================================
 Import('env')
