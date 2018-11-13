@@ -1252,7 +1252,11 @@ static void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8
     }
     else
     {
+#ifdef AK0991X_EMULATE_AK09918C
+      out[i] = (int16_t)((((int16_t)buffer[i*2] << 8) & 0xFF00) | (int16_t)buffer[i*2 + 1]);
+#else
       out[i] = (int16_t)((((int16_t)buffer[i*2 + 1] << 8) & 0xFF00) | (int16_t)buffer[i*2]);
+#endif
     }
     // sensitivity adjustment
     out[i] = (int16_t)(out[i] * state->mag_info.sstvt_adj[i]);

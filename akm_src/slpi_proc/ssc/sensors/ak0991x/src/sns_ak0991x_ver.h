@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/13/18     02002X     AKM              Test modification for AK09918C 5Hz issue
  * 11/08/18     020026     AKM/Qualcomm     AKM: Modified to use UNRELIABLE for the first data if data is not ready.
  *                                          Qualcomm fixed a handful of changes, in this version, made by AKM.
  * 10/29/18     020025     AKM              Debugged for very first data for Polling+DAE

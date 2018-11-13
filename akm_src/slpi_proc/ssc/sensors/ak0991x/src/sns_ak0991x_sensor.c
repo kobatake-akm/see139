@@ -1582,7 +1582,11 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                   state->device_select = AK09916D;
                   break;
                 case AK09917_WHOAMI_DEV_ID:
+#ifdef AK0991X_EMULATE_AK09918C
+                  state->device_select = AK09918;
+#else
                   state->device_select = AK09917;
+#endif
                   break;
                 case AK09918_WHOAMI_DEV_ID:
                   state->device_select = AK09918;

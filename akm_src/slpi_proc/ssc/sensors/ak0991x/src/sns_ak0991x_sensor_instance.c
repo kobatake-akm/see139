@@ -469,6 +469,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float           mag_chosen_sample_rate = 0.0f;
   ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
   uint16_t        desired_wmk;
+  uint32_t        previous_req_wmk = state->mag_info.req_wmk;
+  uint32_t        previous_flush_period = state->mag_info.flush_period;
   sns_rc          rv = SNS_RC_SUCCESS;
 
   AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
@@ -562,11 +564,17 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     desired_wmk = ak0991x_set_wmk(this, desired_report_rate, mag_chosen_sample_rate);
     AK0991X_INST_PRINT(LOW, this, "req_wmk=%u desired_wmk=%u,flush_period=%u, flushonly=%d, max_batch=%d",
-                       state->mag_info.req_wmk, desired_wmk, state->mag_info.flush_period,
-                       state->mag_info.flush_only?1:0, state->mag_info.max_batch?1:0 );
+                       state->mag_info.req_wmk,
+                       desired_wmk,
+                       state->mag_info.flush_period,
+                       state->mag_info.flush_only?1:0,
+                       state->mag_info.max_batch?1:0 );
 
-    if( state->mag_info.cur_wmk == desired_wmk &&
-        state->mag_info.curr_odr == mag_chosen_sample_rate_reg_value )
+    if( state->mag_info.cur_wmk == desired_wmk
+        && state->mag_info.curr_odr == mag_chosen_sample_rate_reg_value
+        && state->mag_info.req_wmk == previous_req_wmk
+        && state->mag_info.flush_period == previous_flush_period
+        )
     {
       // No change needed -- return success
       AK0991X_INST_PRINT(LOW, this, "Config not changed.");
