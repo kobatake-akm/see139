@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/14/18                AKM              Modified for current time < timestamp
  * 11/14/18     020027     AKM              Confirmed the 5Hz issue. Update the version.
  * 11/13/18                AKM              Test modification for AK09918C 5Hz issue
  * 11/08/18     020026     AKM/Qualcomm     AKM: Modified to use UNRELIABLE for the first data if data is not ready.

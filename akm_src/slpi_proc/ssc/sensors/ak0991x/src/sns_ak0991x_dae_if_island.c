@@ -394,7 +394,6 @@ static void process_fifo_samples(
 
           ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
           state->this_is_first_data = true;
-          state->mag_info.data_count = 0;
           state->half_measurement_time =
             ((sns_convert_ns_to_ticks(meas_usec * 1000) *
               state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
