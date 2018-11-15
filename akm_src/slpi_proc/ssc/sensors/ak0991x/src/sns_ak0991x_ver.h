@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/15/18     020029     AKM              Modified not to use previous data. Added Re-check num_samples when DRDY when Polling ODR=0
  * 11/14/18     020028     AKM              Modified for current time < timestamp
  * 11/14/18     020027     AKM              Confirmed the 5Hz issue. Update the version.
  * 11/13/18                AKM              Test modification for AK09918C 5Hz issue
@@ -206,4 +207,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20028  // major:02 minor:00 revision:28
+#define AK0991X_DRIVER_VERSION 20029  // major:02 minor:00 revision:29

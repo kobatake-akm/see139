@@ -1811,7 +1811,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   int16_t lsbdata[TRIAXIS_NUM] = {0};
   uint8_t inv_fifo_bit;
   uint8_t i = 0;
-  sns_std_sensor_sample_status status;
+  sns_std_sensor_sample_status status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
   vector3 opdata_cal;
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
@@ -1819,34 +1819,15 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   // Check magnetic sensor overflow (and invalid data for FIFO)
   inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
 
-  status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
-
   if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0)
   {
-    AK0991X_INST_PRINT(LOW, instance, "HOFL_BIT=1, use previous data.");
-    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
-    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
-    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
+    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: HOFL_BIT=1");
+    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
-  else if ((mag_sample[7] & (inv_fifo_bit)) != 0)
+  if ((mag_sample[7] & (inv_fifo_bit)) != 0)
   {
-    AK0991X_INST_PRINT(LOW, instance, "INV=1, use previous data.");
-    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
-    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
-    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
-  }
-  else if(!state->mag_info.use_dri && !state->mag_info.use_fifo && !state->data_is_ready)
-  {
-    AK0991X_INST_PRINT(LOW, instance, "DRDY is not ready. Use previous data");
-    lsbdata[TRIAXIS_X] =state->pre_lsbdata[TRIAXIS_X];
-    lsbdata[TRIAXIS_Y] =state->pre_lsbdata[TRIAXIS_Y];
-    lsbdata[TRIAXIS_Z] =state->pre_lsbdata[TRIAXIS_Z];
-  }
-  else
-  {
-    state->pre_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
-    state->pre_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
-    state->pre_lsbdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z];
+    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: INV=1");
+    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.resolution;
@@ -1873,21 +1854,14 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       (opdata_raw[2] == 0)
       )
   {
-    AK0991X_INST_PRINT(LOW, instance, "raw_data(0,0,0) UNRELIABLE");
+    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
 
-  /*
-  AK0991X_INST_PRINT(LOW, instance, "before ,X,Y,Z: %d %d %d end",
+  AK0991X_INST_PRINT(LOW, instance, "raw( %d %d %d )",
       (int)opdata_raw[0],
       (int)opdata_raw[1],
       (int)opdata_raw[2]);
-
-  AK0991X_INST_PRINT(LOW, instance, "after ,X,Y,Z: %d %d %d end",
-      (int)opdata_cal.data[0],
-      (int)opdata_cal.data[1],
-      (int)opdata_cal.data[2]);
-*/
 
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,

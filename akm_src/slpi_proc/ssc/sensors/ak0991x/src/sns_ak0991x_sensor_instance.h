@@ -272,7 +272,6 @@ typedef struct ak0991x_instance_state
 
   uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
-  int16_t               pre_lsbdata[TRIAXIS_NUM];
 
   size_t encoded_mag_event_len;
 

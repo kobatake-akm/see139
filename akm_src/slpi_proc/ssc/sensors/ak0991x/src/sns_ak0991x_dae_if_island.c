@@ -347,6 +347,13 @@ static void process_fifo_samples(
   // set num samples=1 when Polling mode. Check DRDY status for DRI.
   state->num_samples = (state->mag_info.use_dri) ? ((buf[2] & AK0991X_DRDY_BIT) ? 1 : 0) : 1;
 
+  // check if the ODR=0 and DRDY=0 when polling mode to ignore unnecessary orphan batch process
+  if(!state->mag_info.use_dri && odr == AK0991X_MAG_ODR_OFF)
+  {
+    state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+    AK0991X_INST_PRINT(MED, this, "Re-check num_samples=%d when ODR=0",state->num_samples);
+  }
+
   // update num_samples when FIFO enabled.
   if(state->mag_info.device_select == AK09917)
   {
