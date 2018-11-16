@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/16/18     020030     AKM              Modified for MAG039/MAG040 for DRI+FIFO mode
  * 11/15/18     020029     AKM              Modified not to use previous data. Added Re-check num_samples when DRDY when Polling ODR=0
  * 11/14/18     020028     AKM              Modified for current time < timestamp
  * 11/14/18     020027     AKM              Confirmed the 5Hz issue. Update the version.
@@ -207,4 +208,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20029  // major:02 minor:00 revision:29
+#define AK0991X_DRIVER_VERSION 20030  // major:02 minor:00 revision:30
