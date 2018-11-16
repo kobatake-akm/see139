@@ -848,11 +848,10 @@ sns_rc ak0991x_dae_if_init(
   ak0991x_state           *sensor_state)
 {
   sns_rc rc = SNS_RC_NOT_AVAILABLE;
-
-  AK0991X_INST_PRINT(LOW, this, "dae_if_init");
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info* dae_if = &state->dae_if;
 
+  AK0991X_INST_PRINT(LOW, this, "dae_if_init set inst mag.state %d <= %d", (int)dae_if->mag.state, (int)sensor_state->dae_if.mag.state);
   dae_if->mag.state = sensor_state->dae_if.mag.state;
 
 #ifdef AK0991X_DAE_FORCE_NOT_AVAILABLE
