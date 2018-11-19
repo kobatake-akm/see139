@@ -344,6 +344,21 @@ static void process_fifo_samples(
   uint8_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
 
+  //////////////////////////////
+  // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
+  // buf[0] : CNTL1
+  // buf[1] : CNTL2
+  // buf[2] : ST1
+  // buf[3] : HXL (HXH AK09917)
+  // buf[4] : HXH (HXL AK09917)
+  // buf[5] : HYL (HYH AK09917)
+  // buf[6] : HYH (HYL AK09917)
+  // buf[7] : HZL (HZH AK09917)
+  // buf[8] : HZH (HZL AK09917)
+  // buf[9] : TMPS
+  // buf[10]: ST2
+  //////////////////////////////
+
   if(state->mag_info.use_fifo)
   {
     // num_samples when FIFO enabled.
@@ -384,9 +399,14 @@ static void process_fifo_samples(
         else
         {
           // set check DRDY status when flush request in polling mode
-          AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
           state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
         }
+      }
+      else if(odr == AK0991X_MAG_ODR_OFF) // orphan batch
+      {
+        state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+        AK0991X_INST_PRINT(MED, this, "num_samples=%d in ODR=0", state->num_samples);
       }
       else // timer event
       {
@@ -462,7 +482,7 @@ static void process_fifo_samples(
           }
           state->previous_meas_is_correct_wm = (wm == state->num_samples);
         }
-        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch ODR=%d",odr);
+        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch ODR=%d num_samples=%d", odr, state->num_samples);
       }
 
       ak0991x_process_mag_data_buffer(this,

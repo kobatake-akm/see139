@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/19/18     020031     AKM              Regardless the DRDY status, set UNRELIABLE flag when XYZ data is all 0.
  * 11/16/18     020030     AKM              Modified for MAG039/MAG040 for DRI+FIFO mode
  * 11/15/18     020029     AKM              Modified not to use previous data. Added Re-check num_samples when DRDY when Polling ODR=0
  * 11/14/18     020028     AKM              Modified for current time < timestamp
@@ -208,4 +209,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20030  // major:02 minor:00 revision:30
+#define AK0991X_DRIVER_VERSION 20031  // major:02 minor:00 revision:31

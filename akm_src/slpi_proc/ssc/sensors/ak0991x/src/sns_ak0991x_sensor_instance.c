@@ -470,7 +470,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
   uint16_t        desired_wmk;
   uint32_t        previous_req_wmk = state->mag_info.req_wmk;
-  uint32_t        previous_flush_period = state->mag_info.flush_period;
   sns_rc          rv = SNS_RC_SUCCESS;
 
   AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
@@ -572,28 +571,19 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if( state->mag_info.cur_wmk == desired_wmk
         && state->mag_info.curr_odr == mag_chosen_sample_rate_reg_value
-        )
+        && state->mag_info.req_wmk == previous_req_wmk )
     {
-      if( !state->mag_info.use_dri
-          && state->mag_info.req_wmk == previous_req_wmk
-          && state->mag_info.flush_period == previous_flush_period )
+      // No change needed -- return success
+      AK0991X_INST_PRINT(LOW, this, "Config not changed.");
+      if(!state->in_clock_error_procedure && !ak0991x_dae_if_available(this))
       {
-        // skip when polling mode.
+        ak0991x_send_config_event(this);
       }
-      else
-      {
-        // No change needed -- return success
-        AK0991X_INST_PRINT(LOW, this, "Config not changed.");
-        if(!state->in_clock_error_procedure && !ak0991x_dae_if_available(this))
-        {
-          ak0991x_send_config_event(this);
-        }
-        // Turn COM port OFF
-        state->scp_service->api->sns_scp_update_bus_power(
-                                                          state->com_port_info.port_handle,
-                                                          false);
-        return SNS_RC_SUCCESS;
-      }
+      // Turn COM port OFF
+      state->scp_service->api->sns_scp_update_bus_power(
+                                                        state->com_port_info.port_handle,
+                                                        false);
+      return SNS_RC_SUCCESS;
     }
 
     state->mag_info.cur_wmk     = desired_wmk;

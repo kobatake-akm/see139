@@ -1848,7 +1848,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       state->cal.params[state->cal.id].corr_mat);
 
   if(!state->mag_info.use_dri &&
-      !state->data_is_ready &&
       (opdata_raw[0] == 0) &&
       (opdata_raw[1] == 0) &&
       (opdata_raw[2] == 0)
@@ -1858,10 +1857,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
 
-  AK0991X_INST_PRINT(LOW, instance, "raw( %d %d %d )",
+  AK0991X_INST_PRINT(LOW, instance, "raw( %d %d %d ) Accuracy=%d",
       (int)opdata_raw[0],
       (int)opdata_raw[1],
-      (int)opdata_raw[2]);
+      (int)opdata_raw[2],
+      (int)status);
 
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,
