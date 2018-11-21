@@ -3127,7 +3127,11 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
    else
    {
      state->heart_beat_attempt_count++;
-     if(!ak0991x_dae_if_flush_hw(this))
+     if(ak0991x_dae_if_available(this))
+     {
+       ak0991x_dae_if_flush_hw(this);
+     }
+     else
      {
        ak0991x_read_mag_samples(this);
        if(state->heart_beat_attempt_count >= 3)
