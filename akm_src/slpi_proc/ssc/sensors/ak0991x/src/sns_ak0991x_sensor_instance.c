@@ -25,6 +25,7 @@
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_ak0991x_s4s.h"
+#include "sns_ak0991x_ver.h"
 
 
 #include "sns_interrupt.pb.h"
@@ -78,7 +79,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &mag_suid,
               sizeof(state->mag_info.suid));
 
-  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init" );
+  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init DRIVER_VER:%d",(int)AK0991X_DRIVER_VERSION );
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -153,6 +154,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.reg_rsv1_value = sensor_state->reg_rsv1_value;
+    SNS_INST_PRINTF(HIGH, this, "AK09917 RSV1=0x%02X", (int)state->mag_info.reg_rsv1_value);
     break;
   case AK09918:
     state->mag_info.resolution = AK09918_RESOLUTION;

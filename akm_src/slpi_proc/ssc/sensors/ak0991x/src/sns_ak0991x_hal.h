@@ -90,6 +90,7 @@
 #define AK09915_SUB_ID_IDX                          0x3 /** RSV2 (03h) */
 #define AK09915C_SUB_ID                             0x0
 #define AK09915D_SUB_ID                             0x2
+#define AK09917_REVA_SUB_ID                         0x20
 
 /** FIFO enable bit */
 #define AK0991X_FIFO_BIT                            0x80

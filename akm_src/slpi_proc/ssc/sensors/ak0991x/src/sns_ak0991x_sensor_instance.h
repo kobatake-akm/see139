@@ -155,6 +155,7 @@ typedef struct ak0991x_mag_info
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
+  uint8_t        reg_rsv1_value;
   uint32_t       req_wmk;
   uint16_t       cur_wmk;
   uint16_t       max_fifo_size;

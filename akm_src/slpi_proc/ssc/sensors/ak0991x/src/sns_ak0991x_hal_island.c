@@ -879,8 +879,11 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
        !state->in_clock_error_procedure)
     {
       buffer[0] = 0x0;
+      if (state->mag_info.device_select == AK09917
 #ifdef AK0991X_ENABLE_AK09917REVA_PATCH
-      if (state->mag_info.device_select == AK09917)
+          && state->mag_info.reg_rsv1_value == AK09917_REVA_SUB_ID
+#endif
+      )
       {
         buffer[1] = 0x0
           | AK0991X_FIFO_BIT                         // FIFO bit, FIFO enable for AK09917 RevA Bug
@@ -888,7 +891,6 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
           | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
       }
       else
-#endif
       {
         buffer[1] = 0x0
           | (state->mag_info.sdr << 6)               // SDR bit
@@ -1252,11 +1254,7 @@ static void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8
     }
     else
     {
-#ifdef AK0991X_EMULATE_AK09918C
-      out[i] = (int16_t)((((int16_t)buffer[i*2] << 8) & 0xFF00) | (int16_t)buffer[i*2 + 1]);
-#else
       out[i] = (int16_t)((((int16_t)buffer[i*2 + 1] << 8) & 0xFF00) | (int16_t)buffer[i*2]);
-#endif
     }
     // sensitivity adjustment
     out[i] = (int16_t)(out[i] * state->mag_info.sstvt_adj[i]);
@@ -1466,13 +1464,15 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /* Set to CNT measurement mode3 (50Hz) */
   buffer[0] = 0x00;
   buffer[1] = AK0991X_MAG_ODR50;
-#ifdef AK0991X_ENABLE_AK09917REVA_PATCH
   /* Enable FIFO for AK09917D RevA bug */
-  if (state->mag_info.device_select == AK09917)
+  if (state->mag_info.device_select == AK09917
+#ifdef AK0991X_ENABLE_AK09917REVA_PATCH
+          && state->mag_info.reg_rsv1_value == AK09917_REVA_SUB_ID
+#endif
+  )
   {
     buffer[1] |= AK0991X_FIFO_BIT;
   }
-#endif
   rv = ak0991x_com_write_wrapper(this,
                    state->scp_service,
                    state->com_port_info.port_handle,
