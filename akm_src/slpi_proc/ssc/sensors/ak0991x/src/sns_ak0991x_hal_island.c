@@ -880,9 +880,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     {
       buffer[0] = 0x0;
       if (state->mag_info.device_select == AK09917
-#ifdef AK0991X_ENABLE_AK09917REVA_PATCH
           && state->mag_info.reg_rsv1_value == AK09917_REVA_SUB_ID
-#endif
       )
       {
         buffer[1] = 0x0
@@ -1466,9 +1464,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   buffer[1] = AK0991X_MAG_ODR50;
   /* Enable FIFO for AK09917D RevA bug */
   if (state->mag_info.device_select == AK09917
-#ifdef AK0991X_ENABLE_AK09917REVA_PATCH
           && state->mag_info.reg_rsv1_value == AK09917_REVA_SUB_ID
-#endif
   )
   {
     buffer[1] |= AK0991X_FIFO_BIT;

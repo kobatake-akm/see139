@@ -359,59 +359,60 @@ static void process_fifo_samples(
   // buf[10]: ST2
   //////////////////////////////
 
-  if(state->mag_info.use_fifo)
+  if(state->in_clock_error_procedure)
   {
-    // num_samples when FIFO enabled.
-    if(state->mag_info.device_select == AK09917)
+    state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+  }
+  else
+  {
+    if(state->mag_info.use_fifo)
     {
-      if(state->mag_info.use_fifo)
+      // num_samples when FIFO enabled.
+      if(state->mag_info.device_select == AK09917)
       {
         state->num_samples = buf[2] >> 2;
         wm = (buf[0] & 0x1F) + 1;
       }
-    }
-    else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
-    {
-      if(state->mag_info.use_fifo)
+      else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
       {
         state->num_samples = state->mag_info.cur_wmk + 1;
         wm = state->mag_info.cur_wmk;
       }
     }
-  }
-  else
-  {
-    // num_samples when FIFO disabled.
-    if(state->mag_info.use_dri)  // dri mode
+    else
     {
-      state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-    }
-    else  // polling mode
-    {
-      if(state->fifo_flush_in_progress) // flush request
-      {
-        // check time
-        if(state->system_time < state->pre_timestamp + state->averaged_interval)
-        {
-          AK0991X_INST_PRINT(MED, this, "num_samples=0 because timestamp is future");
-          state->num_samples = 0;
-        }
-        else
-        {
-          // set check DRDY status when flush request in polling mode
-          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-          AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
-        }
-      }
-      else if(odr == AK0991X_MAG_ODR_OFF) // orphan batch
+      // num_samples when FIFO disabled.
+      if(state->mag_info.use_dri)  // dri mode
       {
         state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-        AK0991X_INST_PRINT(MED, this, "num_samples=%d in ODR=0", state->num_samples);
       }
-      else // timer event
+      else  // polling mode
       {
-        // set num samples=1 when regular polling mode.
-        state->num_samples = 1;
+        if(state->fifo_flush_in_progress) // flush request
+        {
+          // check time
+          if(state->system_time < state->pre_timestamp + state->averaged_interval)
+          {
+            AK0991X_INST_PRINT(MED, this, "num_samples=0 because timestamp is future");
+            state->num_samples = 0;
+          }
+          else
+          {
+            // set check DRDY status when flush request in polling mode
+            state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+            AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
+          }
+        }
+        else if(odr == AK0991X_MAG_ODR_OFF) // orphan batch
+        {
+          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          AK0991X_INST_PRINT(MED, this, "num_samples=%d in ODR=0", state->num_samples);
+        }
+        else // timer event
+        {
+          // set num samples=1 when regular polling mode.
+          state->num_samples = 1;
+        }
       }
     }
   }
