@@ -270,9 +270,15 @@ static void ak0991x_get_mag_config(
       {
         float report_rate;
         uint32_t flush_period;
+        bool max_batch  = false;
+        bool flush_only = false;
 
-        *is_flush_only &= decoded_request.batching.flush_only;
-        *is_max_batch  &= decoded_request.batching.has_max_batch && decoded_request.batching.max_batch;
+        if (decoded_request.has_batching) {
+          flush_only = (decoded_request.batching.has_flush_only && decoded_request.batching.flush_only);
+          if (!flush_only){
+            max_batch = (decoded_request.batching.has_max_batch && decoded_request.batching.max_batch);
+          }
+        }
         *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
                                       decoded_payload.sample_rate);
 
@@ -291,7 +297,10 @@ static void ak0991x_get_mag_config(
           }
           else
           {
-            flush_period = UINT32_MAX;
+            // To ensure there is a reasonable age to direct the "throw away" of "aged" samples
+            // from DDR memory, thereby preventing DDR from getting full,
+            // use batch period when given, and when flush period is not given.
+            flush_period = decoded_request.batching.batch_period; 
           }
         }
         else
@@ -300,7 +309,8 @@ static void ak0991x_get_mag_config(
           flush_period = UINT32_MAX;
         }
 
-
+        *is_max_batch  &= max_batch;
+        *is_flush_only &= flush_only;
         *chosen_report_rate = SNS_MAX(*chosen_report_rate,
                                       report_rate);
         *chosen_flush_period = SNS_MAX(*chosen_flush_period,
@@ -468,7 +478,7 @@ static sns_rc ak0991x_register_com_port(sns_sensor *const this)
       rv = state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
       if(rv != SNS_RC_SUCCESS)
       {
-        AK0991X_PRINT(ERROR, this, "Failed Open port: error = %d",rv);
+        SNS_PRINTF(ERROR, this, "Failed Open port: error = %d",rv);
       }
     }
     else
@@ -1048,7 +1058,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   }
   else
   {
-    AK0991X_PRINT(ERROR, this, "Received unsupported registry event msg id %u",
+    SNS_PRINTF(ERROR, this, "Received unsupported registry event msg id %u",
                              event->message_id);
   }
 }
@@ -1428,7 +1438,7 @@ static bool ak0991x_get_decoded_self_test_request(
                                   request->request_len);
   if(!pb_decode(&stream, sns_std_request_fields, decoded_request))
   {
-    AK0991X_PRINT(ERROR, this, "AK0991X decode error");
+    SNS_PRINTF(ERROR, this, "AK0991X decode error");
     return false;
   }
 #ifndef AK0991X_ENABLE_DEBUG_MSG
@@ -1573,6 +1583,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                   break;
                 case AK09917_WHOAMI_DEV_ID:
                   state->device_select = AK09917;
+                  state->reg_rsv1_value = buffer[2];
                   break;
                 case AK09918_WHOAMI_DEV_ID:
                   state->device_select = AK09918;
@@ -1809,48 +1820,51 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         // Keep the exist_request and Reject the incoming stream request.
         if (!inst_state->new_self_test_request)
         {
-          // An existing client is changing request
-          if (NULL != exist_request)
+          if(SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id) 
           {
-            AK0991X_PRINT(LOW, this, "Removing existing request");
-            instance->cb->remove_client_request(instance, exist_request);
-          }
-
-          if(SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG == new_request->message_id)
-          {
-            sns_std_request decoded_request;
-            sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
-            ak0991x_get_decoded_mag_request(this, new_request, &decoded_request, 
-                                            &decoded_payload);
-            AK0991X_PRINT(
-              MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate, 
-              decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
-          }
-
-          AK0991X_PRINT(LOW, this, "Add the new request to list");
-          instance->cb->add_client_request(instance, new_request);
-
-          if(SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id) {
-            AK0991X_PRINT(LOW,this,"Request for resetting cal data.");
-            ak0991x_reset_cal_data(instance);
-            ak0991x_update_sensor_state(this, instance);
+             AK0991X_PRINT(LOW,this,"Request for resetting cal data.");
+             ak0991x_reset_cal_data(instance);
+             ak0991x_update_sensor_state(this, instance);
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
-            ak0991x_update_registry(this, instance);
+             ak0991x_update_registry(this, instance);
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
-            ak0991x_send_cal_event(instance);
+             ak0991x_send_cal_event(instance);
           }
-
-          if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
-             new_request->message_id)
+          else 
           {
-            if(ak0991x_extract_self_test_info(this, instance, new_request))
-            {
-              AK0991X_PRINT(LOW, this, "new_self_test_request = true");
-              inst_state->new_self_test_request = true;
+             // An existing client is changing request
+             if (NULL != exist_request)
+             {
+               AK0991X_PRINT(LOW, this, "Removing existing request");
+               instance->cb->remove_client_request(instance, exist_request);
+             }
 
-              AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
-              ak0991x_set_self_test_inst_config(this, instance);
-            }
+             if(SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG == new_request->message_id)
+             {
+               sns_std_request decoded_request;
+               sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
+               ak0991x_get_decoded_mag_request(this, new_request, &decoded_request, 
+                                               &decoded_payload);
+               AK0991X_PRINT(
+                 MED, this, "SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate, 
+                 decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
+             }
+
+             AK0991X_PRINT(LOW, this, "Add the new request to list");
+             instance->cb->add_client_request(instance, new_request);
+
+             if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
+                new_request->message_id)
+             {
+               if(ak0991x_extract_self_test_info(this, instance, new_request))
+               {
+                 AK0991X_PRINT(LOW, this, "new_self_test_request = true");
+                 inst_state->new_self_test_request = true;
+
+                 AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
+                 ak0991x_set_self_test_inst_config(this, instance);
+               }
+             }
           }
           ak0991x_reval_instance_config(this, instance);
         }

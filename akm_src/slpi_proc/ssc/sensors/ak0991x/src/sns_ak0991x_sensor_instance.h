@@ -155,6 +155,7 @@ typedef struct ak0991x_mag_info
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
+  uint8_t        reg_rsv1_value;
   uint32_t       req_wmk;
   uint16_t       cur_wmk;
   uint16_t       max_fifo_size;
@@ -272,7 +273,6 @@ typedef struct ak0991x_instance_state
 
   uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
-  int16_t               pre_lsbdata[TRIAXIS_NUM];
 
   size_t encoded_mag_event_len;
 

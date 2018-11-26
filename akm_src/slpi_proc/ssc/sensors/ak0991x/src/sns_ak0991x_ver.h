@@ -22,11 +22,35 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/19/18     020031     AKM              Regardless the DRDY status, set UNRELIABLE flag when XYZ data is all 0.
+ * 11/16/18     020030     AKM              Modified for MAG039/MAG040 for DRI+FIFO mode
+ * 11/15/18     020029     AKM              Modified not to use previous data. Added Re-check num_samples when DRDY when Polling ODR=0
+ * 11/14/18     020028     AKM              Modified for current time < timestamp
+ * 11/14/18     020027     AKM              Confirmed the 5Hz issue. Update the version.
+ * 11/13/18                AKM              Test modification for AK09918C 5Hz issue
+ * 11/08/18     020026     AKM/Qualcomm     AKM: Modified to use UNRELIABLE for the first data if data is not ready.
+ *                                          Qualcomm fixed a handful of changes, in this version, made by AKM.
+ * 10/29/18     020025     AKM              Debugged for very first data for Polling+DAE
+ * 10/19/18     020024     AKM              Debugged for I2C mode at ak0991x_device_sw_reset
+ * 10/19/18     020023     AKM              Merged Qualcomm 20021 and AKM 20023
+ * 10/17/18                AKM              Implemented HB timer for Polling when DAE enabled.
+ * 10/15/18     020022     AKM              Debugged for I2C+Polling+DAE mode.
+ * 10/12/18     020021     AKM              HB timer perform while 100Hz dummy meas. Pause HB timer while self test.
+ * 10/24/18     020023     Qualcomm         Do not add a cal reset request to the instance
+ * 10/19/18     020022     Qualcomm         Retry enter i3c mode if fails
+ * 10/16/18     020021     Qualcomm         Fixed setting of max batch, for max-batch = True and flush-only = True use case 
+ * 10/12/18     020020     Qualcomm/AKM     Fixed setting of flush period for FlushOnly = True use case.
+ * 09/26/18     020019     AKM              Merged Qualcomm 010017 and AKM 020018 and modified for WM
+ * 09/25/18     020018     AKM              Modified for MAG221 with AK09917D RevA parts.
+ * 09/17/18     020017     AKM              Modified for MAG023/MAG025/MAG027 timing error on DAE mode
+ * 09/20/18     020017     Qualcomm         Fixed setting of FIFO watermark.
+ *                                          Previous incorrect logic was causing garbage values to be reported
+ *                                          in the extra data samples above the 25 max for AK09917
  * 09/10/18     020016     AKM              Merged Qualcomm's 020015 and AKM's 020015.
  * 09/06/18     020015     Qualcomm         Changed when to enter i3c
  * 09/03/18     020015     AKM              Modified for Dual Sensor on DAE
  * 08/03/18     020014     AKM              Debugged for the Klocwork P1 errors(#03603537)
- * 07/28/18                Qualcomm         Send CFG Event for new request even no change 
+ * 07/28/18     020013     Qualcomm         Send CFG Event for new request even no change 
  * 07/24/18     020013     AKM/Qualcomm     Enabled device mode as default and cleaned related code.
  * 07/12/18     020012     AKM/Qualcomm     Fixed compile error when DAE is enabled
  * 07/03/18     020011     AKM              Debugged when the registry access is disabled.
@@ -185,4 +209,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20016  // major:02 minor:00 revision:16
+#define AK0991X_DRIVER_VERSION 20031  // major:02 minor:00 revision:31

@@ -12,6 +12,7 @@
  *
  **/
 
+#include "sns_event_service.h"
 #include "sns_mem_util.h"
 #include "sns_sensor_instance.h"
 #include "sns_service_manager.h"
@@ -24,6 +25,7 @@
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_ak0991x_s4s.h"
+#include "sns_ak0991x_ver.h"
 
 
 #include "sns_interrupt.pb.h"
@@ -77,7 +79,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &mag_suid,
               sizeof(state->mag_info.suid));
 
-  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init" );
+  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init DRIVER_VER:%d",(int)AK0991X_DRIVER_VERSION );
 
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.desired_odr = AK0991X_MAG_ODR_OFF;
@@ -152,6 +154,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.use_dri = sensor_state->is_dri;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.reg_rsv1_value = sensor_state->reg_rsv1_value;
+    SNS_INST_PRINTF(HIGH, this, "AK09917 RSV1=0x%02X", (int)state->mag_info.reg_rsv1_value);
     break;
   case AK09918:
     state->mag_info.resolution = AK09918_RESOLUTION;
@@ -367,42 +371,39 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 }
 
 static uint16_t ak0991x_set_wmk(sns_sensor_instance *const this,
-                                float desired_report_rate)
+                                float desired_report_rate,
+								float mag_chosen_sample_rate)
 {
   uint16_t desired_wmk = 0;
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  if (state->mag_info.use_fifo)
+  switch (state->mag_info.device_select)
   {
-    if (desired_report_rate != 0)
-    {
-      /* Water mark level : 0x00 -> 1step, 0x01F ->32step*/
-      desired_wmk = state->mag_info.req_wmk - 1;
-    }
+    case AK09915C:
+    case AK09915D:
+    case AK09917:
+      desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01 * desired_report_rate) / desired_report_rate - 1;
+      if (state->mag_info.max_batch)
+      {
+        desired_wmk = state->mag_info.max_fifo_size - 1;
+      }
+	  else if ( desired_wmk >= (UINT16_MAX - (state->mag_info.max_fifo_size - 1))) 
+	  {
+		desired_wmk = state->mag_info.max_fifo_size - 1;
+	  }	
+       else if ( desired_wmk >= state->mag_info.max_fifo_size)
+      {
+         uint32_t divider = 1;
+         divider = (state->mag_info.max_fifo_size - 1 + desired_wmk) / state->mag_info.max_fifo_size;
+         desired_wmk = desired_wmk / SNS_MAX(divider,1);
+         desired_wmk = desired_wmk - 1;
+      }
+      break;
 
-    switch (state->mag_info.device_select)
-    {
-      case AK09915C:
-      case AK09915D:
-      case AK09917:
-        if (state->mag_info.max_batch)
-        {
-          desired_wmk = AK09917_FIFO_SIZE - 1;
-        }
-        else if (AK09917_FIFO_SIZE <= desired_wmk)
-        {
-          uint32_t divider = 1;
-          divider = (AK09917_FIFO_SIZE - 1 + state->mag_info.req_wmk) / AK09917_FIFO_SIZE;
-          desired_wmk = state->mag_info.req_wmk / SNS_MAX(divider,1);
-          desired_wmk = desired_wmk - 1;
-        }
-        break;
-
-      default:
-        desired_wmk = 0;
-        break;
-    }
+    default:
+      desired_wmk = 0;
+      break;
   }
   AK0991X_INST_PRINT(LOW, this, "set_wmk:: rr=%u/100 wm=%u", 
                      (int)(desired_report_rate*100), desired_wmk);
@@ -471,6 +472,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   float           mag_chosen_sample_rate = 0.0f;
   ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
   uint16_t        desired_wmk;
+  uint32_t        previous_req_wmk = state->mag_info.req_wmk;
   sns_rc          rv = SNS_RC_SUCCESS;
 
   AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
@@ -519,7 +521,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         (int)desired_sample_rate, (int)(desired_report_rate*100), (int)state->mag_info.req_wmk);
 
     // If already a request, send out existing config before the next data events are sent
-    if (state->mag_info.use_fifo &&  state->mag_info.req_wmk > 0)
+    if (desired_sample_rate > 0)
     {
       ak0991x_send_config_event(this);
     }
@@ -531,8 +533,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                state->mag_info.device_select);
     if (rv != SNS_RC_SUCCESS)
     {
-      // TODO Unsupported rate. Report error using sns_std_error_event.
-      // return rv;
+      sns_service_manager *manager =
+        this->cb->get_service_manager(this);
+      sns_event_service *event_service =
+      	(sns_event_service*)manager->get_service(manager, SNS_EVENT_SERVICE);
+      SNS_INST_PRINTF(ERROR, this, "Cannot find match ODR: rv=%d, desired_SR=%d, mag device=%d",
+        rv, (int)desired_sample_rate, state->mag_info.device_select);
+      event_service->api->publish_error(event_service,this, SNS_RC_NOT_SUPPORTED);
+      return rv;
     }
 
     if (state->mag_info.max_batch)
@@ -556,13 +564,17 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.req_wmk = 0;
     }
 
-    desired_wmk = ak0991x_set_wmk(this, desired_report_rate);
+    desired_wmk = ak0991x_set_wmk(this, desired_report_rate, mag_chosen_sample_rate);
     AK0991X_INST_PRINT(LOW, this, "req_wmk=%u desired_wmk=%u,flush_period=%u, flushonly=%d, max_batch=%d",
-                       state->mag_info.req_wmk, desired_wmk, state->mag_info.flush_period,
-                       state->mag_info.flush_only?1:0, state->mag_info.max_batch?1:0 );
+                       state->mag_info.req_wmk,
+                       desired_wmk,
+                       state->mag_info.flush_period,
+                       state->mag_info.flush_only?1:0,
+                       state->mag_info.max_batch?1:0 );
 
-    if( state->mag_info.cur_wmk == desired_wmk &&
-        state->mag_info.curr_odr == mag_chosen_sample_rate_reg_value )
+    if( state->mag_info.cur_wmk == desired_wmk
+        && state->mag_info.curr_odr == mag_chosen_sample_rate_reg_value
+        && state->mag_info.req_wmk == previous_req_wmk )
     {
       // No change needed -- return success
       AK0991X_INST_PRINT(LOW, this, "Config not changed.");
@@ -574,7 +586,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->scp_service->api->sns_scp_update_bus_power(
                                                         state->com_port_info.port_handle,
                                                         false);
-
       return SNS_RC_SUCCESS;
     }
 
@@ -618,7 +629,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(!ak0991x_dae_if_available(this))
     {
       // care the FIFO buffer if enabled FIFO and already streaming
-      if ( !state->this_is_first_data && state->mag_info.use_fifo )
+      if ( !state->this_is_first_data && state->mag_info.use_fifo
+           && state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
       {
         ak0991x_care_fifo_buffer(this,
                                  mag_chosen_sample_rate,
@@ -650,29 +662,26 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   {
     state->system_time = sns_get_system_time();
     state->fifo_flush_in_progress = true;
-    AK0991X_INST_PRINT(LOW, this, "Flush requested at %X", (uint32_t)state->system_time);
+    AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
 
-    if(!ak0991x_dae_if_flush_hw(this))
+    if(ak0991x_dae_if_available(this))
     {
-      if(state->mag_info.use_fifo)
+      ak0991x_dae_if_flush_hw(this);
+    }
+    else
+    {
+      if (NULL != state->interrupt_data_stream)
       {
-        if (NULL != state->interrupt_data_stream)
-        {
-          sns_sensor_event *event = 
-            state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
-          if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
-          {
-            ak0991x_read_mag_samples(this);
-          }
-        }
-        else
+        sns_sensor_event *event =
+          state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
+        if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
         {
           ak0991x_read_mag_samples(this);
         }
       }
       else
       {
-        ak0991x_send_fifo_flush_done(this);
+        ak0991x_read_mag_samples(this);
       }
     }
   }
@@ -701,13 +710,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if (state->config_step == AK0991X_CONFIG_IDLE)
       {
         // care the FIFO buffer if enabled FIFO and already streaming
-        if (!state->this_is_first_data && state->mag_info.use_fifo)
+        if (!state->this_is_first_data && state->mag_info.use_fifo
+            && state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
         {
           ak0991x_care_fifo_buffer(this,
-                                   mag_chosen_sample_rate,
-                                   mag_chosen_sample_rate_reg_value);
+              state->mag_req.sample_rate,
+              state->mag_info.desired_odr);
         }
-
+/*
         // hardware setting for measurement mode
         if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
        	{
@@ -720,6 +730,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_reconfig_hw(this, false);
           ak0991x_register_timer(this);
         }
+*/
       }
 
       ak0991x_dae_if_process_events(this);

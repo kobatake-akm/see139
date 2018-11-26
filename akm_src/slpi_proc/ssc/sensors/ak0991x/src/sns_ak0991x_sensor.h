@@ -1,4 +1,3 @@
-#include "sns_ak0991x_dae_if.h"
 #pragma once
 /**
  * @file sns_ak0991x_sensor.h
@@ -214,6 +213,7 @@ typedef struct ak0991x_state
 
   // parameters which are determined when the connected device is specified.
   akm_device_type device_select; // store the current connected device
+  uint8_t reg_rsv1_value;
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
 
   // sensor configuration

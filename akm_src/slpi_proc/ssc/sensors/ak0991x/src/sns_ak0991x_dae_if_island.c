@@ -52,16 +52,16 @@ static void build_static_config_request(
   sns_dae_set_static_config *config_req,
   int64_t hardware_id)
 {
-	
-	if(hardware_id == 0){
-	  sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table",
-              sizeof(config_req->func_table_name));
-	}
-	else
-	{
-	  sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table2",
-              sizeof(config_req->func_table_name));
-	}
+  if(hardware_id == 0)
+  {
+    sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table",
+               sizeof(config_req->func_table_name));
+  }
+  else
+  {
+    sns_strlcpy(config_req->func_table_name, "ak0991x_hal_table2",
+               sizeof(config_req->func_table_name));
+  }
 
 
 #ifdef AK0991X_DAE_FORCE_POLLING
@@ -77,8 +77,7 @@ static void build_static_config_request(
   {
     config_req->irq_config           = sensor_state->irq_config;
   }
-  else 
-  if(sensor_state->is_dri == 2)
+  else if(sensor_state->is_dri == 2)
   {
     config_req->ibi_config           =
     (sns_ibi_req){ .dynamic_slave_addr = sensor_state->com_port_info.com_config.slave_control,
@@ -168,10 +167,15 @@ static bool send_mag_config(sns_sensor_instance *this)
   sns_time meas_usec;
   ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 
-  AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x #clk_err=%u", 
-                     dae_stream->stream, state->mag_info.clock_error_meas_count);
+  AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x, #clk_err_meas_count=%u/%u, in_clk_err_proc=%u, use_dri=%u",
+                     dae_stream->stream, 
+                     state->mag_info.clock_error_meas_count,
+                     AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC,
+                     state->in_clock_error_procedure,
+                     state->mag_info.use_dri);
 
-  if(!state->mag_info.use_dri || state->mag_info.clock_error_meas_count > 0)
+  if(!state->mag_info.use_dri || 
+      state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     config_req.dae_watermark = SNS_MAX(mag_info->req_wmk, 1);
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
@@ -179,7 +183,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   }
   else
   {
-    config_req.dae_watermark = wm = 1;
+    config_req.dae_watermark = wm = 1;  // go into clock error procedure
   }
 
   config_req.has_data_age_limit_ticks = true;
@@ -336,8 +340,82 @@ static void process_fifo_samples(
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
+  uint32_t sampling_intvl;
+  uint8_t wm = 1;
+  ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
 
-  state->num_samples          = buf[2] >> 2;
+  //////////////////////////////
+  // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
+  // buf[0] : CNTL1
+  // buf[1] : CNTL2
+  // buf[2] : ST1
+  // buf[3] : HXL (HXH AK09917)
+  // buf[4] : HXH (HXL AK09917)
+  // buf[5] : HYL (HYH AK09917)
+  // buf[6] : HYH (HYL AK09917)
+  // buf[7] : HZL (HZH AK09917)
+  // buf[8] : HZH (HZL AK09917)
+  // buf[9] : TMPS
+  // buf[10]: ST2
+  //////////////////////////////
+
+  if(state->mag_info.use_fifo)
+  {
+    // num_samples when FIFO enabled.
+    if(state->mag_info.device_select == AK09917)
+    {
+      if(state->mag_info.use_fifo)
+      {
+        state->num_samples = buf[2] >> 2;
+        wm = (buf[0] & 0x1F) + 1;
+      }
+    }
+    else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
+    {
+      if(state->mag_info.use_fifo)
+      {
+        state->num_samples = state->mag_info.cur_wmk + 1;
+        wm = state->mag_info.cur_wmk;
+      }
+    }
+  }
+  else
+  {
+    // num_samples when FIFO disabled.
+    if(state->mag_info.use_dri)  // dri mode
+    {
+      state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+    }
+    else  // polling mode
+    {
+      if(state->fifo_flush_in_progress) // flush request
+      {
+        // check time
+        if(state->system_time < state->pre_timestamp + state->averaged_interval)
+        {
+          AK0991X_INST_PRINT(MED, this, "num_samples=0 because timestamp is future");
+          state->num_samples = 0;
+        }
+        else
+        {
+          // set check DRDY status when flush request in polling mode
+          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
+        }
+      }
+      else if(odr == AK0991X_MAG_ODR_OFF) // orphan batch
+      {
+        state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+        AK0991X_INST_PRINT(MED, this, "num_samples=%d in ODR=0", state->num_samples);
+      }
+      else // timer event
+      {
+        // set num samples=1 when regular polling mode.
+        state->num_samples = 1;
+      }
+    }
+  }
+
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
     SNS_INST_PRINTF(
@@ -349,16 +427,10 @@ static void process_fifo_samples(
 
   if(state->num_samples >= 1)
   {
-    if(!state->mag_info.use_dri ||
-       (!state->in_clock_error_procedure && state->mag_info.clock_error_meas_count > 0))
+    if(!state->in_clock_error_procedure)
     {
-      uint32_t sampling_intvl;
-      uint8_t wm = (buf[0] & 0x1F) + 1;
-      ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
-
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
-      state->irq_info.detect_irq_event = state->data_is_ready;
 
       if(odr == state->mag_info.curr_odr)
       {
@@ -367,19 +439,21 @@ static void process_fifo_samples(
           sns_time meas_usec;
           state->new_cfg.odr      = odr;
           state->new_cfg.fifo_wmk = wm;
+
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE");
           ak0991x_send_config_event(this);
 
           ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
           state->this_is_first_data = true;
-          state->mag_info.data_count = 0;
-          state->half_measurement_time = 
-            ((sns_convert_ns_to_ticks(meas_usec * 1000) * 
+          state->half_measurement_time =
+            ((sns_convert_ns_to_ticks(meas_usec * 1000) *
               state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
           state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-          state->averaged_interval = 
+          state->averaged_interval =
             (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-          state->pre_timestamp = state->odr_change_timestamp + 
+          state->pre_timestamp = state->odr_change_timestamp +
             (state->half_measurement_time<<1) - state->averaged_interval;
+          state->previous_irq_time = state->pre_timestamp;
         }
 
         if(state->mag_info.use_dri)
@@ -394,7 +468,7 @@ static void process_fifo_samples(
       }
       else
       {
-        sampling_intvl = (ak0991x_get_sample_interval(odr) * 
+        sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
         state->previous_meas_is_irq = false;
         state->previous_meas_is_correct_wm = false;
@@ -402,51 +476,70 @@ static void process_fifo_samples(
         if(state->irq_info.detect_irq_event)
         {
           state->interrupt_timestamp = state->irq_event_time;
+          if(!state->mag_info.use_fifo)
+          {
+            state->first_data_ts_of_batch = state->interrupt_timestamp;
+          }
           state->previous_meas_is_correct_wm = (wm == state->num_samples);
         }
-        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch");
+        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch ODR=%d num_samples=%d", odr, state->num_samples);
       }
-#ifdef AK0991X_ENABLE_TS_DEBUG
-      if(state->num_samples > 1)
-      {
-        AK0991X_INST_PRINT(
-          MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
-          odr, (uint32_t)sampling_intvl, state->num_samples, 
-          (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
-      }
-#endif
+
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
-      if(state->mag_info.use_dri)
-      {
-        state->heart_beat_attempt_count = 0;
-        if (NULL != state->timer_data_stream)
-        {
-          sns_sensor_event *event =
-            state->timer_data_stream->api->peek_input(state->timer_data_stream);
+#ifdef AK0991X_ENABLE_TS_DEBUG
+      AK0991X_INST_PRINT(
+        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
+        odr, (uint32_t)sampling_intvl, state->num_samples,
+        (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
+#endif
 
-          while (NULL != event)
-          {
-            event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
-          }
-        }
-        ak0991x_register_heart_beat_timer(this);
-      }
     }
-    else if(state->in_clock_error_procedure)
+    else  // in clock error procedure
     {
+      AK0991X_INST_PRINT(LOW, this, "ak0991x_clock_error_calc_procedure call in DAE");
       ak0991x_clock_error_calc_procedure(this, &buf[2]);
       if (!state->in_clock_error_procedure && ak0991x_dae_if_stop_streaming(this))
       {
+        AK0991X_INST_PRINT(LOW, this, "DONE clock error procedure");
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
       }
+      else
+      {
+        AK0991X_INST_PRINT(HIGH, this, "Discarding %u stale samples.", state->num_samples);
+      }
     }
-    else
+
+    if(state->mag_info.use_dri) // for DRI mode
     {
-      AK0991X_INST_PRINT(HIGH, this, "Discarding %u stale samples.", state->num_samples);
+      state->heart_beat_attempt_count = 0;
+      if (NULL != state->timer_data_stream)
+      {
+        sns_sensor_event *event =
+          state->timer_data_stream->api->peek_input(state->timer_data_stream);
+
+        while (NULL != event)
+        {
+          event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
+        }
+      }
+
+      // keep re-register HB timer when DAE enabled.
+      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX)
+      {
+        ak0991x_register_heart_beat_timer(this);
+      }
+    }
+    else  // for Polling mode
+    {
+      // check heart beat fire time
+      if(state->system_time > state->hb_timer_fire_time)
+      {
+        ak0991x_heart_beat_timer_event(this);
+      }
     }
   }
 }
@@ -463,13 +556,37 @@ static void process_data_event(
   if(pb_decode(pbstream, sns_dae_data_event_fields, &data_event))
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-
     state->system_time = sns_get_system_time();
-    state->previous_irq_time = state->irq_event_time;
-    state->irq_event_time = data_event.timestamp;
+
+    state->irq_info.detect_irq_event = state->fifo_flush_in_progress ? false : true;
+
+    AK0991X_INST_PRINT(LOW, this, "process_data_event called. prev_irq_time %u detect_irq_event=%d count: %d",
+        (uint32_t)state->previous_irq_time,
+        state->irq_info.detect_irq_event,
+        state->mag_info.data_count);
+    if(state->irq_info.detect_irq_event)
+    {
+      state->irq_event_time = data_event.timestamp;
+    }
 
     process_fifo_samples(
       this, (uint8_t*)decode_arg.buf, decode_arg.buf_len);
+
+    if(state->irq_info.detect_irq_event)
+    {
+      if(state->mag_info.use_dri)
+      {
+        // When DAE enable, validate timestamp can return false.
+        if(state->mag_info.data_count == 0)
+        {
+          state->previous_irq_time = state->interrupt_timestamp;
+        }
+      }
+      else
+      {
+        state->previous_irq_time = state->interrupt_timestamp;
+      }
+    }
   }
 }
 
@@ -614,10 +731,12 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
 
       if (SNS_DAE_MSGID_SNS_DAE_DATA_EVENT == event->message_id)
       {
+        AK0991X_INST_PRINT(LOW, this,"DAE_DATA_EVENT");
         process_data_event(this, &pbstream);
       }
       else if(SNS_DAE_MSGID_SNS_DAE_INTERRUPT_EVENT == event->message_id)
       {
+        AK0991X_INST_PRINT(LOW, this,"DAE_INTERRUPT_EVENT");
       }
       else if(SNS_DAE_MSGID_SNS_DAE_RESP == event->message_id)
       {
@@ -773,11 +892,10 @@ sns_rc ak0991x_dae_if_init(
   ak0991x_state           *sensor_state)
 {
   sns_rc rc = SNS_RC_NOT_AVAILABLE;
-
-  AK0991X_INST_PRINT(LOW, this, "dae_if_init");
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info* dae_if = &state->dae_if;
 
+  AK0991X_INST_PRINT(LOW, this, "dae_if_init set inst mag.state %d <= %d", (int)dae_if->mag.state, (int)sensor_state->dae_if.mag.state);
   dae_if->mag.state = sensor_state->dae_if.mag.state;
 
 #ifdef AK0991X_DAE_FORCE_NOT_AVAILABLE
@@ -858,6 +976,8 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  state->irq_info.detect_irq_event = false;
 
   if(stream_usable(&dae_if->mag) && dae_if->mag.state >= IDLE)
   {
