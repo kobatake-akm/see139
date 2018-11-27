@@ -879,12 +879,10 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
        !state->in_clock_error_procedure)
     {
       buffer[0] = 0x0;
-      if (state->mag_info.device_select == AK09917
-          && state->mag_info.reg_rsv1_value == AK09917_REVA_SUB_ID
-      )
+      if (state->mag_info.device_select == AK09917)
       {
         buffer[1] = 0x0
-          | AK0991X_FIFO_BIT                         // FIFO bit, FIFO enable for AK09917 RevA Bug
+          | AK0991X_FIFO_BIT                         // FIFO bit, FIFO enable for AK09917 RevA/B Bug
           | (state->mag_info.sdr << 6)               // SDR bit
           | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
       }
@@ -1290,6 +1288,38 @@ static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
   return rv;
 }
 
+
+/**
+ * Read ST2(18h) register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[o] buffer                   st2 register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+static sns_rc ak0991x_read_st2(ak0991x_instance_state *state,
+                               uint8_t *buffer)
+{
+  sns_rc   rv = SNS_RC_SUCCESS;
+  uint32_t xfer_bytes;
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_ST2,
+                                buffer,
+                                1,
+                                &xfer_bytes);
+
+  if (xfer_bytes != 1)
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  return rv;
+}
+
 /**
  * Read ST1(10h) to ST2(18h) register data.
  *
@@ -1462,10 +1492,8 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /* Set to CNT measurement mode3 (50Hz) */
   buffer[0] = 0x00;
   buffer[1] = AK0991X_MAG_ODR50;
-  /* Enable FIFO for AK09917D RevA bug */
-  if (state->mag_info.device_select == AK09917
-          && state->mag_info.reg_rsv1_value == AK09917_REVA_SUB_ID
-  )
+  /* Enable FIFO for AK09917D RevA/B bug */
+  if (state->mag_info.device_select == AK09917)
   {
     buffer[1] |= AK0991X_FIFO_BIT;
   }
@@ -2123,6 +2151,11 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   uint8_t st1_buf;
 
   ak0991x_read_st1(state, &st1_buf);  // read ST1
+  /* Read ST2 for AK09917D RevA/B bug */
+  if(state->mag_info.device_select == AK09917 && !state->mag_info.use_fifo)
+  {
+    ak0991x_read_st2(state, NULL);
+  }
 
   state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;  // check data over run
   state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
