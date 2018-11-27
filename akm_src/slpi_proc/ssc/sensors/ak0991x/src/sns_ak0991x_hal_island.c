@@ -991,8 +991,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->irq_info.detect_irq_event = false;
-  state->previous_meas_is_irq = false;
-  state->previous_meas_is_correct_wm = true;
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
   state->mag_info.curr_odr = state->mag_info.desired_odr;
@@ -1326,14 +1324,27 @@ static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
+  // ST1 read
   rv = ak0991x_com_read_wrapper(state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
-                                (uint32_t)(AK0991X_NUM_DATA_ST1_TO_ST2),
+                                1,
+                                &xfer_bytes);
+  if (xfer_bytes != 1)
+  {
+    rv = SNS_RC_FAILED;
+  }
+
+  // HXL to ST2
+  rv |= ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_HXL,
+                                &buffer[1],
+                                (uint32_t)(AK0991X_NUM_DATA_HXL_TO_ST2),
                                 &xfer_bytes);
 
-  if (xfer_bytes != (uint32_t)(AK0991X_NUM_DATA_ST1_TO_ST2))
+  if (xfer_bytes != (uint32_t)(AK0991X_NUM_DATA_HXL_TO_ST2))
   {
     rv = SNS_RC_FAILED;
   }
@@ -1517,7 +1528,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     }
 
     /* Get measurement from device (1st). */
-    rv = ak0991x_read_st1_st2(state, &buffer[0]);
+    rv = ak0991x_read_st1_st2(state, buffer);
 
     if (rv != SNS_RC_SUCCESS)
     {
@@ -1530,7 +1541,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     AKM_FST(TLIMIT_NO_CNT_1ST, state->data_is_ready, TLIMIT_LO_CNT_1ST, TLIMIT_HI_CNT_1ST, err);
 
     /* Get measurement from device (2nd). */
-    rv = ak0991x_read_st1_st2(state, &buffer[0]);
+    rv = ak0991x_read_st1_st2(state, buffer);
 
     if (rv != SNS_RC_SUCCESS)
     {
@@ -1870,13 +1881,13 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
-
+/*
   AK0991X_INST_PRINT(LOW, instance, "raw( %d %d %d ) Accuracy=%d",
       (int)opdata_raw[0],
       (int)opdata_raw[1],
       (int)opdata_raw[2],
       (int)status);
-
+*/
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,
                               timestamp,
@@ -1971,24 +1982,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #endif
   }
 
-  // store previous measurement is irq and also right WM
-  if(state->mag_info.use_dri && state->irq_info.detect_irq_event)
-  {
-    state->previous_meas_is_irq = true;
-  }
-  else
-  {
-    state->previous_meas_is_irq = false;
-  }
-  if(state->mag_info.cur_wmk + 1 == state->num_samples)
-  {
-    state->previous_meas_is_correct_wm = true;
-  }
-  else
-  {
-    state->previous_meas_is_correct_wm = false;
-  }
-
   // store previous timestamp
   state->pre_timestamp = timestamp;
 
@@ -2048,25 +2041,15 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
       // keep re-calculating for clock frequency drifting.
       ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count);
 
-#ifdef AK0991X_ENABLE_DAE
       if( state->num_samples == (state->mag_info.cur_wmk+1) )
       {
         state->averaged_interval = ((state->interrupt_timestamp - state->previous_irq_time) /
                                     state->mag_info.data_count);
       }
-#else
-      if( (state->previous_meas_is_irq) &&
-          (state->num_samples == (state->mag_info.cur_wmk+1)) )
-      {
-        state->averaged_interval = ((state->interrupt_timestamp - state->previous_irq_time) / 
-                                    (state->mag_info.cur_wmk + 1));
-      }
-#endif //AK0991X_ENABLE_DAE
       else
       {
-        SNS_INST_PRINTF(LOW, instance, "Unreliable irq. prev_irq_ok= %d current_wm_ok= %d",
-            (int)state->previous_meas_is_irq,
-            (int)(state->num_samples == (state->mag_info.cur_wmk+1)));
+        SNS_INST_PRINTF(LOW, instance, "Unreliable irq. (#samples != WM) (%d != %d)",
+            (int)state->num_samples, state->mag_info.cur_wmk+1);
         rc = SNS_RC_FAILED;
       }
     }

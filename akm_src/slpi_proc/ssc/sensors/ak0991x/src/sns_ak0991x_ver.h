@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 11/26/18     02003X     AKM              Modified for AK09917 RevA detection and clock error procedure for DAE mode.
+ * 11/26/18     020032     AKM              Modified for AK09917 RevA/RevB bug and clock error procedure for DAE mode.
+ *                                          Modified average interval calc for DRI on non DAE mode. Now it is same as DAE mode.
  * 11/19/18     020031     AKM              Regardless the DRDY status, set UNRELIABLE flag when XYZ data is all 0.
  * 11/16/18     020030     AKM              Modified for MAG039/MAG040 for DRI+FIFO mode
  * 11/15/18     020029     AKM              Modified not to use previous data. Added Re-check num_samples when DRDY when Polling ODR=0
@@ -210,4 +211,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20031  // major:02 minor:00 revision:31
+#define AK0991X_DRIVER_VERSION 20032  // major:02 minor:00 revision:32

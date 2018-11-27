@@ -471,8 +471,6 @@ static void process_fifo_samples(
       {
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-        state->previous_meas_is_irq = false;
-        state->previous_meas_is_correct_wm = false;
         state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
         if(state->irq_info.detect_irq_event)
         {
@@ -481,7 +479,6 @@ static void process_fifo_samples(
           {
             state->first_data_ts_of_batch = state->interrupt_timestamp;
           }
-          state->previous_meas_is_correct_wm = (wm == state->num_samples);
         }
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch ODR=%d num_samples=%d", odr, state->num_samples);
       }
