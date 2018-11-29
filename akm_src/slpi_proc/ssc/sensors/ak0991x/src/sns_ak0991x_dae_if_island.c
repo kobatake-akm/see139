@@ -419,12 +419,16 @@ static void process_fifo_samples(
 
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
-    SNS_INST_PRINTF(
-      ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u", 
-      state->num_samples, fifo_len);
-    state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
+//    SNS_INST_PRINTF(
+//      ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
+//      state->num_samples, fifo_len);
+//    state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
   }
-  state->mag_info.data_count += state->num_samples;
+
+  if(state->mag_info.use_dri)
+  {
+    state->mag_info.data_count += state->num_samples;
+  }
 
   if(state->num_samples >= 1)
   {
@@ -551,17 +555,19 @@ static void process_data_event(
   sns_dae_data_event data_event = sns_dae_data_event_init_default;
   data_event.sensor_data.funcs.decode = &pb_decode_string_cb;
   data_event.sensor_data.arg = &decode_arg;
+
   if(pb_decode(pbstream, sns_dae_data_event_fields, &data_event))
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
     state->system_time = sns_get_system_time();
+    state->irq_info.detect_irq_event = !(state->fifo_flush_in_progress);
 
-    state->irq_info.detect_irq_event = state->fifo_flush_in_progress ? false : true;
+    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d flushing_data=%d",
+        (uint32_t)data_event.timestamp,
+        (uint8_t)state->fifo_flush_in_progress,
+        state->mag_info.data_count,
+        state->dae_if.mag.flushing_data);
 
-    AK0991X_INST_PRINT(LOW, this, "process_data_event called. prev_irq_time %u detect_irq_event=%d count: %d",
-        (uint32_t)state->previous_irq_time,
-        state->irq_info.detect_irq_event,
-        state->mag_info.data_count);
     if(state->irq_info.detect_irq_event)
     {
       state->irq_event_time = data_event.timestamp;
@@ -660,7 +666,7 @@ static void process_response(
       }
       else if(state->fifo_flush_in_progress)
       {
-        ak0991x_dae_if_flush_samples(this);
+        ak0991x_send_fifo_flush_done(this);
       }
       else if(state->heart_beat_attempt_count >= 3)
       {

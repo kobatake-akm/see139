@@ -883,6 +883,12 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
           | (state->mag_info.sdr << 6)               // SDR bit
           | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
 
+      /* Enable FIFO for AK09917D RevA/B bug */
+      if(device_select == AK09917)
+      {
+        buffer[1] |= AK0991X_FIFO_BIT;
+      }
+
       AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement start. Now in_clk_err_prcdr is TRUE");
 
       state->in_clock_error_procedure = true;
@@ -2201,7 +2207,6 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
         AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
         if(state->fifo_flush_in_progress)
         {
-          state->fifo_flush_in_progress = false;
           ak0991x_send_fifo_flush_done(instance);
         }
       }
