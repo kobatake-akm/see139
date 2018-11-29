@@ -493,10 +493,10 @@ static void process_fifo_samples(
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
 #ifdef AK0991X_ENABLE_TS_DEBUG
-      AK0991X_INST_PRINT(
-        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
-        odr, (uint32_t)sampling_intvl, state->num_samples,
-        (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
+//      AK0991X_INST_PRINT(
+//        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
+//        odr, (uint32_t)sampling_intvl, state->num_samples,
+//        (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
 #endif
 
     }
@@ -666,7 +666,7 @@ static void process_response(
       }
       else if(state->fifo_flush_in_progress)
       {
-        ak0991x_send_fifo_flush_done(this);
+        ak0991x_dae_if_flush_samples(this);
       }
       else if(state->heart_beat_attempt_count >= 3)
       {
