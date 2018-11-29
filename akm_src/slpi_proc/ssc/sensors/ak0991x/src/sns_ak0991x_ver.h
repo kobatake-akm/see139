@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 11/28/18     020033     AKM              Modified for flush requests on DAE.
+ * 11/29/18     020033     AKM              Modified for flush requests on DAE.
  * 11/26/18     020032     AKM              Modified for AK09917 RevA/RevB bug and clock error procedure for DAE mode.
  *                                          Modified average interval calc for DRI on non DAE mode. Now it is same as DAE mode.
  * 11/19/18     020031     AKM              Regardless the DRDY status, set UNRELIABLE flag when XYZ data is all 0.
