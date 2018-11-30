@@ -475,16 +475,27 @@ static void process_fifo_samples(
       {
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-        state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
         if(state->irq_info.detect_irq_event)
         {
           state->interrupt_timestamp = state->irq_event_time;
-          if(!state->mag_info.use_fifo)
+          if(state->mag_info.use_fifo)
+          {
+            state->first_data_ts_of_batch = state->interrupt_timestamp - sampling_intvl * (state->num_samples - 1);
+          }
+          else
           {
             state->first_data_ts_of_batch = state->interrupt_timestamp;
           }
         }
-        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch ODR=%d num_samples=%d", odr, state->num_samples);
+        else
+        {
+          state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+        }
+        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch ODR=%d num_samples=%d sampling_intvl=%u ave=%u",
+            odr,
+            state->num_samples,
+            (uint32_t)sampling_intvl,
+            (uint32_t)state->averaged_interval);
       }
 
       ak0991x_process_mag_data_buffer(this,

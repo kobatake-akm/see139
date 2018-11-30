@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/30/18                AKM              Modified for orphan batch when interrupt detected.
  * 11/29/18                AKM              Use timestamp_type for detecting DRI or Flush in DAE mode.
  * 11/29/18     020033     AKM              Modified for flush requests on DAE.
  * 11/26/18     020032     AKM              Modified for AK09917 RevA/RevB bug and clock error procedure for DAE mode.
