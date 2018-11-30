@@ -560,13 +560,38 @@ static void process_data_event(
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
     state->system_time = sns_get_system_time();
-    state->irq_info.detect_irq_event = !(state->fifo_flush_in_progress);
 
-    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d flushing_data=%d",
+    state->irq_info.detect_irq_event = false;
+    state->fifo_flush_in_progress = false;
+
+    if(data_event.has_timestamp_type)
+    {
+      if( state->mag_info.use_dri &&
+          (data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_HW_IRQ) )
+      {
+        state->irq_info.detect_irq_event = true;  // DRI interrupt
+      }
+      else if( !state->mag_info.use_dri &&
+          (data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_TIMER) )
+      {
+        state->irq_info.detect_irq_event = true;  // timer event in polling mode
+      }
+      else if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_SYSTEM_TIME )
+      {
+        state->fifo_flush_in_progress = true;  // Flush request
+      }
+    }
+    else
+    {
+      // TBD
+    }
+
+
+    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d",
         (uint32_t)data_event.timestamp,
         (uint8_t)state->fifo_flush_in_progress,
         state->mag_info.data_count,
-        state->dae_if.mag.flushing_data);
+        data_event.timestamp_type);
 
     if(state->irq_info.detect_irq_event)
     {
@@ -664,21 +689,21 @@ static void process_response(
         ak0991x_dae_if_flush_samples(this);
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
       }
-      else if(state->fifo_flush_in_progress)
-      {
-        ak0991x_dae_if_flush_samples(this);
-      }
       else if(state->heart_beat_attempt_count >= 3)
       {
         // Perform a reset operation in an attempt to revive the sensor
         ak0991x_reconfig_hw(this, true);
+      }
+      else
+      {
+        ak0991x_dae_if_flush_samples(this); // Flush client request
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       AK0991X_INST_PRINT(LOW, this, "DAE_FLUSH_DATA");
       if(state->fifo_flush_in_progress)
       {
-        ak0991x_send_fifo_flush_done(this);
+        ak0991x_send_fifo_flush_done(this); // maybe needed when num_samples=0
       }
       dae_stream->flushing_data = false;
       break;

@@ -176,7 +176,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.data_count = 0;
   state->in_clock_error_procedure = false;
   state->mag_info.clock_error_meas_count = 0;
-
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
@@ -672,7 +671,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       else
       {
         AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u", (uint32_t)state->system_time);
-        state->fifo_flush_in_progress = true;
         ak0991x_dae_if_flush_hw(this);
       }
     }

@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/29/18                AKM              Use timestamp_type for detecting DRI or Flush in DAE mode.
  * 11/29/18     020033     AKM              Modified for flush requests on DAE.
  * 11/26/18     020032     AKM              Modified for AK09917 RevA/RevB bug and clock error procedure for DAE mode.
  *                                          Modified average interval calc for DRI on non DAE mode. Now it is same as DAE mode.
