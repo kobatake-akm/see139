@@ -557,6 +557,65 @@ static void process_fifo_samples(
   }
 }
 
+static void estimate_event_type(
+    sns_sensor_instance *this,
+    sns_time event_timestamp,
+    uint8_t* buf)
+{
+  //////////////////////////////
+  // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
+  // buf[0] : CNTL1
+  // buf[1] : CNTL2
+  // buf[2] : ST1
+  // buf[3] : HXL (HXH AK09917)
+  // buf[4] : HXH (HXL AK09917)
+  // buf[5] : HYL (HYH AK09917)
+  // buf[6] : HYH (HYL AK09917)
+  // buf[7] : HZL (HZH AK09917)
+  // buf[8] : HZH (HZL AK09917)
+  // buf[9] : TMPS
+  // buf[10]: ST2
+  //////////////////////////////
+
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  uint8_t wm = (buf[1] & AK0991X_FIFO_BIT) ? (buf[0] & 0x1F) + 1 : 1;
+  sns_time polling_timestamp;
+
+  if( buf[2] & AK0991X_DRDY_BIT )
+  {
+    state->irq_info.detect_irq_event = true;  // regular DRI/Polling detected
+  }
+  else if( state->mag_info.use_dri ) // DRI
+  {
+    if(state->dae_if.mag.flushing_data)
+    {
+      state->fifo_flush_in_progress = true;  // Flush request
+    }
+  }
+  else  // Polling
+  {
+    polling_timestamp = state->pre_timestamp + state->averaged_interval * wm;
+
+    // there is a chance to get wrong result
+    if( event_timestamp > polling_timestamp - state->averaged_interval/200 &&
+        event_timestamp < polling_timestamp + state->averaged_interval/200 )
+    {
+      state->irq_info.detect_irq_event = true;  // polling timer event
+    }
+    else
+    {
+      if(state->dae_if.mag.flushing_data)
+      {
+        state->fifo_flush_in_progress = true;  // Flush request
+      }
+    }
+  }
+  AK0991X_INST_PRINT(LOW, this, "estimated result: detect_irq=%d flush=%d flushing=%d",
+      (uint8_t)state->irq_info.detect_irq_event,
+      (uint8_t)state->fifo_flush_in_progress,
+      (uint8_t)state->dae_if.mag.flushing_data);
+}
+
 /* ------------------------------------------------------------------------------------ */
 static void process_data_event(
   sns_sensor_instance *this,
@@ -575,6 +634,7 @@ static void process_data_event(
     state->irq_info.detect_irq_event = false;
     state->fifo_flush_in_progress = false;
 
+#ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
     if(data_event.has_timestamp_type)
     {
       if( state->mag_info.use_dri &&
@@ -594,9 +654,11 @@ static void process_data_event(
     }
     else
     {
-      // TBD
+      estimate_event_type(this, data_event.timestamp, (uint8_t*)decode_arg.buf);
     }
-
+#else
+    estimate_event_type(this, data_event.timestamp, (uint8_t*)decode_arg.buf);
+#endif
 
     AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d",
         (uint32_t)data_event.timestamp,
