@@ -336,7 +336,8 @@ static bool stop_streaming(ak0991x_dae_stream *dae_stream)
 static void process_fifo_samples(
   sns_sensor_instance *this,
   uint8_t             *buf,
-  size_t              buf_len)
+  size_t              buf_len,
+  sns_time            event_timestamp)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
@@ -403,7 +404,7 @@ static void process_fifo_samples(
             AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
           }
         }
-        else if(odr == AK0991X_MAG_ODR_OFF) // orphan batch
+        else if(odr == AK0991X_MAG_ODR_OFF)
         {
           state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
           AK0991X_INST_PRINT(MED, this, "num_samples=%d in ODR=0", state->num_samples);
@@ -437,7 +438,7 @@ static void process_fifo_samples(
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
 
-      if(odr == state->mag_info.curr_odr)
+      if( event_timestamp > state->last_sw_reset_time ) // regular sequence
       {
         if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm)
         {
@@ -445,7 +446,7 @@ static void process_fifo_samples(
           state->new_cfg.odr      = odr;
           state->new_cfg.fifo_wmk = wm;
 
-          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE");
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE event_timestamp=%u", event_timestamp);
           ak0991x_send_config_event(this);
 
           ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
@@ -459,6 +460,7 @@ static void process_fifo_samples(
           state->pre_timestamp = state->odr_change_timestamp +
             (state->half_measurement_time<<1) - state->averaged_interval;
           state->previous_irq_time = state->pre_timestamp;
+          state->mag_info.data_count = 0;
         }
 
         if(state->mag_info.use_dri)
@@ -475,27 +477,26 @@ static void process_fifo_samples(
       {
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+
         if(state->irq_info.detect_irq_event)
         {
           state->interrupt_timestamp = state->irq_event_time;
-          if(state->mag_info.use_fifo)
-          {
-            state->first_data_ts_of_batch = state->interrupt_timestamp - sampling_intvl * (state->num_samples - 1);
-          }
-          else
-          {
-            state->first_data_ts_of_batch = state->interrupt_timestamp;
-          }
+          state->first_data_ts_of_batch = state->interrupt_timestamp - sampling_intvl * (state->num_samples - 1);
         }
         else
         {
-          state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+          //          state->first_data_ts_of_batch =  event_timestamp - sampling_intvl * (state->num_samples - 1);
+          state->first_data_ts_of_batch =  state->pre_timestamp + sampling_intvl;
         }
-        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch ODR=%d num_samples=%d sampling_intvl=%u ave=%u",
+
+        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) wm=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
             odr,
+            state->mag_info.curr_odr,
+            wm,
+            state->mag_info.cur_wmk,
             state->num_samples,
-            (uint32_t)sampling_intvl,
-            (uint32_t)state->averaged_interval);
+            (uint32_t)state->last_sw_reset_time,
+            (uint32_t)event_timestamp);
       }
 
       ak0991x_process_mag_data_buffer(this,
@@ -660,11 +661,19 @@ static void process_data_event(
     estimate_event_type(this, data_event.timestamp, (uint8_t*)decode_arg.buf);
 #endif
 
+#ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
     AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d",
         (uint32_t)data_event.timestamp,
         (uint8_t)state->fifo_flush_in_progress,
         state->mag_info.data_count,
         data_event.timestamp_type);
+#else
+    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. int=%d flush=%d data_count=%d",
+        (uint32_t)data_event.timestamp,
+        (uint8_t)state->irq_info.detect_irq_event,
+        (uint8_t)state->fifo_flush_in_progress,
+        state->mag_info.data_count);
+#endif
 
     if(state->irq_info.detect_irq_event)
     {
@@ -672,7 +681,7 @@ static void process_data_event(
     }
 
     process_fifo_samples(
-      this, (uint8_t*)decode_arg.buf, decode_arg.buf_len);
+      this, (uint8_t*)decode_arg.buf, decode_arg.buf_len, data_event.timestamp);
 
     if(state->irq_info.detect_irq_event)
     {

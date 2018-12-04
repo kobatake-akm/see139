@@ -3063,6 +3063,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   if(reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
+    state->last_sw_reset_time = sns_get_system_time();
     AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. error = %d", (int)rv);
   }
 
@@ -3089,7 +3090,6 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
 
     if (rv != SNS_RC_SUCCESS)
     {
-      //state->mag_info.cur_wmk = pre_wmk;
       return rv;
     }
   }
