@@ -387,12 +387,12 @@ static void process_fifo_samples(
       {
         state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
       }
-      else  // polling mode
+      else  // polling mode: *** Doesn't care FIFO+Polling ***
       {
         if(state->fifo_flush_in_progress) // flush request
         {
           // check time
-          if(state->system_time < state->pre_timestamp + state->averaged_interval)
+          if(event_timestamp < state->pre_timestamp + state->averaged_interval)
           {
             AK0991X_INST_PRINT(MED, this, "num_samples=0 because timestamp is future");
             state->num_samples = 0;
@@ -403,11 +403,6 @@ static void process_fifo_samples(
             state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
             AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
           }
-        }
-        else if(odr == AK0991X_MAG_ODR_OFF)
-        {
-          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-          AK0991X_INST_PRINT(MED, this, "num_samples=%d in ODR=0", state->num_samples);
         }
         else // timer event
         {
