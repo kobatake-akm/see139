@@ -644,8 +644,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
         state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
       }
-
-      if (AK0991X_CONFIG_IDLE == state->config_step && ak0991x_dae_if_start_streaming(this))
+      if ((AK0991X_CONFIG_IDLE == state->config_step || AK0991X_CONFIG_UPDATING_HW == state->config_step)
+           && ak0991x_dae_if_start_streaming(this))
       {
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
       }
