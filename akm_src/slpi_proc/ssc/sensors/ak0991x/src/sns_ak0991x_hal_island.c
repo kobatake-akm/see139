@@ -2115,8 +2115,18 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   {
     if(ak0991x_dae_if_available(instance))
     {
-      // from DAE process_fifo_samples() use event time.
-      state->interrupt_timestamp = state->dae_evnet_time;
+      if(state->this_is_first_data)
+      {
+        state->interrupt_timestamp = state->dae_evnet_time;
+        AK0991X_INST_PRINT(LOW, instance, "this is the first data. %u sys %u",
+                           (uint32_t)state->interrupt_timestamp,
+                           (uint32_t)state->system_time);
+      }
+      else
+      {
+        //      state->interrupt_timestamp = state->dae_evnet_time; // can't use. jitter issue.
+        state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
+      }
     }
     else
     {
