@@ -2115,6 +2115,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   {
     if(ak0991x_dae_if_available(instance))
     {
+#ifdef AK0991X_USE_IDEAL_TIME
       if(state->this_is_first_data)
       {
         state->interrupt_timestamp = state->dae_evnet_time;
@@ -2127,6 +2128,9 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
         //      state->interrupt_timestamp = state->dae_evnet_time; // can't use. jitter issue.
         state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
       }
+#else
+      state->interrupt_timestamp = state->dae_evnet_time;
+#endif
     }
     else
     {
