@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/06/18     020034     AKM              CTS passed with DAE+Polling
  * 12/05/18                AKM              Modified flush request in DAE+Polling mode
  * 12/04/18                AKM              Use last_sw_reset_time to detect orphan batch.
  * 12/04/18                AKM              Added AK0991X_ENABLE_TIMESTAMP_TYPE
@@ -217,4 +218,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20033  // major:02 minor:00 revision:33
+#define AK0991X_DRIVER_VERSION 20034  // major:02 minor:00 revision:34
