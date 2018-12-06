@@ -45,7 +45,6 @@ typedef struct
   bool                   stream_usable:1;
   bool                   flushing_hw:1;
   bool                   flushing_data:1;
-//  int32_t                flush_request_count;
 #endif
   ak0991x_dae_if_state   state;
 } ak0991x_dae_stream;

@@ -336,14 +336,14 @@ static bool stop_streaming(ak0991x_dae_stream *dae_stream)
 static void process_fifo_samples(
   sns_sensor_instance *this,
   uint8_t             *buf,
-  size_t              buf_len,
-  sns_time            event_timestamp)
+  size_t              buf_len)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
   uint8_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+  bool is_orphan = false;
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -366,6 +366,8 @@ static void process_fifo_samples(
   }
   else
   {
+    is_orphan = (state->dae_evnet_time < state->last_sw_reset_time);
+
     if(state->mag_info.use_fifo)
     {
       // num_samples when FIFO enabled.
@@ -389,25 +391,24 @@ static void process_fifo_samples(
       }
       else  // polling mode: *** Doesn't care FIFO+Polling ***
       {
-        if(state->fifo_flush_in_progress) // flush request
+        if( is_orphan )  // orphan
         {
-          // check time
-          if(event_timestamp < state->pre_timestamp + state->averaged_interval)
-          {
-            AK0991X_INST_PRINT(MED, this, "num_samples=0 because timestamp is future");
-            state->num_samples = 0;
-          }
-          else
+          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
+        }
+        else
+        {
+          if(state->fifo_flush_in_progress) // flush request
           {
             // set check DRDY status when flush request in polling mode
             state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
             AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
           }
-        }
-        else // timer event
-        {
-          // set num samples=1 when regular polling mode.
-          state->num_samples = 1;
+          else // timer event
+          {
+            // set num samples=1 when regular polling mode.
+            state->num_samples = 1;
+          }
         }
       }
     }
@@ -433,7 +434,7 @@ static void process_fifo_samples(
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
 
-      if( event_timestamp > state->last_sw_reset_time ) // regular sequence
+      if( !is_orphan ) // regular sequence
       {
         if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm)
         {
@@ -441,7 +442,7 @@ static void process_fifo_samples(
           state->new_cfg.odr      = odr;
           state->new_cfg.fifo_wmk = wm;
 
-          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE event_timestamp=%u", event_timestamp);
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_evnet_time=%u", (uint32_t)state->dae_evnet_time);
           ak0991x_send_config_event(this);
 
           ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
@@ -468,7 +469,7 @@ static void process_fifo_samples(
         }
         sampling_intvl = state->averaged_interval;
       }
-      else
+      else  // orphan
       {
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
@@ -491,7 +492,7 @@ static void process_fifo_samples(
             state->mag_info.cur_wmk,
             state->num_samples,
             (uint32_t)state->last_sw_reset_time,
-            (uint32_t)event_timestamp);
+            (uint32_t)state->dae_evnet_time);
       }
 
       ak0991x_process_mag_data_buffer(this,
@@ -537,17 +538,26 @@ static void process_fifo_samples(
       }
 
       // keep re-register HB timer when DAE enabled.
-      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX)
+      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX || is_orphan)
       {
         ak0991x_register_heart_beat_timer(this);
       }
     }
     else  // for Polling mode
     {
-      // check heart beat fire time
-      if(state->system_time > state->hb_timer_fire_time)
+      // No heart_beat_timer_event when orphan.
+      // Just update heart_beat_timestamp in order to ignore performing unnecessary heart beat detection
+      if( is_orphan )
       {
-        ak0991x_heart_beat_timer_event(this);
+        state->heart_beat_timestamp = state->system_time;
+        state->heart_beat_sample_count = 0;
+        state->heart_beat_attempt_count = 0;
+//        AK0991X_INST_PRINT(HIGH, this, "Reset HB timestamp %u", (uint32_t)state->heart_beat_timestamp);
+      }
+      else
+      {
+        // check heart beat fire time
+//        ak0991x_heart_beat_timer_event(this);
       }
     }
   }
@@ -555,7 +565,6 @@ static void process_fifo_samples(
 
 static void estimate_event_type(
     sns_sensor_instance *this,
-    sns_time event_timestamp,
     uint8_t* buf)
 {
   //////////////////////////////
@@ -593,8 +602,8 @@ static void estimate_event_type(
     polling_timestamp = state->pre_timestamp + state->averaged_interval * wm;
 
     // there is a chance to get wrong result
-    if( event_timestamp > polling_timestamp - state->averaged_interval/200 &&
-        event_timestamp < polling_timestamp + state->averaged_interval/200 )
+    if( state->dae_evnet_time > polling_timestamp - state->averaged_interval/200 &&
+        state->dae_evnet_time < polling_timestamp + state->averaged_interval/200 )
     {
       state->irq_info.detect_irq_event = true;  // polling timer event
     }
@@ -626,42 +635,49 @@ static void process_data_event(
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
     state->system_time = sns_get_system_time();
-
+    state->dae_evnet_time = data_event.timestamp;
     state->irq_info.detect_irq_event = false;
     state->fifo_flush_in_progress = false;
 
 #ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
     if(data_event.has_timestamp_type)
     {
-      if( state->mag_info.use_dri &&
-          (data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_HW_IRQ) )
+      if(state->mag_info.use_dri) // DRI
       {
-        state->irq_info.detect_irq_event = true;  // DRI interrupt
+        if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_HW_IRQ )
+        {
+          state->irq_info.detect_irq_event = true;  // DRI interrupt
+        }
       }
-      else if( !state->mag_info.use_dri &&
-          (data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_TIMER) )
+      else  // Polling
       {
-        state->irq_info.detect_irq_event = true;  // timer event in polling mode
+        if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_TIMER )
+        {
+          state->irq_info.detect_irq_event = true;  // timer event in polling mode
+        }
       }
-      else if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_SYSTEM_TIME )
+
+      if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_SYSTEM_TIME &&
+          state->dae_if.mag.flushing_data)
       {
         state->fifo_flush_in_progress = true;  // Flush request
       }
     }
     else
     {
-      estimate_event_type(this, data_event.timestamp, (uint8_t*)decode_arg.buf);
+      estimate_event_type(this, (uint8_t*)decode_arg.buf);
     }
 #else
-    estimate_event_type(this, data_event.timestamp, (uint8_t*)decode_arg.buf);
+    estimate_event_type(this, (uint8_t*)decode_arg.buf);
 #endif
 
 #ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
-    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d",
+    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d flushing=%d",
         (uint32_t)data_event.timestamp,
         (uint8_t)state->fifo_flush_in_progress,
         state->mag_info.data_count,
-        data_event.timestamp_type);
+        data_event.timestamp_type,
+        state->dae_if.mag.flushing_data);
 #else
     AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. int=%d flush=%d data_count=%d",
         (uint32_t)data_event.timestamp,
@@ -672,11 +688,11 @@ static void process_data_event(
 
     if(state->irq_info.detect_irq_event)
     {
-      state->irq_event_time = data_event.timestamp;
+      state->irq_event_time = state->dae_evnet_time;
     }
 
     process_fifo_samples(
-      this, (uint8_t*)decode_arg.buf, decode_arg.buf_len, data_event.timestamp);
+      this, (uint8_t*)decode_arg.buf, decode_arg.buf_len);
 
     if(state->irq_info.detect_irq_event)
     {
@@ -778,10 +794,7 @@ static void process_response(
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       AK0991X_INST_PRINT(LOW, this, "DAE_FLUSH_DATA");
-      if(state->fifo_flush_in_progress)
-      {
-        ak0991x_send_fifo_flush_done(this); // maybe needed when num_samples=0
-      }
+      ak0991x_send_fifo_flush_done(this);
       dae_stream->flushing_data = false;
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:

@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/05/18                AKM              Modified flush request in DAE+Polling mode
  * 12/04/18                AKM              Use last_sw_reset_time to detect orphan batch.
  * 12/04/18                AKM              Added AK0991X_ENABLE_TIMESTAMP_TYPE
  * 11/30/18                AKM              Modified for orphan batch when interrupt detected.

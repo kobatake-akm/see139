@@ -1996,7 +1996,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->this_is_first_data = false;
 
   state->this_is_the_last_flush = false;
-  if( state->fifo_flush_in_progress )
+  if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress )
   {
     ak0991x_send_fifo_flush_done(instance);
   }
@@ -2021,7 +2021,11 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
     e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
 
-    AK0991X_INST_PRINT(HIGH, instance, "FLUSH_EVENT sent");
+    AK0991X_INST_PRINT(HIGH, instance, "FLUSH requested processed.");
+  }
+  else
+  {
+    AK0991X_INST_PRINT(HIGH, instance, "FLUSH requested processed. event = null");
   }
 
   state->fifo_flush_in_progress = false;
@@ -2112,7 +2116,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
     if(ak0991x_dae_if_available(instance))
     {
       // from DAE process_fifo_samples() use event time.
-      state->interrupt_timestamp = state->irq_event_time;
+      state->interrupt_timestamp = state->dae_evnet_time;
     }
     else
     {
@@ -3151,7 +3155,7 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
      }
    }
  }
- else
+ else // polling
  {
    uint8_t heart_beat_thresthold =
      ( state->mag_info.use_fifo )? 1 : 4;
@@ -3162,12 +3166,15 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
    else
    {
      AK0991X_INST_PRINT(LOW, this, "heart_beat_gap=%u, heart_beat_timeout=%u",
-       (uint32_t)(state->interrupt_timestamp-state->heart_beat_timestamp),
+       (uint32_t)(state->interrupt_timestamp - state->heart_beat_timestamp),
        (uint32_t)state->heart_beat_timeout_period);
      // Detect streaming has stopped
      if (state->interrupt_timestamp > state->heart_beat_timestamp + state->heart_beat_timeout_period)
      {
-       AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped");
+       AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped. int_timestamp:%u hb_timestamp:%u hb_period:%u",
+           (uint32_t)state->interrupt_timestamp,
+           (uint32_t)state->heart_beat_timestamp,
+           (uint32_t)state->heart_beat_timeout_period);
        // Streaming is unable to resume after 3 attempts
        if (state->heart_beat_attempt_count >= 3)
        {
