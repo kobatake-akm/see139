@@ -592,7 +592,7 @@ static void estimate_event_type(
   }
   else if( state->mag_info.use_dri ) // DRI
   {
-    if(state->dae_if.mag.flushing_data)
+    if(state->flush_requested_in_dae)
     {
       state->fifo_flush_in_progress = true;  // Flush request
     }
@@ -609,16 +609,16 @@ static void estimate_event_type(
     }
     else
     {
-      if(state->dae_if.mag.flushing_data)
+      if(state->flush_requested_in_dae)
       {
         state->fifo_flush_in_progress = true;  // Flush request
       }
     }
   }
-  AK0991X_INST_PRINT(LOW, this, "estimated result: detect_irq=%d flush=%d flushing=%d",
+  AK0991X_INST_PRINT(LOW, this, "estimated result: detect_irq=%d flush=%d flush_req=%d",
       (uint8_t)state->irq_info.detect_irq_event,
       (uint8_t)state->fifo_flush_in_progress,
-      (uint8_t)state->dae_if.mag.flushing_data);
+      (uint8_t)state->flush_requested_in_dae);
 }
 
 /* ------------------------------------------------------------------------------------ */
@@ -658,7 +658,7 @@ static void process_data_event(
       }
 
       if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_SYSTEM_TIME &&
-          state->dae_if.mag.flushing_data)
+          state->flush_requested_in_dae)
       {
         state->fifo_flush_in_progress = true;  // Flush request
       }
@@ -672,12 +672,12 @@ static void process_data_event(
 #endif
 
 #ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
-    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d flushing=%d",
+    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d flush_req=%d",
         (uint32_t)data_event.timestamp,
         (uint8_t)state->fifo_flush_in_progress,
         state->mag_info.data_count,
         data_event.timestamp_type,
-        state->dae_if.mag.flushing_data);
+        state->flush_requested_in_dae);
 #else
     AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. int=%d flush=%d data_count=%d",
         (uint32_t)data_event.timestamp,
@@ -794,7 +794,11 @@ static void process_response(
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       AK0991X_INST_PRINT(LOW, this, "DAE_FLUSH_DATA");
-      ak0991x_send_fifo_flush_done(this);
+      if(state->flush_requested_in_dae)
+      {
+        ak0991x_send_fifo_flush_done(this);
+        state->flush_requested_in_dae = false;
+      }
       dae_stream->flushing_data = false;
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:

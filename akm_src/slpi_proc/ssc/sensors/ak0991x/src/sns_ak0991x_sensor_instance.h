@@ -221,6 +221,7 @@ typedef struct ak0991x_instance_state
   bool data_over_run;
   bool data_is_ready;
   bool fifo_flush_in_progress;
+  bool flush_requested_in_dae;
   bool new_self_test_request;
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
