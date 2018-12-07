@@ -794,11 +794,8 @@ static void process_response(
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       AK0991X_INST_PRINT(LOW, this, "DAE_FLUSH_DATA");
-      if(state->flush_requested_in_dae)
-      {
-        ak0991x_send_fifo_flush_done(this);
-        state->flush_requested_in_dae = false;
-      }
+      ak0991x_send_fifo_flush_done(this);
+      state->flush_requested_in_dae = false;
       dae_stream->flushing_data = false;
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
@@ -812,7 +809,7 @@ static void process_response(
 
       if(dae_stream->state != STREAM_STOPPING)
       {
-        if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM && 
+        if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM &&
            ak0991x_dae_if_flush_hw(this))
         {
           state->config_step = AK0991X_CONFIG_FLUSHING_HW;
