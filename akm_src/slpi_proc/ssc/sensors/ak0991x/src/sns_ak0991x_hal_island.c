@@ -752,7 +752,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
     {
       if(this != NULL)
       {
-        SNS_INST_PRINTF(ERROR, this, "sw_rst: enter i3c failed all attempts");
+        SNS_INST_PRINTF(HIGH, this, "sw_rst: enter i3c failed all attempts");
       }
     }
   } 
@@ -2223,7 +2223,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
       if(state->num_samples == 0)
       {
         AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
-        if(state->fifo_flush_in_progress)
+        if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress )
         {
           ak0991x_send_fifo_flush_done(instance);
         }
@@ -2344,7 +2344,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     }
   }
 
-  if(state->fifo_flush_in_progress && complete_flush)
+  if(!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress && complete_flush)
   {
     ak0991x_send_fifo_flush_done(instance);
   }

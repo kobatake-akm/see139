@@ -1882,7 +1882,10 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         }
         else
         {
-          ak0991x_send_fifo_flush_done(instance);
+          if(!ak0991x_dae_if_available(instance))
+          {
+            ak0991x_send_fifo_flush_done(instance);
+          }
         }
       }
     }
