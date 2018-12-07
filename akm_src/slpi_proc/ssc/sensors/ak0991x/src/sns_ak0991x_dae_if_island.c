@@ -787,7 +787,7 @@ static void process_response(
         // Perform a reset operation in an attempt to revive the sensor
         ak0991x_reconfig_hw(this, true);
       }
-      else
+      else if(state->flush_requested_in_dae)
       {
         ak0991x_dae_if_flush_samples(this); // Flush client request
       }
@@ -1096,8 +1096,6 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
-  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-  state->irq_info.detect_irq_event = false;
 
   if(stream_usable(&dae_if->mag) && dae_if->mag.state >= IDLE)
   {

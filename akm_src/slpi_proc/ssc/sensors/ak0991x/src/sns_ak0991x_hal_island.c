@@ -2021,11 +2021,11 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
     e_service->api->publish_event(e_service, instance, event, &state->mag_info.suid);
 
-    AK0991X_INST_PRINT(HIGH, instance, "FLUSH requested processed.");
+    AK0991X_INST_PRINT(HIGH, instance, "FLUSH DONE.");
   }
   else
   {
-    AK0991X_INST_PRINT(HIGH, instance, "FLUSH requested processed. event = null");
+    AK0991X_INST_PRINT(HIGH, instance, "FLUSH DONE. event = null");
   }
 
   state->fifo_flush_in_progress = false;
@@ -2223,7 +2223,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
       if(state->num_samples == 0)
       {
         AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
-        if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress )
+        if( state->fifo_flush_in_progress )
         {
           ak0991x_send_fifo_flush_done(instance);
         }
@@ -2344,7 +2344,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     }
   }
 
-  if(!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress && complete_flush)
+  if(state->fifo_flush_in_progress && complete_flush)
   {
     ak0991x_send_fifo_flush_done(instance);
   }
