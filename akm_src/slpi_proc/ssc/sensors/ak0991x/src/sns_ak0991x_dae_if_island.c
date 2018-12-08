@@ -416,10 +416,10 @@ static void process_fifo_samples(
 
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
-//    SNS_INST_PRINTF(
-//      ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
-//      state->num_samples, fifo_len);
-//    state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
+    SNS_INST_PRINTF(
+      ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
+      state->num_samples, fifo_len);
+    state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
   }
 
   if(state->mag_info.use_dri)
@@ -501,10 +501,10 @@ static void process_fifo_samples(
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
 #ifdef AK0991X_ENABLE_TS_DEBUG
-//      AK0991X_INST_PRINT(
-//        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
-//        odr, (uint32_t)sampling_intvl, state->num_samples,
-//        (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
+      AK0991X_INST_PRINT(
+        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
+        odr, (uint32_t)sampling_intvl, state->num_samples,
+        (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
 #endif
 
     }
@@ -639,7 +639,6 @@ static void process_data_event(
     state->irq_info.detect_irq_event = false;
     state->fifo_flush_in_progress = false;
 
-#ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
     if(data_event.has_timestamp_type)
     {
       if(state->mag_info.use_dri) // DRI
@@ -657,8 +656,7 @@ static void process_data_event(
         }
       }
 
-      if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_SYSTEM_TIME &&
-          state->flush_requested_in_dae)
+      if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_SYSTEM_TIME )
       {
         state->fifo_flush_in_progress = true;  // Flush request
       }
@@ -667,24 +665,13 @@ static void process_data_event(
     {
       estimate_event_type(this, (uint8_t*)decode_arg.buf);
     }
-#else
-    estimate_event_type(this, (uint8_t*)decode_arg.buf);
-#endif
 
-#ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
     AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d flush_req=%d",
         (uint32_t)data_event.timestamp,
         (uint8_t)state->fifo_flush_in_progress,
         state->mag_info.data_count,
         data_event.timestamp_type,
         state->flush_requested_in_dae);
-#else
-    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. int=%d flush=%d data_count=%d",
-        (uint32_t)data_event.timestamp,
-        (uint8_t)state->irq_info.detect_irq_event,
-        (uint8_t)state->fifo_flush_in_progress,
-        state->mag_info.data_count);
-#endif
 
     if(state->irq_info.detect_irq_event)
     {

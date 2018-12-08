@@ -22,8 +22,8 @@
 // Target board HDK845
 //#define AK0991X_BOARD_HDK845
 
-//#define AK0991X_ENABLE_TS_DEBUG           // Enable timestamp debug messages
-//#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
+#define AK0991X_ENABLE_TS_DEBUG           // Enable timestamp debug messages
+#define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 #ifndef SSC_TARGET_DAE_BYPASS
 #define AK0991X_ENABLE_DAE                // Enable DAE
 #endif
@@ -34,8 +34,6 @@
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 #define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
-#define AK0991X_ENABLE_TIMESTAMP_TYPE     // Enable timestamp_type in DAE
-//#define AK0991X_USE_IDEAL_TIME            // Use ideal timestamp for DAE+Polling
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #define MAX_DEVICE_MODE_SUPPORTED 2       // change number 2/4/8 in order to match the faccal num in the registry

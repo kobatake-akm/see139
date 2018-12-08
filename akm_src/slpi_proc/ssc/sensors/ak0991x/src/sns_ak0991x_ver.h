@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/07/18                AKM              Added patch for jitter on Polling+DAE mode.
  * 12/07/18     020035     AKM              Modified for flush request in DAE.
  * 12/07/18                AKM              CTS passed on DAE+I3C+DRI+FIFO.
  * 12/07/18                AKM              CTS passed on DAE+I3C+Polling excepts testGeomagneticRotationVector_fastest. Timer timestamp has jitter.
