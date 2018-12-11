@@ -501,10 +501,13 @@ static void process_fifo_samples(
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
 #ifdef AK0991X_ENABLE_TS_DEBUG
+      state->ts_debug_count++;
       AK0991X_INST_PRINT(
-        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X",
+        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X ts_dbg_cnt=%u",
         odr, (uint32_t)sampling_intvl, state->num_samples,
-        (uint32_t)state->first_data_ts_of_batch, (uint32_t)state->irq_event_time);
+        (uint32_t)state->first_data_ts_of_batch,
+        (uint32_t)state->irq_event_time,
+        (uint32_t)state->ts_debug_count);
 #endif
 
     }
@@ -1104,8 +1107,18 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
     {
       flush_hw(&dae_if->mag);
     }
+    else
+    {
+      AK0991X_INST_PRINT( HIGH, this,"Already flushing_hw=%d", (uint8_t)dae_if->mag.flushing_hw );
+    }
     cmd_sent |= dae_if->mag.flushing_hw;
   }
+
+  if(!cmd_sent)
+  {
+    AK0991X_INST_PRINT( HIGH, this,"Failed to flush_hw state=%d", (uint8_t)dae_if->mag.state );
+  }
+
   return cmd_sent;
 }
 

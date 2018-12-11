@@ -209,6 +209,8 @@ typedef struct ak0991x_state
   bool sensor_client_present;
   bool remove_timer_stream;
 
+  uint32_t debug_log_count;
+
   ak0991x_power_rail_pending_state power_rail_pend_state;
 
   // parameters which are determined when the connected device is specified.

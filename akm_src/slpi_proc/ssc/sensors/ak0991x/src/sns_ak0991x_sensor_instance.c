@@ -177,6 +177,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->in_clock_error_procedure = false;
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
+  state->ts_debug_count = 0;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -474,7 +475,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   uint32_t        previous_req_wmk = state->mag_info.req_wmk;
   sns_rc          rv = SNS_RC_SUCCESS;
 
-  AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
+  AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d debug_count=%u", client_request->message_id, state->ts_debug_count);
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
