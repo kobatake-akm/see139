@@ -225,9 +225,12 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.expected_get_data_bytes = 
       (wm+1) * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
-  AK0991X_INST_PRINT(HIGH, this, "dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
-                       config_req.dae_watermark, (uint32_t)(config_req.data_age_limit_ticks>>32),(uint32_t)(config_req.data_age_limit_ticks &0xFFFFFFFF),
-                        wm, config_req.expected_get_data_bytes);
+  SNS_INST_PRINTF(HIGH, this, "dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
+                       config_req.dae_watermark,
+                       (uint32_t)(config_req.data_age_limit_ticks>>32),
+                       (uint32_t)(config_req.data_age_limit_ticks &0xFFFFFFFF),
+                        wm,
+                        config_req.expected_get_data_bytes);
 
   if((req.request_len =
       pb_encode_request(encoded_msg,
@@ -243,10 +246,11 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
   }
 
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config  stream=0x%x, dae_stream=%d request_len=%d",
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config  stream=0x%x, dae_stream=%d request_len=%d cmd_sent=%d",
       dae_stream->stream,
       (uint8_t)dae_stream->state,
-      (uint8_t)req.request_len);
+      (uint8_t)req.request_len,
+      (uint8_t)cmd_sent);
 
   if(mag_info->use_sync_stream)
   {
@@ -659,7 +663,7 @@ static void process_data_event(
         && AK0991X_CONFIG_UPDATING_HW == state->config_step)
     {
       SNS_INST_PRINTF(HIGH, this, "current odr=0, but desire odr=%d, restart.",(uint8_t)state->mag_info.desired_odr);
-      ak0991x_dae_if_start_streaming(this);
+//      ak0991x_dae_if_start_streaming(this);
 
     // check if ODR==0 when polling mode
     if( !state->mag_info.use_dri
@@ -754,6 +758,11 @@ static void process_response(
         if(ak0991x_dae_if_start_streaming(this))
         {
           state->config_step = AK0991X_CONFIG_UPDATING_HW;
+        }
+        else
+        {
+          SNS_INST_PRINTF(LOW, this, "ak0991x_dae_if_start_streaming return false - err=%u state=%u desire_odr=%d dae_mag_state=%d",
+                             resp.err, dae_stream->state, state->mag_info.desired_odr, state->dae_if.mag.state);
         }
       }
       else

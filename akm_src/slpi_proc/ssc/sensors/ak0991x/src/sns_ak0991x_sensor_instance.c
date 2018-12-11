@@ -343,8 +343,6 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
-
   if(NULL != state->com_port_info.port_handle)
   {
     state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, true);
@@ -367,6 +365,8 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
     state->scp_service->api->sns_scp_deregister_com_port(&state->com_port_info.port_handle);
   }
+  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
+
   return SNS_RC_SUCCESS;
 }
 
@@ -475,7 +475,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   uint32_t        previous_req_wmk = state->mag_info.req_wmk;
   sns_rc          rv = SNS_RC_SUCCESS;
 
-  AK0991X_INST_PRINT(MED, this, "inst_set_client_config msg_id %d debug_count=%u", client_request->message_id, state->ts_debug_count);
+  SNS_INST_PRINTF(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
@@ -640,14 +640,22 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DAE
     else
     {
-      if (AK0991X_CONFIG_IDLE == state->config_step && ak0991x_dae_if_stop_streaming(this))
+      SNS_INST_PRINTF(LOW, this, "config_step=%d dae_state=%d flushing_hw=%d flushing_data=%d",
+          state->config_step,
+          state->dae_if.mag.state,
+          state->dae_if.mag.flushing_hw,
+          state->dae_if.mag.flushing_data);
+
+      if ((AK0991X_CONFIG_IDLE == state->config_step)
+           && ak0991x_dae_if_stop_streaming(this))
       {
-        AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
+        SNS_INST_PRINTF(LOW, this, "dae_if_stop_streaming");
         state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
       }
       if ((AK0991X_CONFIG_IDLE == state->config_step || AK0991X_CONFIG_UPDATING_HW == state->config_step)
            && ak0991x_dae_if_start_streaming(this))
       {
+        SNS_INST_PRINTF(LOW, this, "ak0991x_dae_if_start_streaming");
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
       }
     }
