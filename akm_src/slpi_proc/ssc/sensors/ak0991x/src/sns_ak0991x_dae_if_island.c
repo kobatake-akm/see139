@@ -225,7 +225,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.expected_get_data_bytes = 
       (wm+1) * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
-    AK0991X_INST_PRINT(HIGH, this, "dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
+  AK0991X_INST_PRINT(HIGH, this, "dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark, (uint32_t)(config_req.data_age_limit_ticks>>32),(uint32_t)(config_req.data_age_limit_ticks &0xFFFFFFFF),
                         wm, config_req.expected_get_data_bytes);
 
@@ -242,6 +242,11 @@ static bool send_mag_config(sns_sensor_instance *this)
       dae_stream->state = STREAM_STARTING;
     }
   }
+
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config  stream=0x%x, dae_stream=%d request_len=%d",
+      dae_stream->stream,
+      (uint8_t)dae_stream->state,
+      (uint8_t)req.request_len);
 
   if(mag_info->use_sync_stream)
   {
@@ -645,6 +650,16 @@ static void process_data_event(
     state->dae_evnet_time = data_event.timestamp;
     state->irq_info.detect_irq_event = false;
     state->fifo_flush_in_progress = false;
+	
+#ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
+    // check if ODR==0 when polling mode
+    if( !state->mag_info.use_dri
+        && state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF
+        && state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF
+        && AK0991X_CONFIG_UPDATING_HW == state->config_step)
+    {
+      SNS_INST_PRINTF(HIGH, this, "current odr=0, but desire odr=%d, restart.",(uint8_t)state->mag_info.desired_odr);
+      ak0991x_dae_if_start_streaming(this);
 
     // check if ODR==0 when polling mode
     if( !state->mag_info.use_dri
@@ -686,6 +701,7 @@ static void process_data_event(
     AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d flush_req=%d",
         (uint32_t)data_event.timestamp,
         (uint8_t)state->fifo_flush_in_progress,
+        state->dae_if.mag.flushing_data,
         state->mag_info.data_count,
         data_event.timestamp_type,
         state->flush_requested_in_dae);
@@ -730,7 +746,7 @@ static void process_response(
     switch(resp.msg_id)
     {
     case SNS_DAE_MSGID_SNS_DAE_SET_STATIC_CONFIG:
-      AK0991X_INST_PRINT(LOW, this, "STATIC_CONFIG - err=%u state=%u", 
+      SNS_INST_PRINTF(LOW, this, "STATIC_CONFIG - err=%u state=%u",
                          resp.err, dae_stream->state);
       if(SNS_STD_ERROR_NO_ERROR == resp.err)
       {
@@ -762,7 +778,8 @@ static void process_response(
       //ak0991x_s4s_handle_timer_event(this);
       break;
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
-      AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG");
+      SNS_INST_PRINTF(LOW, this,"DAE_SET_STREAMING_CONFIG - err=%u state=%u",
+                         resp.err, dae_stream->state);
       if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
       {
         if(SNS_STD_ERROR_NO_ERROR == resp.err)
@@ -778,7 +795,8 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
-      AK0991X_INST_PRINT(LOW, this, "DAE_FLUSH_HW");
+      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_HW - err=%u state=%u",
+                         resp.err, dae_stream->state);
       dae_stream->flushing_hw = false;
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
@@ -797,13 +815,14 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
-      AK0991X_INST_PRINT(LOW, this, "DAE_FLUSH_DATA");
+      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u",
+                         resp.err, dae_stream->state);
       ak0991x_send_fifo_flush_done(this);
       state->flush_requested_in_dae = false;
       dae_stream->flushing_data = false;
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
-      AK0991X_INST_PRINT(LOW, this,
+      SNS_INST_PRINTF(LOW, this,
                          "DAE_PAUSE_SAMPLING stream_state=%u if_state=%u config_step=%u",
                          dae_stream->state, state->dae_if.mag.state, state->config_step);
       if(dae_stream->state == STREAM_STOPPING)
