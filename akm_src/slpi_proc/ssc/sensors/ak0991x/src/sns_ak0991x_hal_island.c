@@ -3312,6 +3312,11 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
       ak0991x_send_com_test_event(instance, &state->mag_info.suid, hw_success,
                                   SNS_PHYSICAL_SENSOR_TEST_TYPE_HW);
     }
+    else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_SW)
+    {
+      AK0991X_INST_PRINT(LOW, instance, "Not supported. type=%d",(uint8_t)state->mag_info.test_info.test_type);
+      rv = SNS_RC_NOT_SUPPORTED;
+    }
     state->mag_info.test_info.test_client_present = false;
   }
 }

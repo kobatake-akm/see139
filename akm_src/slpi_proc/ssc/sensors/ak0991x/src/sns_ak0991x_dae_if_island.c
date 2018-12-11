@@ -586,13 +586,13 @@ static void estimate_event_type(
   uint8_t wm = (buf[1] & AK0991X_FIFO_BIT) ? (buf[0] & 0x1F) + 1 : 1;
   sns_time polling_timestamp;
 
-  if( buf[2] & AK0991X_DRDY_BIT )
+  if( state->mag_info.use_dri ) // DRI
   {
-    state->irq_info.detect_irq_event = true;  // regular DRI/Polling detected
-  }
-  else if( state->mag_info.use_dri ) // DRI
-  {
-    if(state->flush_requested_in_dae)
+    if( buf[2] & AK0991X_DRDY_BIT )
+    {
+      state->irq_info.detect_irq_event = true;  // regular DRI
+    }
+    else if(state->flush_requested_in_dae)
     {
       state->fifo_flush_in_progress = true;  // Flush request
     }
@@ -601,8 +601,12 @@ static void estimate_event_type(
   {
     polling_timestamp = state->pre_timestamp + state->averaged_interval * wm;
 
+    if( state->this_is_first_data )
+    {
+      state->irq_info.detect_irq_event = true;  // polling timer event
+    }
     // there is a chance to get wrong result
-    if( state->dae_evnet_time > polling_timestamp - state->averaged_interval/200 &&
+    else if( state->dae_evnet_time > polling_timestamp - state->averaged_interval/200 &&
         state->dae_evnet_time < polling_timestamp + state->averaged_interval/200 )
     {
       state->irq_info.detect_irq_event = true;  // polling timer event
@@ -638,6 +642,16 @@ static void process_data_event(
     state->dae_evnet_time = data_event.timestamp;
     state->irq_info.detect_irq_event = false;
     state->fifo_flush_in_progress = false;
+
+    // check if ODR==0 when polling mode
+    if( !state->mag_info.use_dri
+        && state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF
+        && state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF
+        && AK0991X_CONFIG_UPDATING_HW == state->config_step)
+    {
+      AK0991X_INST_PRINT(HIGH, this, "current odr=0, but desire odr=%d, restart.",(uint8_t)state->mag_info.desired_odr);
+      ak0991x_dae_if_start_streaming(this);
+    }
 
     if(data_event.has_timestamp_type)
     {

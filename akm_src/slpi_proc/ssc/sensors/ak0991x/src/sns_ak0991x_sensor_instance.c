@@ -716,30 +716,30 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
 #endif //AK0991X_ENABLE_DAE
 
-      if (state->config_step == AK0991X_CONFIG_IDLE)
+      if (state->config_step == AK0991X_CONFIG_IDLE || state->config_step == AK0991X_CONFIG_UPDATING_HW)
       {
         // care the FIFO buffer if enabled FIFO and already streaming
-        if (!state->this_is_first_data && state->mag_info.use_fifo
-            && state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
+        if (!state->this_is_first_data && state->mag_info.use_fifo)
         {
           ak0991x_care_fifo_buffer(this,
               state->mag_req.sample_rate,
               state->mag_info.desired_odr);
         }
-/*
-        // hardware setting for measurement mode
-        if (state->mag_info.use_dri && !ak0991x_dae_if_start_streaming(this))
-       	{
-          ak0991x_reconfig_hw(this, false);
-        }
 
-        // Register for timer
-        if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+        if(!ak0991x_dae_if_available(this))
         {
           ak0991x_reconfig_hw(this, false);
-          ak0991x_register_timer(this);
+          if(!state->mag_info.use_dri)
+          {
+            // Register for timer for polling
+            ak0991x_register_timer(this);
+          }
         }
-*/
+        else
+        {
+          ak0991x_dae_if_start_streaming(this);
+          state->config_step = AK0991X_CONFIG_UPDATING_HW;
+        }
       }
 
       ak0991x_dae_if_process_events(this);

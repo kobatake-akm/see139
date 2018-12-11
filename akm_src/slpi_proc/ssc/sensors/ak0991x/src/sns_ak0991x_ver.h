@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/10/18                AKM              Added streaming check when polling+DAE
+ * 12/10/18                AKM              Modified for SelfTest to streaming start when AK0991X_CONFIG_UPDATING_HW
  * 12/07/18                AKM              Added patch for jitter on Polling+DAE mode.
  * 12/07/18     020035     AKM              Modified for flush request in DAE.
  * 12/07/18                AKM              CTS passed on DAE+I3C+DRI+FIFO.
