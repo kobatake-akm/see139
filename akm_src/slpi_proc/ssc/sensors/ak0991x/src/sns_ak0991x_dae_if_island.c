@@ -215,22 +215,23 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
     //TODO: it looks like the polling offset will not be adjusted for S4S. 
     //So it won't be synced with any other sensors
-    config_req.polling_config.polling_offset =
-        (state->system_time + state->averaged_interval) / state->averaged_interval *
-        state->averaged_interval;
+    if(state->averaged_interval != 0)
+    {
+      config_req.polling_config.polling_offset =
+          (state->system_time + state->averaged_interval) / state->averaged_interval *
+          state->averaged_interval;
+    }
+    else
+    {
+      config_req.polling_config.polling_offset = 0;
+    }
   }
   config_req.has_accel_info      = false;
-
   config_req.has_expected_get_data_bytes = true;
   config_req.expected_get_data_bytes = 
       (wm+1) * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%u sys=%u ave=%u",
-      (uint32_t)config_req.polling_config.polling_offset,
-      (uint32_t)state->system_time,
-      (uint32_t)state->averaged_interval);
-
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
+  AK0991X_INST_PRINT(LOW, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark,
                        (uint32_t)(config_req.data_age_limit_ticks>>32),
                        (uint32_t)(config_req.data_age_limit_ticks &0xFFFFFFFF),
@@ -251,7 +252,7 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
   }
 
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: stream=0x%x, dae_stream=%d request_len=%d cmd_sent=%d",
+  AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x, dae_stream=%d request_len=%d cmd_sent=%d",
       dae_stream->stream,
       (uint8_t)dae_stream->state,
       (uint8_t)req.request_len,
@@ -517,11 +518,11 @@ static void process_fifo_samples(
 #ifdef AK0991X_ENABLE_TS_DEBUG
       state->ts_debug_count++;
       AK0991X_INST_PRINT(
-        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X ts_dbg_cnt=%u",
+        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X total=%u",
         odr, (uint32_t)sampling_intvl, state->num_samples,
         (uint32_t)state->first_data_ts_of_batch,
         (uint32_t)state->irq_event_time,
-        (uint32_t)state->ts_debug_count);
+        (uint32_t)state->total_samples);
 #endif
 
     }
@@ -660,7 +661,6 @@ static void process_data_event(
     state->irq_info.detect_irq_event = false;
     state->fifo_flush_in_progress = false;
 	
-#ifdef AK0991X_ENABLE_TIMESTAMP_TYPE
     // check if ODR==0 when polling mode
     if( !state->mag_info.use_dri
         && state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF
@@ -668,16 +668,6 @@ static void process_data_event(
         && AK0991X_CONFIG_UPDATING_HW == state->config_step)
     {
       SNS_INST_PRINTF(HIGH, this, "current odr=0, but desire odr=%d, restart.",(uint8_t)state->mag_info.desired_odr);
-//      ak0991x_dae_if_start_streaming(this);
-
-    // check if ODR==0 when polling mode
-    if( !state->mag_info.use_dri
-        && state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF
-        && state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF
-        && AK0991X_CONFIG_UPDATING_HW == state->config_step)
-    {
-      AK0991X_INST_PRINT(HIGH, this, "current odr=0, but desire odr=%d, restart.",(uint8_t)state->mag_info.desired_odr);
-      ak0991x_dae_if_start_streaming(this);
     }
 
     if(data_event.has_timestamp_type)
@@ -707,13 +697,13 @@ static void process_data_event(
       estimate_event_type(this, (uint8_t*)decode_arg.buf);
     }
 
-    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=%d data_count=%d ts_type=%d flush_req=%d",
+    AK0991X_INST_PRINT(HIGH, this, "process_data_event:%u. flush=(%d,%d) count=(%d,%d) ts_type=%d",
         (uint32_t)data_event.timestamp,
         (uint8_t)state->fifo_flush_in_progress,
         state->dae_if.mag.flushing_data,
         state->mag_info.data_count,
-        data_event.timestamp_type,
-        state->flush_requested_in_dae);
+        state->total_samples,
+        data_event.timestamp_type);
 
     if(state->irq_info.detect_irq_event)
     {
@@ -763,11 +753,6 @@ static void process_response(
         if(ak0991x_dae_if_start_streaming(this))
         {
           state->config_step = AK0991X_CONFIG_UPDATING_HW;
-        }
-        else
-        {
-          SNS_INST_PRINTF(LOW, this, "ak0991x_dae_if_start_streaming return false - err=%u state=%u desire_odr=%d dae_mag_state=%d",
-                             resp.err, dae_stream->state, state->mag_info.desired_odr, state->dae_if.mag.state);
         }
       }
       else

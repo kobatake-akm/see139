@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/12/18                AKM              Removed ak0991x_send_cal_event from ak0991x_send_config_event
+ * 12/12/18                AKM              Added patch when received SNS_STD_ERROR_INVALID_STATE on DAE+Polling
  * 12/10/18                AKM              Added streaming check when polling+DAE
  * 12/10/18                AKM              Modified for SelfTest to streaming start when AK0991X_CONFIG_UPDATING_HW
  * 12/07/18                AKM              Added patch for jitter on Polling+DAE mode.

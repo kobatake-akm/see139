@@ -640,12 +640,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 #ifdef AK0991X_ENABLE_DAE
     else
     {
-      SNS_INST_PRINTF(LOW, this, "config_step=%d dae_state=%d flushing_hw=%d flushing_data=%d",
-          state->config_step,
-          state->dae_if.mag.state,
-          state->dae_if.mag.flushing_hw,
-          state->dae_if.mag.flushing_data);
-
       if ((AK0991X_CONFIG_IDLE == state->config_step)
            && ak0991x_dae_if_stop_streaming(this))
       {
