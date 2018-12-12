@@ -216,8 +216,8 @@ static bool send_mag_config(sns_sensor_instance *this)
     //TODO: it looks like the polling offset will not be adjusted for S4S. 
     //So it won't be synced with any other sensors
     config_req.polling_config.polling_offset =
-      (state->system_time + state->averaged_interval) / state->averaged_interval *
-      state->averaged_interval;
+        (state->system_time + state->averaged_interval) / state->averaged_interval *
+        state->averaged_interval;
   }
   config_req.has_accel_info      = false;
 
@@ -225,7 +225,12 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.expected_get_data_bytes = 
       (wm+1) * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
-  SNS_INST_PRINTF(HIGH, this, "dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%u sys=%u ave=%u",
+      (uint32_t)config_req.polling_config.polling_offset,
+      (uint32_t)state->system_time,
+      (uint32_t)state->averaged_interval);
+
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark,
                        (uint32_t)(config_req.data_age_limit_ticks>>32),
                        (uint32_t)(config_req.data_age_limit_ticks &0xFFFFFFFF),
@@ -246,7 +251,7 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
   }
 
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config  stream=0x%x, dae_stream=%d request_len=%d cmd_sent=%d",
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: stream=0x%x, dae_stream=%d request_len=%d cmd_sent=%d",
       dae_stream->stream,
       (uint8_t)dae_stream->state,
       (uint8_t)req.request_len,
@@ -799,7 +804,16 @@ static void process_response(
         }
         else
         {
-          dae_stream->state = IDLE;
+          if(SNS_STD_ERROR_INVALID_STATE == resp.err && !state->mag_info.use_dri)
+          {
+            SNS_INST_PRINTF(LOW, this,"stop and restart dae streaming");
+            ak0991x_dae_if_stop_streaming(this);
+            state->config_step = AK0991X_CONFIG_UPDATING_HW;
+          }
+          else
+          {
+             dae_stream->state = IDLE;
+          }
         }
       }
       break;
@@ -1103,7 +1117,7 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
   if(stream_usable(&state->dae_if.mag) &&
      (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
   {
-    AK0991X_INST_PRINT(LOW, this,"stopping mag stream=0x%x", &dae_if->mag.stream);
+    SNS_INST_PRINTF(LOW, this,"stopping mag stream=0x%x", &dae_if->mag.stream);
     cmd_sent |= stop_streaming(&dae_if->mag);
   }
   return cmd_sent;
