@@ -159,6 +159,8 @@ static bool send_mag_config(sns_sensor_instance *this)
   ak0991x_mag_info       *mag_info   = &state->mag_info;
   sns_dae_set_streaming_config config_req = sns_dae_set_streaming_config_init_default;
   uint8_t encoded_msg[sns_dae_set_streaming_config_size];
+  uint8_t batch_num;
+
   sns_request req = {
     .message_id   = SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG,
     .request      = encoded_msg
@@ -177,9 +179,17 @@ static bool send_mag_config(sns_sensor_instance *this)
   if(!state->mag_info.use_dri || 
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
-    config_req.dae_watermark = SNS_MAX(mag_info->req_wmk, 1);
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
                                     mag_info->cur_wmk : mag_info->max_fifo_size);
+    batch_num = SNS_MAX(mag_info->req_wmk, 1) / (wm + 1);
+    config_req.dae_watermark = batch_num * (wm + 1);
+
+    AK0991X_INST_PRINT(LOW, this, "cur_wmk=%d req_wmk=%d wm=%d batch_num=%d dae_watermark=%d",
+        mag_info->cur_wmk,
+        mag_info->req_wmk,
+        wm,
+        batch_num,
+        config_req.dae_watermark);
   }
   else
   {
