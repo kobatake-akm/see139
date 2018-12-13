@@ -180,9 +180,9 @@ static bool send_mag_config(sns_sensor_instance *this)
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
-                                    mag_info->cur_wmk : mag_info->max_fifo_size);
-    batch_num = SNS_MAX(mag_info->req_wmk, 1) / (wm + 1);
-    config_req.dae_watermark = batch_num * (wm + 1);
+                                    mag_info->cur_wmk+1 : mag_info->max_fifo_size);
+    batch_num = SNS_MAX(mag_info->req_wmk, 1) / wm;
+    config_req.dae_watermark = batch_num * wm;
 
     AK0991X_INST_PRINT(LOW, this, "cur_wmk=%d req_wmk=%d wm=%d batch_num=%d dae_watermark=%d",
         mag_info->cur_wmk,
@@ -239,7 +239,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.has_accel_info      = false;
   config_req.has_expected_get_data_bytes = true;
   config_req.expected_get_data_bytes = 
-      (wm+1) * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
+      wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
   AK0991X_INST_PRINT(LOW, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark,
