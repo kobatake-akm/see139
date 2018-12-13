@@ -673,7 +673,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
       else
       {
-        AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u", (uint32_t)state->system_time);
+        AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u req_in_dae=%d",
+            (uint32_t)state->system_time,
+            state->flush_requested_in_dae);
         state->flush_requested_in_dae = true;
         ak0991x_dae_if_flush_hw(this);
       }
