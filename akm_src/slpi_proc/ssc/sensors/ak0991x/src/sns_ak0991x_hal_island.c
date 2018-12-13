@@ -2041,6 +2041,7 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
+  sns_time calculated_average_interval;
 
   // set interrupt_timestamp
   if(state->irq_info.detect_irq_event)  // DRI
@@ -2053,8 +2054,20 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
 
       if( state->num_samples == (state->mag_info.cur_wmk+1) )
       {
-        state->averaged_interval = ((state->interrupt_timestamp - state->previous_irq_time) /
+        calculated_average_interval = ((state->interrupt_timestamp - state->previous_irq_time) /
                                     state->mag_info.data_count);
+        if( (calculated_average_interval > state->averaged_interval - state->averaged_interval/50) &&
+            (calculated_average_interval < state->averaged_interval + state->averaged_interval/50) )
+        {
+          //update
+          state->averaged_interval = calculated_average_interval;
+        }
+        else
+        {
+          SNS_INST_PRINTF(HIGH, instance, "Calculated interval %u is too different from the previous %u",
+              (uint32_t)calculated_average_interval,
+              (uint32_t)state->averaged_interval);
+        }
       }
       else
       {

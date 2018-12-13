@@ -159,7 +159,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   ak0991x_mag_info       *mag_info   = &state->mag_info;
   sns_dae_set_streaming_config config_req = sns_dae_set_streaming_config_init_default;
   uint8_t encoded_msg[sns_dae_set_streaming_config_size];
-  uint8_t batch_num;
+  uint16_t batch_num = 0;
 
   sns_request req = {
     .message_id   = SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG,
@@ -181,10 +181,18 @@ static bool send_mag_config(sns_sensor_instance *this)
   {
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
                                     mag_info->cur_wmk+1 : mag_info->max_fifo_size);
-    batch_num = SNS_MAX(mag_info->req_wmk, 1) / wm;
-    config_req.dae_watermark = batch_num * wm;
 
-    AK0991X_INST_PRINT(LOW, this, "cur_wmk=%d req_wmk=%d wm=%d batch_num=%d dae_watermark=%d",
+    if(state->mag_info.req_wmk == UINT32_MAX)
+    {
+      config_req.dae_watermark = UINT32_MAX;
+    }
+    else
+    {
+      batch_num = SNS_MAX(mag_info->req_wmk, 1) / wm;
+      config_req.dae_watermark = batch_num * wm;
+    }
+
+    AK0991X_INST_PRINT(LOW, this, "cur_wmk=%d req_wmk=%d wm=%d batch_num=%u dae_watermark=%u",
         mag_info->cur_wmk,
         mag_info->req_wmk,
         wm,
@@ -518,11 +526,11 @@ static void process_fifo_samples(
 #ifdef AK0991X_ENABLE_TS_DEBUG
       state->ts_debug_count++;
       AK0991X_INST_PRINT(
-        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X total=%u",
+        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X ts_dbg_cnt=%u",
         odr, (uint32_t)sampling_intvl, state->num_samples,
         (uint32_t)state->first_data_ts_of_batch,
         (uint32_t)state->irq_event_time,
-        (uint32_t)state->total_samples);
+        (uint32_t)state->ts_debug_count);
 #endif
 
     }
@@ -826,8 +834,13 @@ static void process_response(
       SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u",
                          resp.err, dae_stream->state);
       ak0991x_send_fifo_flush_done(this);
-      state->flush_requested_in_dae = false;
       dae_stream->flushing_data = false;
+      if(!state->in_clock_error_procedure)
+      {
+        state->flush_requested_in_dae = false;
+        state->flush_req_count--;
+      }
+
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
       SNS_INST_PRINTF(LOW, this,
