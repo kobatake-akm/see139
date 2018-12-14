@@ -811,9 +811,37 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
-      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_HW - err=%u state=%u",
-                         resp.err, dae_stream->state);
+      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_HW - err=%u state=%u config_step=%d flush_requested_in_dae=%d",
+                         resp.err, dae_stream->state, state->config_step, state->flush_requested_in_dae);
       dae_stream->flushing_hw = false;
+/*
+      if(state->config_step == AK0991X_CONFIG_FLUSHING_HW)
+      {
+        if(!state->flush_requested_in_dae)
+        {
+          ak0991x_dae_if_flush_samples(this);
+        }
+        state->config_step = AK0991X_CONFIG_UPDATING_HW;
+      }
+      else
+      {
+        if(state->config_step != AK0991X_CONFIG_IDLE)
+        {
+          ak0991x_dae_if_start_streaming(this);
+          state->config_step = AK0991X_CONFIG_UPDATING_HW;
+        }
+        else if(state->heart_beat_attempt_count >= 3)
+        {
+          // Perform a reset operation in an attempt to revive the sensor
+          ak0991x_reconfig_hw(this, true);
+        }
+        else if(state->flush_requested_in_dae)
+        {
+          ak0991x_dae_if_flush_samples(this); // Flush client request
+        }
+      }
+*/
+
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
         ak0991x_dae_if_start_streaming(this);
@@ -829,10 +857,11 @@ static void process_response(
       {
         ak0991x_dae_if_flush_samples(this); // Flush client request
       }
+
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
-      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u",
-                         resp.err, dae_stream->state);
+      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d flush_requested_in_dae=%d num_samples=%d",
+                         resp.err, dae_stream->state, state->config_step, state->flush_requested_in_dae, state->num_samples);
       ak0991x_send_fifo_flush_done(this);
       dae_stream->flushing_data = false;
       if(!state->in_clock_error_procedure)
@@ -840,7 +869,6 @@ static void process_response(
         state->flush_requested_in_dae = false;
         state->flush_req_count--;
       }
-
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
       SNS_INST_PRINTF(LOW, this,
@@ -853,10 +881,17 @@ static void process_response(
 
       if(dae_stream->state != STREAM_STOPPING)
       {
-        if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM &&
-           ak0991x_dae_if_flush_hw(this))
+        if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM)
         {
-          state->config_step = AK0991X_CONFIG_FLUSHING_HW;
+          if(ak0991x_dae_if_flush_hw(this))
+          {
+            SNS_INST_PRINTF(LOW, this,"Last flush before changing ODR.");
+            state->config_step = AK0991X_CONFIG_FLUSHING_HW;
+          }
+          else
+          {
+            SNS_INST_PRINTF(LOW, this,"Couldn't run last flush before changing ODR.");
+          }
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
         {
