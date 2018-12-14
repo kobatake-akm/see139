@@ -478,8 +478,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
   SNS_INST_PRINTF(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
 
-  state->pre_timestamp_for_orphan = state->pre_timestamp; // store previous timestamp for orphan
-
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
     state->com_port_info.port_handle,
