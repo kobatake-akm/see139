@@ -435,12 +435,24 @@ static void process_fifo_samples(
           {
             // set check DRDY status when flush request in polling mode
             state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-            AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
+            state->flush_sample_count += state->num_samples;
+            AK0991X_INST_PRINT(MED, this, "num_samples=%d flush_sample=%d in flush and polling",
+                state->num_samples, state->flush_sample_count);
           }
           else // timer event
           {
-            // set num samples=1 when regular polling mode.
-            state->num_samples = 1;
+            // already reported by flush request in polling mode
+            if ((state->flush_sample_count >= (state->mag_info.cur_wmk + 1))
+                && !(buf[2] & AK0991X_DRDY_BIT))
+            {
+              state->num_samples = 0;
+              state->flush_sample_count = 0;
+            }
+            else
+            {
+              // set num samples=1 when regular polling mode.
+              state->num_samples = 1;
+            }
           }
         }
       }
