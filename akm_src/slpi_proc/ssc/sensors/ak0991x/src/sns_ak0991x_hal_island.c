@@ -3062,7 +3062,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: reset=%u", reset_device);
+  SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
 
   if(reset_device)
   {
@@ -3091,12 +3091,10 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   else
   {
     rv = ak0991x_stop_mag_streaming(this);
-
-    if (rv != SNS_RC_SUCCESS)
-    {
-      return rv;
-    }
   }
+
+  SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u, ODR=%d result=%d",
+      reset_device, state->mag_info.desired_odr, rv);
   return rv;
 }
 
