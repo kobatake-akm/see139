@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 12/17/18     020036     AKM              Modified num_samples after flush on DAE+polling
+ * 12/17/18                AKM              Modified timestamp when flush request on DAE+Polling
+ * 12/17/18     020036     AKM              Modified num_samples after flush on DAE+Polling
  * 12/13/18                AKM              Modified dae_watermark when flush_only request.
  * 12/12/18                AKM              Modified calculate dae_watermark.
  * 12/12/18                AKM              Removed ak0991x_send_cal_event from ak0991x_send_config_event

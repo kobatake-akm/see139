@@ -2126,8 +2126,15 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 
   if(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
   {
-    // from flush request
-    state->interrupt_timestamp = calculated_timestamp_from_previous;
+    if(ak0991x_dae_if_available(instance))
+    {
+      state->interrupt_timestamp = state->dae_evnet_time;
+    }
+    else
+    {
+      // from flush request
+      state->interrupt_timestamp = state->system_time;
+    }
   }
   else
   {
