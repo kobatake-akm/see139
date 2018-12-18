@@ -336,6 +336,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, sensor_state);
 #endif // AK0991X_ENABLE_DAE
 
+  ak0991x_send_cal_event(this);
+
   return SNS_RC_SUCCESS;
 }
 
