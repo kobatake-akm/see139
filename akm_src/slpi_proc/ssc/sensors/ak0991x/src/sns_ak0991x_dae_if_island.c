@@ -376,7 +376,7 @@ static void process_fifo_samples(
   uint32_t sampling_intvl;
   uint8_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
-  bool is_orphan = false;
+  state->is_orphan = false;
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -399,7 +399,7 @@ static void process_fifo_samples(
   }
   else
   {
-    is_orphan = (state->dae_evnet_time < state->last_sw_reset_time);
+    state->is_orphan = (state->dae_evnet_time < state->last_sw_reset_time);
 
     if(state->mag_info.use_fifo)
     {
@@ -424,7 +424,7 @@ static void process_fifo_samples(
       }
       else  // polling mode: *** Doesn't care FIFO+Polling ***
       {
-        if( is_orphan )  // orphan
+        if(state->is_orphan)  // orphan
         {
           state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
           AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
@@ -479,7 +479,7 @@ static void process_fifo_samples(
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
 
-      if( !is_orphan ) // regular sequence
+      if(!state->is_orphan) // regular sequence
       {
         if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm)
         {
@@ -583,7 +583,7 @@ static void process_fifo_samples(
       }
 
       // keep re-register HB timer when DAE enabled.
-      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX || is_orphan)
+      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX || state->is_orphan)
       {
         ak0991x_register_heart_beat_timer(this);
       }
@@ -592,7 +592,7 @@ static void process_fifo_samples(
     {
       // No heart_beat_timer_event when orphan.
       // Just update heart_beat_timestamp in order to ignore performing unnecessary heart beat detection
-      if( is_orphan )
+      if(state->is_orphan)
       {
         state->heart_beat_timestamp = state->system_time;
         state->heart_beat_sample_count = 0;

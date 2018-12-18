@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/18/18                AKM              Modified for multiple orphan on DAE+Pollng.
  * 12/17/18     020037     AKM              Revert ak0991x_send_cal_event. CTS passed on DAE+Polling/DAE+DRI+FIFO.
  * 12/17/18                AKM              Modified timestamp when flush request on DAE+Polling
  * 12/17/18     020036     AKM              Modified num_samples after flush on DAE+Polling

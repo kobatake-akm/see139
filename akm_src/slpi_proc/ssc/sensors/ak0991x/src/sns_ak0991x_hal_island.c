@@ -1992,7 +1992,10 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->pre_timestamp = timestamp;
 
   // store previous timestamp for orphan
-  state->pre_timestamp_for_orphan = state->pre_timestamp;
+  if(!state->is_orphan)
+  {
+    state->pre_timestamp_for_orphan = state->pre_timestamp;
+  }
 
   // reset flags
   state->irq_info.detect_irq_event = false;
