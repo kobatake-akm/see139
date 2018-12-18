@@ -247,7 +247,6 @@ typedef struct ak0991x_instance_state
   sns_time hb_timer_fire_time;
   sns_time last_sw_reset_time;
   sns_time dae_evnet_time;
-  sns_time pre_timestamp_for_orphan;
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
   uint32_t ts_debug_count;

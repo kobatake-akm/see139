@@ -518,15 +518,7 @@ static void process_fifo_samples(
       {
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-        if( state->irq_info.detect_irq_event )
-        {
-          state->first_data_ts_of_batch =  state->dae_evnet_time - sampling_intvl * (state->num_samples - 1);
-        }
-        else
-        {
-          state->first_data_ts_of_batch =  state->pre_timestamp_for_orphan + sampling_intvl;
-        }
-
+        state->first_data_ts_of_batch =  state->dae_evnet_time - sampling_intvl * (state->num_samples - 1);
         AK0991X_INST_PRINT(HIGH, this, "fifo_samples:: orphan odr=(%d->%d) wm=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
             odr,
             state->mag_info.curr_odr,
@@ -878,9 +870,8 @@ static void process_response(
           if(ak0991x_dae_if_flush_hw(this))
           {
             state->config_step = AK0991X_CONFIG_FLUSHING_HW;
-            SNS_INST_PRINTF(LOW, this,"Last flush before changing ODR. flush_req_in_dae %d orphan_pre %u",
-                state->flush_requested_in_dae,
-                (uint32_t)state->pre_timestamp_for_orphan);
+            SNS_INST_PRINTF(LOW, this,"Last flush before changing ODR. flush_req_in_dae %d",
+                state->flush_requested_in_dae);
           }
           else
           {

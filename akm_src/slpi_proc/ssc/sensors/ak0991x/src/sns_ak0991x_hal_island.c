@@ -1991,15 +1991,13 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   // store previous timestamp
   state->pre_timestamp = timestamp;
 
-  // store previous timestamp for orphan
   if(!state->is_orphan)
   {
-    state->pre_timestamp_for_orphan = state->pre_timestamp;
+    state->this_is_first_data = false;
   }
 
   // reset flags
   state->irq_info.detect_irq_event = false;
-  state->this_is_first_data = false;
 
   state->this_is_the_last_flush = false;
   if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress )
