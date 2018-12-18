@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/17/18     020037     AKM              Revert ak0991x_send_cal_event. CTS passed on DAE+Polling/DAE+DRI+FIFO.
  * 12/17/18                AKM              Modified timestamp when flush request on DAE+Polling
  * 12/17/18     020036     AKM              Modified num_samples after flush on DAE+Polling
  * 12/13/18                AKM              Modified dae_watermark when flush_only request.
@@ -231,4 +232,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20035  // major:02 minor:00 revision:35
+#define AK0991X_DRIVER_VERSION 20037  // major:02 minor:00 revision:37
