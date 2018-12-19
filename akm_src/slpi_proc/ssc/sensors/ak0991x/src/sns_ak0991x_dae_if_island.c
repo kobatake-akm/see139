@@ -400,7 +400,7 @@ static void process_fifo_samples(
   else
   {
     state->is_orphan = (state->dae_evnet_time < state->last_sw_reset_time);
-
+ 
     if(state->mag_info.use_fifo)
     {
       // num_samples when FIFO enabled.
@@ -426,7 +426,14 @@ static void process_fifo_samples(
       {
         if(state->is_orphan)  // orphan
         {
-          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          if (state->fifo_flush_in_progress) // DAE get the data by flush, last orphan data
+          {
+            state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          }
+          else // DAE get the data by polling timer, still have orphan data
+          {
+            state->num_samples = 1;
+          }
           AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
         }
         else
@@ -435,29 +442,32 @@ static void process_fifo_samples(
           {
             // set check DRDY status when flush request in polling mode
             state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-            state->flush_sample_count += state->num_samples;
+            //state->flush_sample_count += state->num_samples;
             AK0991X_INST_PRINT(MED, this, "num_samples=%d flush_sample=%d in flush and polling",
                 state->num_samples, state->flush_sample_count);
           }
           else // timer event
           {
-            // already reported by flush request in polling mode
-            if ((state->flush_sample_count >= (state->mag_info.cur_wmk + 1))
-                && !(buf[2] & AK0991X_DRDY_BIT))
-            {
-              state->num_samples = 0;
-              state->flush_sample_count = 0;
-            }
-            else
-            {
+            //// already reported by flush request in polling mode
+            //if ((state->flush_sample_count >= (state->mag_info.cur_wmk + 1))
+            //    && !(buf[2] & AK0991X_DRDY_BIT))
+            //{
+            //  state->num_samples = 0;
+            //  state->flush_sample_count = 0;
+            //}
+            //else
+            //{
               // set num samples=1 when regular polling mode.
               state->num_samples = 1;
-            }
+            //}
           }
         }
       }
     }
   }
+
+  AK0991X_INST_PRINT(MED, this, "is_orphan=%d, num_samples=%d, DRDYbit=%d ",
+      state->is_orphan, state->num_samples, (buf[2] & AK0991X_DRDY_BIT));
 
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
