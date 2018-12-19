@@ -593,7 +593,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       return SNS_RC_SUCCESS;
     }
 
-    state->mag_info.cur_wmk     = desired_wmk;
+    state->mag_info.cur_wmk     = state->mag_info.use_fifo ? desired_wmk : 0;
     state->mag_req.sample_rate  = mag_chosen_sample_rate;
     state->mag_info.desired_odr = state->new_cfg.odr = mag_chosen_sample_rate_reg_value;
     state->new_cfg.fifo_wmk     = state->mag_info.cur_wmk + 1;
