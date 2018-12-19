@@ -2141,6 +2141,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   {
     if(ak0991x_dae_if_available(instance))
     {
+#ifdef AK0991X_ENABLE_TIMER_TS_FILTER
       // check delayed timer timestamp for preventing jitter
       if( !state->this_is_first_data &&
           state->dae_evnet_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
@@ -2154,6 +2155,9 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
       {
         state->interrupt_timestamp = state->dae_evnet_time;
       }
+#else
+      state->interrupt_timestamp = state->dae_evnet_time;
+#endif
     }
     else
     {
