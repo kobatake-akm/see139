@@ -1993,7 +1993,10 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
   // reset flags
   state->irq_info.detect_irq_event = false;
-  state->this_is_first_data = false;
+  if(!state->is_orphan)
+  {
+    state->this_is_first_data = false;
+  }
 
   state->this_is_the_last_flush = false;
   if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress )
@@ -2105,18 +2108,38 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  sns_time calculated_timestamp_from_previous;
+  calculated_timestamp_from_previous = state->pre_timestamp + state->averaged_interval * state->num_samples;
 
-  if(state->fifo_flush_in_progress || state->this_is_the_last_flush)
+  if(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
   {
-    // from flush request
-    state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
+    if(ak0991x_dae_if_available(instance))
+    {
+      state->interrupt_timestamp = state->dae_evnet_time;
+    }
+    else
+    {
+      // from flush request
+      state->interrupt_timestamp = state->system_time;
+    }
   }
   else
   {
     if(ak0991x_dae_if_available(instance))
     {
-      // from DAE process_fifo_samples() use event time.
-      state->interrupt_timestamp = state->dae_evnet_time;
+      // check delayed timer timestamp for preventing jitter
+      if( !state->this_is_first_data &&
+          state->dae_evnet_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
+      {
+        state->interrupt_timestamp = calculated_timestamp_from_previous;
+        AK0991X_INST_PRINT(LOW, instance, "delayed timer detected. recalculate timestamp %u->%u",
+                                   (uint32_t)state->dae_evnet_time,
+                                   (uint32_t)state->interrupt_timestamp);
+      }
+      else
+      {
+        state->interrupt_timestamp = state->dae_evnet_time;
+      }
     }
     else
     {
@@ -2127,7 +2150,6 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 
   state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
 }
-
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
