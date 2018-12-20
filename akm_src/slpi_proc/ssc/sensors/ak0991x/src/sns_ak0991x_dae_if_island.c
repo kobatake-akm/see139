@@ -454,6 +454,11 @@ static void process_fifo_samples(
         {
           dummy_data_count = (state->dae_evnet_time + state->averaged_interval/5 - state->pre_timestamp)/state->averaged_interval - 1;
           AK0991X_INST_PRINT(MED, this, "dummy_data_count=%d",dummy_data_count);
+
+          if( state->dae_evnet_time < state->pre_timestamp + state->averaged_interval/2 )
+          {
+            state->num_samples = 0;
+          }
         }
       }
     }
