@@ -179,7 +179,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   {
     config_req.dae_watermark = SNS_MAX(mag_info->req_wmk, 1);
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
-                                    mag_info->cur_wmk : mag_info->max_fifo_size);
+                                    mag_info->cur_wmk+1 : mag_info->max_fifo_size);
   }
   else
   {
@@ -223,7 +223,7 @@ static bool send_mag_config(sns_sensor_instance *this)
 
   config_req.has_expected_get_data_bytes = true;
   config_req.expected_get_data_bytes = 
-      (wm+1) * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
+      wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
   SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%u sys=%u ave=%u",
       (uint32_t)config_req.polling_config.polling_offset,

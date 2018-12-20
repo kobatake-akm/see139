@@ -999,13 +999,9 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->irq_info.detect_irq_event = false;
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = state->system_time;
   state->reg_event_done = false;
-
-  state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-  state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
   if(state->total_samples == 0)
   {
