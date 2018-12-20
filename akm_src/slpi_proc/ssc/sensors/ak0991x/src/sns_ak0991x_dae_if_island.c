@@ -181,6 +181,23 @@ static bool send_mag_config(sns_sensor_instance *this)
   {
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
                                     mag_info->cur_wmk+1 : mag_info->max_fifo_size);
+
+    if(state->mag_info.req_wmk == UINT32_MAX)
+    {
+      config_req.dae_watermark = UINT32_MAX;
+    }
+    else
+    {
+      batch_num = SNS_MAX(mag_info->req_wmk, 1) / wm;
+      config_req.dae_watermark = batch_num * wm;
+    }
+
+    AK0991X_INST_PRINT(LOW, this, "cur_wmk=%d req_wmk=%d wm=%d batch_num=%u dae_watermark=%u",
+        mag_info->cur_wmk,
+        mag_info->req_wmk,
+        wm,
+        batch_num,
+        config_req.dae_watermark);
   }
   else
   {

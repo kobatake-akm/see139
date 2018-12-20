@@ -179,6 +179,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
   state->ts_debug_count = 0;
   state->enable_polling_timer_filter = false;
+  state->is_called_cal_event = false;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -335,8 +336,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "data_acquisition_engine", &dae_suid);
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, sensor_state);
 #endif // AK0991X_ENABLE_DAE
-
-  ak0991x_send_cal_event(this);
 
   return SNS_RC_SUCCESS;
 }

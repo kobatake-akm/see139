@@ -225,6 +225,7 @@ typedef struct ak0991x_instance_state
   bool is_orphan;
   bool new_self_test_request;
   bool enable_polling_timer_filter;
+  bool is_called_cal_event;
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
   bool config_mag_after_ascp_xfer;
@@ -233,7 +234,6 @@ typedef struct ak0991x_instance_state
   bool reg_event_done;
   bool s4s_reg_event_done;
   bool in_clock_error_procedure;
-  bool is_orphan;
   sns_time irq_event_time;
   sns_time previous_irq_time;
   sns_time odr_change_timestamp;
