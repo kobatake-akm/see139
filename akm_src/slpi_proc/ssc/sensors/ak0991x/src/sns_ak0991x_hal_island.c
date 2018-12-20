@@ -999,17 +999,13 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   state->irq_info.detect_irq_event = false;
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->mag_info.curr_odr = state->mag_info.desired_odr;
   state->heart_beat_sample_count = 0;
   state->heart_beat_timestamp = state->system_time;
   state->reg_event_done = false;
   state->enable_polling_timer_filter = false;
 
-  state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-  state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-
-//  if(state->total_samples == 0)
-//  {
+  if(state->total_samples == 0)
+  {
     sns_time meas_usec;
     ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
     state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
@@ -2183,7 +2179,6 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 
   state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
 }
-
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;

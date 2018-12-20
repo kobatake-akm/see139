@@ -181,23 +181,6 @@ static bool send_mag_config(sns_sensor_instance *this)
   {
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
                                     mag_info->cur_wmk+1 : mag_info->max_fifo_size);
-
-    if(state->mag_info.req_wmk == UINT32_MAX)
-    {
-      config_req.dae_watermark = UINT32_MAX;
-    }
-    else
-    {
-      batch_num = SNS_MAX(mag_info->req_wmk, 1) / wm;
-      config_req.dae_watermark = batch_num * wm;
-    }
-
-    AK0991X_INST_PRINT(LOW, this, "cur_wmk=%d req_wmk=%d wm=%d batch_num=%u dae_watermark=%u",
-        mag_info->cur_wmk,
-        mag_info->req_wmk,
-        wm,
-        batch_num,
-        config_req.dae_watermark);
   }
   else
   {
@@ -233,23 +216,21 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
     //TODO: it looks like the polling offset will not be adjusted for S4S. 
     //So it won't be synced with any other sensors
-    if(state->averaged_interval != 0)
-    {
-      config_req.polling_config.polling_offset =
-          (state->system_time + state->averaged_interval) / state->averaged_interval *
-          state->averaged_interval;
-    }
-    else
-    {
-      config_req.polling_config.polling_offset = 0;
-    }
+    config_req.polling_config.polling_offset =
+        (state->system_time + state->averaged_interval) / state->averaged_interval *
+        state->averaged_interval;
   }
   config_req.has_accel_info      = false;
   config_req.has_expected_get_data_bytes = true;
   config_req.expected_get_data_bytes = 
       wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
-  AK0991X_INST_PRINT(LOW, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%u sys=%u ave=%u",
+      (uint32_t)config_req.polling_config.polling_offset,
+      (uint32_t)state->system_time,
+      (uint32_t)state->averaged_interval);
+
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark,
                        (uint32_t)(config_req.data_age_limit_ticks>>32),
                        (uint32_t)(config_req.data_age_limit_ticks &0xFFFFFFFF),
@@ -270,7 +251,7 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
   }
 
-  AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x, dae_stream=%d request_len=%d cmd_sent=%d",
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: stream=0x%x, dae_stream=%d request_len=%d cmd_sent=%d",
       dae_stream->stream,
       (uint8_t)dae_stream->state,
       (uint8_t)req.request_len,
@@ -484,7 +465,7 @@ static void process_fifo_samples(
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
 
-      if(!state->is_orphan) // regular sequence
+      if( !state->is_orphan ) // regular sequence
       {
         if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm)
         {
@@ -623,7 +604,7 @@ static void process_fifo_samples(
     {
       // No heart_beat_timer_event when orphan.
       // Just update heart_beat_timestamp in order to ignore performing unnecessary heart beat detection
-      if(state->is_orphan)
+      if( state->is_orphan )
       {
         state->heart_beat_timestamp = state->system_time;
         state->heart_beat_sample_count = 0;
@@ -811,6 +792,11 @@ static void process_response(
         if(ak0991x_dae_if_start_streaming(this))
         {
           state->config_step = AK0991X_CONFIG_UPDATING_HW;
+        }
+        else
+        {
+          SNS_INST_PRINTF(LOW, this, "ak0991x_dae_if_start_streaming return false - err=%u state=%u desire_odr=%d dae_mag_state=%d",
+                             resp.err, dae_stream->state, state->mag_info.desired_odr, state->dae_if.mag.state);
         }
       }
       else

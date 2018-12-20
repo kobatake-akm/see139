@@ -37,6 +37,7 @@
  * 12/07/18                AKM              CTS passed on DAE+I3C+DRI+FIFO.
  * 12/07/18                AKM              CTS passed on DAE+I3C+Polling excepts testGeomagneticRotationVector_fastest. Timer timestamp has jitter.
  * 12/06/18                AKM              Add macro to use ideal timestamp for DAE+Polling.
+ * 12/20/18     020034t1   AKM              Added polling timer filter. Modified for polling_offset
  * 12/06/18     020034     AKM              CTS passed with DAE+Polling
  * 12/05/18                AKM              Modified flush request in DAE+Polling mode
  * 12/04/18                AKM              Use last_sw_reset_time to detect orphan batch.
