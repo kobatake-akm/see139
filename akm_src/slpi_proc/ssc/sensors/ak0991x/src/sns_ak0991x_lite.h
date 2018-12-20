@@ -34,7 +34,6 @@
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 #define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
-//#define AK0991X_ENABLE_TIMER_TS_FILTER    // Timter timestamp filter for DAE+Polling
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #define MAX_DEVICE_MODE_SUPPORTED 2       // change number 2/4/8 in order to match the faccal num in the registry

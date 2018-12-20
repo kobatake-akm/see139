@@ -178,7 +178,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
   state->ts_debug_count = 0;
-  state->flush_req_count = 0;
+  state->enable_polling_timer_filter = false;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -478,7 +478,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   uint32_t        previous_req_wmk = state->mag_info.req_wmk;
   sns_rc          rv = SNS_RC_SUCCESS;
 
-  SNS_INST_PRINTF(MED, this, "inst_set_client_config msg_id %d", client_request->message_id);
+  SNS_INST_PRINTF(MED, this, "inst_set_client_config msg_id %d first_data=%d pre=%u total=%d",
+      client_request->message_id,
+      state->this_is_first_data,
+      (uint32_t)state->pre_timestamp,
+      state->total_samples);
 
   // Turn COM port ON
   state->scp_service->api->sns_scp_update_bus_power(
@@ -677,12 +681,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
       else
       {
-        AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u total_samples %d req_cnt %d",
-            (uint32_t)state->system_time,
-            state->total_samples,
-            state->flush_req_count);
-
-        state->flush_req_count++;
+//        AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u",
+//            (uint32_t)state->system_time);
 
         if(state->flush_requested_in_dae)
         {

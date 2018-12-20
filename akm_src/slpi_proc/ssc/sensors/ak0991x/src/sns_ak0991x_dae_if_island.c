@@ -376,6 +376,9 @@ static void process_fifo_samples(
   uint32_t sampling_intvl;
   uint8_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+  int8_t dummy_data_count = 0;
+  int8_t i = 0;
+
   state->is_orphan = false;
 
   //////////////////////////////
@@ -424,50 +427,37 @@ static void process_fifo_samples(
       }
       else  // polling mode: *** Doesn't care FIFO+Polling ***
       {
-        if(state->is_orphan)  // orphan
+        if (state->fifo_flush_in_progress) // DAE get the data by flush
         {
-          if (state->fifo_flush_in_progress) // DAE get the data by flush, last orphan data
+          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          state->flush_sample_count = (buf[2] & AK0991X_DRDY_BIT);
+        }
+        else  // polling timer
+        {
+          if( !state->this_is_first_data &&
+              (state->flush_sample_count != 0) &&
+              !(buf[2] & AK0991X_DRDY_BIT) )
           {
-            state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+            // previous is flush already reported
+            state->num_samples = 0;
+            AK0991X_INST_PRINT(MED, this, "Previous is flush. Skip data!!!!!!!!!!!!!!!!!!!!!!");
           }
-          else // DAE get the data by polling timer, still have orphan data
+          else
           {
             state->num_samples = 1;
           }
-          AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
+          state->flush_sample_count = 0;
         }
-        else
+
+        // calculate dummy data count to fill gap
+        if( !state->this_is_first_data )
         {
-          if(state->fifo_flush_in_progress) // flush request
-          {
-            // set check DRDY status when flush request in polling mode
-            state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-            //state->flush_sample_count += state->num_samples;
-            AK0991X_INST_PRINT(MED, this, "num_samples=%d flush_sample=%d in flush and polling",
-                state->num_samples, state->flush_sample_count);
-          }
-          else // timer event
-          {
-            //// already reported by flush request in polling mode
-            //if ((state->flush_sample_count >= (state->mag_info.cur_wmk + 1))
-            //    && !(buf[2] & AK0991X_DRDY_BIT))
-            //{
-            //  state->num_samples = 0;
-            //  state->flush_sample_count = 0;
-            //}
-            //else
-            //{
-              // set num samples=1 when regular polling mode.
-              state->num_samples = 1;
-            //}
-          }
+          dummy_data_count = (state->dae_evnet_time + state->averaged_interval/5 - state->pre_timestamp)/state->averaged_interval - 1;
+          AK0991X_INST_PRINT(MED, this, "dummy_data_count=%d",dummy_data_count);
         }
       }
     }
   }
-
-  AK0991X_INST_PRINT(MED, this, "is_orphan=%d, num_samples=%d, DRDYbit=%d ",
-      state->is_orphan, state->num_samples, (buf[2] & AK0991X_DRDY_BIT));
 
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
@@ -512,6 +502,7 @@ static void process_fifo_samples(
             (state->half_measurement_time<<1) - state->averaged_interval;
           state->previous_irq_time = state->pre_timestamp;
           state->mag_info.data_count = 0;
+          state->enable_polling_timer_filter = false;
         }
 
         if(state->mag_info.use_dri)
@@ -528,7 +519,21 @@ static void process_fifo_samples(
       {
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-        state->first_data_ts_of_batch =  state->dae_evnet_time - sampling_intvl * (state->num_samples - 1);
+        if( state->irq_info.detect_irq_event )
+        {
+          state->first_data_ts_of_batch =  state->dae_evnet_time - sampling_intvl * (state->num_samples - 1);
+        }
+        else  // flush
+        {
+          if( state->system_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples )
+          {
+            state->first_data_ts_of_batch =  state->system_time;
+          }
+          else
+          {
+            state->first_data_ts_of_batch =  state->pre_timestamp_for_orphan + sampling_intvl;
+          }
+        }
         AK0991X_INST_PRINT(HIGH, this, "fifo_samples:: orphan odr=(%d->%d) wm=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
             odr,
             state->mag_info.curr_odr,
@@ -539,11 +544,30 @@ static void process_fifo_samples(
             (uint32_t)state->dae_evnet_time);
       }
 
+      for(i=0; i<dummy_data_count; i++)
+      {
+        ak0991x_process_mag_data_buffer(this,
+                                        state->first_data_ts_of_batch - state->averaged_interval * (dummy_data_count - i),
+                                        sampling_intvl,
+                                        buf + state->dae_if.mag.status_bytes_per_fifo,
+                                        fifo_len);
+#ifdef AK0991X_ENABLE_TS_DEBUG
+      state->ts_debug_count++;
+      AK0991X_INST_PRINT(
+        MED, this, "fifo_samples dummy:: odr=0x%X intvl=%u #samples=%u ts=%X-%X ts_dbg_cnt=%u",
+        odr, (uint32_t)sampling_intvl, state->num_samples,
+        (uint32_t)(state->first_data_ts_of_batch - state->averaged_interval * (dummy_data_count - i)),
+        (uint32_t)state->irq_event_time,
+        (uint32_t)state->ts_debug_count);
+#endif
+      }
+
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
+
 #ifdef AK0991X_ENABLE_TS_DEBUG
       state->ts_debug_count++;
       AK0991X_INST_PRINT(
@@ -839,8 +863,8 @@ static void process_response(
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
         ak0991x_dae_if_start_streaming(this);
-        ak0991x_dae_if_flush_samples(this);
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
+        ak0991x_dae_if_flush_samples(this);
       }
       else if(state->heart_beat_attempt_count >= 3)
       {
@@ -861,7 +885,6 @@ static void process_response(
       if(!state->in_clock_error_procedure)
       {
         state->flush_requested_in_dae = false;
-        state->flush_req_count--;
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:

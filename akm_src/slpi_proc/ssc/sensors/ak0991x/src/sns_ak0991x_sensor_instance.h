@@ -224,6 +224,7 @@ typedef struct ak0991x_instance_state
   bool flush_requested_in_dae;
   bool is_orphan;
   bool new_self_test_request;
+  bool enable_polling_timer_filter;
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
   bool config_mag_after_ascp_xfer;
@@ -247,10 +248,10 @@ typedef struct ak0991x_instance_state
   sns_time hb_timer_fire_time;
   sns_time last_sw_reset_time;
   sns_time dae_evnet_time;
+  sns_time pre_timestamp_for_orphan;
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
   uint32_t ts_debug_count;
-  int32_t flush_req_count;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
