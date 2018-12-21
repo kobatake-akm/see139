@@ -958,6 +958,35 @@ static sns_time ak0991x_set_heart_beat_timeout_period_for_polling(
 /**
  * see sns_ak0991x_hal.h
  */
+
+void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, sns_time reset_time)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+  sns_time meas_usec;
+
+  state->odr_change_timestamp = reset_time;
+  state->this_is_first_data = true;
+  state->mag_info.data_count = 0;
+  state->irq_info.detect_irq_event = false;
+  state->s4s_reg_event_done = false;
+  state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+  state->heart_beat_sample_count = 0;
+  state->heart_beat_timestamp = reset_time;
+
+  ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
+  state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
+  if(state->mag_info.use_dri)
+  {
+    state->pre_timestamp = reset_time + (state->half_measurement_time<<1) - state->averaged_interval;
+  }
+  else
+  {
+    state->pre_timestamp = reset_time;
+  }
+  state->irq_event_time = reset_time;
+  state->previous_irq_time = reset_time;
+}
+
 sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
@@ -993,32 +1022,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   state->system_time = sns_get_system_time();
-  state->odr_change_timestamp = state->system_time;
-  state->this_is_first_data = true;
-  state->mag_info.data_count = 0;
-  state->irq_info.detect_irq_event = false;
-  state->s4s_reg_event_done = false;
-  state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->heart_beat_sample_count = 0;
-  state->heart_beat_timestamp = state->system_time;
-  state->reg_event_done = false;
-
-  if(state->total_samples == 0)
-  {
-    sns_time meas_usec;
-    ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
-    state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
-    if(state->mag_info.use_dri)
-    {
-      state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
-    }
-    else
-    {
-      state->pre_timestamp = state->system_time;
-    }
-    state->irq_event_time = state->system_time;
-    state->previous_irq_time = state->pre_timestamp;
-  }
+  ak0991x_reset_mag_parameters(this, state->system_time);
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %X pre_ts %X avg %u half %u", 
                      (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,

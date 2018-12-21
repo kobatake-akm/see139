@@ -381,6 +381,16 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                ak0991x_com_port_info *com_port);
 
 /**
+ * Resets mag parameters.
+ *
+ * @param[i] state         Instance state
+ * @param[i] reset_time    Time to reset
+ *
+ */
+void ak0991x_reset_mag_parameters(sns_sensor_instance *const this,
+                                    sns_time reset_time);
+
+/**
  * Enable Mag streaming. enables Mag sensor with
  * non-zero desired ODR.
  *

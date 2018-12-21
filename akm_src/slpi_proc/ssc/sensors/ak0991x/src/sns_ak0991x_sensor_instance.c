@@ -177,6 +177,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->in_clock_error_procedure = false;
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
+  state->reg_event_done = false;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 

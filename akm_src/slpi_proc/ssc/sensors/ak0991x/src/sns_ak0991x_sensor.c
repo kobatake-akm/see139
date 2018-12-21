@@ -1379,7 +1379,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  {
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
    value.has_sint = true;
-   value.sint = ak0991x_dev_info_array[device_select].max_fifo_depth;
+   value.sint = state->use_fifo ? ak0991x_dev_info_array[device_select].max_fifo_depth : 0;
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_FIFO_SIZE, &value, 1, false);
  }

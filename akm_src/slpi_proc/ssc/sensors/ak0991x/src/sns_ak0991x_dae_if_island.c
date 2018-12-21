@@ -451,25 +451,12 @@ static void process_fifo_samples(
       {
         if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm)
         {
-          sns_time meas_usec;
           state->new_cfg.odr      = odr;
           state->new_cfg.fifo_wmk = wm;
 
           AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_evnet_time=%u", (uint32_t)state->dae_evnet_time);
           ak0991x_send_config_event(this);
-
-          ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
-          state->this_is_first_data = true;
-          state->half_measurement_time =
-            ((sns_convert_ns_to_ticks(meas_usec * 1000) *
-              state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
-          state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-          state->averaged_interval =
-            (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-          state->pre_timestamp = state->odr_change_timestamp +
-            (state->half_measurement_time<<1) - state->averaged_interval;
-          state->previous_irq_time = state->pre_timestamp;
-          state->mag_info.data_count = 0;
+          ak0991x_reset_mag_parameters(this, state->odr_change_timestamp);
         }
 
         if(state->mag_info.use_dri)
