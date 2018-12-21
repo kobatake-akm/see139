@@ -782,7 +782,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   sns_sync_com_port_service * scp_service = state->scp_service;
   sns_sync_com_port_handle *port_handle = state->com_port_info.port_handle;
   uint32_t xfer_bytes;
-  uint8_t  buffer[2];
+  uint8_t  buffer[2] = {0};
   ak0991x_mag_odr desired_odr = state->mag_info.desired_odr;
 
   if( force_off )
