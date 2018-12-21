@@ -216,8 +216,8 @@ static bool send_mag_config(sns_sensor_instance *this)
     //TODO: it looks like the polling offset will not be adjusted for S4S. 
     //So it won't be synced with any other sensors
     config_req.polling_config.polling_offset =
-        (state->system_time + state->averaged_interval) / state->averaged_interval *
-        state->averaged_interval;
+        (state->system_time + config_req.polling_config.polling_interval_ticks) / config_req.polling_config.polling_interval_ticks *
+        config_req.polling_config.polling_interval_ticks;
   }
   config_req.has_accel_info      = false;
 
@@ -225,10 +225,10 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.expected_get_data_bytes = 
       wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%u sys=%u ave=%u",
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%u sys=%u inteval_tick=%u",
       (uint32_t)config_req.polling_config.polling_offset,
       (uint32_t)state->system_time,
-      (uint32_t)state->averaged_interval);
+      (uint32_t)config_req.polling_config.polling_interval_ticks);
 
   SNS_INST_PRINTF(HIGH, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark,
