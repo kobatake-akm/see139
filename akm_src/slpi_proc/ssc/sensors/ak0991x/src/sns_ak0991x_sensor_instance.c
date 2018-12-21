@@ -564,7 +564,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.req_wmk = 0;
     }
 
-    desired_wmk = ak0991x_set_wmk(this, desired_report_rate, mag_chosen_sample_rate);
+    if (state->mag_info.use_fifo)
+    {
+      desired_wmk = ak0991x_set_wmk(this, desired_report_rate, mag_chosen_sample_rate);
+    }
+    else
+    {
+      desired_wmk = 0;
+    }
+
     AK0991X_INST_PRINT(LOW, this, "req_wmk=%u desired_wmk=%u,flush_period=%u, flushonly=%d, max_batch=%d",
                        state->mag_info.req_wmk,
                        desired_wmk,
