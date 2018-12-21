@@ -420,7 +420,8 @@ static void process_fifo_samples(
           else // timer event
           {
             // set num samples=1 when regular polling mode.
-            state->num_samples = 1;
+            // check if negative timestamp
+            state->num_samples = (state->dae_evnet_time < state->pre_timestamp + (state->averaged_interval/10)) ? 0 : 1;
           }
         }
       }

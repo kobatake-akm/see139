@@ -1082,8 +1082,6 @@ sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
     return rv;
   }
 
-  ak0991x_set_curr_odr(this);
-
   return SNS_RC_SUCCESS;
 }
 
