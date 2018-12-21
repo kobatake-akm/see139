@@ -381,10 +381,17 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                ak0991x_com_port_info *com_port);
 
 /**
+ * Resets curr odr.
+ *
+ * @param[i] state         Instance state
+ *
+ */
+void ak0991x_set_curr_odr(sns_sensor_instance *const this);
+
+/**
  * Resets mag parameters.
  *
  * @param[i] state         Instance state
- * @param[i] reset_time    Time to reset
  *
  */
 void ak0991x_reset_mag_parameters(sns_sensor_instance *const this,

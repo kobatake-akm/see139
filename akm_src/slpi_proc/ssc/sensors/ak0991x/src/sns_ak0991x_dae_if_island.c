@@ -456,6 +456,7 @@ static void process_fifo_samples(
 
           AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_evnet_time=%u", (uint32_t)state->dae_evnet_time);
           ak0991x_send_config_event(this);
+          ak0991x_set_curr_odr(this);
           ak0991x_reset_mag_parameters(this, state->odr_change_timestamp);
         }
 
@@ -474,16 +475,9 @@ static void process_fifo_samples(
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
-        if(state->irq_info.detect_irq_event)
-        {
-          state->interrupt_timestamp = state->irq_event_time;
-          state->first_data_ts_of_batch = state->interrupt_timestamp - sampling_intvl * (state->num_samples - 1);
-        }
-        else
-        {
-          //          state->first_data_ts_of_batch =  event_timestamp - sampling_intvl * (state->num_samples - 1);
-          state->first_data_ts_of_batch =  state->pre_timestamp + sampling_intvl;
-        }
+        // when orphan, use event_time
+        state->interrupt_timestamp = state->irq_event_time;
+        state->first_data_ts_of_batch = state->interrupt_timestamp - sampling_intvl * (state->num_samples - 1);
 
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) wm=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
             odr,
@@ -647,11 +641,6 @@ static void process_data_event(
         && AK0991X_CONFIG_UPDATING_HW == state->config_step)
     {
       SNS_INST_PRINTF(HIGH, this, "current odr=0, but desire odr=%d, restart.",(uint8_t)state->mag_info.desired_odr);
-//      ak0991x_dae_if_start_streaming(this);
-
-      /*********************************************************/
-      /*            Please add assert code here                */
-      /*********************************************************/
     }
 
     if(data_event.has_timestamp_type)
