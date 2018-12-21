@@ -685,7 +685,9 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   uint8_t  buffer[1];
   int8_t   num_attempts = 5;
   sns_rc   rv = SNS_RC_FAILED;
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
   sns_rc   rv_enter_i3c = SNS_RC_FAILED;
+#endif
   uint32_t xfer_bytes;
 
   if(this != NULL)
@@ -732,6 +734,8 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   }
   
   com_port->in_i3c_mode = false;
+
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
   if(num_attempts <= 0)
   {
     if(this != NULL)
@@ -756,7 +760,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       }
     }
   } 
-
+#endif
   return rv;
 }
 
