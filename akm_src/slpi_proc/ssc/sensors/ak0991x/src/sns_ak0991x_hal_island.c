@@ -977,7 +977,6 @@ void ak0991x_set_curr_odr(sns_sensor_instance *const this)
 void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, sns_time reset_time)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
-  sns_time meas_usec;
 
   state->odr_change_timestamp = reset_time;
   state->this_is_first_data = true;
@@ -1071,7 +1070,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
  */
 sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
 {
-  ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
   sns_rc rv;
 
   // Disable Mag Streaming
