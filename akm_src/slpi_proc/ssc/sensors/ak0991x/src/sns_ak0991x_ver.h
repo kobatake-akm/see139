@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/20/18     020034t2   AKM              Ignore iteration for I3C enter when I2C and added AK0991X_ENABLE_TIMER_FILTER and
  * 12/20/18     020034t1   AKM              Added polling timer filter. Modified for polling_offset
  * 12/06/18     020034     AKM              CTS passed with DAE+Polling
  * 12/05/18                AKM              Modified flush request in DAE+Polling mode
