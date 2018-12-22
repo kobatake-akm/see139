@@ -978,7 +978,6 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, sns_time rese
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
 
-  state->odr_change_timestamp = reset_time;
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
   state->irq_info.detect_irq_event = false;
@@ -997,6 +996,9 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, sns_time rese
   }
   state->irq_event_time = reset_time;
   state->previous_irq_time = reset_time;
+
+  AK0991X_INST_PRINT(LOW, this, "reset pre_timestamp %u",
+      (uint32_t)state->pre_timestamp);
 }
 
 sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
@@ -1983,7 +1985,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #ifdef AK0991X_ENABLE_TS_DEBUG
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %d of %d wm %d flush %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %d of %d flush %d # %d",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
@@ -1991,8 +1993,8 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
           (uint32_t)state->averaged_interval,
           num_samples_sets,
           state->num_samples,
-          (state->mag_info.cur_wmk + 1),
-          state->fifo_flush_in_progress);
+          state->fifo_flush_in_progress,
+          state->total_samples);
     }
 #endif
   }
@@ -2124,7 +2126,14 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   {
     if(ak0991x_dae_if_available(instance))
     {
-      state->interrupt_timestamp = state->dae_evnet_time;
+      if(calculated_timestamp_from_previous > state->dae_event_time)
+      {
+        state->interrupt_timestamp = state->dae_event_time;
+      }
+      else
+      {
+        state->interrupt_timestamp = calculated_timestamp_from_previous;
+      }
     }
     else
     {
@@ -2139,19 +2148,19 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 #ifdef AK0991X_ENABLE_TIMER_FILTER
       // check delayed timer timestamp for preventing jitter
       if( !state->this_is_first_data &&
-          state->dae_evnet_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
+          state->dae_event_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
       {
         state->interrupt_timestamp = calculated_timestamp_from_previous;
         AK0991X_INST_PRINT(LOW, instance, "delayed timer detected. recalculate timestamp %u->%u",
-                                   (uint32_t)state->dae_evnet_time,
+                                   (uint32_t)state->dae_event_time,
                                    (uint32_t)state->interrupt_timestamp);
       }
       else
       {
-        state->interrupt_timestamp = state->dae_evnet_time;
+        state->interrupt_timestamp = state->dae_event_time;
       }
 #else
-      state->interrupt_timestamp = state->dae_evnet_time;
+      state->interrupt_timestamp = state->dae_event_time;
 #endif
     }
     else

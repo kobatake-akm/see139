@@ -233,7 +233,6 @@ typedef struct ak0991x_instance_state
   bool is_orphan;
   sns_time irq_event_time;
   sns_time previous_irq_time;
-  sns_time odr_change_timestamp;
   sns_time interrupt_timestamp;
   sns_time pre_timestamp;
   sns_time first_data_ts_of_batch;
@@ -245,7 +244,7 @@ typedef struct ak0991x_instance_state
   sns_time half_measurement_time;
   sns_time hb_timer_fire_time;
   sns_time last_sw_reset_time;
-  sns_time dae_evnet_time;
+  sns_time dae_event_time;
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
 

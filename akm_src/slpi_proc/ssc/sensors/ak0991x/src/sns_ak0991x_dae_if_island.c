@@ -357,6 +357,7 @@ static void process_fifo_samples(
   uint32_t sampling_intvl;
   uint8_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+  sns_time new_pre_timestamp;
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -379,7 +380,7 @@ static void process_fifo_samples(
   }
   else
   {
-    state->is_orphan = (state->dae_evnet_time < state->last_sw_reset_time);
+    state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
 
     if(state->mag_info.use_fifo)
     {
@@ -416,12 +417,27 @@ static void process_fifo_samples(
             // set check DRDY status when flush request in polling mode
             state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
             AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
+            state->flush_sample_count++;
           }
           else // timer event
           {
-            // set num samples=1 when regular polling mode.
-            // check if negative timestamp
-            state->num_samples = (state->dae_evnet_time < state->pre_timestamp + (state->averaged_interval/10)) ? 0 : 1;
+            if(state->flush_sample_count > 0)
+            {
+              state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+            }
+            else
+            {
+              state->num_samples = 1;
+            }
+            state->flush_sample_count = 0;
+          }
+          if( state->num_samples > 0 && state->dae_event_time <= state->pre_timestamp )
+          {
+            AK0991X_INST_PRINT(MED, this, "Negative! pre %u dae_time %u",
+                (uint32_t)state->pre_timestamp,
+                (uint32_t)state->dae_event_time);
+            state->num_samples = 0;
+            state->flush_sample_count = 0;
           }
         }
       }
@@ -455,10 +471,19 @@ static void process_fifo_samples(
           state->new_cfg.odr      = odr;
           state->new_cfg.fifo_wmk = wm;
 
-          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_evnet_time=%u", (uint32_t)state->dae_evnet_time);
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u", (uint32_t)state->dae_event_time);
           ak0991x_send_config_event(this);
           ak0991x_set_curr_odr(this);
-          ak0991x_reset_mag_parameters(this, state->odr_change_timestamp);
+
+          if( state->pre_timestamp < state->dae_event_time)
+          {
+            new_pre_timestamp = state->dae_event_time - state->averaged_interval;
+          }
+          else
+          {
+            new_pre_timestamp = state->pre_timestamp;
+          }
+          ak0991x_reset_mag_parameters(this, new_pre_timestamp);
         }
 
         if(state->mag_info.use_dri)
@@ -477,7 +502,7 @@ static void process_fifo_samples(
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
         // when orphan, use event_time
-        state->interrupt_timestamp = state->irq_event_time;
+        state->interrupt_timestamp = state->dae_event_time;
         state->first_data_ts_of_batch = state->interrupt_timestamp - sampling_intvl * (state->num_samples - 1);
 
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) wm=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
@@ -487,7 +512,7 @@ static void process_fifo_samples(
             state->mag_info.cur_wmk,
             state->num_samples,
             (uint32_t)state->last_sw_reset_time,
-            (uint32_t)state->dae_evnet_time);
+            (uint32_t)state->dae_event_time);
       }
 
       ak0991x_process_mag_data_buffer(this,
@@ -597,8 +622,8 @@ static void estimate_event_type(
     polling_timestamp = state->pre_timestamp + state->averaged_interval * wm;
 
     // there is a chance to get wrong result
-    if( state->dae_evnet_time > polling_timestamp - state->averaged_interval/200 &&
-        state->dae_evnet_time < polling_timestamp + state->averaged_interval/200 )
+    if( state->dae_event_time > polling_timestamp - state->averaged_interval/200 &&
+        state->dae_event_time < polling_timestamp + state->averaged_interval/200 )
     {
       state->irq_info.detect_irq_event = true;  // polling timer event
     }
@@ -630,7 +655,7 @@ static void process_data_event(
   {
     ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
     state->system_time = sns_get_system_time();
-    state->dae_evnet_time = data_event.timestamp;
+    state->dae_event_time = data_event.timestamp;
     state->irq_info.detect_irq_event = false;
     state->fifo_flush_in_progress = false;
 	
@@ -693,7 +718,7 @@ static void process_data_event(
 
     if(state->irq_info.detect_irq_event)
     {
-      state->irq_event_time = state->dae_evnet_time;
+      state->irq_event_time = state->dae_event_time;
     }
 
     process_fifo_samples(
