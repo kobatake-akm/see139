@@ -1999,6 +1999,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #endif
   }
 
+  // store previous is irq status
+  state->is_previous_irq = state->irq_info.detect_irq_event;
+
   // store previous timestamp
   state->pre_timestamp = timestamp;
   state->pre_timestamp_for_orphan = timestamp;
@@ -2148,7 +2151,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
     {
 #ifdef AK0991X_ENABLE_TIMER_FILTER
       // check delayed timer timestamp for preventing jitter
-      if( !state->this_is_first_data &&
+      if( !state->this_is_first_data && state->is_previous_irq &&
           state->dae_event_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
       {
         state->interrupt_timestamp = calculated_timestamp_from_previous;

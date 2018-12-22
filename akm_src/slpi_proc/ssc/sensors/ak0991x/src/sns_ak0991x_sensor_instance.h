@@ -231,6 +231,7 @@ typedef struct ak0991x_instance_state
   bool s4s_reg_event_done;
   bool in_clock_error_procedure;
   bool is_orphan;
+  bool is_previous_irq;
   sns_time irq_event_time;
   sns_time previous_irq_time;
   sns_time interrupt_timestamp;
