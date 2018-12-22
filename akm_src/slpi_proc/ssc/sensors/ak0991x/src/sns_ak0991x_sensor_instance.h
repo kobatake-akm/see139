@@ -235,6 +235,7 @@ typedef struct ak0991x_instance_state
   sns_time previous_irq_time;
   sns_time interrupt_timestamp;
   sns_time pre_timestamp;
+  sns_time pre_timestamp_for_orphan;
   sns_time first_data_ts_of_batch;
   sns_time averaged_interval;
   sns_time system_time;

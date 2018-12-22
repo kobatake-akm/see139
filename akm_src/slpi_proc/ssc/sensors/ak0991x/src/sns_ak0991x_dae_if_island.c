@@ -357,6 +357,7 @@ static void process_fifo_samples(
   uint32_t sampling_intvl;
   uint8_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+  sns_time pre_timestamp;
   sns_time new_pre_timestamp;
 
   //////////////////////////////
@@ -382,6 +383,8 @@ static void process_fifo_samples(
   {
     state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
 
+    pre_timestamp = (state->is_orphan) ? state->pre_timestamp_for_orphan : state->pre_timestamp;
+
     if(state->mag_info.use_fifo)
     {
       // num_samples when FIFO enabled.
@@ -405,40 +408,36 @@ static void process_fifo_samples(
       }
       else  // polling mode: *** Doesn't care FIFO+Polling ***
       {
+        if(state->fifo_flush_in_progress) // flush request
+        {
+          // set check DRDY status when flush request in polling mode
+          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
+          state->flush_sample_count++;
+        }
+        else // timer event
+        {
+          if(state->flush_sample_count > 0)
+          {
+            state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+          }
+          else
+          {
+            state->num_samples = 1;
+          }
+          state->flush_sample_count = 0;
+        }
+        if( state->num_samples > 0 && state->dae_event_time <= pre_timestamp )
+        {
+          AK0991X_INST_PRINT(MED, this, "Negative! pre %u dae_time %u",
+              (uint32_t)pre_timestamp,
+              (uint32_t)state->dae_event_time);
+          state->num_samples = 0;
+          state->flush_sample_count = 0;
+        }
         if( state->is_orphan )  // orphan
         {
-          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
           AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
-        }
-        else
-        {
-          if(state->fifo_flush_in_progress) // flush request
-          {
-            // set check DRDY status when flush request in polling mode
-            state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-            AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
-            state->flush_sample_count++;
-          }
-          else // timer event
-          {
-            if(state->flush_sample_count > 0)
-            {
-              state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-            }
-            else
-            {
-              state->num_samples = 1;
-            }
-            state->flush_sample_count = 0;
-          }
-          if( state->num_samples > 0 && state->dae_event_time <= state->pre_timestamp )
-          {
-            AK0991X_INST_PRINT(MED, this, "Negative! pre %u dae_time %u",
-                (uint32_t)state->pre_timestamp,
-                (uint32_t)state->dae_event_time);
-            state->num_samples = 0;
-            state->flush_sample_count = 0;
-          }
         }
       }
     }
