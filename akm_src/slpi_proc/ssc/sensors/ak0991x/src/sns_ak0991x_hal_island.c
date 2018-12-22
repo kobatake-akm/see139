@@ -1985,7 +1985,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #ifdef AK0991X_ENABLE_TS_DEBUG
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %d of %d flush %d # %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %u of %u flush %u # %u",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,

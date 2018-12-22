@@ -170,6 +170,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
  
   state->pre_timestamp = sns_get_system_time();
+  state->pre_timestamp_for_orphan = state->pre_timestamp;
   state->this_is_first_data = true;
   state->heart_beat_attempt_count = 0;
   state->flush_sample_count = 0;
