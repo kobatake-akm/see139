@@ -1732,11 +1732,9 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif // AK0991X_ENABLE_DUAL_SENSOR
 
-  state->debug_log_count++;
-  AK0991X_PRINT(HIGH, this, "set_client_request - msg_id=%d/%d remove=%u debug_cnt=%u",
+  AK0991X_PRINT(HIGH, this, "set_client_request - msg_id=%d/%d remove=%u",
                 exist_request ? exist_request->message_id : -1,
-                new_request ? new_request->message_id : -1, remove,
-                state->debug_log_count);
+                new_request ? new_request->message_id : -1, remove);
 
   if (remove)
   {
@@ -1884,7 +1882,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         }
         else
         {
-          AK0991X_PRINT(LOW, this, "FLUSH requested. but ODR=0. flush_requested_in_dae=%d", inst_state->flush_requested_in_dae);
+          AK0991X_PRINT(LOW, this, "FLUSH requested. but ODR=0.");
           ak0991x_send_fifo_flush_done(instance);
         }
       }

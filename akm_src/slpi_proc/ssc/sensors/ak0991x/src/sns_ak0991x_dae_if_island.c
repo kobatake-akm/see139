@@ -401,7 +401,6 @@ static void process_fifo_samples(
   else
   {
     state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
-
     pre_timestamp = (state->is_orphan) ? state->pre_timestamp_for_orphan : state->pre_timestamp;
 
     if(state->mag_info.use_fifo)
@@ -533,24 +532,6 @@ static void process_fifo_samples(
             (uint32_t)state->dae_event_time);
       }
 
-      for(i=0; i<dummy_data_count; i++)
-      {
-        ak0991x_process_mag_data_buffer(this,
-                                        state->first_data_ts_of_batch - state->averaged_interval * (dummy_data_count - i),
-                                        sampling_intvl,
-                                        buf + state->dae_if.mag.status_bytes_per_fifo,
-                                        fifo_len);
-#ifdef AK0991X_ENABLE_TS_DEBUG
-      state->ts_debug_count++;
-      AK0991X_INST_PRINT(
-        MED, this, "fifo_samples dummy:: odr=0x%X intvl=%u #samples=%u ts=%X-%X ts_dbg_cnt=%u",
-        odr, (uint32_t)sampling_intvl, state->num_samples,
-        (uint32_t)(state->first_data_ts_of_batch - state->averaged_interval * (dummy_data_count - i)),
-        (uint32_t)state->irq_event_time,
-        (uint32_t)state->ts_debug_count);
-#endif
-      }
-
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,
@@ -652,7 +633,7 @@ static void estimate_event_type(
     {
       state->irq_info.detect_irq_event = true;  // regular DRI
     }
-    else if(state->flush_requested_in_dae)
+    else
     {
       state->fifo_flush_in_progress = true;  // Flush request
     }
@@ -673,16 +654,12 @@ static void estimate_event_type(
     }
     else
     {
-      if(state->flush_requested_in_dae)
-      {
-        state->fifo_flush_in_progress = true;  // Flush request
-      }
+      state->fifo_flush_in_progress = true;  // Flush request
     }
   }
-  AK0991X_INST_PRINT(LOW, this, "estimated result: detect_irq=%d flush=%d flush_req=%d",
+  AK0991X_INST_PRINT(LOW, this, "estimated result: detect_irq=%d flush=%d",
       (uint8_t)state->irq_info.detect_irq_event,
-      (uint8_t)state->fifo_flush_in_progress,
-      (uint8_t)state->flush_requested_in_dae);
+      (uint8_t)state->fifo_flush_in_progress);
 }
 
 /* ------------------------------------------------------------------------------------ */
@@ -850,8 +827,8 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
-      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_HW - err=%u state=%u config_step=%d flush_requested_in_dae=%d",
-                         resp.err, dae_stream->state, state->config_step, state->flush_requested_in_dae);
+      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_HW - err=%u state=%u config_step=%d",
+                         resp.err, dae_stream->state, state->config_step);
       dae_stream->flushing_hw = false;
 
       if(state->config_step != AK0991X_CONFIG_IDLE)
@@ -865,21 +842,17 @@ static void process_response(
         // Perform a reset operation in an attempt to revive the sensor
         ak0991x_reconfig_hw(this, true);
       }
-      else if(state->flush_requested_in_dae)
+      else
       {
         ak0991x_dae_if_flush_samples(this); // Flush client request
       }
 
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
-      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d flush_requested_in_dae=%d num_samples=%d",
-                         resp.err, dae_stream->state, state->config_step, state->flush_requested_in_dae, state->num_samples);
+      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d num_samples=%d",
+                         resp.err, dae_stream->state, state->config_step, state->num_samples);
       ak0991x_send_fifo_flush_done(this);
       dae_stream->flushing_data = false;
-      if(!state->in_clock_error_procedure)
-      {
-        state->flush_requested_in_dae = false;
-      }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
       SNS_INST_PRINTF(LOW, this,
@@ -897,8 +870,7 @@ static void process_response(
           if(ak0991x_dae_if_flush_hw(this))
           {
             state->config_step = AK0991X_CONFIG_FLUSHING_HW;
-            SNS_INST_PRINTF(LOW, this,"Last flush before changing ODR. flush_req_in_dae %d",
-                state->flush_requested_in_dae);
+            SNS_INST_PRINTF(LOW, this,"Last flush before changing ODR.");
           }
           else
           {

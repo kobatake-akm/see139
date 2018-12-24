@@ -180,6 +180,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
   state->reg_event_done = false;
   state->is_previous_irq = false;
+  state->is_called_cal_event = false;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -688,20 +689,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
       else
       {
-//        AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u",
-//            (uint32_t)state->system_time);
-
-        if(state->flush_requested_in_dae)
-        {
-          AK0991X_INST_PRINT(LOW, this, "Duplicate FLUSH requests");
-          ak0991x_send_fifo_flush_done(this);
-          state->fifo_flush_in_progress = true; // reset to in progress
-        }
-        else
-        {
-          state->flush_requested_in_dae = true;
-          ak0991x_dae_if_flush_hw(this);
-        }
+        AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u",
+            (uint32_t)state->system_time);
+        ak0991x_dae_if_flush_hw(this);
       }
     }
     else

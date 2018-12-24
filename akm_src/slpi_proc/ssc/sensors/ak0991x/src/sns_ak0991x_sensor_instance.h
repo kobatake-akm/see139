@@ -221,8 +221,6 @@ typedef struct ak0991x_instance_state
   bool data_over_run;
   bool data_is_ready;
   bool fifo_flush_in_progress;
-  bool flush_requested_in_dae;
-  bool is_orphan;
   bool new_self_test_request;
   bool enable_polling_timer_filter;
   bool is_called_cal_event;
