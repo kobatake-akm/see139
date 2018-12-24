@@ -685,7 +685,9 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   uint8_t  buffer[1];
   int8_t   num_attempts = 5;
   sns_rc   rv = SNS_RC_FAILED;
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
   sns_rc   rv_enter_i3c = SNS_RC_FAILED;
+#endif
   uint32_t xfer_bytes;
 
   if(this != NULL)
@@ -732,6 +734,8 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   }
   
   com_port->in_i3c_mode = false;
+
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
   if(num_attempts <= 0)
   {
     if(this != NULL)
@@ -756,7 +760,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       }
     }
   } 
-
+#endif
   return rv;
 }
 
@@ -778,7 +782,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   sns_sync_com_port_service * scp_service = state->scp_service;
   sns_sync_com_port_handle *port_handle = state->com_port_info.port_handle;
   uint32_t xfer_bytes;
-  uint8_t  buffer[2];
+  uint8_t  buffer[2] = {0};
   ak0991x_mag_odr desired_odr = state->mag_info.desired_odr;
 
   if( force_off )
@@ -958,6 +962,45 @@ static sns_time ak0991x_set_heart_beat_timeout_period_for_polling(
 /**
  * see sns_ak0991x_hal.h
  */
+
+void ak0991x_set_curr_odr(sns_sensor_instance *const this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+  sns_time meas_usec;
+  state->mag_info.curr_odr = state->mag_info.desired_odr;
+  ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
+  state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
+  state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+  state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+}
+
+void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, sns_time reset_time)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+
+  state->this_is_first_data = true;
+  state->mag_info.data_count = 0;
+  state->irq_info.detect_irq_event = false;
+  state->s4s_reg_event_done = false;
+  state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+  state->heart_beat_sample_count = 0;
+  state->heart_beat_timestamp = reset_time;
+
+  if(state->mag_info.use_dri)
+  {
+    state->pre_timestamp = reset_time + (state->half_measurement_time<<1) - state->averaged_interval;
+  }
+  else
+  {
+    state->pre_timestamp = reset_time;
+  }
+  state->irq_event_time = reset_time;
+  state->previous_irq_time = reset_time;
+
+  AK0991X_INST_PRINT(LOW, this, "reset pre_timestamp %u",
+      (uint32_t)state->pre_timestamp);
+}
+
 sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
@@ -993,30 +1036,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   }
 
   state->system_time = sns_get_system_time();
-  state->odr_change_timestamp = state->system_time;
-  state->this_is_first_data = true;
-  state->mag_info.data_count = 0;
-  state->irq_info.detect_irq_event = false;
-  state->s4s_reg_event_done = false;
-  state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->heart_beat_sample_count = 0;
-  state->heart_beat_timestamp = state->system_time;
-  state->enable_polling_timer_filter = false;
-
-  sns_time meas_usec;
-  ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
-  state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
-  if(state->mag_info.use_dri)
-  {
-    state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
-  }
-  else
-  {
-    state->pre_timestamp = state->system_time;
-  }
-  state->irq_event_time = state->system_time;
-  state->previous_irq_time = state->pre_timestamp;
-  state->pre_timestamp_for_orphan = state->pre_timestamp;
+  ak0991x_reset_mag_parameters(this, state->system_time);
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %X pre_ts %X avg %u half %u", 
                      (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,
@@ -1052,7 +1072,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
  */
 sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
 {
-  ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
   sns_rc rv;
 
   // Disable Mag Streaming
@@ -1064,8 +1083,6 @@ sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
   {
     return rv;
   }
-
-  state->mag_info.curr_odr = state->mag_info.desired_odr;
 
   return SNS_RC_SUCCESS;
 }
@@ -1968,7 +1985,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #ifdef AK0991X_ENABLE_TS_DEBUG
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %d of %d wm %d flush %d",
+      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %u of %u flush %u # %u",
           (uint32_t)timestamp,
           (uint32_t)state->pre_timestamp,
           (uint32_t)state->irq_event_time,
@@ -1976,15 +1993,18 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
           (uint32_t)state->averaged_interval,
           num_samples_sets,
           state->num_samples,
-          (state->mag_info.cur_wmk + 1),
-          state->fifo_flush_in_progress);
+          state->fifo_flush_in_progress,
+          state->total_samples);
     }
 #endif
   }
 
+  // store previous is irq status
+  state->is_previous_irq = state->irq_info.detect_irq_event;
+
   // store previous timestamp
   state->pre_timestamp = timestamp;
-  state->pre_timestamp_for_orphan = state->pre_timestamp;
+  state->pre_timestamp_for_orphan = timestamp;
 
   if(!state->is_orphan)
   {
@@ -2131,7 +2151,14 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   {
     if(ak0991x_dae_if_available(instance))
     {
-      state->interrupt_timestamp = state->dae_evnet_time;
+      if(calculated_timestamp_from_previous > state->dae_event_time)
+      {
+        state->interrupt_timestamp = state->dae_event_time;
+      }
+      else
+      {
+        state->interrupt_timestamp = calculated_timestamp_from_previous;
+      }
     }
     else
     {
@@ -2143,29 +2170,23 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   {
     if(ak0991x_dae_if_available(instance))
     {
-      if( state->enable_polling_timer_filter )
+#ifdef AK0991X_ENABLE_TIMER_FILTER
+      // check delayed timer timestamp for preventing jitter
+      if( !state->this_is_first_data && state->is_previous_irq &&
+          state->dae_event_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
       {
-        // check delayed timer timestamp for preventing jitter
-        if( !state->this_is_first_data && state->dae_evnet_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
-        {
-          state->interrupt_timestamp = calculated_timestamp_from_previous;
-          AK0991X_INST_PRINT(LOW, instance, "delayed timer detected. recalculate timestamp %u->%u",
-                                     (uint32_t)state->dae_evnet_time,
-                                     (uint32_t)state->interrupt_timestamp);
-        }
-        else
-        {
-          state->interrupt_timestamp = state->dae_evnet_time;
-        }
+        state->interrupt_timestamp = calculated_timestamp_from_previous;
+        AK0991X_INST_PRINT(LOW, instance, "delayed timer detected. recalculate timestamp %u->%u",
+                                   (uint32_t)state->dae_event_time,
+                                   (uint32_t)state->interrupt_timestamp);
       }
       else
       {
-        state->interrupt_timestamp = state->dae_evnet_time;
-        if( !state->this_is_first_data )
-        {
-          state->enable_polling_timer_filter = true;
-        }
+        state->interrupt_timestamp = state->dae_event_time;
       }
+#else
+      state->interrupt_timestamp = state->dae_event_time;
+#endif
     }
     else
     {
@@ -3115,6 +3136,8 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   sns_rc rv = SNS_RC_SUCCESS;
 
   SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
+
+  ak0991x_set_curr_odr(this);
 
   if(reset_device)
   {

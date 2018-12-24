@@ -170,6 +170,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
  
   state->pre_timestamp = sns_get_system_time();
+  state->pre_timestamp_for_orphan = state->pre_timestamp;
   state->this_is_first_data = true;
   state->heart_beat_attempt_count = 0;
   state->flush_sample_count = 0;
@@ -177,9 +178,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->in_clock_error_procedure = false;
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
-  state->ts_debug_count = 0;
-  state->enable_polling_timer_filter = false;
-  state->is_called_cal_event = false;
+  state->reg_event_done = false;
+  state->is_previous_irq = false;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -571,7 +571,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.req_wmk = 0;
     }
 
-    desired_wmk = ak0991x_set_wmk(this, desired_report_rate, mag_chosen_sample_rate);
+    if (state->mag_info.use_fifo)
+    {
+      desired_wmk = ak0991x_set_wmk(this, desired_report_rate, mag_chosen_sample_rate);
+    }
+    else
+    {
+      desired_wmk = 0;
+    }
+
     AK0991X_INST_PRINT(LOW, this, "req_wmk=%u desired_wmk=%u,flush_period=%u, flushonly=%d, max_batch=%d",
                        state->mag_info.req_wmk,
                        desired_wmk,
@@ -600,9 +608,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_req.sample_rate  = mag_chosen_sample_rate;
     state->mag_info.desired_odr = state->new_cfg.odr = mag_chosen_sample_rate_reg_value;
     state->new_cfg.fifo_wmk     = state->mag_info.cur_wmk + 1;
-    state->mag_info.curr_odr = state->mag_info.desired_odr;
-    state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-    state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
     if (0.0f == state->last_sent_cfg.odr)
     {
