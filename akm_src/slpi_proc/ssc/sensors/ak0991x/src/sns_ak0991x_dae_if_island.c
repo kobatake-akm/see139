@@ -375,7 +375,6 @@ static void process_fifo_samples(
   uint8_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
   sns_time pre_timestamp;
-  sns_time new_pre_timestamp;
 
   state->is_orphan = false;
 
@@ -491,16 +490,7 @@ static void process_fifo_samples(
           AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u", (uint32_t)state->dae_event_time);
           ak0991x_send_config_event(this);
           ak0991x_set_curr_odr(this);
-
-          if( state->pre_timestamp < state->dae_event_time)
-          {
-            new_pre_timestamp = state->dae_event_time - state->averaged_interval;
-          }
-          else
-          {
-            new_pre_timestamp = state->pre_timestamp;
-          }
-          ak0991x_reset_mag_parameters(this, new_pre_timestamp);
+          ak0991x_reset_mag_parameters(this, false);
         }
 
         if(state->mag_info.use_dri)
@@ -512,21 +502,36 @@ static void process_fifo_samples(
           ak0991x_validate_timestamp_for_polling(this);
         }
         sampling_intvl = state->averaged_interval;
+
+#ifdef AK0991X_ENABLE_TS_DEBUG
+      state->ts_debug_count++;
+      AK0991X_INST_PRINT(
+        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X first_data=%d",
+        odr, (uint32_t)sampling_intvl, state->num_samples,
+        (uint32_t)state->first_data_ts_of_batch,
+        (uint32_t)state->irq_event_time,
+        state->this_is_first_data);
+#endif
+
       }
       else  // orphan
       {
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
-        // when orphan, use event_time
-        state->interrupt_timestamp = state->dae_event_time;
-        state->first_data_ts_of_batch = state->interrupt_timestamp - sampling_intvl * (state->num_samples - 1);
-
+        if(state->irq_info.detect_irq_event)  // dri or timer use event_time
+        {
+          state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+        }
+        else  // flush
+        {
+          state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+        }
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) wm=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
             odr,
             state->mag_info.curr_odr,
             wm,
-            state->mag_info.cur_wmk,
+            state->mag_info.cur_wmk+1,
             state->num_samples,
             (uint32_t)state->last_sw_reset_time,
             (uint32_t)state->dae_event_time);
@@ -537,16 +542,6 @@ static void process_fifo_samples(
                                       sampling_intvl,
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
-
-#ifdef AK0991X_ENABLE_TS_DEBUG
-      state->ts_debug_count++;
-      AK0991X_INST_PRINT(
-        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X ts_dbg_cnt=%u",
-        odr, (uint32_t)sampling_intvl, state->num_samples,
-        (uint32_t)state->first_data_ts_of_batch,
-        (uint32_t)state->irq_event_time,
-        (uint32_t)state->ts_debug_count);
-#endif
 
     }
     else  // in clock error procedure

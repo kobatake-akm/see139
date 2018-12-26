@@ -392,10 +392,11 @@ void ak0991x_set_curr_odr(sns_sensor_instance *const this);
  * Resets mag parameters.
  *
  * @param[i] state         Instance state
+ * @param[i] time_reset    enable reset timestamp use systemtime
  *
  */
 void ak0991x_reset_mag_parameters(sns_sensor_instance *const this,
-                                    sns_time reset_time);
+                                    bool time_reset);
 
 /**
  * Enable Mag streaming. enables Mag sensor with

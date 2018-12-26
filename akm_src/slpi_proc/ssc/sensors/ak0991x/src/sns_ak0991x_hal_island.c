@@ -974,9 +974,10 @@ void ak0991x_set_curr_odr(sns_sensor_instance *const this)
   state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 }
 
-void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, sns_time reset_time)
+void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_reset)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+
 
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
@@ -984,21 +985,26 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, sns_time rese
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
   state->heart_beat_sample_count = 0;
-  state->heart_beat_timestamp = reset_time;
 
-  if(state->mag_info.use_dri)
+  if(time_reset)
   {
-    state->pre_timestamp = reset_time + (state->half_measurement_time<<1) - state->averaged_interval;
-  }
-  else
-  {
-    state->pre_timestamp = reset_time;
-  }
-  state->irq_event_time = reset_time;
-  state->previous_irq_time = reset_time;
+    state->system_time = sns_get_system_time();
+    state->heart_beat_timestamp = state->system_time;
 
-  AK0991X_INST_PRINT(LOW, this, "reset pre_timestamp %u",
-      (uint32_t)state->pre_timestamp);
+    if(state->mag_info.use_dri)
+    {
+      state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
+    }
+    else
+    {
+      state->pre_timestamp = state->system_time;
+    }
+    state->irq_event_time = state->system_time;
+    state->previous_irq_time = state->system_time;
+
+    AK0991X_INST_PRINT(LOW, this, "reset pre_timestamp %u",
+        (uint32_t)state->pre_timestamp);
+  }
 }
 
 sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
@@ -1035,8 +1041,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
-  state->system_time = sns_get_system_time();
-  ak0991x_reset_mag_parameters(this, state->system_time);
+  ak0991x_reset_mag_parameters(this, true);
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %X pre_ts %X avg %u half %u", 
                      (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,
@@ -2003,17 +2008,16 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->is_previous_irq = state->irq_info.detect_irq_event;
 
   // store previous timestamp
-  state->pre_timestamp = timestamp;
   state->pre_timestamp_for_orphan = timestamp;
 
   if(!state->is_orphan)
   {
+    state->pre_timestamp = timestamp;
     state->this_is_first_data = false;
   }
 
   // reset flags
   state->irq_info.detect_irq_event = false;
-
   state->this_is_the_last_flush = false;
   if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress )
   {
