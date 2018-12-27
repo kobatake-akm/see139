@@ -519,7 +519,8 @@ static void process_fifo_samples(
         sampling_intvl = (ak0991x_get_sample_interval(odr) *
                           state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
-        if(state->irq_info.detect_irq_event)  // dri or timer use event_time
+        if(state->irq_info.detect_irq_event ||
+            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)  // dri or timer use event_time
         {
           state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
         }
