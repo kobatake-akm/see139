@@ -2144,11 +2144,17 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
 
-    // check drifting for flush only
-    if( state->dae_event_time > state->interrupt_timestamp + state->averaged_interval )
+    if( ak0991x_dae_if_available(instance) )
     {
-      // reset using dae_event_time
-      state->interrupt_timestamp = state->dae_event_time - state->averaged_interval;
+      if( state->dae_event_time < state->interrupt_timestamp )  // check negative timestamp
+      {
+        state->interrupt_timestamp = state->dae_event_time;
+      }
+      else if( state->dae_event_time > state->interrupt_timestamp + state->averaged_interval )    // check drifting for flush only
+      {
+        // reset using dae_event_time
+        state->interrupt_timestamp = state->dae_event_time - state->averaged_interval;
+      }
       state->first_data_ts_of_batch = state->interrupt_timestamp - (state->num_samples-1) * state->averaged_interval;
     }
 
