@@ -978,10 +978,8 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_res
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
 
-
   state->this_is_first_data = true;
   state->mag_info.data_count = 0;
-  state->irq_info.detect_irq_event = false;
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
   state->heart_beat_sample_count = 0;
@@ -1990,16 +1988,32 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #ifdef AK0991X_ENABLE_TS_DEBUG
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
     {
-      AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %u of %u flush %u # %u",
-          (uint32_t)timestamp,
-          (uint32_t)state->pre_timestamp,
-          (uint32_t)state->irq_event_time,
-          (uint32_t)state->system_time,
-          (uint32_t)state->averaged_interval,
-          num_samples_sets,
-          state->num_samples,
-          state->fifo_flush_in_progress,
-          state->total_samples);
+      if(ak0991x_dae_if_available(instance))
+      {
+        AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u dae %u ave %u # %u of %u flush %u # %u",
+            (uint32_t)timestamp,
+            (uint32_t)state->pre_timestamp,
+            (uint32_t)state->irq_event_time,
+            (uint32_t)state->dae_event_time,
+            (uint32_t)state->averaged_interval,
+            num_samples_sets,
+            state->num_samples,
+            state->fifo_flush_in_progress,
+            state->total_samples);
+      }
+      else
+      {
+        AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %u of %u flush %u # %u",
+            (uint32_t)timestamp,
+            (uint32_t)state->pre_timestamp,
+            (uint32_t)state->irq_event_time,
+            (uint32_t)state->system_time,
+            (uint32_t)state->averaged_interval,
+            num_samples_sets,
+            state->num_samples,
+            state->fifo_flush_in_progress,
+            state->total_samples);
+      }
     }
 #endif
   }
@@ -2129,6 +2143,14 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
   {
     state->interrupt_timestamp = state->pre_timestamp + state->averaged_interval * state->num_samples;
     state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
+
+    // check drifting for flush only
+    if( state->dae_event_time > state->interrupt_timestamp + state->averaged_interval )
+    {
+      // reset using dae_event_time
+      state->interrupt_timestamp = state->dae_event_time - state->averaged_interval;
+      state->first_data_ts_of_batch = state->interrupt_timestamp - (state->num_samples-1) * state->averaged_interval;
+    }
 
     // When DAE disabled
     if( !ak0991x_dae_if_available(instance) && (rc != SNS_RC_SUCCESS) )

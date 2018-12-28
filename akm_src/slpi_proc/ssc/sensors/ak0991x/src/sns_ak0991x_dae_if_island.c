@@ -538,6 +538,23 @@ static void process_fifo_samples(
             (uint32_t)state->dae_event_time);
       }
 
+      // add 1 dummy data when detecting more than 1+1/2 samples
+      if( state->this_is_first_data &&
+          (state->pre_timestamp_for_orphan + sampling_intvl + sampling_intvl/2 < state->first_data_ts_of_batch) )
+      {
+        // add dummy data
+        AK0991X_INST_PRINT(LOW, this, "A dummy data added. pre_timestamp %u first_data_ts %u intvl %u",
+            (uint32_t)state->pre_timestamp_for_orphan,
+            (uint32_t)state->first_data_ts_of_batch,
+            (uint32_t)sampling_intvl);
+        ak0991x_process_mag_data_buffer(this,
+                                        state->first_data_ts_of_batch - sampling_intvl,
+                                        sampling_intvl,
+                                        buf + state->dae_if.mag.status_bytes_per_fifo,
+                                        AK0991X_NUM_DATA_HXL_TO_ST2);
+
+      }
+
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,

@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/27/18                AKM              Added dummy data at the first data when detects gap.
+ * 12/27/18                AKM              Check drifting timestamp for flush only tests on DRI.
  * 12/18/18                AKM              Modified for multiple orphan on DAE+Pollng.
  * 12/17/18     020037     AKM              Revert ak0991x_send_cal_event. CTS passed on DAE+Polling/DAE+DRI+FIFO.
  * 12/17/18                AKM              Modified timestamp when flush request on DAE+Polling
