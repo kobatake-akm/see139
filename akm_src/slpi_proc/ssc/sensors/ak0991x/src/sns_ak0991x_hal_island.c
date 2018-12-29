@@ -2882,20 +2882,23 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   state->last_sent_cfg.odr             = state->new_cfg.odr;
   state->last_sent_cfg.fifo_wmk        = state->new_cfg.fifo_wmk;
 
+  state->system_time = sns_get_system_time();
   AK0991X_INST_PRINT(HIGH, instance,
-                     "tx PHYSICAL_CONFIG_EVENT: rate %u/100 wm %u dae_wm %u sync %u",
+                     "tx PHYSICAL_CONFIG_EVENT %u at %u : rate %u/100 wm %u dae_wm %u sync %u",
+                     (uint32_t)state->tx_count,
+                     (uint32_t)state->system_time,
                      (uint32_t)(phy_sensor_config.sample_rate * 100),
                      phy_sensor_config.has_water_mark ? phy_sensor_config.water_mark : 0,
                      phy_sensor_config.has_DAE_watermark ? phy_sensor_config.DAE_watermark : 0,
                      phy_sensor_config.stream_is_synchronous);
 
-  state->system_time = sns_get_system_time();
   pb_send_event(instance,
                 sns_std_sensor_physical_config_event_fields,
                 &phy_sensor_config,
                 state->system_time,
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
+  state->tx_count++;
 
   if( !state->is_called_cal_event )
   {

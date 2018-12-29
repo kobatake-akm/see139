@@ -151,7 +151,7 @@ typedef struct ak0991x_mag_info
 {
   ak0991x_mag_odr   desired_odr;
   ak0991x_mag_odr   curr_odr;
-  uint32_t          flush_period;
+  sns_time          flush_period;
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
@@ -212,6 +212,7 @@ typedef struct ak0991x_instance_state
   ak0991x_config_event_info last_sent_cfg;
   ak0991x_config_event_info new_cfg;
   uint32_t total_samples; /* throughout the life of this instance */
+  uint32_t tx_count;
 
   /** sampling info. */
   uint8_t num_samples;
@@ -310,7 +311,7 @@ typedef struct sns_ak0991x_mag_req
 {
   float sample_rate;
   float report_rate;
-  uint32_t flush_period;
+  sns_time flush_period;
   bool is_flush_only;
   bool is_max_batch;
   uint32_t cal_id;

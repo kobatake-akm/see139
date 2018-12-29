@@ -182,6 +182,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->is_previous_irq = false;
   state->is_called_cal_event = false;
   state->total_samples = 0;
+  state->tx_count = 0;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -508,6 +509,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     desired_report_rate = payload->report_rate;
     state->mag_info.flush_only = payload->is_flush_only;
     state->mag_info.max_batch = payload->is_max_batch;
+    state->mag_info.flush_period = payload->flush_period;
     
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
     if(NULL != state->device_mode_stream )
@@ -535,7 +537,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       ak0991x_send_config_event(this);
     }
 
-    state->mag_info.flush_period = payload->flush_period;
     rv = ak0991x_mag_match_odr(desired_sample_rate,
                                &mag_chosen_sample_rate,
                                &mag_chosen_sample_rate_reg_value,
