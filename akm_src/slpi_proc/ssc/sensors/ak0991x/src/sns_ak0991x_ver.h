@@ -40,6 +40,7 @@
  * 12/07/18                AKM              CTS passed on DAE+I3C+DRI+FIFO.
  * 12/07/18                AKM              CTS passed on DAE+I3C+Polling excepts testGeomagneticRotationVector_fastest. Timer timestamp has jitter.
  * 12/06/18                AKM              Add macro to use ideal timestamp for DAE+Polling.
+ * 01/02/19     020034t3   AKM              Store data even though DRDY is L on Non DAE+Polling.
  * 12/20/18     020034t2   AKM              Ignore iteration for I3C enter when I2C and added AK0991X_ENABLE_TIMER_FILTER and
  * 12/20/18     020034t1   AKM              Added polling timer filter. Modified for polling_offset
  * 12/12/18     020034t0   AKM              Added patch when received SNS_STD_ERROR_INVALID_STATE on DAE+Polling
