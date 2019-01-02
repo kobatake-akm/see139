@@ -864,7 +864,11 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d num_samples=%d",
                          resp.err, dae_stream->state, state->config_step, state->num_samples);
-      ak0991x_send_fifo_flush_done(this);
+      if(state->flush_requested_in_dae)
+      {
+        ak0991x_send_fifo_flush_done(this);
+        state->flush_requested_in_dae = false;
+      }
       dae_stream->flushing_data = false;
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:

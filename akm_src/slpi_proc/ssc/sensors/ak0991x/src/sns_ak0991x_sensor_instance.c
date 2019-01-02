@@ -183,6 +183,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->is_called_cal_event = false;
   state->total_samples = 0;
   state->tx_count = 0;
+  state->flush_requested_in_dae = false;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -693,6 +694,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u",
             (uint32_t)state->system_time);
+        state->flush_requested_in_dae = true;
         ak0991x_dae_if_flush_hw(this);
       }
     }
