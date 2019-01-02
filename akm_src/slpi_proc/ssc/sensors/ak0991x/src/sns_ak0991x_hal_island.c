@@ -2510,12 +2510,9 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   else  // Non FIFO mode, read one data
   {
     state->num_samples = 1;
-    if(state->data_is_ready)
-    {
-      ak0991x_read_hxl_st2(state,
-                           1,
-                           &buffer[0]);
-    }
+    ak0991x_read_hxl_st2(state,
+                         1,
+                         &buffer[0]);
   }
 
   if(state->num_samples > 0)
