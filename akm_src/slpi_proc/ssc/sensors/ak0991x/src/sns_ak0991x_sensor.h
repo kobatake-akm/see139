@@ -82,9 +82,16 @@
 #define BUS_FREQ_MIN               400
 #define BUS_FREQ_MAX               12500
 #define SLAVE_ADDRESS              0x0C
+#ifdef SSC_TARGET_SM8250
+#define I3C_ADDR                   30    //Dynamic address
+#else
 #define I3C_ADDR                   20    //Dynamic address
+#endif
 #define I2C_BUS_INSTANCE           0x01
-#ifdef SSC_TARGET_SM6150
+#ifdef SSC_TARGET_SM8250
+#define BUS_TYPE                   SNS_BUS_I3C_SDR
+#define IRQ_NUM                    113
+#elif SSC_TARGET_SM6150
 #define BUS_TYPE                   SNS_BUS_I2C
 #define IRQ_NUM                    83
 #elif SSC_TARGET_SM7150

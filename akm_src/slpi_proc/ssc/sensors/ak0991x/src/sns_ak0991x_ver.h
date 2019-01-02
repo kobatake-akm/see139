@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/02/19     020038     AKM/Qualcomm     Merged Qualcomm's 020036 modification for SM8250.
  * 12/28/18                AKM              Check negative timestamp when flush requested in DAE+DRI.
  * 12/27/18                AKM              Added dummy data at the first data when detects gap.
  * 12/27/18                AKM              Check drifting timestamp for flush only tests on DRI.
@@ -36,6 +37,7 @@
  * 12/10/18                AKM              Added streaming check when polling+DAE
  * 12/10/18                AKM              Modified for SelfTest to streaming start when AK0991X_CONFIG_UPDATING_HW
  * 12/07/18                AKM              Added patch for jitter on Polling+DAE mode.
+ * 12/07/18     020036     Qualcomm         Modified for SM8250 Defaults and DAE Bypass and I2C Mode crash fixes.
  * 12/07/18     020035     AKM              Modified for flush request in DAE.
  * 12/07/18                AKM              CTS passed on DAE+I3C+DRI+FIFO.
  * 12/07/18                AKM              CTS passed on DAE+I3C+Polling excepts testGeomagneticRotationVector_fastest. Timer timestamp has jitter.
@@ -240,4 +242,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20037  // major:02 minor:00 revision:37
+#define AK0991X_DRIVER_VERSION 20038  // major:02 minor:00 revision:38

@@ -671,6 +671,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   UNUSED_VAR(instance);
   UNUSED_VAR(com_port);
   UNUSED_VAR(scp_service);
+
+  rv = SNS_RC_SUCCESS;
 #endif /* AK0991X_ENABLE_I3C_SUPPORT */
   return rv;
 }
@@ -2228,13 +2230,13 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t st1_buf;
+  uint8_t st1_buf, st2_buf;
 
   ak0991x_read_st1(state, &st1_buf);  // read ST1
   /* Read ST2 for AK09917D RevA/B bug */
   if(state->mag_info.device_select == AK09917 && !state->mag_info.use_fifo)
   {
-    ak0991x_read_st2(state, NULL);
+    ak0991x_read_st2(state, &st2_buf);
   }
 
   state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;  // check data over run
