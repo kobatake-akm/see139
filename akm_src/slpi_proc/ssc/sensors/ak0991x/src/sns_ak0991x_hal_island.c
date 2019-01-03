@@ -468,6 +468,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     return SNS_RC_SUCCESS;
   }
 
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
+
   i2c_com_config.slave_control = com_port->i2c_address;
   rv = scp_service->api->sns_scp_register_com_port(&i2c_com_config, &i2c_port_handle);
   if( rv != SNS_RC_SUCCESS )
@@ -494,6 +496,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     sns_scp_issue_ccc( i2c_port_handle,
                        SNS_SYNC_COM_PORT_CCC_SETDASA,
                        buffer, 1, &xfer_bytes );
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
   scp_service->api->sns_scp_close(i2c_port_handle);
   scp_service->api->sns_scp_deregister_com_port(&i2c_port_handle);
   com_port->in_i3c_mode = true;
@@ -520,6 +523,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       sns_scp_issue_ccc( com_port->port_handle,
                          SNS_SYNC_COM_PORT_CCC_SETMRL,
                          buffer, 3, &xfer_bytes );
+    sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
     if( rv != SNS_RC_SUCCESS ) {
       if(NULL != instance)
       {
@@ -538,6 +542,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       sns_scp_issue_ccc( com_port->port_handle,
                          SNS_SYNC_COM_PORT_CCC_DISEC,
                          buffer, 1, &xfer_bytes );
+    sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
     if(NULL != instance)
     {
       if( rv == SNS_RC_SUCCESS ) {
@@ -557,6 +562,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETMWL,
                        buffer, 2, &xfer_bytes );
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
     {
@@ -572,6 +578,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_SETMWL,
                        buffer, 2, &xfer_bytes );
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
+
   if( rv != SNS_RC_SUCCESS ) {
     if(NULL != instance)
     {
@@ -584,6 +592,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETMRL,
                        buffer, 2, &xfer_bytes );
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
+
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
     {
@@ -602,6 +612,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETPID,
                        buffer, 6, &xfer_bytes );
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
+
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
     {
@@ -620,6 +632,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETBCR,
                        buffer, 1, &xfer_bytes );
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
+
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
     {
@@ -637,6 +651,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETDCR,
                        buffer, 1, &xfer_bytes );
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
+
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
     {
@@ -654,6 +670,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETSTATUS,
                        buffer, 2, &xfer_bytes );
+  sns_busy_wait(sns_convert_ns_to_ticks(3*1000));
+
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
     {
@@ -752,7 +770,10 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
     while(num_attempts-- > 0 && SNS_RC_SUCCESS != rv_enter_i3c)
     {
       rv_enter_i3c = ak0991x_enter_i3c_mode(this, com_port, scp_service);
-      sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
+      if(SNS_RC_SUCCESS != rv_enter_i3c)
+      {
+        sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
+      }
     }
     if(num_attempts <= 0)
     {
