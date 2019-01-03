@@ -127,6 +127,7 @@
 
 /** Wait time before mode setting */
 #define AK0991X_TWAIT_USEC                          100 //us
+#define AK0991X_TBUF_USEC                           2   //us (should be more than 1.3usec)
 
 /** masurement time */
 /*
