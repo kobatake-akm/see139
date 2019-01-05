@@ -309,9 +309,11 @@ sns_rc ak0991x_log_sensor_state_raw_add(
   return rc;
 }
 
-static void ak0991x_tbuf_wait_time()
+static void ak0991x_extra_tsu_sta_time()
 {
-  sns_busy_wait(sns_convert_ns_to_ticks(AK0991X_TBUF_USEC*1000));
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
+  sns_busy_wait(sns_convert_ns_to_ticks(AK0991X_EXTRA_TSU_STA_NSEC));
+#endif
 }
 
 /**
@@ -338,7 +340,7 @@ static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_service * scp_service,
   port_vec.is_write = false;
   port_vec.reg_addr = reg_addr;
 
-  ak0991x_tbuf_wait_time();
+  ak0991x_extra_tsu_sta_time();
   return scp_service->api->sns_scp_register_rw(port_handle,
                                                &port_vec,
                                                1,
@@ -389,8 +391,7 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
 #else
   UNUSED_VAR( this );
 #endif
-
-  ak0991x_tbuf_wait_time();
+  ak0991x_extra_tsu_sta_time();
   return scp_service->api->sns_scp_register_rw(port_handle,
                                                &port_vec,
                                                1,
@@ -477,10 +478,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     return SNS_RC_SUCCESS;
   }
 
-  ak0991x_tbuf_wait_time();
   i2c_com_config.slave_control = com_port->i2c_address;
   rv = scp_service->api->sns_scp_register_com_port(&i2c_com_config, &i2c_port_handle);
-  ak0991x_tbuf_wait_time();
 
   if( rv != SNS_RC_SUCCESS )
   {
@@ -491,7 +490,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     return SNS_RC_FAILED;
   }
   rv = scp_service->api->sns_scp_open(i2c_port_handle);
-  ak0991x_tbuf_wait_time();
 
   if( rv != SNS_RC_SUCCESS )
   {
@@ -501,30 +499,32 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     }
     return SNS_RC_FAILED;
   }
-
   /**-------------------Assign I3C dynamic address------------------------*/
   buffer[0] = (com_port->i3c_address & 0xFF)<<1;
+  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( i2c_port_handle,
                        SNS_SYNC_COM_PORT_CCC_SETDASA,
                        buffer, 1, &xfer_bytes );
-  ak0991x_tbuf_wait_time();
   scp_service->api->sns_scp_close(i2c_port_handle);
-  ak0991x_tbuf_wait_time();
   scp_service->api->sns_scp_deregister_com_port(&i2c_port_handle);
-  ak0991x_tbuf_wait_time();
   com_port->in_i3c_mode = true;
 
-  if(NULL != instance)
+  if(rv == SNS_RC_SUCCESS)
   {
-    if(rv == SNS_RC_SUCCESS)
+    if(NULL != instance)
     {
       SNS_INST_PRINTF(HIGH, instance, "I3C address assigned: 0x%x",((uint32_t)buffer[0])>>1);
     }
-    else
+  }
+  else
+  {
+    if(NULL != instance)
     {
       SNS_INST_PRINTF(HIGH, instance, "assign i3c address failed; rv=%d", rv);
     }
+    com_port->in_i3c_mode = false;
+    return SNS_RC_FAILED;
   }
 
   /**-------------Set max read size to the size of the FIFO------------------*/
@@ -533,18 +533,19 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     buffer[0] = (uint8_t)((AK0991X_MAX_FIFO_SIZE >> 8) & 0xFF);
     buffer[1] = (uint8_t)(AK0991X_MAX_FIFO_SIZE & 0xFF);
     buffer[2] = 0;
+    ak0991x_extra_tsu_sta_time();
     rv = scp_service->api->
       sns_scp_issue_ccc( com_port->port_handle,
                          SNS_SYNC_COM_PORT_CCC_SETMRL,
                          buffer, 3, &xfer_bytes );
-    ak0991x_tbuf_wait_time();
     if( rv != SNS_RC_SUCCESS ) {
       if(NULL != instance)
       {
         SNS_INST_PRINTF(ERROR, instance, "Set max read length failed! rv=%d hndl=0x%x", 
                         rv, com_port->port_handle);
-        com_port->in_i3c_mode = false;						
       }
+      com_port->in_i3c_mode = false;
+      return SNS_RC_FAILED;
     }
   }
 
@@ -552,31 +553,35 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   if(com_port->port_handle != NULL)
   {
     buffer[0] = 0x1;
+    ak0991x_extra_tsu_sta_time();
     rv = scp_service->api->
       sns_scp_issue_ccc( com_port->port_handle,
                          SNS_SYNC_COM_PORT_CCC_DISEC,
                          buffer, 1, &xfer_bytes );
-    ak0991x_tbuf_wait_time();
-    if(NULL != instance)
-    {
-      if( rv == SNS_RC_SUCCESS ) {
+    if( rv == SNS_RC_SUCCESS ) {
+      if(NULL != instance)
+      {
         AK0991X_INST_PRINT(LOW, instance, "IBI disabled");
-      } else {
-        SNS_INST_PRINTF(ERROR, instance, "IBI disable FAILED! rv=%d hndl=0x%x", 
-                        rv, com_port->port_handle);
-		com_port->in_i3c_mode = false;				
       }
+    } else {
+      if(NULL != instance)
+      {
+          SNS_INST_PRINTF(ERROR, instance, "IBI disable FAILED! rv=%d hndl=0x%x",
+                      rv, com_port->port_handle);
+      }
+      com_port->in_i3c_mode = false;
+      return SNS_RC_FAILED;
     }
   }
 
 #ifdef AK0991X_ENABLE_I3C_DEBUG
   /**-------------------Debug -- read all CCC info------------------------*/
   sns_memset(buffer, 0, sizeof(buffer));
+  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETMWL,
                        buffer, 2, &xfer_bytes );
-  ak0991x_tbuf_wait_time();
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
     {
@@ -588,11 +593,11 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get max write length failed!");
     }
   }
+  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_SETMWL,
                        buffer, 2, &xfer_bytes );
-  ak0991x_tbuf_wait_time();
 
   if( rv != SNS_RC_SUCCESS ) {
     if(NULL != instance)
@@ -602,11 +607,11 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
+  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETMRL,
                        buffer, 2, &xfer_bytes );
-  ak0991x_tbuf_wait_time();
 
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
@@ -622,11 +627,11 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
+  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETPID,
                        buffer, 6, &xfer_bytes );
-  ak0991x_tbuf_wait_time();
 
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
@@ -642,11 +647,11 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
     
   sns_memset(buffer, 0, sizeof(buffer));
+  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETBCR,
                        buffer, 1, &xfer_bytes );
-  ak0991x_tbuf_wait_time();
 
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
@@ -661,11 +666,11 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
+  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETDCR,
                        buffer, 1, &xfer_bytes );
-  ak0991x_tbuf_wait_time();
 
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
@@ -680,11 +685,11 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
     
   sns_memset(buffer, 0, sizeof(buffer));
+  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETSTATUS,
                        buffer, 2, &xfer_bytes );
-  ak0991x_tbuf_wait_time();
 
   if( rv == SNS_RC_SUCCESS ) {
     if(NULL != instance)
@@ -756,7 +761,6 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       {
         SNS_INST_PRINTF(ERROR, this, "device_sw_reset failed rc=%d, xfer_bytes=%d", rv, xfer_bytes);
       }
-      sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
     }
     else
     {
@@ -765,6 +769,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
          AK0991X_INST_PRINT(LOW, this, "device_sw_reset sucessful");
       }
     }
+    sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
   }
   
   com_port->in_i3c_mode = false;

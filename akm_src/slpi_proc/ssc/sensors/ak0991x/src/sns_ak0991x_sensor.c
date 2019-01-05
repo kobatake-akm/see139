@@ -1538,6 +1538,10 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             {
               SNS_PRINTF(LOW, this, "I3C mode enabled");
             }
+            else
+            {
+              SNS_PRINTF(ERROR, this, "Failed to enter I3C mode.");
+            }
 
             /**-------------------Read and Confirm WHO-AM-I------------------------*/
             rv = ak0991x_get_who_am_i(state->scp_service,

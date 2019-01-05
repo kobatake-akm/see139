@@ -127,8 +127,9 @@
 
 /** Wait time before mode setting */
 #define AK0991X_TWAIT_USEC                          100 //us
-#define AK0991X_TBUF_USEC                           2   //us (should be more than 1.3usec)
-
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
+#define AK0991X_EXTRA_TSU_STA_NSEC                  1000//tSU_STA extra time for I3C
+#endif
 /** masurement time */
 /*
 #define AK09911_TIME_FOR_MEASURE_US                 8500 //us (MAX)
