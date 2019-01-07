@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/07/19     020038     AKM              Tested CTS: DRI+FIFO+DAE/non-DAE.
  * 01/04/19     020038TBD  AKM              Added Extra tSU_STA time for I3C.
  * 01/02/19                AKM/Qualcomm     Merged Qualcomm's 020036 modification for SM8250. Still testing.
  * 12/28/18                AKM              Check negative timestamp when flush requested in DAE+DRI.
