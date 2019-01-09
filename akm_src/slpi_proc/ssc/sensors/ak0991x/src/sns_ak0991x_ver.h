@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/09/19     020039     AKM              Added enter_i3c when bus power reset
  * 01/07/19     020038     AKM              Tested CTS: DRI+FIFO+DAE/non-DAE.
  * 01/04/19     020038TBD  AKM              Added Extra tSU_STA time for I3C.
  * 01/02/19                AKM/Qualcomm     Merged Qualcomm's 020036 modification for SM8250. Still testing.
@@ -244,4 +245,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20038  // major:02 minor:00 revision:38
+#define AK0991X_DRIVER_VERSION 20039  // major:02 minor:00 revision:39
