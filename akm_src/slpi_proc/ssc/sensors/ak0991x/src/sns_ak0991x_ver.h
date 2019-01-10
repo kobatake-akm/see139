@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/10/19     020040     AKM              Fixed dummy data process on DAE
  * 01/09/19     020039     AKM              Added enter_i3c when bus power reset
  * 01/07/19     020038     AKM              Tested CTS: DRI+FIFO+DAE/non-DAE.
  * 01/04/19     020038TBD  AKM              Added Extra tSU_STA time for I3C.
@@ -245,4 +246,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20039  // major:02 minor:00 revision:39
+#define AK0991X_DRIVER_VERSION 20040  // major:02 minor:00 revision:40
