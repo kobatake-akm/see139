@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/17/19                AKM              Revert in ak0991x_enter_i3c_mode. Not return when dynamic address is assigned.
  * 01/10/19     020040     AKM              Fixed dummy data process on DAE
  * 01/09/19     020039     AKM              Added enter_i3c when bus power reset
  * 01/07/19     020038     AKM              Tested CTS: DRI+FIFO+DAE/non-DAE.

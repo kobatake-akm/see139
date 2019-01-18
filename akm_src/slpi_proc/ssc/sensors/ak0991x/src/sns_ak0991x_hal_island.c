@@ -1,11 +1,11 @@
 /**
  * @file sns_ak0991x_hal_island.c
  *
- * Copyright (c) 2016-2018 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -510,21 +510,16 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   scp_service->api->sns_scp_deregister_com_port(&i2c_port_handle);
   com_port->in_i3c_mode = true;
 
-  if(rv == SNS_RC_SUCCESS)
+  if(NULL != instance)
   {
-    if(NULL != instance)
+    if(rv == SNS_RC_SUCCESS)
     {
       SNS_INST_PRINTF(HIGH, instance, "I3C address assigned: 0x%x",((uint32_t)buffer[0])>>1);
     }
-  }
-  else
-  {
-    if(NULL != instance)
+    else
     {
       SNS_INST_PRINTF(HIGH, instance, "assign i3c address failed; rv=%d", rv);
     }
-    com_port->in_i3c_mode = false;
-    return SNS_RC_FAILED;
   }
 
   /**-------------Set max read size to the size of the FIFO------------------*/
@@ -545,7 +540,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
                         rv, com_port->port_handle);
       }
       com_port->in_i3c_mode = false;
-      return SNS_RC_FAILED;
     }
   }
 
@@ -570,7 +564,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
                       rv, com_port->port_handle);
       }
       com_port->in_i3c_mode = false;
-      return SNS_RC_FAILED;
     }
   }
 
