@@ -462,7 +462,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   if(com_port->com_config.bus_type != SNS_BUS_I3C_SDR &&
      com_port->com_config.bus_type != SNS_BUS_I3C_HDR_DDR )
   {
-    return SNS_RC_FAILED;
+    return SNS_RC_SUCCESS;
   }
 
   if(NULL != instance)
@@ -701,8 +701,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   UNUSED_VAR(instance);
   UNUSED_VAR(com_port);
   UNUSED_VAR(scp_service);
-
-  rv = SNS_RC_SUCCESS;
 #endif /* AK0991X_ENABLE_I3C_SUPPORT */
   return rv;
 }
