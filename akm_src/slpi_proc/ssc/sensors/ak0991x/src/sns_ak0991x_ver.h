@@ -4,11 +4,11 @@
  *
  * Driver version
  *
- * Copyright (c) 2017-2018 Asahi Kasei Microdevices
+ * Copyright (c) 2017-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2017-2019 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -22,11 +22,12 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/23/19     020041     AKM/Qualcomm     Use SNS_ENABLE_DAE. Set 0us for TSU_STA time.
  * 01/17/19                AKM              Revert in ak0991x_enter_i3c_mode. Not return when dynamic address is assigned.
  * 01/10/19     020040     AKM              Fixed dummy data process on DAE
  * 01/09/19     020039     AKM              Added enter_i3c when bus power reset
  * 01/07/19     020038     AKM              Tested CTS: DRI+FIFO+DAE/non-DAE.
- * 01/04/19     020038TBD  AKM              Added Extra tSU_STA time for I3C.
+ * 01/04/19                AKM              Added Extra tSU_STA time for I3C.
  * 01/02/19                AKM/Qualcomm     Merged Qualcomm's 020036 modification for SM8250. Still testing.
  * 12/28/18                AKM              Check negative timestamp when flush requested in DAE+DRI.
  * 12/27/18                AKM              Added dummy data at the first data when detects gap.
@@ -247,4 +248,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20040  // major:02 minor:00 revision:40
+#define AK0991X_DRIVER_VERSION 20041  // major:02 minor:00 revision:41

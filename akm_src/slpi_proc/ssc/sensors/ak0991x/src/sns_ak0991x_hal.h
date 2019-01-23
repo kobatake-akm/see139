@@ -4,11 +4,11 @@
  *
  * Hardware Access Layer functions.
  *
- * Copyright (c) 2016-2018 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -127,9 +127,7 @@
 
 /** Wait time before mode setting */
 #define AK0991X_TWAIT_USEC                          100 //us
-#ifdef AK0991X_ENABLE_I3C_SUPPORT
-#define AK0991X_EXTRA_TSU_STA_NSEC                  0 //tSU_STA extra time for I3C
-#endif
+
 /** masurement time */
 /*
 #define AK09911_TIME_FOR_MEASURE_US                 8500 //us (MAX)

@@ -309,13 +309,6 @@ sns_rc ak0991x_log_sensor_state_raw_add(
   return rc;
 }
 
-static void ak0991x_extra_tsu_sta_time()
-{
-#ifdef AK0991X_ENABLE_I3C_SUPPORT
-  sns_busy_wait(sns_convert_ns_to_ticks(AK0991X_EXTRA_TSU_STA_NSEC));
-#endif
-}
-
 /**
  * Read wrapper for Synch Com Port Service.
  *
@@ -340,7 +333,6 @@ static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_service * scp_service,
   port_vec.is_write = false;
   port_vec.reg_addr = reg_addr;
 
-  ak0991x_extra_tsu_sta_time();
   return scp_service->api->sns_scp_register_rw(port_handle,
                                                &port_vec,
                                                1,
@@ -391,7 +383,6 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
 #else
   UNUSED_VAR( this );
 #endif
-  ak0991x_extra_tsu_sta_time();
   return scp_service->api->sns_scp_register_rw(port_handle,
                                                &port_vec,
                                                1,
@@ -501,7 +492,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
   /**-------------------Assign I3C dynamic address------------------------*/
   buffer[0] = (com_port->i3c_address & 0xFF)<<1;
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( i2c_port_handle,
                        SNS_SYNC_COM_PORT_CCC_SETDASA,
@@ -528,7 +518,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     buffer[0] = (uint8_t)((AK0991X_MAX_FIFO_SIZE >> 8) & 0xFF);
     buffer[1] = (uint8_t)(AK0991X_MAX_FIFO_SIZE & 0xFF);
     buffer[2] = 0;
-    ak0991x_extra_tsu_sta_time();
     rv = scp_service->api->
       sns_scp_issue_ccc( com_port->port_handle,
                          SNS_SYNC_COM_PORT_CCC_SETMRL,
@@ -547,7 +536,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   if(com_port->port_handle != NULL)
   {
     buffer[0] = 0x1;
-    ak0991x_extra_tsu_sta_time();
     rv = scp_service->api->
       sns_scp_issue_ccc( com_port->port_handle,
                          SNS_SYNC_COM_PORT_CCC_DISEC,
