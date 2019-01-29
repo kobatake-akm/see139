@@ -3,11 +3,11 @@
  *
  * AK0991X - S4S functions
  *
- * Copyright (c) 2019 Asahi Kasei Microdevices
+ * Copyright (c) 2018 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2019 Qualcomm Technologies, Inc.
+ * Copyright (c) 2018 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
