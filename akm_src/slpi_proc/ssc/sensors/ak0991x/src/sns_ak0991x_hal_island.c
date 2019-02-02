@@ -558,7 +558,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
 #ifdef AK0991X_ENABLE_I3C_DEBUG
   /**-------------------Debug -- read all CCC info------------------------*/
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETMWL,
@@ -574,7 +573,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get max write length failed!");
     }
   }
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_SETMWL,
@@ -588,7 +586,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETMRL,
@@ -608,7 +605,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETPID,
@@ -628,7 +624,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
     
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETBCR,
@@ -647,7 +642,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETDCR,
@@ -666,7 +660,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
     
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETSTATUS,
