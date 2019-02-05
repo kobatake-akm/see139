@@ -22,6 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 02/05/19     020042     AKM              Use ideal time for Polling.
+ * 02/05/19                AKM              Modified for sending flush_done with reliable mag data samples
+ * 02/05/19                AKM              Added flush_done call in deinit for DAE
  * 01/23/19     020041     AKM/Qualcomm     Use SNS_ENABLE_DAE. Set 0us for TSU_STA time.
  * 01/17/19                AKM              Revert in ak0991x_enter_i3c_mode. Not return when dynamic address is assigned.
  * 01/10/19     020040     AKM              Fixed dummy data process on DAE
@@ -244,4 +247,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20041  // major:02 minor:00 revision:41
+#define AK0991X_DRIVER_VERSION 20042  // major:02 minor:00 revision:42
