@@ -854,8 +854,8 @@ static void process_response(
       }
       else
       {
-        state->flush_dene_skipped = true;
-        SNS_INST_PRINTF(LOW, this, "flush_done_skipped=%d",state->flush_dene_skipped);
+        state->  flush_done_skipped = true;
+        SNS_INST_PRINTF(LOW, this, "flush_done_skipped=%d",state->  flush_done_skipped);
       }
       dae_stream->flushing_data = false;
       break;
