@@ -1880,15 +1880,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
       else // handle Flush request without adding to request list
       {
-        if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
-        {
-          ak0991x_send_flush_config(this, instance);
-        }
-        else
-        {
-          AK0991X_PRINT(LOW, this, "FLUSH requested. but ODR=0.");
-          ak0991x_send_fifo_flush_done(instance);
-        }
+        ak0991x_send_flush_config(this, instance);
       }
     }
   }

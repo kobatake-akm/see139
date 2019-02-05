@@ -377,6 +377,8 @@ static void process_fifo_samples(
   sns_time pre_timestamp;
 
   state->is_orphan = false;
+  sampling_intvl = (ak0991x_get_sample_interval(odr) *
+                    state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -393,6 +395,7 @@ static void process_fifo_samples(
   // buf[10]: ST2
   //////////////////////////////
 
+  // calculate num_samples
   if(state->in_clock_error_procedure)
   {
     state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
@@ -425,31 +428,13 @@ static void process_fifo_samples(
       }
       else  // polling mode: *** Doesn't care FIFO+Polling ***
       {
-        if(state->fifo_flush_in_progress) // flush request
+        state->num_samples = (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
+        if( state->fifo_flush_in_progress )
         {
-          // set check DRDY status when flush request in polling mode
-          state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-          AK0991X_INST_PRINT(MED, this, "num_samples=%d in flush and polling", state->num_samples);
           state->flush_sample_count++;
         }
-        else // timer event
+        else
         {
-          if(state->flush_sample_count > 0)
-          {
-            state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-          }
-          else
-          {
-            state->num_samples = 1;
-          }
-          state->flush_sample_count = 0;
-        }
-        if( state->num_samples > 0 && state->dae_event_time <= pre_timestamp )
-        {
-          AK0991X_INST_PRINT(MED, this, "Negative! pre %u dae_time %u",
-              (uint32_t)pre_timestamp,
-              (uint32_t)state->dae_event_time);
-          state->num_samples = 0;
           state->flush_sample_count = 0;
         }
         if( state->is_orphan )  // orphan
@@ -499,9 +484,10 @@ static void process_fifo_samples(
         }
         else
         {
-          ak0991x_validate_timestamp_for_polling(this);
+          state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl;
+          state->first_data_ts_of_batch = state->interrupt_timestamp;
+          state->averaged_interval = sampling_intvl;
         }
-        sampling_intvl = state->averaged_interval;
 
 #ifdef AK0991X_ENABLE_TS_DEBUG
       state->ts_debug_count++;
@@ -516,9 +502,6 @@ static void process_fifo_samples(
       }
       else  // orphan
       {
-        sampling_intvl = (ak0991x_get_sample_interval(odr) *
-                          state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-
         if(state->irq_info.detect_irq_event ||
             state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)  // dri or timer use event_time
         {
@@ -865,10 +848,14 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d num_samples=%d",
                          resp.err, dae_stream->state, state->config_step, state->num_samples);
-      if(state->flush_requested_in_dae)
+      if( state->num_samples>0 && state->flush_requested_in_dae)
       {
         ak0991x_send_fifo_flush_done(this);
-        state->flush_requested_in_dae = false;
+      }
+      else
+      {
+        state->flush_dene_skipped = true;
+        SNS_INST_PRINTF(LOW, this, "flush_done_skipped=%d",state->flush_dene_skipped);
       }
       dae_stream->flushing_data = false;
       break;
