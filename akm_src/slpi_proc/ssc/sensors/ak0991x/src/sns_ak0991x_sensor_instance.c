@@ -349,6 +349,12 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
+  if( state->flush_done_skipped || state->flush_requested_in_dae )
+  {
+    SNS_INST_PRINTF(HIGH, this, "flush_done in deinit");
+    ak0991x_send_fifo_flush_done(this);
+  }
+
   if(NULL != state->com_port_info.port_handle)
   {
     state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, true);
