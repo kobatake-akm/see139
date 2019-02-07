@@ -236,6 +236,7 @@ static bool send_mag_config(sns_sensor_instance *this)
     config_req.polling_config.polling_offset =
         (state->system_time + config_req.polling_config.polling_interval_ticks) / config_req.polling_config.polling_interval_ticks *
         config_req.polling_config.polling_interval_ticks;
+    state->polling_offset = config_req.polling_config.polling_offset;
   }
   config_req.has_accel_info      = false;
   config_req.has_expected_get_data_bytes = true;
@@ -374,7 +375,6 @@ static void process_fifo_samples(
   uint32_t sampling_intvl;
   uint8_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
-  sns_time pre_timestamp;
 
   state->is_orphan = false;
   sampling_intvl = (ak0991x_get_sample_interval(odr) *
@@ -403,7 +403,6 @@ static void process_fifo_samples(
   else
   {
     state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
-    pre_timestamp = (state->is_orphan) ? state->pre_timestamp_for_orphan : state->pre_timestamp;
 
     if(state->mag_info.use_fifo)
     {
@@ -428,7 +427,15 @@ static void process_fifo_samples(
       }
       else  // polling mode: *** Doesn't care FIFO+Polling ***
       {
-        state->num_samples = (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
+        if(state->this_is_first_data)
+        {
+          state->num_samples = (state->dae_event_time + (sampling_intvl/2) >= state->polling_offset) ? 1 : 0;
+        }
+        else
+        {
+          state->num_samples = (state->dae_event_time >= state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
+        }
+
         if( state->fifo_flush_in_progress )
         {
           state->flush_sample_count++;
@@ -484,7 +491,14 @@ static void process_fifo_samples(
         }
         else
         {
-          state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl;
+          if(state->this_is_first_data)
+          {
+            state->interrupt_timestamp = (state->irq_info.detect_irq_event) ? state->dae_event_time : state->polling_offset;
+          }
+          else
+          {
+            state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl;
+          }
           state->first_data_ts_of_batch = state->interrupt_timestamp;
           state->averaged_interval = sampling_intvl;
         }
