@@ -236,7 +236,6 @@ static bool send_mag_config(sns_sensor_instance *this)
     config_req.polling_config.polling_offset =
         (state->system_time + config_req.polling_config.polling_interval_ticks) / config_req.polling_config.polling_interval_ticks *
         config_req.polling_config.polling_interval_ticks;
-    state->polling_offset = config_req.polling_config.polling_offset;
   }
   config_req.has_accel_info      = false;
   config_req.has_expected_get_data_bytes = true;
@@ -427,14 +426,8 @@ static void process_fifo_samples(
       }
       else  // polling mode: *** Doesn't care FIFO+Polling ***
       {
-        if(state->this_is_first_data)
-        {
-          state->num_samples = (state->dae_event_time + (sampling_intvl/2) >= state->polling_offset) ? 1 : 0;
-        }
-        else
-        {
-          state->num_samples = (state->dae_event_time >= state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
-        }
+        // only timer event. skip all flush requests.
+        state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
 
         if( state->fifo_flush_in_progress )
         {
@@ -444,11 +437,11 @@ static void process_fifo_samples(
         {
           state->flush_sample_count = 0;
         }
-        if( state->is_orphan )  // orphan
-        {
-          AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
-        }
       }
+    }
+    if( state->is_orphan )  // orphan
+    {
+      AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
     }
   }
 
@@ -493,11 +486,11 @@ static void process_fifo_samples(
         {
           if(state->this_is_first_data)
           {
-            state->interrupt_timestamp = (state->irq_info.detect_irq_event) ? state->dae_event_time : state->polling_offset;
+            state->interrupt_timestamp = state->dae_event_time;
           }
           else
           {
-            state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl;
+            state->interrupt_timestamp = state->pre_timestamp + sampling_intvl;
           }
           state->first_data_ts_of_batch = state->interrupt_timestamp;
           state->averaged_interval = sampling_intvl;
@@ -516,12 +509,14 @@ static void process_fifo_samples(
       }
       else  // orphan
       {
-        if(state->irq_info.detect_irq_event ||
-            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)  // dri or timer use event_time
+
+        if( state->mag_info.use_dri &&
+            (state->irq_info.detect_irq_event ||
+             state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))  // dri
         {
           state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
         }
-        else  // flush
+        else  // flush or timer event
         {
           state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
         }
@@ -534,7 +529,7 @@ static void process_fifo_samples(
             (uint32_t)state->last_sw_reset_time,
             (uint32_t)state->dae_event_time);
       }
-
+/*
       // add 1 dummy data when detecting more than 1+1/2 samples
       if( state->this_is_first_data &&
           (sampling_intvl != 0) &&
@@ -552,7 +547,7 @@ static void process_fifo_samples(
                                         AK0991X_NUM_DATA_HXL_TO_ST2);
 
       }
-
+*/
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,
@@ -869,7 +864,7 @@ static void process_response(
       else
       {
         state->  flush_done_skipped = true;
-        SNS_INST_PRINTF(LOW, this, "flush_done_skipped=%d",state->  flush_done_skipped);
+        SNS_INST_PRINTF(LOW, this, "flush_done_skipped=%d",state->flush_done_skipped);
       }
       dae_stream->flushing_data = false;
       break;
