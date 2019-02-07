@@ -228,14 +228,19 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
     else
     {
-      config_req.polling_config.polling_interval_ticks = 
+      config_req.polling_config.polling_interval_ticks =
         ak0991x_get_sample_interval(state->mag_info.desired_odr);
     }
-    //TODO: it looks like the polling offset will not be adjusted for S4S. 
+    state->system_time = sns_get_system_time();
+
+    //TODO: it looks like the polling offset will not be adjusted for S4S.
     //So it won't be synced with any other sensors
+
+    // added 5msec margin for adding following soft_reset time
     config_req.polling_config.polling_offset =
-        (state->system_time + config_req.polling_config.polling_interval_ticks) / config_req.polling_config.polling_interval_ticks *
-        config_req.polling_config.polling_interval_ticks;
+        state->system_time +
+        config_req.polling_config.polling_interval_ticks +
+        sns_convert_ns_to_ticks(5*1000000ULL);
   }
   config_req.has_accel_info      = false;
   config_req.has_expected_get_data_bytes = true;
