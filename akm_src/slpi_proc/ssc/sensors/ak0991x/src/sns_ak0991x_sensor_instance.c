@@ -622,7 +622,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_info.desired_odr = state->new_cfg.odr = mag_chosen_sample_rate_reg_value;
     state->new_cfg.fifo_wmk     = state->mag_info.cur_wmk + 1;
 
-    if (0.0f == state->last_sent_cfg.odr)
+    if (desired_sample_rate > 0)
     {
       ak0991x_send_config_event(this);
     }
