@@ -528,7 +528,6 @@ static void process_fifo_samples(
       }
       else  // orphan
       {
-
         if( state->mag_info.use_dri &&
             (state->irq_info.detect_irq_event ||
              state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))  // dri
@@ -555,6 +554,10 @@ static void process_fifo_samples(
           (state->first_data_ts_of_batch > state->pre_timestamp_for_orphan + sampling_intvl) )
       {
         dummy_count = (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan - sampling_intvl/2) / sampling_intvl;
+        if(dummy_count > 2)
+        {
+          dummy_count = 2;  // MAX dummy count : 2
+        }
         for(int i=0; i<dummy_count; i++)
         {
           // add dummy data
