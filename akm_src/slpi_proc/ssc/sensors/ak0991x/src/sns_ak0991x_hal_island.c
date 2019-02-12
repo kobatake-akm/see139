@@ -2049,7 +2049,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->irq_info.detect_irq_event = false;
   state->this_is_the_last_flush = false;
   if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
-      (state->flush_done_skipped && state->sensor_sample_status != SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE) )
+      state->flush_done_skipped )
   {
     ak0991x_send_fifo_flush_done(instance);
   }

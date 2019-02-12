@@ -244,10 +244,10 @@ static bool send_mag_config(sns_sensor_instance *this)
 
     // when the polling_offset is shorter than the measurement time + margin(=10msec),
     // add one polling_interval_ticks for preventing UNRELIABLE data
-    if((config_req.polling_config.polling_offset - state->system_time) < sns_convert_ns_to_ticks(10*1000000ULL))
-    {
-      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
-    }
+//    if((config_req.polling_config.polling_offset - state->system_time) < sns_convert_ns_to_ticks(10*1000000ULL))
+//    {
+//      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
+//    }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
   }
   config_req.has_accel_info      = false;
