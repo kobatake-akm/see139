@@ -185,6 +185,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->tx_count = 0;
   state->flush_requested_in_dae = false;
 
+  state->flush_done_count = 0;
+  state->flush_req_count = 0;
+
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
   {
@@ -380,7 +383,10 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
     state->scp_service->api->sns_scp_deregister_com_port(&state->com_port_info.port_handle);
   }
-  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
+  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u, req=%d done=%d",
+      state->total_samples,
+      state->flush_req_count,
+      state->flush_done_count);
 
   return SNS_RC_SUCCESS;
 }
@@ -701,8 +707,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
       else
       {
-        AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u",
-            (uint32_t)state->system_time);
+        AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u, requesed_in_dae=%d",
+            (uint32_t)state->system_time, state->flush_requested_in_dae);
+
+        if(state->flush_requested_in_dae)
+        {
+          AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
+          ak0991x_send_fifo_flush_done(this);
+        }
         state->flush_requested_in_dae = true;
         ak0991x_dae_if_flush_hw(this);
       }

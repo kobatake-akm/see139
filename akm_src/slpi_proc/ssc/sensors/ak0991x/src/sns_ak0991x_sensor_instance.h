@@ -257,6 +257,8 @@ typedef struct ak0991x_instance_state
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
   uint32_t ts_debug_count;
+  uint32_t flush_req_count;
+  uint32_t flush_done_count;
 
   /** Timer info */
   sns_sensor_uid timer_suid;

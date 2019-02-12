@@ -2084,6 +2084,7 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
   state->fifo_flush_in_progress = false;
   state->flush_done_skipped = false;
   state->flush_requested_in_dae = false;
+  state->flush_done_count++;
 }
 
 static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time intvl)
