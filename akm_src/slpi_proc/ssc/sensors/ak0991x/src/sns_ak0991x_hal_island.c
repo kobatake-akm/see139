@@ -449,6 +449,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   sns_com_port_config          i2c_com_config = com_port->com_config;
   uint32_t                     xfer_bytes;
   uint8_t                      buffer[6];
+  bool                         enable_ibi = false;
 
   if(com_port->com_config.bus_type != SNS_BUS_I3C_SDR &&
      com_port->com_config.bus_type != SNS_BUS_I3C_HDR_DDR )
@@ -508,7 +509,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     }
     else
     {
-      SNS_INST_PRINTF(HIGH, instance, "assign i3c address failed; rv=%d", rv);
+      SNS_INST_PRINTF(HIGH, instance, "Assign I3C address failed; rv=%d", rv);
     }
   }
 
@@ -530,28 +531,58 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       }
       com_port->in_i3c_mode = false;
     }
-  }
 
-  /**-------------------Disable IBI------------------------*/
-  if(com_port->port_handle != NULL)
-  {
-    buffer[0] = 0x1;
-    rv = scp_service->api->
-      sns_scp_issue_ccc( com_port->port_handle,
-                         SNS_SYNC_COM_PORT_CCC_DISEC,
-                         buffer, 1, &xfer_bytes );
-    if( rv == SNS_RC_SUCCESS ) {
-      if(NULL != instance)
+    /**-------------------Enable/Disable IBI------------------------*/
+    if(NULL != instance)
+    {
+      ak0991x_instance_state *state = (ak0991x_instance_state *)(instance->state->state);
+      if (state->mag_info.use_dri == AK0991X_INT_OP_MODE_IBI)
       {
-        AK0991X_INST_PRINT(LOW, instance, "IBI disabled");
+        enable_ibi = true;
       }
-    } else {
-      if(NULL != instance)
-      {
-          SNS_INST_PRINTF(ERROR, instance, "IBI disable FAILED! rv=%d hndl=0x%x",
-                      rv, com_port->port_handle);
+    }
+
+    if( enable_ibi )
+    {
+      buffer[0] = 0x1;
+      rv = scp_service->api->
+        sns_scp_issue_ccc( com_port->port_handle,
+                           SNS_SYNC_COM_PORT_CCC_ENEC,
+                           buffer, 1, &xfer_bytes );
+      if( rv == SNS_RC_SUCCESS ) {
+        if(NULL != instance)
+        {
+          SNS_INST_PRINTF(HIGH, instance, "IBI enabled");
+        }
+      } else {
+        if(NULL != instance)
+        {
+          SNS_INST_PRINTF(ERROR, instance, "Enable IBI  FAILED! rv=%d hndl=0x%x",
+              rv, com_port->port_handle);
+        }
+        com_port->in_i3c_mode = false;
       }
-      com_port->in_i3c_mode = false;
+    }
+    else
+    {
+      buffer[0] = 0x1;
+      rv = scp_service->api->
+        sns_scp_issue_ccc( com_port->port_handle,
+                           SNS_SYNC_COM_PORT_CCC_DISEC,
+                           buffer, 1, &xfer_bytes );
+      if( rv == SNS_RC_SUCCESS ) {
+        if(NULL != instance)
+        {
+          AK0991X_INST_PRINT(HIGH, instance, "IBI disabled");
+        }
+      } else {
+        if(NULL != instance)
+        {
+            SNS_INST_PRINTF(ERROR, instance, "Disable IBI FAILED! rv=%d hndl=0x%x",
+                        rv, com_port->port_handle);
+        }
+        com_port->in_i3c_mode = false;
+      }
     }
   }
 
@@ -2935,21 +2966,42 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_data_stream* data_stream;
-  uint8_t buffer[20];
 
   if(!state->irq_info.is_registered)
   {
+    uint8_t buffer[20];
+    sns_request irq_req;
+    const pb_field_t *fields;
+    const void *payload = NULL;
+    sns_ibi_req ibi_config =
+    {
+      .dynamic_slave_addr = state->com_port_info.com_config.slave_control,
+      .bus_instance = state->com_port_info.com_config.bus_instance,
+      .ibi_data_bytes = 0,
+    };
+
     data_stream = state->interrupt_data_stream;
-    sns_request irq_req =
-      {
-        .message_id = SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REQ,
-        .request    = buffer
-      };
+    irq_req.request = buffer;
+    if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_IBI)
+    {
+      irq_req.message_id = SNS_INTERRUPT_MSGID_SNS_IBI_REQ;
+      fields = sns_ibi_req_fields;
+
+      payload = &ibi_config;
+      SNS_INST_PRINTF(HIGH, this, "Registering IBI...");
+    }
+    else
+    {
+      irq_req.message_id = SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REQ;
+      fields = sns_interrupt_req_fields;
+      payload = &state->irq_info.irq_config;
+      SNS_INST_PRINTF(HIGH, this, "Registering IRQ...");
+    }
 
     irq_req.request_len = pb_encode_request(buffer,
                                             sizeof(buffer),
-                                            &state->irq_info.irq_config,
-                                            sns_interrupt_req_fields,
+                                            payload,
+                                            fields,
                                             NULL);
     if(irq_req.request_len > 0)
     {
@@ -3247,7 +3299,7 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 
  if (state->mag_info.use_dri)
  {
-   SNS_INST_PRINTF(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
+   SNS_INST_PRINTF(ERROR, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
                         state->heart_beat_attempt_count,
                         (uint32_t)state->req_payload.start_time,
                         (uint32_t)state->req_payload.timeout_period,

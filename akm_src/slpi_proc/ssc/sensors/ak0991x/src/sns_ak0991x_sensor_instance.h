@@ -80,6 +80,14 @@ typedef enum
   SUPPORTED_DEVICES
 } akm_device_type;
 
+/** Supported AKM INT Modes */
+typedef enum
+{
+  AK0991X_INT_OP_MODE_POLLING = 0,
+  AK0991X_INT_OP_MODE_IRQ = 1,
+  AK0991X_INT_OP_MODE_IBI = 2,
+} ak0991x_int_op_mode;
+
 /**
  * AK0991X output data rate for mag
  */
@@ -159,14 +167,15 @@ typedef struct ak0991x_mag_info
   uint32_t       req_wmk;
   uint16_t       cur_wmk;
   uint16_t       max_fifo_size;
-  uint8_t        use_dri; // 0: polling.  1:DRI.   2:IBI.
   bool           use_fifo;
   bool           flush_only;
   bool           max_batch;
   bool           use_sync_stream;
+  ak0991x_int_op_mode use_dri; // 0: polling.  1:DRI.   2:IBI.
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;
+
   ak0991x_self_test_info test_info;
 
   uint32_t      data_count;

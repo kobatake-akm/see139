@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 02/11/19     020042     Qualcomm         Enabled IBI support.
  * 01/23/19     020041     AKM/Qualcomm     Use SNS_ENABLE_DAE. Set 0us for TSU_STA time.
  * 01/17/19                AKM              Revert in ak0991x_enter_i3c_mode. Not return when dynamic address is assigned.
  * 01/10/19     020040     AKM              Fixed dummy data process on DAE
@@ -244,4 +245,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20041  // major:02 minor:00 revision:41
+#define AK0991X_DRIVER_VERSION 20042  // major:02 minor:00 revision:42

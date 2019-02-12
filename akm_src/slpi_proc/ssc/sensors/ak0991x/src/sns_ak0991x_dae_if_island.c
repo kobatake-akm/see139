@@ -65,21 +65,25 @@ static void build_static_config_request(
 
 
 #ifdef AK0991X_DAE_FORCE_POLLING
-  config_req->interrupt              = 0;
-  config_req->has_irq_config         = false;
-  config_req->has_ibi_config         = false;
+  config_req->interrupt      = SNS_DAE_INT_OP_MODE_POLLING;
+  config_req->has_irq_config = false;
+  config_req->has_ibi_config = false;
 #else
-  config_req->interrupt              = sensor_state->is_dri;
-  config_req->has_irq_config         = sensor_state->is_dri == 1;
-  config_req->has_ibi_config         = sensor_state->is_dri == 2;
+  config_req->interrupt =
+      (sensor_state->is_dri == AK0991X_INT_OP_MODE_IBI) ?
+          SNS_DAE_INT_OP_MODE_IBI :
+      (sensor_state->is_dri == AK0991X_INT_OP_MODE_IRQ) ?
+          SNS_DAE_INT_OP_MODE_IRQ : SNS_DAE_INT_OP_MODE_POLLING;
+  config_req->has_irq_config = sensor_state->is_dri == AK0991X_INT_OP_MODE_IRQ;
+  config_req->has_ibi_config = sensor_state->is_dri == AK0991X_INT_OP_MODE_IBI;
 #endif /* AK0991X_DAE_FORCE_POLLING */
-  if(sensor_state->is_dri == 1)
+  if(sensor_state->is_dri == AK0991X_INT_OP_MODE_IRQ)
   {
-    config_req->irq_config           = sensor_state->irq_config;
+    config_req->irq_config = sensor_state->irq_config;
   }
-  else if(sensor_state->is_dri == 2)
+  else if(sensor_state->is_dri == AK0991X_INT_OP_MODE_IBI)
   {
-    config_req->ibi_config           =
+    config_req->ibi_config             =
     (sns_ibi_req){ .dynamic_slave_addr = sensor_state->com_port_info.com_config.slave_control,
                    .bus_instance = sensor_state->com_port_info.com_config.bus_instance,
                    .ibi_data_bytes = 0, };

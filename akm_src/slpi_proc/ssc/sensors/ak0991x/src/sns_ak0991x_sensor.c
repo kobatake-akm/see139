@@ -7,7 +7,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -1071,7 +1071,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   uint8_t i;
 
-  state->is_dri = false;
+  state->is_dri = AK0991X_INT_OP_MODE_POLLING;
   state->hardware_id = 0;
   state->resolution_idx = 0;
   state->supports_sync_stream = false;
