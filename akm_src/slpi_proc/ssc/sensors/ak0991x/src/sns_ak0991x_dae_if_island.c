@@ -246,7 +246,7 @@ static bool send_mag_config(sns_sensor_instance *this)
         config_req.polling_config.polling_interval_ticks *
         config_req.polling_config.polling_interval_ticks;
 
-    // when the polling_offset is shorter than the measurement time + margin(=10msec),
+    // when the polling_offset is shorter than the measurement time + margin(=12msec),
     // add one polling_interval_ticks for preventing UNRELIABLE data
     if((config_req.polling_config.polling_offset - state->system_time) < sns_convert_ns_to_ticks(12*1000000ULL))
     {
@@ -561,22 +561,22 @@ static void process_fifo_samples(
       }
 
       // add dummy data when detecting gap
-      if( state->this_is_first_data &&
-          (sampling_intvl != 0) &&
+      if( (sampling_intvl != 0) &&
           (state->first_data_ts_of_batch > state->pre_timestamp_for_orphan + sampling_intvl) )
       {
         dummy_count = (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan - sampling_intvl/2) / sampling_intvl;
-        if(dummy_count > 2)
+        if(dummy_count > 3)
         {
-          dummy_count = 2;  // MAX dummy count : 2
+          dummy_count = 3;  // MAX dummy count : 3
         }
         for(int i=0; i<dummy_count; i++)
         {
           // add dummy data
-          AK0991X_INST_PRINT(LOW, this, "A dummy data added. pre_timestamp %u first_data_ts %u intvl %u",
+          AK0991X_INST_PRINT(LOW, this, "A dummy data added. pre_timestamp %u first_data_ts %u intvl %u # %u",
               (uint32_t)state->pre_timestamp_for_orphan,
               (uint32_t)state->first_data_ts_of_batch,
-              (uint32_t)sampling_intvl);
+              (uint32_t)sampling_intvl,
+              (uint32_t)state->total_samples);
           ak0991x_process_mag_data_buffer(this,
                                           state->first_data_ts_of_batch - ( dummy_count - i ) * sampling_intvl,
                                           sampling_intvl,
