@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 02/13/19     020043     AKM              Fixed to resend correct config_event in multi request.
  * 02/05/19     020042     AKM              Use ideal time for Polling.
  * 02/05/19                AKM              Modified for sending flush_done with reliable mag data samples
  * 02/05/19                AKM              Added flush_done call in deinit for DAE
@@ -247,4 +248,4 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20042  // major:02 minor:00 revision:42
+#define AK0991X_DRIVER_VERSION 20043  // major:02 minor:00 revision:43
