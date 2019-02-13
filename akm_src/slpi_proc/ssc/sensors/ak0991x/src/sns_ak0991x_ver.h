@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 02/11/19     020042     Qualcomm         Enabled IBI support.
  * 02/13/19     020043     AKM              Fixed to resend correct config_event in multi request.
  * 02/05/19     020042     AKM              Use ideal time for Polling.
  * 02/05/19                AKM              Modified for sending flush_done with reliable mag data samples

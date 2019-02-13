@@ -102,7 +102,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09911_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09911_FIFO_SIZE;
-    state->mag_info.use_dri = false;
+    state->mag_info.use_dri = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
@@ -118,7 +118,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09913_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09913_FIFO_SIZE;
-    state->mag_info.use_dri = false;
+    state->mag_info.use_dri = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
@@ -135,7 +135,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09916_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
-    state->mag_info.use_dri = false;
+    state->mag_info.use_dri = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
@@ -161,7 +161,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09918_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09918_FIFO_SIZE;
-    state->mag_info.use_dri = false;
+    state->mag_info.use_dri = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
