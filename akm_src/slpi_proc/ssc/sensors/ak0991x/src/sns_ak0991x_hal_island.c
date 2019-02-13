@@ -2080,7 +2080,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->irq_info.detect_irq_event = false;
   state->this_is_the_last_flush = false;
   if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
-      state->flush_done_skipped )
+      (ak0991x_dae_if_available(instance) && !state->mag_info.use_dri && state->flush_requested_in_dae) )
   {
     ak0991x_send_fifo_flush_done(instance);
   }
@@ -2113,7 +2113,6 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
   }
 
   state->fifo_flush_in_progress = false;
-  state->flush_done_skipped = false;
   state->flush_requested_in_dae = false;
   state->flush_done_count++;
 }

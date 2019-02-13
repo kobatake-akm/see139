@@ -248,10 +248,10 @@ static bool send_mag_config(sns_sensor_instance *this)
 
     // when the polling_offset is shorter than the measurement time + margin(=10msec),
     // add one polling_interval_ticks for preventing UNRELIABLE data
-//    if((config_req.polling_config.polling_offset - state->system_time) < sns_convert_ns_to_ticks(10*1000000ULL))
-//    {
-//      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
-//    }
+    if((config_req.polling_config.polling_offset - state->system_time) < sns_convert_ns_to_ticks(12*1000000ULL))
+    {
+      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
+    }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
   }
   config_req.has_accel_info      = false;
@@ -451,7 +451,15 @@ static void process_fifo_samples(
         // only timer event. skip all flush requests.
         state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
 
-        if( state->fifo_flush_in_progress )
+        // check forwarding timestamp
+        if( state->num_samples > 0 &&
+            state->pre_timestamp + sampling_intvl > state->dae_event_time + sampling_intvl/2)
+        {
+          AK0991X_INST_PRINT(LOW, this, "timestamp is future ignore one sample.");
+          state->num_samples = 0;
+        }
+
+        if( state->num_samples > 0 && state->fifo_flush_in_progress )
         {
           state->flush_sample_count++;
         }
@@ -892,8 +900,7 @@ static void process_response(
       }
       else
       {
-        state->flush_done_skipped = true;
-        SNS_INST_PRINTF(LOW, this, "flush_done_skipped=%d",state->flush_done_skipped);
+        SNS_INST_PRINTF(LOW, this, "flush_done_skipped");
       }
       dae_stream->flushing_data = false;
       break;

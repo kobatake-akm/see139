@@ -22,9 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 02/11/19     020042     Qualcomm         Enabled IBI support.
  * 02/13/19     020043     AKM              Fixed to resend correct config_event in multi request.
- * 02/05/19     020042     AKM              Use ideal time for Polling.
+ * 02/11/19     020042     Qualcomm         Enabled IBI support.
+ * 02/05/19                AKM              Use ideal time for Polling.
  * 02/05/19                AKM              Modified for sending flush_done with reliable mag data samples
  * 02/05/19                AKM              Added flush_done call in deinit for DAE
  * 01/23/19     020041     AKM/Qualcomm     Use SNS_ENABLE_DAE. Set 0us for TSU_STA time.

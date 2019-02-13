@@ -245,7 +245,6 @@ typedef struct ak0991x_instance_state
   bool is_orphan;
   bool is_previous_irq;
   bool flush_requested_in_dae;
-  bool flush_done_skipped;
   sns_std_sensor_sample_status sensor_sample_status;
   sns_time irq_event_time;
   sns_time previous_irq_time;
