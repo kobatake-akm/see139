@@ -923,7 +923,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   // Force 100Hz DRI measurement starts to get the clock error.
   if(!force_off)
   {
-    if(state->mag_info.use_dri &&
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING &&
        (state->mag_info.clock_error_meas_count == 0) &&
        !state->in_clock_error_procedure)
     {
@@ -1034,7 +1034,7 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_res
     state->system_time = sns_get_system_time();
     state->heart_beat_timestamp = state->system_time;
 
-    if(state->mag_info.use_dri)
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
     {
       state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
     }
@@ -1091,7 +1091,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
                      (uint32_t)state->averaged_interval, (uint32_t)state->half_measurement_time);
 
   // QC - is it not possible to miss any of the interrupts during dummy measurement?
-  if(state->mag_info.use_dri)
+  if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
   {
     if(!state->in_clock_error_procedure && state->mag_info.req_wmk == UINT32_MAX)
     {
@@ -1937,7 +1937,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       make_vector3_from_array(state->cal.params[state->cal.id].bias),
       state->cal.params[state->cal.id].corr_mat);
 
-  if(!state->mag_info.use_dri &&
+  if( state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING &&
       (opdata_raw[0] == 0) &&
       (opdata_raw[1] == 0) &&
       (opdata_raw[2] == 0)
@@ -2005,7 +2005,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   int8_t over_sample;
 
   //skip the data to adjust timing for Polling+FIFO
-  if(!state->mag_info.use_dri && state->mag_info.use_fifo)
+  if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING && state->mag_info.use_fifo)
   {
     if(state->fifo_flush_in_progress)
     {
@@ -2080,7 +2080,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->irq_info.detect_irq_event = false;
   state->this_is_the_last_flush = false;
   if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
-      (ak0991x_dae_if_available(instance) && !state->mag_info.use_dri && state->flush_requested_in_dae) )
+      (ak0991x_dae_if_available(instance) && state->mag_info.use_dri  == AK0991X_INT_OP_MODE_POLLING && state->flush_requested_in_dae) )
   {
     ak0991x_send_fifo_flush_done(instance);
   }
@@ -2297,7 +2297,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     if(state->mag_info.device_select == AK09917)
     {
-      if(state->mag_info.use_dri)
+      if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
       {
         state->num_samples = st1_buf >> 2;
       }
@@ -2454,7 +2454,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     complete_flush = true;
   }
 
-  if(state->mag_info.use_dri &&
+  if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING &&
      !state->irq_info.detect_irq_event &&
      state->heart_beat_attempt_count==0 )
   {
@@ -2638,7 +2638,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   if(state->num_samples > 0)
   {
     // adjust timestamp and interval if needed.
-    if(state->mag_info.use_dri)
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
     {
       state->mag_info.data_count+=state->num_samples;
       ak0991x_validate_timestamp_for_dri(instance);
@@ -2660,7 +2660,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
     state->heart_beat_attempt_count = 0;
   }
-  if( state->mag_info.use_dri &&
+  if( state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING &&
       (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) &&
       (state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX))
   {
@@ -2675,7 +2675,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
-    if(state->mag_info.use_dri) // DRI mode
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING) // DRI mode
     {
       if(!state->irq_info.detect_irq_event) // flush request received.
       {
@@ -3068,7 +3068,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
   state->system_time = sns_get_system_time();
 
   // for heat beat timer
-  if(state->mag_info.use_dri)
+  if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
   {
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
@@ -3251,7 +3251,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
     AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
-    if(!state->mag_info.use_dri || state->irq_info.is_ready || 
+    if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING || state->irq_info.is_ready ||
        ak0991x_dae_if_is_streaming(this))
     {
       rv = ak0991x_start_mag_streaming(this);
@@ -3294,7 +3294,7 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
    return rv;
  }
 
- if (state->mag_info.use_dri)
+ if (state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
  {
    SNS_INST_PRINTF(ERROR, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
                         state->heart_beat_attempt_count,

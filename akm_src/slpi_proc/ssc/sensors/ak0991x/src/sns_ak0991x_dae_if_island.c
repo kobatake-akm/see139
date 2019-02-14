@@ -180,7 +180,7 @@ static bool send_mag_config(sns_sensor_instance *this)
                      state->in_clock_error_procedure,
                      state->mag_info.use_dri);
 
-  if(!state->mag_info.use_dri || 
+  if( state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING ||
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
@@ -221,7 +221,7 @@ static bool send_mag_config(sns_sensor_instance *this)
     config_req.data_age_limit_ticks += config_req.data_age_limit_ticks / 10;
   }
 
-  config_req.has_polling_config  = !mag_info->use_dri;
+  config_req.has_polling_config  = (state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING);
   if( config_req.has_polling_config )
   {
     if (mag_info->use_sync_stream)
@@ -442,7 +442,7 @@ static void process_fifo_samples(
     else
     {
       // num_samples when FIFO disabled.
-      if(state->mag_info.use_dri)  // dri mode
+      if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)  // dri mode
       {
         state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
       }
@@ -452,12 +452,12 @@ static void process_fifo_samples(
         state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
 
         // check forwarding timestamp
-        if( state->num_samples > 0 &&
-            state->pre_timestamp + sampling_intvl > state->dae_event_time + sampling_intvl/2)
-        {
-          AK0991X_INST_PRINT(LOW, this, "timestamp is future ignore one sample.");
-          state->num_samples = 0;
-        }
+//        if( state->num_samples > 0 &&
+//            state->pre_timestamp + sampling_intvl > state->dae_event_time + sampling_intvl/2)
+//        {
+//          AK0991X_INST_PRINT(LOW, this, "timestamp is future ignore one sample.");
+//          state->num_samples = 0;
+//        }
 
         if( state->num_samples > 0 && state->fifo_flush_in_progress )
         {
@@ -483,7 +483,7 @@ static void process_fifo_samples(
     state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
   }
 
-  if(state->mag_info.use_dri)
+  if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
   {
     state->mag_info.data_count += state->num_samples;
   }
@@ -508,7 +508,7 @@ static void process_fifo_samples(
           ak0991x_reset_mag_parameters(this, false);
         }
 
-        if(state->mag_info.use_dri)
+        if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
         {
           ak0991x_validate_timestamp_for_dri(this);
         }
@@ -516,7 +516,15 @@ static void process_fifo_samples(
         {
           if(state->this_is_first_data)
           {
-            state->interrupt_timestamp = state->dae_polling_offset;
+            if( state->dae_event_time > state->dae_polling_offset - sampling_intvl/2 &&
+                state->dae_event_time < state->dae_polling_offset + sampling_intvl/2 )
+            {
+              state->interrupt_timestamp = state->dae_polling_offset;
+            }
+            else
+            {
+              state->interrupt_timestamp = state->dae_event_time;
+            }
             state->dae_polling_offset += sampling_intvl;
           }
           else
@@ -537,10 +545,33 @@ static void process_fifo_samples(
         state->this_is_first_data);
 #endif
 
+        // add dummy data when detecting gap
+        if( state->this_is_first_data && (sampling_intvl != 0) )
+        {
+          dummy_count = (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan - sampling_intvl/2) / sampling_intvl;
+          if(dummy_count > 2)
+          {
+            dummy_count = 2;  // MAX dummy count : 2
+          }
+          for(int i=0; i<dummy_count; i++)
+          {
+            // add dummy data
+            AK0991X_INST_PRINT(LOW, this, "dummy data added. pre_timestamp %u first_data_ts %u intvl %u # %u",
+                (uint32_t)state->pre_timestamp_for_orphan,
+                (uint32_t)state->first_data_ts_of_batch,
+                (uint32_t)sampling_intvl,
+                (uint32_t)state->total_samples);
+            ak0991x_process_mag_data_buffer(this,
+                                            state->first_data_ts_of_batch - ( dummy_count - i ) * sampling_intvl,
+                                            sampling_intvl,
+                                            buf + state->dae_if.mag.status_bytes_per_fifo,
+                                            AK0991X_NUM_DATA_HXL_TO_ST2);
+          }
+        }
       }
       else  // orphan
       {
-        if( state->mag_info.use_dri &&
+        if( state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING &&
             (state->irq_info.detect_irq_event ||
              state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))  // dri
         {
@@ -558,31 +589,6 @@ static void process_fifo_samples(
             state->num_samples,
             (uint32_t)state->last_sw_reset_time,
             (uint32_t)state->dae_event_time);
-      }
-
-      // add dummy data when detecting gap
-      if( (sampling_intvl != 0) &&
-          (state->first_data_ts_of_batch > state->pre_timestamp_for_orphan + sampling_intvl) )
-      {
-        dummy_count = (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan - sampling_intvl/2) / sampling_intvl;
-        if(dummy_count > 3)
-        {
-          dummy_count = 3;  // MAX dummy count : 3
-        }
-        for(int i=0; i<dummy_count; i++)
-        {
-          // add dummy data
-          AK0991X_INST_PRINT(LOW, this, "A dummy data added. pre_timestamp %u first_data_ts %u intvl %u # %u",
-              (uint32_t)state->pre_timestamp_for_orphan,
-              (uint32_t)state->first_data_ts_of_batch,
-              (uint32_t)sampling_intvl,
-              (uint32_t)state->total_samples);
-          ak0991x_process_mag_data_buffer(this,
-                                          state->first_data_ts_of_batch - ( dummy_count - i ) * sampling_intvl,
-                                          sampling_intvl,
-                                          buf + state->dae_if.mag.status_bytes_per_fifo,
-                                          AK0991X_NUM_DATA_HXL_TO_ST2);
-        }
       }
 
       ak0991x_process_mag_data_buffer(this,
@@ -607,7 +613,7 @@ static void process_fifo_samples(
       }
     }
 
-    if(state->mag_info.use_dri) // for DRI mode
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING) // for DRI mode
     {
       state->heart_beat_attempt_count = 0;
       if (NULL != state->timer_data_stream)
@@ -670,7 +676,7 @@ static void estimate_event_type(
   uint8_t wm = (buf[1] & AK0991X_FIFO_BIT) ? (buf[0] & 0x1F) + 1 : 1;
   sns_time polling_timestamp;
 
-  if( state->mag_info.use_dri ) // DRI
+  if( state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING ) // DRI
   {
     if( buf[2] & AK0991X_DRDY_BIT )
     {
@@ -724,7 +730,7 @@ static void process_data_event(
     state->fifo_flush_in_progress = false;
 	
     // check if ODR==0 when polling mode
-    if( !state->mag_info.use_dri
+    if( state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING
         && state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF
         && state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF
         && AK0991X_CONFIG_UPDATING_HW == state->config_step)
@@ -734,7 +740,7 @@ static void process_data_event(
 
     if(data_event.has_timestamp_type)
     {
-      if(state->mag_info.use_dri) // DRI
+      if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING) // DRI
       {
         if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_HW_IRQ )
         {
@@ -777,7 +783,7 @@ static void process_data_event(
 
     if(state->irq_info.detect_irq_event)
     {
-      if(state->mag_info.use_dri)
+      if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
       {
         // When DAE enable, validate timestamp can return false.
         if(state->mag_info.data_count == 0)
@@ -856,7 +862,8 @@ static void process_response(
         }
         else
         {
-          if(SNS_STD_ERROR_INVALID_STATE == resp.err && !state->mag_info.use_dri)
+          if(SNS_STD_ERROR_INVALID_STATE == resp.err &&
+              state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING)
           {
             SNS_INST_PRINTF(LOW, this,"stop and restart dae streaming");
             ak0991x_dae_if_stop_streaming(this);
@@ -894,7 +901,7 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d num_samples=%d",
                          resp.err, dae_stream->state, state->config_step, state->num_samples);
-      if( state->num_samples>0 && state->flush_requested_in_dae)
+      if( (state->num_samples>0 || state->this_is_the_last_flush) && state->flush_requested_in_dae )
       {
         ak0991x_send_fifo_flush_done(this);
       }

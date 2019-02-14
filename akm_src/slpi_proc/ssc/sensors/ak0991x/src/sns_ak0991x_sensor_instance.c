@@ -466,7 +466,7 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this)
 
   ak0991x_reconfig_hw(this, true);
 
-  if(!state->mag_info.use_dri)
+  if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING)
   {
     ak0991x_register_timer(this);
     // Register for s4s timer
@@ -773,7 +773,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         if(!ak0991x_dae_if_available(this))
         {
           ak0991x_reconfig_hw(this, false);
-          if(!state->mag_info.use_dri)
+          if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING)
           {
             // Register for timer for polling
             ak0991x_register_timer(this);
@@ -797,7 +797,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
       // Register for timer
-      if (!state->mag_info.use_dri && !ak0991x_dae_if_available(this))
+      if (state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING && !ak0991x_dae_if_available(this))
       {
         ak0991x_reconfig_hw(this, false);
         ak0991x_register_timer(this);
