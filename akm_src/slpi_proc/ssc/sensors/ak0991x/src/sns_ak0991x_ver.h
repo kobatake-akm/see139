@@ -22,7 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 02/13/19     020043     AKM              Fixed to resend correct config_event in multi request.
+ * 02/14/19     020043     AKM              Use ideal timestamp for polling
+ * 02/14/19                AKM
+ * 02/14/19                AKM              Fixed driver version.
  * 02/11/19     020042     Qualcomm         Enabled IBI support.
  * 02/05/19                AKM              Use ideal time for Polling.
  * 02/05/19                AKM              Modified for sending flush_done with reliable mag data samples
@@ -249,4 +251,8 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20043  // major:02 minor:00 revision:43
+// major:02 minor:00 revision:43
+#define AK0991X_DRV_VER_MAJOR    2
+#define AK0991X_DRV_VER_MINOR    0
+#define AK0991X_DRV_VER_REV      43
+#define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

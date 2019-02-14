@@ -546,7 +546,9 @@ static void process_fifo_samples(
 #endif
 
         // add dummy data when detecting gap
-        if( state->this_is_first_data && (sampling_intvl != 0) )
+        if( state->this_is_first_data &&
+            (sampling_intvl != 0) &&
+            (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan > sampling_intvl) )
         {
           dummy_count = (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan - sampling_intvl/2) / sampling_intvl;
           if(dummy_count > 2)
@@ -901,13 +903,16 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
       SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d num_samples=%d",
                          resp.err, dae_stream->state, state->config_step, state->num_samples);
-      if( (state->num_samples>0 || state->this_is_the_last_flush) && state->flush_requested_in_dae )
+      if(state->flush_requested_in_dae)
       {
-        ak0991x_send_fifo_flush_done(this);
-      }
-      else
-      {
-        SNS_INST_PRINTF(LOW, this, "flush_done_skipped");
+        if( state->num_samples>0 || state->this_is_the_last_flush )
+        {
+          ak0991x_send_fifo_flush_done(this);
+        }
+        else
+        {
+          SNS_INST_PRINTF(LOW, this, "flush_done_skipped");
+        }
       }
       dae_stream->flushing_data = false;
       break;
@@ -927,6 +932,7 @@ static void process_response(
           if(ak0991x_dae_if_flush_hw(this))
           {
             state->config_step = AK0991X_CONFIG_FLUSHING_HW;
+            state->this_is_the_last_flush = true;
             SNS_INST_PRINTF(LOW, this,"Last flush before changing ODR.");
           }
           else
