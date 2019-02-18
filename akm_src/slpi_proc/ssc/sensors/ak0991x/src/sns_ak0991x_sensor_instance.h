@@ -80,6 +80,14 @@ typedef enum
   SUPPORTED_DEVICES
 } akm_device_type;
 
+/** Supported AKM INT Modes */
+typedef enum
+{
+  AK0991X_INT_OP_MODE_POLLING = 0,
+  AK0991X_INT_OP_MODE_IRQ = 1,
+  AK0991X_INT_OP_MODE_IBI = 2,
+} ak0991x_int_op_mode;
+
 /**
  * AK0991X output data rate for mag
  */
@@ -159,14 +167,15 @@ typedef struct ak0991x_mag_info
   uint32_t       req_wmk;
   uint16_t       cur_wmk;
   uint16_t       max_fifo_size;
-  uint8_t        use_dri; // 0: polling.  1:DRI.   2:IBI.
   bool           use_fifo;
   bool           flush_only;
   bool           max_batch;
   bool           use_sync_stream;
+  ak0991x_int_op_mode use_dri; // 0: polling.  1:DRI.   2:IBI.
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;
+
   ak0991x_self_test_info test_info;
 
   uint32_t      data_count;
@@ -236,6 +245,7 @@ typedef struct ak0991x_instance_state
   bool is_orphan;
   bool is_previous_irq;
   bool flush_requested_in_dae;
+  sns_std_sensor_sample_status sensor_sample_status;
   sns_time irq_event_time;
   sns_time previous_irq_time;
   sns_time interrupt_timestamp;
@@ -251,9 +261,12 @@ typedef struct ak0991x_instance_state
   sns_time hb_timer_fire_time;
   sns_time last_sw_reset_time;
   sns_time dae_event_time;
+  sns_time dae_polling_offset;
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
   uint32_t ts_debug_count;
+  uint32_t flush_req_count;
+  uint32_t flush_done_count;
 
   /** Timer info */
   sns_sensor_uid timer_suid;

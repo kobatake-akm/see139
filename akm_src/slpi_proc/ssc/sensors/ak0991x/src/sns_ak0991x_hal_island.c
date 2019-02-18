@@ -1,11 +1,11 @@
 /**
  * @file sns_ak0991x_hal_island.c
  *
- * Copyright (c) 2016-2018 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -309,13 +309,6 @@ sns_rc ak0991x_log_sensor_state_raw_add(
   return rc;
 }
 
-static void ak0991x_extra_tsu_sta_time()
-{
-#ifdef AK0991X_ENABLE_I3C_SUPPORT
-  sns_busy_wait(sns_convert_ns_to_ticks(AK0991X_EXTRA_TSU_STA_NSEC));
-#endif
-}
-
 /**
  * Read wrapper for Synch Com Port Service.
  *
@@ -340,7 +333,6 @@ static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_service * scp_service,
   port_vec.is_write = false;
   port_vec.reg_addr = reg_addr;
 
-  ak0991x_extra_tsu_sta_time();
   return scp_service->api->sns_scp_register_rw(port_handle,
                                                &port_vec,
                                                1,
@@ -391,7 +383,6 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
 #else
   UNUSED_VAR( this );
 #endif
-  ak0991x_extra_tsu_sta_time();
   return scp_service->api->sns_scp_register_rw(port_handle,
                                                &port_vec,
                                                1,
@@ -458,11 +449,12 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   sns_com_port_config          i2c_com_config = com_port->com_config;
   uint32_t                     xfer_bytes;
   uint8_t                      buffer[6];
+  bool                         enable_ibi = false;
 
   if(com_port->com_config.bus_type != SNS_BUS_I3C_SDR &&
      com_port->com_config.bus_type != SNS_BUS_I3C_HDR_DDR )
   {
-    return SNS_RC_FAILED;
+    return SNS_RC_SUCCESS;
   }
 
   if(NULL != instance)
@@ -501,7 +493,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
   /**-------------------Assign I3C dynamic address------------------------*/
   buffer[0] = (com_port->i3c_address & 0xFF)<<1;
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( i2c_port_handle,
                        SNS_SYNC_COM_PORT_CCC_SETDASA,
@@ -510,21 +501,16 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   scp_service->api->sns_scp_deregister_com_port(&i2c_port_handle);
   com_port->in_i3c_mode = true;
 
-  if(rv == SNS_RC_SUCCESS)
+  if(NULL != instance)
   {
-    if(NULL != instance)
+    if(rv == SNS_RC_SUCCESS)
     {
       SNS_INST_PRINTF(HIGH, instance, "I3C address assigned: 0x%x",((uint32_t)buffer[0])>>1);
     }
-  }
-  else
-  {
-    if(NULL != instance)
+    else
     {
-      SNS_INST_PRINTF(HIGH, instance, "assign i3c address failed; rv=%d", rv);
+      SNS_INST_PRINTF(HIGH, instance, "Assign I3C address failed; rv=%d", rv);
     }
-    com_port->in_i3c_mode = false;
-    return SNS_RC_FAILED;
   }
 
   /**-------------Set max read size to the size of the FIFO------------------*/
@@ -533,7 +519,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     buffer[0] = (uint8_t)((AK0991X_MAX_FIFO_SIZE >> 8) & 0xFF);
     buffer[1] = (uint8_t)(AK0991X_MAX_FIFO_SIZE & 0xFF);
     buffer[2] = 0;
-    ak0991x_extra_tsu_sta_time();
     rv = scp_service->api->
       sns_scp_issue_ccc( com_port->port_handle,
                          SNS_SYNC_COM_PORT_CCC_SETMRL,
@@ -545,39 +530,65 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
                         rv, com_port->port_handle);
       }
       com_port->in_i3c_mode = false;
-      return SNS_RC_FAILED;
     }
-  }
 
-  /**-------------------Disable IBI------------------------*/
-  if(com_port->port_handle != NULL)
-  {
-    buffer[0] = 0x1;
-    ak0991x_extra_tsu_sta_time();
-    rv = scp_service->api->
-      sns_scp_issue_ccc( com_port->port_handle,
-                         SNS_SYNC_COM_PORT_CCC_DISEC,
-                         buffer, 1, &xfer_bytes );
-    if( rv == SNS_RC_SUCCESS ) {
-      if(NULL != instance)
+    /**-------------------Enable/Disable IBI------------------------*/
+    if(NULL != instance)
+    {
+      ak0991x_instance_state *state = (ak0991x_instance_state *)(instance->state->state);
+      if (state->mag_info.use_dri == AK0991X_INT_OP_MODE_IBI)
       {
-        AK0991X_INST_PRINT(LOW, instance, "IBI disabled");
+        enable_ibi = true;
       }
-    } else {
-      if(NULL != instance)
-      {
-          SNS_INST_PRINTF(ERROR, instance, "IBI disable FAILED! rv=%d hndl=0x%x",
-                      rv, com_port->port_handle);
+    }
+
+    if( enable_ibi )
+    {
+      buffer[0] = 0x1;
+      rv = scp_service->api->
+        sns_scp_issue_ccc( com_port->port_handle,
+                           SNS_SYNC_COM_PORT_CCC_ENEC,
+                           buffer, 1, &xfer_bytes );
+      if( rv == SNS_RC_SUCCESS ) {
+        if(NULL != instance)
+        {
+          SNS_INST_PRINTF(HIGH, instance, "IBI enabled");
+        }
+      } else {
+        if(NULL != instance)
+        {
+          SNS_INST_PRINTF(ERROR, instance, "Enable IBI  FAILED! rv=%d hndl=0x%x",
+              rv, com_port->port_handle);
+        }
+        com_port->in_i3c_mode = false;
       }
-      com_port->in_i3c_mode = false;
-      return SNS_RC_FAILED;
+    }
+    else
+    {
+      buffer[0] = 0x1;
+      rv = scp_service->api->
+        sns_scp_issue_ccc( com_port->port_handle,
+                           SNS_SYNC_COM_PORT_CCC_DISEC,
+                           buffer, 1, &xfer_bytes );
+      if( rv == SNS_RC_SUCCESS ) {
+        if(NULL != instance)
+        {
+          AK0991X_INST_PRINT(HIGH, instance, "IBI disabled");
+        }
+      } else {
+        if(NULL != instance)
+        {
+            SNS_INST_PRINTF(ERROR, instance, "Disable IBI FAILED! rv=%d hndl=0x%x",
+                        rv, com_port->port_handle);
+        }
+        com_port->in_i3c_mode = false;
+      }
     }
   }
 
 #ifdef AK0991X_ENABLE_I3C_DEBUG
   /**-------------------Debug -- read all CCC info------------------------*/
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETMWL,
@@ -593,7 +604,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get max write length failed!");
     }
   }
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_SETMWL,
@@ -607,7 +617,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETMRL,
@@ -627,7 +636,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETPID,
@@ -647,7 +655,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
     
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETBCR,
@@ -666,7 +673,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
 
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETDCR,
@@ -685,7 +691,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   }
     
   sns_memset(buffer, 0, sizeof(buffer));
-  ak0991x_extra_tsu_sta_time();
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
                        SNS_SYNC_COM_PORT_CCC_GETSTATUS,
@@ -708,8 +713,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   UNUSED_VAR(instance);
   UNUSED_VAR(com_port);
   UNUSED_VAR(scp_service);
-
-  rv = SNS_RC_SUCCESS;
 #endif /* AK0991X_ENABLE_I3C_SUPPORT */
   return rv;
 }
@@ -920,7 +923,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   // Force 100Hz DRI measurement starts to get the clock error.
   if(!force_off)
   {
-    if(state->mag_info.use_dri &&
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING &&
        (state->mag_info.clock_error_meas_count == 0) &&
        !state->in_clock_error_procedure)
     {
@@ -1031,7 +1034,7 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_res
     state->system_time = sns_get_system_time();
     state->heart_beat_timestamp = state->system_time;
 
-    if(state->mag_info.use_dri)
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
     {
       state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
     }
@@ -1088,7 +1091,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
                      (uint32_t)state->averaged_interval, (uint32_t)state->half_measurement_time);
 
   // QC - is it not possible to miss any of the interrupts during dummy measurement?
-  if(state->mag_info.use_dri)
+  if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
   {
     if(!state->in_clock_error_procedure && state->mag_info.req_wmk == UINT32_MAX)
     {
@@ -1934,7 +1937,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       make_vector3_from_array(state->cal.params[state->cal.id].bias),
       state->cal.params[state->cal.id].corr_mat);
 
-  if(!state->mag_info.use_dri &&
+  if( state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING &&
       (opdata_raw[0] == 0) &&
       (opdata_raw[1] == 0) &&
       (opdata_raw[2] == 0)
@@ -1966,6 +1969,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     timestamp,
     status);
   state->total_samples++;
+  state->sensor_sample_status = status;
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -2001,7 +2005,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   int8_t over_sample;
 
   //skip the data to adjust timing for Polling+FIFO
-  if(!state->mag_info.use_dri && state->mag_info.use_fifo)
+  if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING && state->mag_info.use_fifo)
   {
     if(state->fifo_flush_in_progress)
     {
@@ -2075,7 +2079,8 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   // reset flags
   state->irq_info.detect_irq_event = false;
   state->this_is_the_last_flush = false;
-  if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress )
+  if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
+      (ak0991x_dae_if_available(instance) && state->mag_info.use_dri  == AK0991X_INT_OP_MODE_POLLING && state->flush_requested_in_dae) )
   {
     ak0991x_send_fifo_flush_done(instance);
   }
@@ -2108,6 +2113,8 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
   }
 
   state->fifo_flush_in_progress = false;
+  state->flush_requested_in_dae = false;
+  state->flush_done_count++;
 }
 
 static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time intvl)
@@ -2244,6 +2251,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   {
     if(ak0991x_dae_if_available(instance))
     {
+#ifdef AK0991X_ENABLE_TIMER_FILTER
       // check delayed timer timestamp for preventing jitter
       if( !state->this_is_first_data && state->is_previous_irq &&
           state->dae_event_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
@@ -2257,6 +2265,9 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
       {
         state->interrupt_timestamp = state->dae_event_time;
       }
+#else
+      state->interrupt_timestamp = state->dae_event_time;
+#endif
     }
     else
     {
@@ -2286,7 +2297,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     if(state->mag_info.device_select == AK09917)
     {
-      if(state->mag_info.use_dri)
+      if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
       {
         state->num_samples = st1_buf >> 2;
       }
@@ -2443,7 +2454,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     complete_flush = true;
   }
 
-  if(state->mag_info.use_dri &&
+  if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING &&
      !state->irq_info.detect_irq_event &&
      state->heart_beat_attempt_count==0 )
   {
@@ -2627,7 +2638,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   if(state->num_samples > 0)
   {
     // adjust timestamp and interval if needed.
-    if(state->mag_info.use_dri)
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
     {
       state->mag_info.data_count+=state->num_samples;
       ak0991x_validate_timestamp_for_dri(instance);
@@ -2649,7 +2660,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
     state->heart_beat_attempt_count = 0;
   }
-  if( state->mag_info.use_dri &&
+  if( state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING &&
       (state->system_time + (state->averaged_interval * (state->mag_info.cur_wmk + 1)) > state->hb_timer_fire_time) &&
       (state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX))
   {
@@ -2664,7 +2675,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 
   if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
-    if(state->mag_info.use_dri) // DRI mode
+    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING) // DRI mode
     {
       if(!state->irq_info.detect_irq_event) // flush request received.
       {
@@ -2952,21 +2963,42 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_data_stream* data_stream;
-  uint8_t buffer[20];
 
   if(!state->irq_info.is_registered)
   {
+    uint8_t buffer[20];
+    sns_request irq_req;
+    const pb_field_t *fields;
+    const void *payload = NULL;
+    sns_ibi_req ibi_config =
+    {
+      .dynamic_slave_addr = state->com_port_info.com_config.slave_control,
+      .bus_instance = state->com_port_info.com_config.bus_instance,
+      .ibi_data_bytes = 0,
+    };
+
     data_stream = state->interrupt_data_stream;
-    sns_request irq_req =
-      {
-        .message_id = SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REQ,
-        .request    = buffer
-      };
+    irq_req.request = buffer;
+    if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_IBI)
+    {
+      irq_req.message_id = SNS_INTERRUPT_MSGID_SNS_IBI_REQ;
+      fields = sns_ibi_req_fields;
+
+      payload = &ibi_config;
+      SNS_INST_PRINTF(HIGH, this, "Registering IBI...");
+    }
+    else
+    {
+      irq_req.message_id = SNS_INTERRUPT_MSGID_SNS_INTERRUPT_REQ;
+      fields = sns_interrupt_req_fields;
+      payload = &state->irq_info.irq_config;
+      SNS_INST_PRINTF(HIGH, this, "Registering IRQ...");
+    }
 
     irq_req.request_len = pb_encode_request(buffer,
                                             sizeof(buffer),
-                                            &state->irq_info.irq_config,
-                                            sns_interrupt_req_fields,
+                                            payload,
+                                            fields,
                                             NULL);
     if(irq_req.request_len > 0)
     {
@@ -3036,7 +3068,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
   state->system_time = sns_get_system_time();
 
   // for heat beat timer
-  if(state->mag_info.use_dri)
+  if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
   {
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
@@ -3213,13 +3245,13 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
     state->last_sw_reset_time = sns_get_system_time();
-    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. error = %d", (int)rv);
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. at %u", (uint32_t)state->last_sw_reset_time);
   }
 
   if (state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF)
   {
     AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
-    if(!state->mag_info.use_dri || state->irq_info.is_ready || 
+    if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING || state->irq_info.is_ready ||
        ak0991x_dae_if_is_streaming(this))
     {
       rv = ak0991x_start_mag_streaming(this);
@@ -3262,9 +3294,9 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
    return rv;
  }
 
- if (state->mag_info.use_dri)
+ if (state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
  {
-   SNS_INST_PRINTF(HIGH, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
+   SNS_INST_PRINTF(ERROR, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
                         state->heart_beat_attempt_count,
                         (uint32_t)state->req_payload.start_time,
                         (uint32_t)state->req_payload.timeout_period,

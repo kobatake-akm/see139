@@ -7,7 +7,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -1071,7 +1071,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   uint8_t i;
 
-  state->is_dri = false;
+  state->is_dri = AK0991X_INT_OP_MODE_POLLING;
   state->hardware_id = 0;
   state->resolution_idx = 0;
   state->supports_sync_stream = false;
@@ -1880,15 +1880,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
       else // handle Flush request without adding to request list
       {
-        if(inst_state->mag_info.curr_odr != AK0991X_MAG_ODR_OFF)
-        {
-          ak0991x_send_flush_config(this, instance);
-        }
-        else
-        {
-          AK0991X_PRINT(LOW, this, "FLUSH requested. but ODR=0.");
-          ak0991x_send_fifo_flush_done(instance);
-        }
+        inst_state->flush_req_count++;
+        ak0991x_send_flush_config(this, instance);
       }
     }
   }

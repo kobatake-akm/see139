@@ -4,11 +4,11 @@
  *
  * Driver version
  *
- * Copyright (c) 2017-2018 Asahi Kasei Microdevices
+ * Copyright (c) 2017-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2017-2019 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -22,10 +22,19 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 02/14/19     020043     AKM              Use ideal timestamp for polling
+ * 02/14/19                AKM
+ * 02/14/19                AKM              Fixed driver version.
+ * 02/11/19     020042     Qualcomm         Enabled IBI support.
+ * 02/05/19                AKM              Use ideal time for Polling.
+ * 02/05/19                AKM              Modified for sending flush_done with reliable mag data samples
+ * 02/05/19                AKM              Added flush_done call in deinit for DAE
+ * 01/23/19     020041     AKM/Qualcomm     Use SNS_ENABLE_DAE. Set 0us for TSU_STA time.
+ * 01/17/19                AKM              Revert in ak0991x_enter_i3c_mode. Not return when dynamic address is assigned.
  * 01/10/19     020040     AKM              Fixed dummy data process on DAE
  * 01/09/19     020039     AKM              Added enter_i3c when bus power reset
  * 01/07/19     020038     AKM              Tested CTS: DRI+FIFO+DAE/non-DAE.
- * 01/04/19     020038TBD  AKM              Added Extra tSU_STA time for I3C.
+ * 01/04/19                AKM              Added Extra tSU_STA time for I3C.
  * 01/02/19                AKM/Qualcomm     Merged Qualcomm's 020036 modification for SM8250. Still testing.
  * 12/28/18                AKM              Check negative timestamp when flush requested in DAE+DRI.
  * 12/27/18                AKM              Added dummy data at the first data when detects gap.
@@ -46,10 +55,6 @@
  * 12/07/18                AKM              CTS passed on DAE+I3C+DRI+FIFO.
  * 12/07/18                AKM              CTS passed on DAE+I3C+Polling excepts testGeomagneticRotationVector_fastest. Timer timestamp has jitter.
  * 12/06/18                AKM              Add macro to use ideal timestamp for DAE+Polling.
- * 01/02/19     020034t3   AKM              Store data even though DRDY is L on Non DAE+Polling.
- * 12/20/18     020034t2   AKM              Ignore iteration for I3C enter when I2C and added AK0991X_ENABLE_TIMER_FILTER and
- * 12/20/18     020034t1   AKM              Added polling timer filter. Modified for polling_offset
- * 12/12/18     020034t0   AKM              Added patch when received SNS_STD_ERROR_INVALID_STATE on DAE+Polling
  * 12/06/18     020034     AKM              CTS passed with DAE+Polling
  * 12/05/18                AKM              Modified flush request in DAE+Polling mode
  * 12/04/18                AKM              Use last_sw_reset_time to detect orphan batch.
@@ -246,4 +251,8 @@
  *
  **/
 
-#define AK0991X_DRIVER_VERSION 20040  // major:02 minor:00 revision:40
+// major:02 minor:00 revision:43
+#define AK0991X_DRV_VER_MAJOR    2
+#define AK0991X_DRV_VER_MINOR    0
+#define AK0991X_DRV_VER_REV      43
+#define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
