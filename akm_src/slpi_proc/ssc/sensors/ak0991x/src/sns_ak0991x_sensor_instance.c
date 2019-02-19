@@ -612,7 +612,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if( state->mag_info.cur_wmk == desired_wmk
         && state->mag_info.curr_odr == mag_chosen_sample_rate_reg_value
-        && state->mag_info.req_wmk == previous_req_wmk )
+        && (state->mag_info.req_wmk == previous_req_wmk || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
       AK0991X_INST_PRINT(LOW, this, "Config not changed.");
