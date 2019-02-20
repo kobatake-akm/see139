@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 02/14/19     020043     AKM              Use ideal timestamp for polling
+ * 02/20/19     020043     AKM              Modified to check update of dae_watermark.
+ * 02/14/19                AKM              Use ideal timestamp for polling
  * 02/14/19                AKM
  * 02/14/19                AKM              Fixed driver version.
  * 02/11/19     020042     Qualcomm         Enabled IBI support.
