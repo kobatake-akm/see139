@@ -3,7 +3,7 @@
  *
  * AK0991X Mag virtual Sensor Instance implementation.
  *
- * Copyright (c) 2016-2018 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  *
  * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
