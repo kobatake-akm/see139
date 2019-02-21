@@ -496,24 +496,23 @@ static void process_fifo_samples(
       state->data_over_run = (buf[2] & AK0991X_DOR_BIT) ? true : false;
       state->data_is_ready = (buf[2] & AK0991X_DRDY_BIT) ? true : false;
 
-      // AK0991X_INST_PRINT(MED, this, "[odr] %d : %d [wmk] %d: %d",
-      // (uint8_t)state->last_sent_cfg.odr, (uint8_t)odr, state->last_sent_cfg.dae_wmk, wm);
-
-      // if config was updated, send correct config whether orphan is occurred or not.
-      if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.dae_wmk != wm)
-      {
-        state->new_cfg.odr     = odr;
-        state->new_cfg.dae_wmk = wm;
-
-        AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u", (uint32_t)state->dae_event_time);
-        ak0991x_send_config_event(this);
-        ak0991x_set_curr_odr(this);
-        ak0991x_reset_mag_parameters(this, false);
-      }
-
       if( !state->is_orphan ) // regular sequence
       {
+        // AK0991X_INST_PRINT(MED, this, "[odr] %d : %d [wmk] %d: %d",
+        // (uint8_t)state->last_sent_cfg.odr, (uint8_t)odr, state->last_sent_cfg.dae_wmk, wm);
 
+        // if config was updated, send correct config.
+        if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.dae_wmk != wm)
+        {
+          state->new_cfg.odr     = odr;
+          state->new_cfg.dae_wmk = wm;
+
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u", (uint32_t)state->dae_event_time);
+          ak0991x_send_config_event(this);
+          ak0991x_set_curr_odr(this);
+          ak0991x_reset_mag_parameters(this, false);
+        }
+        
         if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
         {
           ak0991x_validate_timestamp_for_dri(this);
