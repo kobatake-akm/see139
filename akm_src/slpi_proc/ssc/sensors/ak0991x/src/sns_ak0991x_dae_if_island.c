@@ -70,18 +70,18 @@ static void build_static_config_request(
   config_req->has_ibi_config = false;
 #else
   config_req->interrupt =
-      (sensor_state->is_dri == AK0991X_INT_OP_MODE_IBI) ?
+      (sensor_state->int_mode == AK0991X_INT_OP_MODE_IBI) ?
           SNS_DAE_INT_OP_MODE_IBI :
-      (sensor_state->is_dri == AK0991X_INT_OP_MODE_IRQ) ?
+      (sensor_state->int_mode == AK0991X_INT_OP_MODE_IRQ) ?
           SNS_DAE_INT_OP_MODE_IRQ : SNS_DAE_INT_OP_MODE_POLLING;
-  config_req->has_irq_config = sensor_state->is_dri == AK0991X_INT_OP_MODE_IRQ;
-  config_req->has_ibi_config = sensor_state->is_dri == AK0991X_INT_OP_MODE_IBI;
+  config_req->has_irq_config = sensor_state->int_mode == AK0991X_INT_OP_MODE_IRQ;
+  config_req->has_ibi_config = sensor_state->int_mode == AK0991X_INT_OP_MODE_IBI;
 #endif /* AK0991X_DAE_FORCE_POLLING */
-  if(sensor_state->is_dri == AK0991X_INT_OP_MODE_IRQ)
+  if(sensor_state->int_mode == AK0991X_INT_OP_MODE_IRQ)
   {
     config_req->irq_config = sensor_state->irq_config;
   }
-  else if(sensor_state->is_dri == AK0991X_INT_OP_MODE_IBI)
+  else if(sensor_state->int_mode == AK0991X_INT_OP_MODE_IBI)
   {
     config_req->ibi_config             =
     (sns_ibi_req){ .dynamic_slave_addr = sensor_state->com_port_info.com_config.slave_control,
@@ -178,9 +178,9 @@ static bool send_mag_config(sns_sensor_instance *this)
                      state->mag_info.clock_error_meas_count,
                      AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC,
                      state->in_clock_error_procedure,
-                     state->mag_info.use_dri);
+                     state->mag_info.int_mode);
 
-  if( state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING ||
+  if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING ||
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
@@ -221,7 +221,7 @@ static bool send_mag_config(sns_sensor_instance *this)
     config_req.data_age_limit_ticks += config_req.data_age_limit_ticks / 10;
   }
 
-  config_req.has_polling_config  = (state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING);
+  config_req.has_polling_config  = (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING);
   if( config_req.has_polling_config )
   {
     if (mag_info->use_sync_stream)
@@ -442,7 +442,7 @@ static void process_fifo_samples(
     else
     {
       // num_samples when FIFO disabled.
-      if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)  // dri mode
+      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)  // dri mode
       {
         state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
       }
@@ -483,10 +483,7 @@ static void process_fifo_samples(
     state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
   }
 
-  if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
-  {
-    state->mag_info.data_count += state->num_samples;
-  }
+  state->mag_info.data_count_for_dri += state->num_samples;
 
   if(state->num_samples >= 1)
   {
@@ -508,7 +505,7 @@ static void process_fifo_samples(
           ak0991x_reset_mag_parameters(this, false);
         }
 
-        if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
+        if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
         {
           ak0991x_validate_timestamp_for_dri(this);
         }
@@ -573,7 +570,7 @@ static void process_fifo_samples(
       }
       else  // orphan
       {
-        if( state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING &&
+        if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING &&
             (state->irq_info.detect_irq_event ||
              state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))  // dri
         {
@@ -615,7 +612,7 @@ static void process_fifo_samples(
       }
     }
 
-    if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING) // for DRI mode
+    if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // for DRI mode
     {
       state->heart_beat_attempt_count = 0;
       if (NULL != state->timer_data_stream)
@@ -678,7 +675,7 @@ static void estimate_event_type(
   uint8_t wm = (buf[1] & AK0991X_FIFO_BIT) ? (buf[0] & 0x1F) + 1 : 1;
   sns_time polling_timestamp;
 
-  if( state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING ) // DRI
+  if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING ) // DRI
   {
     if( buf[2] & AK0991X_DRDY_BIT )
     {
@@ -732,7 +729,7 @@ static void process_data_event(
     state->fifo_flush_in_progress = false;
 	
     // check if ODR==0 when polling mode
-    if( state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING
+    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING
         && state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF
         && state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF
         && AK0991X_CONFIG_UPDATING_HW == state->config_step)
@@ -742,7 +739,7 @@ static void process_data_event(
 
     if(data_event.has_timestamp_type)
     {
-      if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING) // DRI
+      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // DRI
       {
         if( data_event.timestamp_type == sns_dae_timestamp_type_SNS_DAE_TIMESTAMP_TYPE_HW_IRQ )
         {
@@ -771,7 +768,7 @@ static void process_data_event(
         (uint32_t)data_event.timestamp,
         (uint8_t)state->fifo_flush_in_progress,
         state->dae_if.mag.flushing_data,
-        state->mag_info.data_count,
+        state->mag_info.data_count_for_dri,
         state->total_samples,
         data_event.timestamp_type);
 
@@ -785,10 +782,10 @@ static void process_data_event(
 
     if(state->irq_info.detect_irq_event)
     {
-      if(state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING)
+      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
       {
         // When DAE enable, validate timestamp can return false.
-        if(state->mag_info.data_count == 0)
+        if(state->mag_info.data_count_for_dri == 0)
         {
           state->previous_irq_time = state->interrupt_timestamp;
         }
@@ -865,7 +862,7 @@ static void process_response(
         else
         {
           if(SNS_STD_ERROR_INVALID_STATE == resp.err &&
-              state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING)
+              state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
           {
             SNS_INST_PRINTF(LOW, this,"stop and restart dae streaming");
             ak0991x_dae_if_stop_streaming(this);

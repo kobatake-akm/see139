@@ -171,14 +171,14 @@ typedef struct ak0991x_mag_info
   bool           flush_only;
   bool           max_batch;
   bool           use_sync_stream;
-  ak0991x_int_op_mode use_dri; // 0: polling.  1:DRI.   2:IBI.
+  ak0991x_int_op_mode int_mode; // 0: polling.  1:DRI.   2:IBI.
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;
 
   ak0991x_self_test_info test_info;
 
-  uint32_t      data_count;
+  uint32_t      data_count_for_dri;
   uint32_t      clock_error_meas_count;
 
   ak0991x_s4s_state      s4s_sync_state;

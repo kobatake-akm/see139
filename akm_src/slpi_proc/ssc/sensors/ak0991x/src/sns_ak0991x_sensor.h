@@ -232,7 +232,7 @@ typedef struct ak0991x_state
   bool supports_sync_stream;
   uint8_t resolution_idx;
   int64_t hardware_id;
-  ak0991x_int_op_mode is_dri;
+  ak0991x_int_op_mode int_mode;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   uint32_t registration_idx;
 #endif //AK0991X_ENABLE_DUAL_SENSOR

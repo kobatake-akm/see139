@@ -807,8 +807,8 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
         {
           state->registry_cfg_received = true;
           // AKM???: the registry_cfg.is_dri is bool
-          state->is_dri = state->registry_cfg.is_dri;
-          AK0991X_PRINT(LOW, this, "is_dri:%d", state->is_dri);
+          state->int_mode = state->registry_cfg.is_dri;
+          AK0991X_PRINT(LOW, this, "is_dri:%d", state->int_mode);
           state->supports_sync_stream = state->registry_cfg.sync_stream;
           AK0991X_PRINT(LOW, this, "supports_sync_stream:%d ", state->supports_sync_stream);
           state->hardware_id = state->registry_cfg.hw_id;
@@ -1071,7 +1071,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   ak0991x_state *state = (ak0991x_state *)this->state->state;
   uint8_t i;
 
-  state->is_dri = AK0991X_INT_OP_MODE_POLLING;
+  state->int_mode = AK0991X_INT_OP_MODE_POLLING;
   state->hardware_id = 0;
   state->resolution_idx = 0;
   state->supports_sync_stream = false;
@@ -1157,7 +1157,7 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_boolean = true;
     value.boolean = false;
-    value.boolean = state->is_dri;
+    value.boolean = state->int_mode;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
   }
@@ -1364,7 +1364,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
    value.has_boolean = true;
    value.boolean = false;
-   value.boolean = (state->is_dri ? ak0991x_dev_info_array[device_select].supports_dri : false);
+   value.boolean = (state->int_mode ? ak0991x_dev_info_array[device_select].supports_dri : false);
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
  }

@@ -105,7 +105,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09911_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09911_FIFO_SIZE;
-    state->mag_info.use_dri = AK0991X_INT_OP_MODE_POLLING;
+    state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
@@ -113,7 +113,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09912_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09912_FIFO_SIZE;
-    state->mag_info.use_dri = sensor_state->is_dri;
+    state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = 0;
     break;
@@ -121,7 +121,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09913_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09913_FIFO_SIZE;
-    state->mag_info.use_dri = AK0991X_INT_OP_MODE_POLLING;
+    state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
@@ -130,7 +130,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09915_RESOLUTION;
     state->mag_info.use_fifo = sensor_state->use_fifo;
     state->mag_info.max_fifo_size = AK09915_FIFO_SIZE;
-    state->mag_info.use_dri = sensor_state->is_dri;
+    state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
     break;
@@ -138,7 +138,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09916_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
-    state->mag_info.use_dri = AK0991X_INT_OP_MODE_POLLING;
+    state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
@@ -146,7 +146,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09916_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09916_FIFO_SIZE;
-    state->mag_info.use_dri = sensor_state->is_dri;
+    state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
@@ -154,7 +154,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09917_RESOLUTION;
     state->mag_info.use_fifo = sensor_state->use_fifo;
     state->mag_info.max_fifo_size = AK09917_FIFO_SIZE;
-    state->mag_info.use_dri = sensor_state->is_dri;
+    state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
     state->mag_info.reg_rsv1_value = sensor_state->reg_rsv1_value;
@@ -164,7 +164,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.resolution = AK09918_RESOLUTION;
     state->mag_info.use_fifo = false;
     state->mag_info.max_fifo_size = AK09918_FIFO_SIZE;
-    state->mag_info.use_dri = AK0991X_INT_OP_MODE_POLLING;
+    state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
@@ -177,7 +177,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->this_is_first_data = true;
   state->heart_beat_attempt_count = 0;
   state->flush_sample_count = 0;
-  state->mag_info.data_count = 0;
+  state->mag_info.data_count_for_dri = 0;
   state->in_clock_error_procedure = false;
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
@@ -469,7 +469,7 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this)
 
   ak0991x_reconfig_hw(this, true);
 
-  if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING)
+  if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
   {
     ak0991x_register_timer(this);
     // Register for s4s timer
@@ -777,7 +777,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         if(!ak0991x_dae_if_available(this))
         {
           ak0991x_reconfig_hw(this, false);
-          if(state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING)
+          if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
           {
             // Register for timer for polling
             ak0991x_register_timer(this);
@@ -801,7 +801,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.desired_odr = mag_chosen_sample_rate_reg_value;
 
       // Register for timer
-      if (state->mag_info.use_dri == AK0991X_INT_OP_MODE_POLLING && !ak0991x_dae_if_available(this))
+      if (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !ak0991x_dae_if_available(this))
       {
         ak0991x_reconfig_hw(this, false);
         ak0991x_register_timer(this);
