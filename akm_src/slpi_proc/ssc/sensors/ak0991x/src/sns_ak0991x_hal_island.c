@@ -2707,7 +2707,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
         ak0991x_get_st1_status(instance);
 
         if(state->this_is_the_last_flush &&
-           state->system_time > state->pre_timestamp + state->num_samples * state->averaged_interval + state->averaged_interval)
+           state->system_time > state->pre_timestamp + state->num_samples * state->averaged_interval + state->averaged_interval * 8 / 10)
         {
           AK0991X_INST_PRINT(HIGH, instance,"detect gap at last flush. add dummy");
           state->num_samples++;
