@@ -1909,15 +1909,21 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   // Check magnetic sensor overflow (and invalid data for FIFO)
   inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
 
-  if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0)
+  if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0 ||
+      (mag_sample[7] & (inv_fifo_bit)) != 0)
   {
-    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: HOFL_BIT=1");
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
-  }
-  if ((mag_sample[7] & (inv_fifo_bit)) != 0)
-  {
-    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: INV=1");
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
+    if(state->this_is_the_last_flush)
+    {
+      // dummy added data.
+      lsbdata[TRIAXIS_X] = state->mag_info.previous_lsbdata[TRIAXIS_X];
+      lsbdata[TRIAXIS_Y] = state->mag_info.previous_lsbdata[TRIAXIS_Y];
+      lsbdata[TRIAXIS_Z] = state->mag_info.previous_lsbdata[TRIAXIS_Z];
+    }
+    else
+    {
+      AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: HOFL_BIT=1 or INV=1");
+      status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
+    }
   }
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.resolution;
@@ -1946,13 +1952,11 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
-/*
-  AK0991X_INST_PRINT(LOW, instance, "raw( %d %d %d ) Accuracy=%d",
-      (int)opdata_raw[0],
-      (int)opdata_raw[1],
-      (int)opdata_raw[2],
-      (int)status);
-*/
+
+  state->mag_info.previous_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
+  state->mag_info.previous_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
+  state->mag_info.previous_lsbdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z];
+
   pb_send_sensor_stream_event(instance,
                               &state->mag_info.suid,
                               timestamp,
@@ -2177,6 +2181,7 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
 void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  int32_t delta_ts_now;
 
   sns_rc rc = ak0991x_calc_average_interval_for_dri(instance);
 
@@ -2187,6 +2192,7 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 
     state->mag_info.data_count_for_dri = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
+    state->delta_ts_time = state->system_time - state->interrupt_timestamp; // update delta_ts_time
   }
   else    // flush request during DRI, use previous calculated average_interval
   {
@@ -2206,11 +2212,28 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
       }
       state->first_data_ts_of_batch = state->interrupt_timestamp - (state->num_samples-1) * state->averaged_interval;
     }
-
-    // When DAE disabled
-    if( !ak0991x_dae_if_available(instance) && (rc != SNS_RC_SUCCESS) )
+    else
     {
-      state->previous_irq_time = state->interrupt_timestamp;
+      // check TS time drifting part when flush is continued and adjust it
+      {
+        // in case the first data is flush
+        if(state->this_is_first_data)
+        {
+          state->delta_ts_time = state->averaged_interval + state->averaged_interval/10; // 10% average interval
+        }
+        delta_ts_now = state->system_time - state->interrupt_timestamp;
+        if(delta_ts_now > state->delta_ts_time)  // delta is over 1msec
+        {
+            AK0991X_INST_PRINT(LOW, instance, "detect delay: delta %u",
+                               (uint32_t)(delta_ts_now - state->delta_ts_time));
+            state->interrupt_timestamp = state->interrupt_timestamp + state->averaged_interval/5;          // added 20% average time
+            state->first_data_ts_of_batch = state->first_data_ts_of_batch + state->averaged_interval/5;    // added 20% average time
+        }
+      }
+      if( rc != SNS_RC_SUCCESS )
+      {
+        state->previous_irq_time = state->interrupt_timestamp;
+      }
     }
   }
 }
@@ -2680,6 +2703,13 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       if(!state->irq_info.detect_irq_event) // flush request received.
       {
         ak0991x_get_st1_status(instance);
+
+        if(state->this_is_the_last_flush &&
+           state->system_time > state->pre_timestamp + state->num_samples * state->averaged_interval + state->averaged_interval/2)
+        {
+          AK0991X_INST_PRINT(HIGH, instance,"detect gap at last flush. add dummy");
+          state->num_samples++;
+        }
       }
       // else, use state->num_samples when check DRDY status by INTERRUPT_EVENT
     }
