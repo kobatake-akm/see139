@@ -2698,7 +2698,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
 
-  if(SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
+  if(state->this_is_the_last_flush || SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
     if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // DRI mode
     {
@@ -2707,7 +2707,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
         ak0991x_get_st1_status(instance);
 
         if(state->this_is_the_last_flush &&
-           state->system_time > state->pre_timestamp + state->num_samples * state->averaged_interval + state->averaged_interval/2)
+           state->system_time > state->pre_timestamp + state->num_samples * state->averaged_interval + state->averaged_interval)
         {
           AK0991X_INST_PRINT(HIGH, instance,"detect gap at last flush. add dummy");
           state->num_samples++;
