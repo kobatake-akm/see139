@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 02/22/19                AKM              add dummy for DRI+FIFO+nonDAE when detect gap at last
+ * 02/22/19                AKM              timestamp adjustment for flush only testing(MAG-048) on DRI+FIFO+nonDAE
  * 02/14/19     020043     AKM              Use ideal timestamp for polling
  * 02/14/19                AKM
  * 02/14/19                AKM              Fixed driver version.

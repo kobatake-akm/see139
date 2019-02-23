@@ -2222,7 +2222,8 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
           state->delta_ts_time = state->averaged_interval + state->averaged_interval/10; // 10% average interval
         }
         delta_ts_now = state->system_time - state->interrupt_timestamp;
-        if(delta_ts_now > state->delta_ts_time)  // delta is over 1msec
+        if( !state->this_is_the_last_flush &&
+            delta_ts_now > state->delta_ts_time)
         {
             AK0991X_INST_PRINT(LOW, instance, "detect delay: delta %u",
                                (uint32_t)(delta_ts_now - state->delta_ts_time));
@@ -2276,7 +2277,8 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
     {
 #ifdef AK0991X_ENABLE_TIMER_FILTER
       // check delayed timer timestamp for preventing jitter
-      if( !state->this_is_first_data && state->is_previous_irq &&
+      if( !state->this_is_first_data &&
+          state->is_previous_irq &&
           state->dae_event_time > (calculated_timestamp_from_previous + state->averaged_interval/50) )
       {
         state->interrupt_timestamp = calculated_timestamp_from_previous;
