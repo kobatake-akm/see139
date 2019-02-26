@@ -22,9 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 02/22/19                AKM              add dummy for DRI+FIFO+nonDAE when detect gap at last
+ * 02/22/19     020044     AKM              add dummy for DRI+FIFO+nonDAE when detect gap at last
  * 02/22/19                AKM              timestamp adjustment for flush only testing(MAG-048) on DRI+FIFO+nonDAE
- * 02/20/19     020044     AKM              Modified to check update of dae_watermark.
+ * 02/20/19                AKM              Modified to check update of dae_watermark.
  * 02/20/19                AKM              Modified not to change config by req_wmk on Non-DAE
  * 02/20/20                AKM              Added flush_done call in deinit for Non-DAE.
  * 02/14/19     020043     AKM              Use ideal timestamp for polling

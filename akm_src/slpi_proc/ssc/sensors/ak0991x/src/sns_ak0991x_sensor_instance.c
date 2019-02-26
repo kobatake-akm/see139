@@ -739,7 +739,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
         if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
         {
-          if(state->mag_info.use_fifo || (state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING))
+          if(state->mag_info.use_fifo || (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING))
           {
             ak0991x_read_mag_samples(this);
           }
@@ -747,7 +747,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
       else
       {
-        if(state->mag_info.use_fifo || (state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING))
+        if(state->mag_info.use_fifo || (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING))
         {
           ak0991x_read_mag_samples(this);
         }
