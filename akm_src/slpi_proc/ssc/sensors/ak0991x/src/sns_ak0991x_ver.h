@@ -24,6 +24,9 @@
  * --------     --------   ----------       ---------------------------------
  * 02/22/19                AKM              add dummy for DRI+FIFO+nonDAE when detect gap at last
  * 02/22/19                AKM              timestamp adjustment for flush only testing(MAG-048) on DRI+FIFO+nonDAE
+ * 02/20/19     020044     AKM              Modified to check update of dae_watermark.
+ * 02/20/19                AKM              Modified not to change config by req_wmk on Non-DAE
+ * 02/20/20                AKM              Added flush_done call in deinit for Non-DAE.
  * 02/14/19     020043     AKM              Use ideal timestamp for polling
  * 02/14/19                AKM
  * 02/14/19                AKM              Fixed driver version.
@@ -253,8 +256,8 @@
  *
  **/
 
-// major:02 minor:00 revision:43
+// major:02 minor:00 revision:44
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      43
+#define AK0991X_DRV_VER_REV      44
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

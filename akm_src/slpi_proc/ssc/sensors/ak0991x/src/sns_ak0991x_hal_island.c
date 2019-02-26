@@ -2967,6 +2967,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   state->last_sent_cfg.odr             = state->new_cfg.odr;
   state->last_sent_cfg.fifo_wmk        = state->new_cfg.fifo_wmk;
+  state->last_sent_cfg.dae_wmk         = SNS_MAX(state->mag_info.req_wmk, 1);
 
   state->system_time = sns_get_system_time();
   AK0991X_INST_PRINT(HIGH, instance,

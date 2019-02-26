@@ -393,7 +393,7 @@ static void process_fifo_samples(
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
-  uint8_t wm = 1;
+  uint16_t wm = 1;
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
   uint8_t dummy_count = 0;
 
@@ -450,6 +450,7 @@ static void process_fifo_samples(
       {
         // only timer event. skip all flush requests.
         state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
+        wm = state->mag_info.req_wmk;
 
         // check forwarding timestamp
 //        if( state->num_samples > 0 &&
@@ -494,10 +495,14 @@ static void process_fifo_samples(
 
       if( !state->is_orphan ) // regular sequence
       {
-        if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm)
+        // AK0991X_INST_PRINT(MED, this, "[odr] %d : %d [wmk] %d: %d",
+        // (uint8_t)state->last_sent_cfg.odr, (uint8_t)odr, state->last_sent_cfg.dae_wmk, wm);
+
+        // if config was updated, send correct config.
+        if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.dae_wmk != wm)
         {
-          state->new_cfg.odr      = odr;
-          state->new_cfg.fifo_wmk = wm;
+          state->new_cfg.odr     = odr;
+          state->new_cfg.dae_wmk = wm;
 
           AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u", (uint32_t)state->dae_event_time);
           ak0991x_send_config_event(this);

@@ -355,7 +355,8 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  if( state->flush_requested_in_dae )
+  if((!ak0991x_dae_if_available(this) && state->fifo_flush_in_progress) ||
+     (ak0991x_dae_if_available(this) && state->flush_requested_in_dae))
   {
     SNS_INST_PRINTF(HIGH, this, "flush_done in deinit");
     ak0991x_send_fifo_flush_done(this);
@@ -616,7 +617,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if( state->mag_info.cur_wmk == desired_wmk
         && state->mag_info.curr_odr == mag_chosen_sample_rate_reg_value
-        && state->mag_info.req_wmk == previous_req_wmk )
+        && (state->mag_info.req_wmk == previous_req_wmk || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
       AK0991X_INST_PRINT(LOW, this, "Config not changed.");
@@ -738,12 +739,18 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           state->interrupt_data_stream->api->peek_input(state->interrupt_data_stream);
         if(NULL == event || SNS_INTERRUPT_MSGID_SNS_INTERRUPT_EVENT != event->message_id)
         {
-          ak0991x_read_mag_samples(this);
+          if(state->mag_info.use_fifo || (state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING))
+          {
+            ak0991x_read_mag_samples(this);
+          }
         }
       }
       else
       {
-        ak0991x_read_mag_samples(this);
+        if(state->mag_info.use_fifo || (state->mag_info.use_dri != AK0991X_INT_OP_MODE_POLLING))
+        {
+          ak0991x_read_mag_samples(this);
+        }
       }
     }
   }
