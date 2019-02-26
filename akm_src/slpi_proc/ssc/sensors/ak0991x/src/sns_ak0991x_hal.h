@@ -677,6 +677,8 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance);
 
 void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance);
 
+void ak0991x_clear_old_events(sns_sensor_instance *const instance);
+
 /**
  * Send Calibration event to client
  *

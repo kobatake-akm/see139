@@ -391,7 +391,7 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
 }
 
 
-static void ak0991x_clear_old_events(sns_sensor_instance *const instance)
+void ak0991x_clear_old_events(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)instance->state->state;
   sns_sensor_event    *event;
@@ -764,6 +764,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       {
         SNS_INST_PRINTF(ERROR, this, "device_sw_reset failed rc=%d, xfer_bytes=%d", rv, xfer_bytes);
       }
+      sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
     }
     else
     {
@@ -772,7 +773,6 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
          AK0991X_INST_PRINT(LOW, this, "device_sw_reset sucessful");
       }
     }
-    sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
   }
   
   com_port->in_i3c_mode = false;
@@ -1988,7 +1988,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_time timestamp = state->pre_timestamp;
 
-  if(state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
+  if(!state->this_is_the_last_flush && state->mag_info.desired_odr == AK0991X_MAG_ODR_OFF)
   {
     AK0991X_INST_PRINT(MED, instance, "Discarding %u data bytes", num_bytes);
     return;
@@ -2384,7 +2384,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
       if(state->num_samples == 0)
       {
         AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
-        if( state->fifo_flush_in_progress )
+        if( state->fifo_flush_in_progress && !state->this_is_the_last_flush )
         {
           ak0991x_send_fifo_flush_done(instance);
         }
