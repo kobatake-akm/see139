@@ -443,7 +443,6 @@ static void process_fifo_samples(
       }
       batch_num = SNS_MAX(state->mag_info.req_wmk, 1) / wm;
       dae_wm = batch_num * wm;
-      state->mag_info.req_wmk = dae_wm;
     }
     else
     {
@@ -506,10 +505,11 @@ static void process_fifo_samples(
         // (uint8_t)state->last_sent_cfg.odr, (uint8_t)odr, state->last_sent_cfg.dae_wmk, dae_wm);
 
         // if config was updated, send correct config.
-        if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.dae_wmk != dae_wm)
+        if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm || state->last_sent_cfg.dae_wmk != dae_wm)
         {
-          state->new_cfg.odr     = odr;
-          state->new_cfg.dae_wmk = dae_wm;
+          state->new_cfg.odr      = odr;
+          state->new_cfg.fifo_wmk = wm;
+          state->new_cfg.dae_wmk  = dae_wm;
 
           AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u", (uint32_t)state->dae_event_time);
           ak0991x_send_config_event(this);

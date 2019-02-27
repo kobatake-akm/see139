@@ -636,6 +636,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_req.sample_rate  = mag_chosen_sample_rate;
     state->mag_info.desired_odr = state->new_cfg.odr = mag_chosen_sample_rate_reg_value;
     state->new_cfg.fifo_wmk     = state->mag_info.cur_wmk + 1;
+#ifdef AK0991X_ENABLE_DAE
+    state->new_cfg.dae_wmk      = state->mag_info.req_wmk;
+#endif //AK0991X_ENABLE_DAE
 
 //    if (desired_sample_rate > 0)
     if( 0.0f == state->last_sent_cfg.odr )

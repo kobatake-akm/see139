@@ -2963,7 +2963,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   phy_sensor_config.has_sample_rate    = true;
   phy_sensor_config.sample_rate        = ak0991x_get_mag_odr(state->new_cfg.odr);
   phy_sensor_config.has_DAE_watermark  = ak0991x_dae_if_available(instance);
-  phy_sensor_config.DAE_watermark      = SNS_MAX(state->mag_info.req_wmk, 1);
+  phy_sensor_config.DAE_watermark      = SNS_MAX(state->new_cfg.dae_wmk, 1);
 
   state->last_sent_cfg.odr             = state->new_cfg.odr;
   state->last_sent_cfg.fifo_wmk        = state->new_cfg.fifo_wmk;
