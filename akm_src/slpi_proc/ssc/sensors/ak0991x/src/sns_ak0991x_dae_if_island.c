@@ -395,7 +395,7 @@ static void process_fifo_samples(
   uint32_t sampling_intvl;
   uint16_t wm = 1;
   uint16_t batch_num = 1;
-  uint16_t dae_wm = 1;
+  uint32_t dae_wm = 1;
   
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
   uint8_t dummy_count = 0;
@@ -441,8 +441,16 @@ static void process_fifo_samples(
         state->num_samples = state->mag_info.cur_wmk + 1;
         wm = state->mag_info.cur_wmk;
       }
-      batch_num = SNS_MAX(state->mag_info.req_wmk, 1) / wm;
-      dae_wm = batch_num * wm;
+
+      if(state->mag_info.req_wmk == UINT32_MAX)
+      {
+        dae_wm = UINT32_MAX;
+      }
+      else
+      {
+        batch_num = SNS_MAX(state->mag_info.req_wmk, 1) / wm;
+        dae_wm = batch_num * wm;
+      }
     }
     else
     {
