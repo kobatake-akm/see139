@@ -1639,7 +1639,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               sns_scp_deregister_com_port(&state->com_port_info.port_handle);
 
             /**----------------------Turn Power Rail OFF--------------------------*/
-            SNS_PRINTF(HIGH, this, "[JUN] start power timer #0:  hw_id = %d, pend_state = %u", state->hardware_id, AK0991X_POWER_RAIL_PENDING_OFF);
+            SNS_PRINTF(HIGH, this, "[JUN] start power timer #0:  hw_id = %d, pend_state = %u", state->hardware_id, (uint32_t)AK0991X_POWER_RAIL_PENDING_OFF);
             ak0991x_start_power_rail_timer(this,
                                            sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
                                            AK0991X_POWER_RAIL_PENDING_OFF);
@@ -1803,7 +1803,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       // Use on_timestamp to determine correct Timer value.
       if (delta < sns_convert_ns_to_ticks(AK0991X_OFF_TO_IDLE_MS * 1000 * 1000))
       {
-        SNS_PRINTF(HIGH, this, "[JUN] start power timer #1:  hw_id = %d, pend_state = %u", state->hardware_id, AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ);
+        SNS_PRINTF(HIGH, this, "[JUN] start power timer #1:  hw_id = %d, pend_state = %u", state->hardware_id, (uint32_t)AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ);
         ak0991x_start_power_rail_timer(this,
                                        sns_convert_ns_to_ticks(
                                        AK0991X_OFF_TO_IDLE_MS * 1000000LL) - delta,
@@ -1920,7 +1920,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 
       if (sensor_state->rail_config.rail_vote != SNS_RAIL_OFF)
       {
-        SNS_PRINTF(HIGH, this, "[JUN] start power timer #2:  hw_id = %d, pend_state = %u", state->hardware_id, AK0991X_POWER_RAIL_PENDING_OFF);
+        SNS_PRINTF(HIGH, this, "[JUN] start power timer #2:  hw_id = %d, pend_state = %u", state->hardware_id, (uint32_t)AK0991X_POWER_RAIL_PENDING_OFF);
         ak0991x_start_power_rail_timer(this,
                                        sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
                                        AK0991X_POWER_RAIL_PENDING_OFF);
@@ -2016,7 +2016,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                                              &state->rail_config,
                                                              &timeticks); /* ignored */
     
-    SNS_PRINTF(HIGH, this, "[JUN] start power timer #3:  hw_id = %d, pend_state = %u", state->hardware_id, AK0991X_POWER_RAIL_PENDING_INIT);
+    SNS_PRINTF(HIGH, this, "[JUN] start power timer #3:  hw_id = %d, pend_state = %u", state->hardware_id, (uint32_t)AK0991X_POWER_RAIL_PENDING_INIT);
     ak0991x_start_power_rail_timer(this,
                                    sns_convert_ns_to_ticks(
                                    AK0991X_OFF_TO_IDLE_MS * 1000000LL),

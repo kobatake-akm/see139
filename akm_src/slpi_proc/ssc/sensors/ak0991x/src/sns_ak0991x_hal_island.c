@@ -2170,9 +2170,10 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
 
   if(state->this_is_first_data) // come into DRI and flush request
   {
-    AK0991X_INST_PRINT(LOW, instance, "this is the first data. avg_intvl %u clk_err %u",
+    AK0991X_INST_PRINT(LOW, instance, "this is the first data. avg_intvl %u clk_err %u rc=%d",
                        (uint32_t)state->averaged_interval,
-                       (uint32_t)state->internal_clock_error);
+                       (uint32_t)state->internal_clock_error,
+                       (uint8_t)rc);
   }
 
   return rc;
@@ -2182,13 +2183,14 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   int32_t delta_ts_now;
+  uint32_t wm =  ak0991x_dae_if_available(instance) ? state->new_cfg.dae_wmk-1 : state->mag_info.cur_wmk;
 
   sns_rc rc = ak0991x_calc_average_interval_for_dri(instance);
 
   if(state->irq_info.detect_irq_event && (rc == SNS_RC_SUCCESS) )  // DRI
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp -
-      (state->averaged_interval * state->mag_info.cur_wmk);
+      (state->averaged_interval * wm);
 
     state->mag_info.data_count_for_dri = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
