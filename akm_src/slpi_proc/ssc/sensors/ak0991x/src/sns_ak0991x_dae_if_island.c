@@ -546,7 +546,14 @@ static void process_fifo_samples(
           }
           else
           {
-            state->interrupt_timestamp = state->pre_timestamp + sampling_intvl;
+            if(state->dae_event_time < state->pre_timestamp + sampling_intvl * state->num_samples)
+            {
+              state->interrupt_timestamp = state->dae_event_time;
+            }
+            else
+            {
+              state->interrupt_timestamp = state->pre_timestamp + sampling_intvl;
+            }
           }
           state->first_data_ts_of_batch = state->interrupt_timestamp;
           state->averaged_interval = sampling_intvl;
@@ -590,13 +597,26 @@ static void process_fifo_samples(
       }
       else  // orphan
       {
-        if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING &&
-            (state->irq_info.detect_irq_event ||
-             state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))  // dri
+        // when the pre_timestamp_for_orphan is too old or newer than the dae_event_time, use dae_event_time instead.
+        if(state->irq_info.detect_irq_event && // dri or timer event
+           (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sampling_intvl/5 ||
+            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) )
         {
           state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
         }
-        else  // flush or timer event
+        else if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)  // dri
+        {
+          if(state->irq_info.detect_irq_event ||  // interrupt event
+             state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)
+          {
+            state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+          }
+          else
+          {
+            state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+          }
+        }
+        else  // polling
         {
           state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
         }
