@@ -515,11 +515,17 @@ static void process_fifo_samples(
         // if config was updated, send correct config.
         if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm || state->last_sent_cfg.dae_wmk != dae_wm)
         {
-          state->new_cfg.odr      = odr;
-          state->new_cfg.fifo_wmk = wm;
-          state->new_cfg.dae_wmk  = dae_wm;
+          state->mag_info.cur_wmk   = wm-1;
+          state->new_cfg.odr        = odr;
+          state->new_cfg.fifo_wmk   = wm;
+          state->new_cfg.dae_wmk    = dae_wm;
 
-          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u", (uint32_t)state->dae_event_time);
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u odr=%d cur_wmk=%d fifo_wmk=%d, dae_wmk=%d",
+              (uint32_t)state->dae_event_time,
+              state->new_cfg.odr,
+              state->mag_info.cur_wmk,
+              state->new_cfg.fifo_wmk,
+              state->new_cfg.dae_wmk);
           ak0991x_send_config_event(this);
           ak0991x_set_curr_odr(this);
           ak0991x_reset_mag_parameters(this, false);
@@ -572,7 +578,7 @@ static void process_fifo_samples(
         // add dummy data when detecting gap
         if( state->this_is_first_data &&
             (sampling_intvl != 0) &&
-            (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan > sampling_intvl) )
+            (state->first_data_ts_of_batch > state->pre_timestamp_for_orphan + sampling_intvl) )
         {
           dummy_count = (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan - sampling_intvl/2) / sampling_intvl;
           if(dummy_count > 2)
