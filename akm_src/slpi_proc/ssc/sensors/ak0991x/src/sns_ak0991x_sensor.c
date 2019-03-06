@@ -1892,7 +1892,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
       else // handle Flush request without adding to request list
       {
-        inst_state->flush_req_count++;
         ak0991x_send_flush_config(this, instance);
       }
     }

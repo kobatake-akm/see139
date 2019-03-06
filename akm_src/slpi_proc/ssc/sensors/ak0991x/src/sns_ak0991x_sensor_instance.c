@@ -157,8 +157,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-    state->mag_info.reg_rsv1_value = sensor_state->reg_rsv1_value;
-    SNS_INST_PRINTF(HIGH, this, "AK09917 RSV1=0x%02X", (int)state->mag_info.reg_rsv1_value);
+    SNS_INST_PRINTF(HIGH, this, "AK09917 RSV1=0x%02X", (int)sensor_state->reg_rsv1_value);
     break;
   case AK09918:
     state->mag_info.resolution = AK09918_RESOLUTION;
@@ -185,11 +184,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->is_previous_irq = false;
   state->is_called_cal_event = false;
   state->total_samples = 0;
-  state->tx_count = 0;
   state->flush_requested_in_dae = false;
-
-  state->flush_done_count = 0;
-  state->flush_req_count = 0;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -387,10 +382,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
     state->scp_service->api->sns_scp_deregister_com_port(&state->com_port_info.port_handle);
   }
-  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u, req=%d done=%d",
-      state->total_samples,
-      state->flush_req_count,
-      state->flush_done_count);
+  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
 
   return SNS_RC_SUCCESS;
 }
@@ -496,7 +488,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
-  state->client_req_id = client_request->message_id;
   float           desired_sample_rate = 0.0f;
   float           desired_report_rate = 0.0f;
   float           mag_chosen_sample_rate = 0.0f;

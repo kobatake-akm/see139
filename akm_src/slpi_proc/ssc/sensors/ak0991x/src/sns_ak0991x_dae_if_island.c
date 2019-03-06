@@ -566,7 +566,6 @@ static void process_fifo_samples(
         }
 
 #ifdef AK0991X_ENABLE_TS_DEBUG
-      state->ts_debug_count++;
       AK0991X_INST_PRINT(
         MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X first_data=%d",
         odr, (uint32_t)sampling_intvl, state->num_samples,

@@ -164,7 +164,6 @@ typedef struct ak0991x_mag_info
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
-  uint8_t        reg_rsv1_value;
   uint32_t       req_wmk;
   uint16_t       cur_wmk;
   uint16_t       max_fifo_size;
@@ -224,7 +223,6 @@ typedef struct ak0991x_instance_state
   ak0991x_config_event_info last_sent_cfg;
   ak0991x_config_event_info new_cfg;
   uint32_t total_samples; /* throughout the life of this instance */
-  uint32_t tx_count;
 
   /** sampling info. */
   uint8_t num_samples;
@@ -235,7 +233,6 @@ typedef struct ak0991x_instance_state
   bool data_is_ready;
   bool fifo_flush_in_progress;
   bool new_self_test_request;
-  bool enable_polling_timer_filter;
   bool is_called_cal_event;
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
@@ -248,7 +245,6 @@ typedef struct ak0991x_instance_state
   bool is_orphan;
   bool is_previous_irq;
   bool flush_requested_in_dae;
-  sns_std_sensor_sample_status sensor_sample_status;
   sns_time irq_event_time;
   sns_time previous_irq_time;
   sns_time interrupt_timestamp;
@@ -268,9 +264,6 @@ typedef struct ak0991x_instance_state
   int32_t delta_ts_time;
   sns_timer_sensor_config req_payload;
   int64_t internal_clock_error;
-  uint32_t ts_debug_count;
-  uint32_t flush_req_count;
-  uint32_t flush_done_count;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
@@ -295,7 +288,6 @@ typedef struct ak0991x_instance_state
   sns_data_stream       *async_com_port_data_stream;
   sns_data_stream       *s4s_timer_data_stream;
 
-  uint32_t              client_req_id;
   sns_std_sensor_config mag_req;
 
   size_t encoded_mag_event_len;

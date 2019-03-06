@@ -1973,7 +1973,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     timestamp,
     status);
   state->total_samples++;
-  state->sensor_sample_status = status;
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -2118,7 +2117,6 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
   state->fifo_flush_in_progress = false;
   state->flush_requested_in_dae = false;
-  state->flush_done_count++;
 }
 
 static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time intvl)
@@ -2972,8 +2970,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   state->system_time = sns_get_system_time();
   AK0991X_INST_PRINT(HIGH, instance,
-                     "tx PHYSICAL_CONFIG_EVENT %u at %u : rate %u/100 wm %u dae_wm %u sync %u",
-                     (uint32_t)state->tx_count,
+                     "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u/100 wm %u dae_wm %u sync %u",
                      (uint32_t)state->system_time,
                      (uint32_t)(phy_sensor_config.sample_rate * 100),
                      phy_sensor_config.has_water_mark ? phy_sensor_config.water_mark : 0,
@@ -2986,7 +2983,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
                 state->system_time,
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
-  state->tx_count++;
 
   if( !state->is_called_cal_event )
   {
