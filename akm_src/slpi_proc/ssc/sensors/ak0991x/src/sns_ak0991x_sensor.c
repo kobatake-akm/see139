@@ -2007,7 +2007,9 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 
   }
 
-  if(rv == SNS_RC_SUCCESS && state->remove_timer_stream)
+  if( rv == SNS_RC_SUCCESS &&
+      state->remove_timer_stream &&
+      state->rail_config.rail_vote == SNS_RAIL_OFF )
   {
     sns_sensor_util_remove_sensor_stream(this, &state->timer_stream);
     AK0991X_PRINT(LOW, this, "timer_stream removed");
