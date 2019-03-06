@@ -151,7 +151,7 @@ typedef struct ak0991x_self_test_info
 
 typedef struct ak0991x_config_event_info
 {
-  ak0991x_mag_odr odr;
+  ak0991x_mag_odr  odr;
   uint16_t         fifo_wmk;
   uint32_t         dae_wmk;
 } ak0991x_config_event_info;

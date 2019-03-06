@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 03/04/19                AKM              modified for rail timer
+ * 03/04/19     020045     AKM              modified for rail timer
  * 03/04/19                AKM              Fixed wm value when send_config_event in DAE
  * 02/28/19                AKM              add checking when the timestamp is newer than the dae_event_time
  * 02/22/19     020044     AKM              add dummy for DRI+FIFO+nonDAE when detect gap at last
@@ -262,5 +262,5 @@
 // major:02 minor:00 revision:44
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      44
+#define AK0991X_DRV_VER_REV      45
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
