@@ -281,8 +281,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     false);
 
   /** Initialize IRQ info to be used by the Instance */
-  sns_memscpy(&state->irq_info,
-              sizeof(state->irq_info),
+  sns_memscpy(&state->irq_info.irq_config,
+              sizeof(state->irq_info.irq_config),
               &sensor_state->irq_config,
               sizeof(sensor_state->irq_config));
 
