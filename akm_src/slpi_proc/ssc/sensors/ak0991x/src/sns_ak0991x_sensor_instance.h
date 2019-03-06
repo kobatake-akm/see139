@@ -158,9 +158,10 @@ typedef struct ak0991x_config_event_info
 
 typedef struct ak0991x_mag_info
 {
+  sns_time          flush_period;
   ak0991x_mag_odr   desired_odr;
   ak0991x_mag_odr   curr_odr;
-  sns_time          flush_period;
+  ak0991x_int_op_mode int_mode; // 0: polling.  1:DRI.   2:IBI.
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
@@ -171,7 +172,6 @@ typedef struct ak0991x_mag_info
   bool           flush_only;
   bool           max_batch;
   bool           use_sync_stream;
-  ak0991x_int_op_mode int_mode; // 0: polling.  1:DRI.   2:IBI.
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;
@@ -222,20 +222,19 @@ typedef struct ak0991x_instance_state
   ak0991x_mag_info mag_info;
   ak0991x_config_event_info last_sent_cfg;
   ak0991x_config_event_info new_cfg;
-  uint32_t total_samples; /* throughout the life of this instance */
 
   /** sampling info. */
   uint8_t num_samples;
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
+  uint8_t ascp_xfer_in_progress;
+  uint8_t flush_sample_count;
   bool this_is_first_data;
   bool data_over_run;
   bool data_is_ready;
   bool fifo_flush_in_progress;
   bool new_self_test_request;
   bool is_called_cal_event;
-  uint8_t ascp_xfer_in_progress;
-  uint8_t flush_sample_count;
   bool config_mag_after_ascp_xfer;
   bool re_read_data_after_ascp;
   bool this_is_the_last_flush;
@@ -245,6 +244,9 @@ typedef struct ak0991x_instance_state
   bool is_orphan;
   bool is_previous_irq;
   bool flush_requested_in_dae;
+  uint32_t total_samples; /* throughout the life of this instance */
+  int32_t delta_ts_time;
+  int64_t internal_clock_error;
   sns_time irq_event_time;
   sns_time previous_irq_time;
   sns_time interrupt_timestamp;
@@ -261,9 +263,7 @@ typedef struct ak0991x_instance_state
   sns_time last_sw_reset_time;
   sns_time dae_event_time;
   sns_time dae_polling_offset;
-  int32_t delta_ts_time;
   sns_timer_sensor_config req_payload;
-  int64_t internal_clock_error;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
@@ -319,13 +319,13 @@ typedef struct odr_reg_map
 
 typedef struct sns_ak0991x_mag_req
 {
+  sns_time flush_period;
   float sample_rate;
   float report_rate;
-  sns_time flush_period;
-  bool is_flush_only;
-  bool is_max_batch;
   uint32_t cal_id;
   uint32_t cal_version;
+  bool is_flush_only;
+  bool is_max_batch;
 } sns_ak0991x_mag_req;
 
 
