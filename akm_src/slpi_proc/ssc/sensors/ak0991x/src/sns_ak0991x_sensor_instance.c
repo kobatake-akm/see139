@@ -95,7 +95,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               sizeof(state->mag_info.device_select),
               &sensor_state->device_select,
               sizeof(sensor_state->device_select));
-  state->mag_info.cur_wmk = 0;
+  state->mag_info.cur_wmk = 1;
   // Init for s4s
   ak0991x_s4s_inst_init(this, sstate);
 
@@ -391,7 +391,7 @@ static uint16_t ak0991x_set_wmk(sns_sensor_instance *const this,
                                 float desired_report_rate,
 								float mag_chosen_sample_rate)
 {
-  uint16_t desired_wmk = 0;
+  uint16_t desired_wmk = 1;
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
@@ -400,26 +400,25 @@ static uint16_t ak0991x_set_wmk(sns_sensor_instance *const this,
     case AK09915C:
     case AK09915D:
     case AK09917:
-      desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01 * desired_report_rate) / desired_report_rate - 1;
+      desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01 * desired_report_rate) / desired_report_rate;
       if (state->mag_info.max_batch)
       {
-        desired_wmk = state->mag_info.max_fifo_size - 1;
+        desired_wmk = state->mag_info.max_fifo_size;
       }
-	  else if ( desired_wmk >= (UINT16_MAX - (state->mag_info.max_fifo_size - 1))) 
-	  {
-		desired_wmk = state->mag_info.max_fifo_size - 1;
-	  }	
-       else if ( desired_wmk >= state->mag_info.max_fifo_size)
+      else if ( desired_wmk >= (UINT16_MAX - state->mag_info.max_fifo_size))
+      {
+        desired_wmk = state->mag_info.max_fifo_size;
+      }
+      else if ( desired_wmk >= state->mag_info.max_fifo_size)
       {
          uint32_t divider = 1;
-         divider = (state->mag_info.max_fifo_size - 1 + desired_wmk) / state->mag_info.max_fifo_size;
+         divider = (state->mag_info.max_fifo_size + desired_wmk) / state->mag_info.max_fifo_size;
          desired_wmk = desired_wmk / SNS_MAX(divider,1);
-         desired_wmk = desired_wmk - 1;
       }
       break;
 
     default:
-      desired_wmk = 0;
+      desired_wmk = 1;
       break;
   }
   AK0991X_INST_PRINT(LOW, this, "set_wmk:: rr=%u/100 wm=%u", 
@@ -587,7 +586,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     }
     else
     {
-      state->mag_info.req_wmk = 0;
+      state->mag_info.req_wmk = 1;
     }
 
     if (state->mag_info.use_fifo)
@@ -596,7 +595,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     }
     else
     {
-      desired_wmk = 0;
+      desired_wmk = 1;
     }
 
     AK0991X_INST_PRINT(LOW, this, "req_wmk=%u desired_wmk=%u,flush_period=%u, flushonly=%d, max_batch=%d",
@@ -623,10 +622,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       return SNS_RC_SUCCESS;
     }
 
-    state->mag_info.cur_wmk     = state->mag_info.use_fifo ? desired_wmk : 0;
+    state->mag_info.cur_wmk     = state->mag_info.use_fifo ? desired_wmk : 1;
     state->mag_req.sample_rate  = mag_chosen_sample_rate;
     state->mag_info.desired_odr = state->new_cfg.odr = mag_chosen_sample_rate_reg_value;
-    state->new_cfg.fifo_wmk     = state->mag_info.cur_wmk + 1;
+    state->new_cfg.fifo_wmk     = state->mag_info.cur_wmk;
 #ifdef AK0991X_ENABLE_DAE
     state->new_cfg.dae_wmk      = state->mag_info.req_wmk;
 #endif //AK0991X_ENABLE_DAE

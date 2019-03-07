@@ -184,7 +184,7 @@ static bool send_mag_config(sns_sensor_instance *this)
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
-                                    mag_info->cur_wmk+1 : mag_info->max_fifo_size);
+                                    mag_info->cur_wmk : mag_info->max_fifo_size);
 
     if(state->mag_info.req_wmk == UINT32_MAX)
     {
@@ -227,7 +227,7 @@ static bool send_mag_config(sns_sensor_instance *this)
     if (mag_info->use_sync_stream)
     {
       config_req.polling_config.polling_interval_ticks =
-        sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk + 1)
+        sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk)
                                 / (uint64_t) mag_info->curr_odr );
     }
     else
@@ -434,11 +434,11 @@ static void process_fifo_samples(
       if(state->mag_info.device_select == AK09917)
       {
         state->num_samples = buf[2] >> 2;
-        wm = (buf[0] & 0x1F) + 1;
+        wm = (buf[0] & 0x1F) + 1; // +1 because FIFO register 0x00 means WM=1
       }
       else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
       {
-        state->num_samples = state->mag_info.cur_wmk + 1;
+        state->num_samples = state->mag_info.cur_wmk;
         wm = state->mag_info.cur_wmk;
       }
 
@@ -515,7 +515,7 @@ static void process_fifo_samples(
         // if config was updated, send correct config.
         if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm || state->last_sent_cfg.dae_wmk != dae_wm)
         {
-          state->mag_info.cur_wmk   = wm-1;
+          state->mag_info.cur_wmk   = wm;
           state->new_cfg.odr        = odr;
           state->new_cfg.fifo_wmk   = wm;
           state->new_cfg.dae_wmk    = dae_wm;
@@ -629,7 +629,7 @@ static void process_fifo_samples(
             odr,
             state->mag_info.curr_odr,
             wm,
-            state->mag_info.cur_wmk+1,
+            state->mag_info.cur_wmk,
             state->num_samples,
             (uint32_t)state->last_sw_reset_time,
             (uint32_t)state->dae_event_time);
