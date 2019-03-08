@@ -424,11 +424,10 @@ static uint32_t ak0991x_calc_fifo_wmk(
         break;
     }
   }
-  AK0991X_INST_PRINT(LOW, this, "calculated fifo_wmk:: rr=%u flush_only=%d max_batch=%d wm=%u",
-                     (int)(desired_report_rate*100),
-                     state->mag_info.flush_only,
-                     state->mag_info.max_batch,
-                     desired_wmk);
+  AK0991X_INST_PRINT(LOW, this, "calculated fifo_wmk=%u flush_only=%d max_batch=%d",
+      desired_wmk,
+      state->mag_info.flush_only,
+      state->mag_info.max_batch);
   return desired_wmk;
 }
 
@@ -451,11 +450,10 @@ static uint32_t ak0991x_calc_dae_wmk(
     dae_wmk = 1;
   }
 
-  AK0991X_INST_PRINT(LOW, this, "calculated  dae_wmk:: rr=%u flush_only=%d max_batch=%d wm=%u",
-                     (int)(desired_report_rate*100),
-                     state->mag_info.flush_only,
-                     state->mag_info.max_batch,
-                     dae_wmk);
+  AK0991X_INST_PRINT(LOW, this, "calculated  dae_wmk=%u flush_only=%d max_batch=%d",
+      dae_wmk,
+      state->mag_info.flush_only,
+      state->mag_info.max_batch);
   return dae_wmk;
 }
 #endif
