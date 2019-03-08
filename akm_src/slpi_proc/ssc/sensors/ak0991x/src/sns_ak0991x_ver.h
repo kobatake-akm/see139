@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/08/19                AKM              Refactor for odr,fifo_wmk and dae_wmk
  * 03/07/19                AKM              Change cur_wm min from 0(=register value) to 1.
  * 03/06/19     020046     AKM              Fixed wm value when send_config_event in DAE
  * 03/06/19                AKM              add checking when the timestamp is newer than the dae_event_time

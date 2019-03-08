@@ -364,6 +364,14 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
                               sns_sync_com_port_service * scp_service);
 
 /**
+ * Resets curr odr.
+ *
+ * @param[i] state         Instance state
+ *
+ */
+//void ak0991x_reset_averaged_interval(sns_sensor_instance *const this);
+
+/**
  * Resets the Sensor SW.
  * This function is used in ak0991x drivers flow only.
  * If call from other flow directly for HW reset,
@@ -379,14 +387,6 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
 sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
                                ak0991x_com_port_info *com_port);
-
-/**
- * Resets curr odr.
- *
- * @param[i] state         Instance state
- *
- */
-void ak0991x_set_curr_odr(sns_sensor_instance *const this);
 
 /**
  * Resets mag parameters.

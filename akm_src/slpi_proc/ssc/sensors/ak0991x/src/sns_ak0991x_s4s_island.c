@@ -34,7 +34,7 @@ sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
   sns_rc  rv = SNS_RC_SUCCESS;
 
   // Configure TPH and RR for S4S
-  if((state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF) && state->mag_info.use_sync_stream)
+  if((state->mag_info.req_cfg.odr != AK0991X_MAG_ODR_OFF) && state->mag_info.use_sync_stream)
   {
     uint8_t buf_s4s[3];
     uint32_t xfer_bytes;

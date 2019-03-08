@@ -184,21 +184,21 @@ static bool send_mag_config(sns_sensor_instance *this)
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
     wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
-                                    mag_info->cur_wmk : mag_info->max_fifo_size);
+                                    mag_info->req_cfg.fifo_wmk : mag_info->max_fifo_size);
 
-    if(state->mag_info.req_wmk == UINT32_MAX)
+    if(state->mag_info.flush_only || state->mag_info.max_batch)
     {
       config_req.dae_watermark = UINT32_MAX;
     }
     else
     {
-      batch_num = SNS_MAX(mag_info->req_wmk, 1) / wm;
+      batch_num = SNS_MAX(mag_info->req_cfg.dae_wmk, 1) / wm;
       config_req.dae_watermark = batch_num * wm;
     }
 
     AK0991X_INST_PRINT(LOW, this, "cur_wmk=%d req_wmk=%d wm=%d batch_num=%u dae_watermark=%u",
-        mag_info->cur_wmk,
-        mag_info->req_wmk,
+        mag_info->cur_cfg.fifo_wmk,
+        mag_info->req_cfg.fifo_wmk,
         wm,
         batch_num,
         config_req.dae_watermark);
@@ -210,7 +210,7 @@ static bool send_mag_config(sns_sensor_instance *this)
 
   config_req.has_data_age_limit_ticks = true;
 
-  if (mag_info->max_batch )
+  if (mag_info->max_batch)
   {
      config_req.data_age_limit_ticks = UINT64_MAX;
   }
@@ -227,13 +227,13 @@ static bool send_mag_config(sns_sensor_instance *this)
     if (mag_info->use_sync_stream)
     {
       config_req.polling_config.polling_interval_ticks =
-        sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_wmk)
-                                / (uint64_t) mag_info->curr_odr );
+        sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->req_cfg.fifo_wmk)
+                                / (uint64_t)ak0991x_get_sample_interval(state->mag_info.req_cfg.odr) );
     }
     else
     {
       config_req.polling_config.polling_interval_ticks =
-        ak0991x_get_sample_interval(state->mag_info.desired_odr);
+        ak0991x_get_sample_interval(state->mag_info.req_cfg.odr);
     }
     state->system_time = sns_get_system_time();
 
@@ -391,17 +391,18 @@ static void process_fifo_samples(
   size_t              buf_len)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-  uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
-  uint32_t sampling_intvl;
-  uint16_t wm = 1;
-  uint16_t batch_num = 1;
-  uint32_t dae_wm = 1;
-  
-  ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+  ak0991x_config_event_info tmp;
   uint8_t dummy_count = 0;
+  uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
+  uint16_t batch_num = 1;
+  uint32_t sampling_intvl;
+
+  tmp.odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+  tmp.fifo_wmk = 1;
+  tmp.dae_wmk = 1;
 
   state->is_orphan = false;
-  sampling_intvl = (ak0991x_get_sample_interval(odr) *
+  sampling_intvl = (ak0991x_get_sample_interval(tmp.odr) *
                     state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
   //////////////////////////////
@@ -419,60 +420,34 @@ static void process_fifo_samples(
   // buf[10]: ST2
   //////////////////////////////
 
+  state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+
   // calculate num_samples
-  if(state->in_clock_error_procedure)
-  {
-    state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-  }
-  else
+  if(!state->in_clock_error_procedure)
   {
     state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
 
     if(state->mag_info.use_fifo)
     {
-      // num_samples when FIFO enabled.
+      // num_samples update when FIFO enabled.
       if(state->mag_info.device_select == AK09917)
       {
         state->num_samples = buf[2] >> 2;
-        wm = (buf[0] & 0x1F) + 1; // +1 because FIFO register 0x00 means WM=1
+        tmp.fifo_wmk = (buf[0] & 0x1F) + 1; // +1 because FIFO register 0x00 means WM=1
       }
       else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
       {
-        state->num_samples = state->mag_info.cur_wmk;
-        wm = state->mag_info.cur_wmk;
-      }
-
-      if(state->mag_info.req_wmk == UINT32_MAX)
-      {
-        dae_wm = UINT32_MAX;
-      }
-      else
-      {
-        batch_num = SNS_MAX(state->mag_info.req_wmk, 1) / wm;
-        dae_wm = batch_num * wm;
+        state->num_samples = state->mag_info.cur_cfg.fifo_wmk;  // when orphan, this may be wrong
+        tmp.fifo_wmk = state->mag_info.cur_cfg.fifo_wmk;        // when orphan, this may be wrong
       }
     }
     else
     {
-      // num_samples when FIFO disabled.
-      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)  // dri mode
-      {
-        state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
-        dae_wm = state->mag_info.req_wmk;
-      }
-      else  // polling mode: *** Doesn't care FIFO+Polling ***
+      // num_samples update when Polling mode.
+      if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)  // polling mode: *** Doesn't care FIFO+Polling ***
       {
         // only timer event. skip all flush requests.
         state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
-        dae_wm = state->mag_info.req_wmk;
-
-        // check forwarding timestamp
-//        if( state->num_samples > 0 &&
-//            state->pre_timestamp + sampling_intvl > state->dae_event_time + sampling_intvl/2)
-//        {
-//          AK0991X_INST_PRINT(LOW, this, "timestamp is future ignore one sample.");
-//          state->num_samples = 0;
-//        }
 
         if( state->num_samples > 0 && state->fifo_flush_in_progress )
         {
@@ -484,6 +459,18 @@ static void process_fifo_samples(
         }
       }
     }
+
+    // check dae_wmk
+    if(state->mag_info.flush_only || state->mag_info.max_batch)
+    {
+      tmp.dae_wmk = UINT32_MAX;
+    }
+    else
+    {
+      batch_num = SNS_MAX(state->mag_info.cur_cfg.dae_wmk, 1) / tmp.fifo_wmk;
+      tmp.dae_wmk = batch_num * tmp.fifo_wmk;
+    }
+
     if( state->is_orphan )  // orphan
     {
       AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
@@ -509,25 +496,21 @@ static void process_fifo_samples(
 
       if( !state->is_orphan ) // regular sequence
       {
-        // AK0991X_INST_PRINT(MED, this, "[odr] %d : %d [wmk] %d: %d",
-        // (uint8_t)state->last_sent_cfg.odr, (uint8_t)odr, state->last_sent_cfg.dae_wmk, dae_wm);
-
         // if config was updated, send correct config.
-        if(state->last_sent_cfg.odr != odr || state->last_sent_cfg.fifo_wmk != wm || state->last_sent_cfg.dae_wmk != dae_wm)
+        if( state->mag_info.cur_cfg.odr      != tmp.odr ||
+            state->mag_info.cur_cfg.fifo_wmk != tmp.fifo_wmk ||
+            state->mag_info.cur_cfg.dae_wmk  != tmp.dae_wmk)
         {
-          state->mag_info.cur_wmk   = wm;
-          state->new_cfg.odr        = odr;
-          state->new_cfg.fifo_wmk   = wm;
-          state->new_cfg.dae_wmk    = dae_wm;
+          state->mag_info.req_cfg.odr        = tmp.odr;
+          state->mag_info.req_cfg.fifo_wmk   = tmp.fifo_wmk;
+          state->mag_info.req_cfg.dae_wmk    = tmp.dae_wmk;
 
-          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u odr=%d cur_wmk=%d fifo_wmk=%d, dae_wmk=%d",
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u requested odr=%d fifo_wmk=%d, dae_wmk=%d",
               (uint32_t)state->dae_event_time,
-              state->new_cfg.odr,
-              state->mag_info.cur_wmk,
-              state->new_cfg.fifo_wmk,
-              state->new_cfg.dae_wmk);
+              state->mag_info.req_cfg.odr,
+              state->mag_info.req_cfg.fifo_wmk,
+              state->mag_info.req_cfg.dae_wmk);
           ak0991x_send_config_event(this);
-          ak0991x_set_curr_odr(this);
           ak0991x_reset_mag_parameters(this, false);
         }
 
@@ -568,7 +551,7 @@ static void process_fifo_samples(
 #ifdef AK0991X_ENABLE_TS_DEBUG
       AK0991X_INST_PRINT(
         MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X first_data=%d",
-        odr, (uint32_t)sampling_intvl, state->num_samples,
+        tmp.odr, (uint32_t)sampling_intvl, state->num_samples,
         (uint32_t)state->first_data_ts_of_batch,
         (uint32_t)state->irq_event_time,
         state->this_is_first_data);
@@ -626,10 +609,10 @@ static void process_fifo_samples(
           state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
         }
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) wm=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
-            odr,
-            state->mag_info.curr_odr,
-            wm,
-            state->mag_info.cur_wmk,
+            tmp.odr,
+            state->mag_info.req_cfg.odr,
+            tmp.fifo_wmk,
+            state->mag_info.req_cfg.fifo_wmk,
             state->num_samples,
             (uint32_t)state->last_sw_reset_time,
             (uint32_t)state->dae_event_time);
@@ -672,7 +655,7 @@ static void process_fifo_samples(
       }
 
       // keep re-register HB timer when DAE enabled.
-      if(state->in_clock_error_procedure || state->mag_info.req_wmk != UINT32_MAX || state->is_orphan)
+      if(state->in_clock_error_procedure || !(state->mag_info.flush_only || state->mag_info.max_batch))
       {
         ak0991x_register_heart_beat_timer(this);
       }
@@ -775,11 +758,11 @@ static void process_data_event(
 	
     // check if ODR==0 when polling mode
     if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING
-        && state->mag_info.curr_odr == AK0991X_MAG_ODR_OFF
-        && state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF
+        && state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF
+        && state->mag_info.req_cfg.odr != AK0991X_MAG_ODR_OFF
         && AK0991X_CONFIG_UPDATING_HW == state->config_step)
     {
-      SNS_INST_PRINTF(HIGH, this, "current odr=0, but desire odr=%d, restart.",(uint8_t)state->mag_info.desired_odr);
+      SNS_INST_PRINTF(HIGH, this, "current odr=0, but desire odr=%d, restart.",(uint8_t)state->mag_info.req_cfg.odr);
     }
 
     if(data_event.has_timestamp_type)
@@ -869,7 +852,7 @@ static void process_response(
         else
         {
           SNS_INST_PRINTF(LOW, this, "ak0991x_dae_if_start_streaming return false - err=%u state=%u desire_odr=%d dae_mag_state=%d",
-                             resp.err, dae_stream->state, state->mag_info.desired_odr, state->dae_if.mag.state);
+                             resp.err, dae_stream->state, state->mag_info.req_cfg.odr, state->dae_if.mag.state);
         }
       }
       else
@@ -877,7 +860,7 @@ static void process_response(
         /* DAE sensor does not have support for this driver */
         dae_stream->stream_usable = false;
         dae_stream->state = PRE_INIT;
-        if(state->mag_info.desired_odr > AK0991X_MAG_ODR_OFF)
+        if(state->mag_info.req_cfg.odr != AK0991X_MAG_ODR_OFF)
         {
           ak0991x_continue_client_config(this);
         }
@@ -1037,7 +1020,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
         dae_stream->stream_usable = false;
         AK0991X_INST_PRINT(LOW, this,"SNS_STD_ERROR_EVENT");
         if(dae_stream->state == INIT_PENDING && 
-           state->mag_info.desired_odr > AK0991X_MAG_ODR_OFF)
+           state->mag_info.req_cfg.odr != AK0991X_MAG_ODR_OFF)
         {
           ak0991x_continue_client_config(this);
         }
@@ -1252,7 +1235,7 @@ bool ak0991x_dae_if_start_streaming(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
   if(stream_usable(&state->dae_if.mag) && state->dae_if.mag.state > PRE_INIT &&
-     (0 < state->mag_info.desired_odr))
+     (AK0991X_MAG_ODR_OFF != state->mag_info.req_cfg.odr))
   {
     cmd_sent |= send_mag_config(this);
   }

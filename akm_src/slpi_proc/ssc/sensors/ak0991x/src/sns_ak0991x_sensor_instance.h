@@ -152,21 +152,19 @@ typedef struct ak0991x_self_test_info
 typedef struct ak0991x_config_event_info
 {
   ak0991x_mag_odr  odr;
-  uint16_t         fifo_wmk;
+  uint32_t         fifo_wmk;
   uint32_t         dae_wmk;
 } ak0991x_config_event_info;
 
 typedef struct ak0991x_mag_info
 {
+  ak0991x_config_event_info req_cfg;
+  ak0991x_config_event_info cur_cfg;
   sns_time          flush_period;
-  ak0991x_mag_odr   desired_odr;
-  ak0991x_mag_odr   curr_odr;
   ak0991x_int_op_mode int_mode; // 0: polling.  1:DRI.   2:IBI.
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
-  uint32_t       req_wmk;
-  uint16_t       cur_wmk;
   uint16_t       max_fifo_size;
   bool           use_fifo;
   bool           flush_only;
@@ -220,8 +218,6 @@ typedef struct ak0991x_instance_state
 {
   /** mag HW config details*/
   ak0991x_mag_info mag_info;
-  ak0991x_config_event_info last_sent_cfg;
-  ak0991x_config_event_info new_cfg;
 
   /** sampling info. */
   uint8_t num_samples;
