@@ -980,7 +980,6 @@ static sns_time ak0991x_set_heart_beat_timeout_period_for_polling(
 /**
  * see sns_ak0991x_hal.h
  */
-/*
 void ak0991x_reset_averaged_interval(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
@@ -990,7 +989,7 @@ void ak0991x_reset_averaged_interval(sns_sensor_instance *const this)
   state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
   state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 }
-*/
+
 void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_reset)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
@@ -2963,11 +2962,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 #endif
 
   // update averaged_interval
-  sns_time meas_usec;
-  ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
-  state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
-  state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
-  state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+  ak0991x_reset_averaged_interval(instance);
 
   if( !state->is_called_cal_event )
   {
@@ -3261,7 +3256,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
 
   SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
 
-//  ak0991x_reset_averaged_interval(this);
+  ak0991x_reset_averaged_interval(this);
 
   if(reset_device)
   {

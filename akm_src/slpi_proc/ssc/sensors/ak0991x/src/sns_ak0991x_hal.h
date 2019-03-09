@@ -369,7 +369,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
  * @param[i] state         Instance state
  *
  */
-//void ak0991x_reset_averaged_interval(sns_sensor_instance *const this);
+void ak0991x_reset_averaged_interval(sns_sensor_instance *const this);
 
 /**
  * Resets the Sensor SW.
