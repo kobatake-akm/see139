@@ -799,15 +799,26 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       ak0991x_run_self_test(this);
       state->new_self_test_request = false;
 
+      ak0991x_clear_old_events(this);
+      state->system_time = sns_get_system_time();
+
       AK0991X_INST_PRINT(LOW, this, "Resume the stream.");
       state->mag_req.sample_rate = mag_chosen_sample_rate;
       state->mag_info.req_cfg.odr = mag_chosen_sample_rate_reg_value;
 
       // Register for timer
-      if (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !ak0991x_dae_if_available(this))
+      if (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING )
       {
-        ak0991x_reconfig_hw(this, false);
-        ak0991x_register_timer(this);
+        if(!ak0991x_dae_if_available(this))
+        {
+          ak0991x_reconfig_hw(this, false);
+          ak0991x_register_timer(this);
+        }
+      }
+      else
+      {
+        SNS_INST_PRINTF(LOW, this, "Re register heart beat timer at %u", state->system_time);
+        ak0991x_register_heart_beat_timer(this);
       }
 
       ak0991x_send_config_event(this);

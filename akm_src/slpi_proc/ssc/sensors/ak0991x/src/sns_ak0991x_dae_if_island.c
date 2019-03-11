@@ -657,6 +657,7 @@ static void process_fifo_samples(
       // keep re-register HB timer when DAE enabled.
       if(state->in_clock_error_procedure || !(state->mag_info.flush_only || state->mag_info.max_batch))
       {
+        SNS_INST_PRINTF(LOW, this, "Re register heart beat timer at %u", state->system_time);
         ak0991x_register_heart_beat_timer(this);
       }
     }
