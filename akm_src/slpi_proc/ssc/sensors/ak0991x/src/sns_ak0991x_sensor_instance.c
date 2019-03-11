@@ -807,7 +807,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.req_cfg.odr = mag_chosen_sample_rate_reg_value;
 
       // Register for timer
-      if (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING )
+      if ( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING )
       {
         if(!ak0991x_dae_if_available(this))
         {

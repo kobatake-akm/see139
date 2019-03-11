@@ -334,11 +334,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           sns_time now = sns_get_system_time();
           state->system_time = timer_event.requested_timeout_time;
-          if(state->system_time + state->nominal_intvl < now )
-          {
-            AK0991X_INST_PRINT(ERROR, this, "req_to=%u now=%u",
-                            (uint32_t)timer_event.requested_timeout_time, (uint32_t)now);
-          }
+//          if(state->system_time + state->nominal_intvl < now )
+//          {
+//            AK0991X_INST_PRINT(ERROR, this, "req_to=%u now=%u",
+//                            (uint32_t)timer_event.requested_timeout_time, (uint32_t)now);
+//          }
 
           // for regular polling mode
           if (state->mag_info.int_mode  == AK0991X_INT_OP_MODE_POLLING && state->reg_event_done)
