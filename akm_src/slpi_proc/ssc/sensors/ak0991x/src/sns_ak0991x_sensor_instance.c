@@ -614,7 +614,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if( state->mag_info.cur_cfg.fifo_wmk == state->mag_info.req_cfg.fifo_wmk
         && state->mag_info.cur_cfg.odr == state->mag_info.req_cfg.odr
-        && (state->mag_info.cur_cfg.fifo_wmk == state->mag_info.req_cfg.fifo_wmk || !ak0991x_dae_if_available(this)))
+        && ((state->mag_info.cur_cfg.dae_wmk == state->mag_info.req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
       AK0991X_INST_PRINT(LOW, this, "Config not changed.");
