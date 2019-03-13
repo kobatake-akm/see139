@@ -387,12 +387,12 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   return SNS_RC_SUCCESS;
 }
 
-static uint32_t ak0991x_calc_fifo_wmk(
+static uint16_t ak0991x_calc_fifo_wmk(
     sns_sensor_instance *const this,
     float desired_report_rate,
     float mag_chosen_sample_rate)
 {
-  uint32_t desired_wmk = 1;
+  uint16_t desired_wmk = 1;
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
@@ -403,12 +403,12 @@ static uint32_t ak0991x_calc_fifo_wmk(
       case AK09915C:
       case AK09915D:
       case AK09917:
-        desired_wmk = (uint32_t) (mag_chosen_sample_rate + 0.01 * desired_report_rate) / desired_report_rate;
+        desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01 * desired_report_rate) / desired_report_rate;
         if (state->mag_info.max_batch)
         {
           desired_wmk = state->mag_info.max_fifo_size;
         }
-        else if ( desired_wmk >= (UINT32_MAX - state->mag_info.max_fifo_size) )
+        else if ( desired_wmk >= (UINT16_MAX - state->mag_info.max_fifo_size) )
         {
           desired_wmk = state->mag_info.max_fifo_size;
         }

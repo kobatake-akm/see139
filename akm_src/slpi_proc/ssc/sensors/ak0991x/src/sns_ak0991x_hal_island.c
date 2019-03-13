@@ -1065,7 +1065,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
   {
     if( !state->in_clock_error_procedure &&
-        (state->mag_info.flush_only || (state->mag_info.max_batch && ak0991x_dae_if_available(this))) )
+        (state->mag_info.flush_only || state->mag_info.max_batch) )
     {
       AK0991X_INST_PRINT(LOW, this, "req_wmk is MAX then heart beat timer is not registered.");
       sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
@@ -2658,7 +2658,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   }
   if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING &&
       (state->system_time + (state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk) > state->hb_timer_fire_time) &&
-      (state->in_clock_error_procedure || !state->mag_info.flush_only))
+      (state->in_clock_error_procedure || !(state->mag_info.flush_only && state->mag_info.max_batch)))
   {
     SNS_INST_PRINTF(LOW, instance, "Re register heart beat timer req_wm:%d cur_wm:%d", state->mag_info.req_cfg.fifo_wmk, state->mag_info.cur_cfg.fifo_wmk);
     ak0991x_register_heart_beat_timer(instance);
@@ -3168,7 +3168,7 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if ( !state->mag_info.flush_only )
+  if ( !(state->mag_info.flush_only || state->mag_info.max_batch) )
   {
     state->req_payload.start_time = state->system_time;
     state->hb_timer_fire_time = state->req_payload.start_time + state->req_payload.timeout_period;
