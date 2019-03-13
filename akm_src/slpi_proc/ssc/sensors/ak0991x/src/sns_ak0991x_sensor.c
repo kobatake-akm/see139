@@ -1902,6 +1902,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
           ak0991x_send_flush_config(this, instance);
         }
       }
+
     }
   }
   else // bad request
