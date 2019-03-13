@@ -1892,9 +1892,17 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
       else // handle Flush request without adding to request list
       {
-        inst_state->flush_req_count++;
-        ak0991x_send_flush_config(this, instance);
+        if(AK0991X_POWER_RAIL_PENDING_NONE != state->power_rail_pend_state)
+        {
+          AK0991X_PRINT(LOW, this, "Still warming up... no samples to flush");
+          ak0991x_send_fifo_flush_done(instance);
+        }
+        else
+        {
+          ak0991x_send_flush_config(this, instance);
+        }
       }
+
     }
   }
   else // bad request

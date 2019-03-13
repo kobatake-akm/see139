@@ -22,9 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 03/06/19     020046     AKM              Fixed wm value when send_config_event in DAE
- * 02/06/19                AKM              add checking when the timestamp is newer than the dae_event_time
- * 03/06/19     020045     AKM              modified for rail timer
+ * 03/12/19     020046     AKM              Fixed wm value when send_config_event in DAE
+ * 03/12/19                AKM              add checking when the timestamp is newer than the dae_event_time
+ * 03/12/19     020045     AKM              modified for rail timer
+ * 03/08/19     020045     Qualcomm         Modified not to flush samples while still warming up
  * 02/22/19     020044     AKM              add dummy for DRI+FIFO+nonDAE when detect gap at last
  * 02/22/19                AKM              timestamp adjustment for flush only testing(MAG-048) on DRI+FIFO+nonDAE
  * 02/20/19                AKM              Modified to check update of dae_watermark.
@@ -259,8 +260,8 @@
  *
  **/
 
-// major:02 minor:00 revision:44
+// major:02 minor:00 revision:47
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      46
+#define AK0991X_DRV_VER_REV      47
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
