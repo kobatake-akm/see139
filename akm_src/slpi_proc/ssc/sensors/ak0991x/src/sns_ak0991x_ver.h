@@ -27,6 +27,7 @@
  * 03/06/19     020046     AKM              Fixed wm value when send_config_event in DAE
  * 03/06/19                AKM              add checking when the timestamp is newer than the dae_event_time
  * 03/06/19     020045     AKM              modified for rail timer
+ * 03/08/19     020045     Qualcomm         Modified not to flush samples while still warming up
  * 02/22/19     020044     AKM              add dummy for DRI+FIFO+nonDAE when detect gap at last
  * 02/22/19                AKM              timestamp adjustment for flush only testing(MAG-048) on DRI+FIFO+nonDAE
  * 02/20/19                AKM              Modified to check update of dae_watermark.
