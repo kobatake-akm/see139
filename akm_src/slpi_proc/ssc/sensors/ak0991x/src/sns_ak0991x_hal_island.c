@@ -944,8 +944,7 @@ static sns_time ak0991x_set_heart_beat_timeout_period_for_polling(
   sns_time sample_period;
   sns_time timeout_period;
 
-  sample_period = sns_convert_ns_to_ticks(
-      1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+  sample_period = ak0991x_get_sample_interval(state->mag_info.req_cfg.odr);
 
   if (state->mag_info.use_fifo)
   {
@@ -1836,21 +1835,7 @@ float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr)
  */
 sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr)
 {
-  int8_t   idx;
-  sns_time sample_interval = 0;
-
-  for (idx = 0; idx < ARR_SIZE(reg_map_ak0991x); idx++)
-  {
-    if (curr_odr == reg_map_ak0991x[idx].mag_odr_reg_value
-        &&
-        curr_odr != AK0991X_MAG_ODR_OFF)
-    {
-      sample_interval = sns_convert_ns_to_ticks(1000000000 / reg_map_ak0991x[idx].odr);
-      break;
-    }
-  }
-
-  return sample_interval;
+  return sns_convert_ns_to_ticks(1000000000 / ak0991x_get_mag_odr(curr_odr));
 }
 
 /**
@@ -2786,7 +2771,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   char *operating_mode;
   pb_buffer_arg op_mode_args;
 
-  if(AK0991X_ODR_0 == state->mag_req.sample_rate)
+  if(AK0991X_MAG_ODR_OFF == state->mag_info.req_cfg.odr)
   {
     return SNS_RC_SUCCESS;
   }
@@ -2940,9 +2925,9 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   state->system_time = sns_get_system_time();
   AK0991X_INST_PRINT(HIGH, instance,
-                     "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u/100 wm %u dae_wm %u sync %u",
+                     "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u wm %u dae_wm %u sync %u",
                      (uint32_t)state->system_time,
-                     (uint32_t)(phy_sensor_config.sample_rate * 100),
+                     (uint32_t)(phy_sensor_config.sample_rate),
                      phy_sensor_config.has_water_mark ? phy_sensor_config.water_mark : 0,
                      phy_sensor_config.has_DAE_watermark ? phy_sensor_config.DAE_watermark : 0,
                      phy_sensor_config.stream_is_synchronous);
@@ -3038,37 +3023,41 @@ static sns_rc ak0991x_send_timer_request(sns_sensor_instance *const this)
   uint8_t                 buffer[20];
   sns_rc rv = SNS_RC_SUCCESS;
 
-  if (state->mag_req.sample_rate != AK0991X_ODR_0)
-  {
-    if (NULL == state->timer_data_stream)
-    {
-      stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                     this,
-                                                     state->timer_suid,
-                                                     &state->timer_data_stream
-                                                     );
-    }
+  sns_timer_sensor_config payload = sns_timer_sensor_config_init_default;
 
-    if (NULL != state->timer_data_stream)
+  if (state->mag_info.req_cfg.odr != AK0991X_MAG_ODR_OFF)
+  {
+    payload = state->req_payload;
+  }
+
+  if (NULL == state->timer_data_stream)
+  {
+    stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                   this,
+                                                   state->timer_suid,
+                                                   &state->timer_data_stream
+                                                   );
+  }
+
+  if (NULL != state->timer_data_stream)
+  {
+    req_len = pb_encode_request(buffer,
+                                sizeof(buffer),
+                                &payload,
+                                sns_timer_sensor_config_fields,
+                                NULL);
+    if (req_len > 0)
     {
-      req_len = pb_encode_request(buffer,
-                                  sizeof(buffer),
-                                  &state->req_payload,
-                                  sns_timer_sensor_config_fields,
-                                  NULL);
-      if (req_len > 0)
-      {
-        timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
-        timer_req.request_len = req_len;
-        timer_req.request = buffer;
-        /** Send encoded request to Timer Sensor */
-        rv = state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
-      }
+      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
+      timer_req.request_len = req_len;
+      timer_req.request = buffer;
+      /** Send encoded request to Timer Sensor */
+      rv = state->timer_data_stream->api->send_request(state->timer_data_stream, &timer_req);
     }
-    if (req_len == 0)
-    {
-      rv = SNS_RC_FAILED;
-    }
+  }
+  if (req_len == 0)
+  {
+    rv = SNS_RC_FAILED;
   }
   return rv;
 }
@@ -3088,8 +3077,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
     req_payload.is_periodic = false;
     req_payload.start_time = state->system_time;
-    sample_period = sns_convert_ns_to_ticks(
-        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+    sample_period = ak0991x_get_sample_interval(state->mag_info.req_cfg.odr);
 
     // Set timeout_period for heart beat in DRI/FIFO+DRI
     // as 5 samples time for DRI
@@ -3134,8 +3122,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.has_priority = true;
     req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
     req_payload.is_periodic = true;
-    sample_period = sns_convert_ns_to_ticks(
-        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+    sample_period = ak0991x_get_sample_interval(state->mag_info.req_cfg.odr);
     req_payload.start_time = state->system_time - sample_period;
     req_payload.start_config.early_start_delta = 0;
     req_payload.start_config.late_start_delta = sample_period * 2;
@@ -3148,8 +3135,7 @@ void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
     req_payload.is_periodic = true;
     req_payload.start_time = state->system_time;
-    sample_period = sns_convert_ns_to_ticks(
-        1 / state->mag_req.sample_rate * 1000 * 1000 * 1000);
+    sample_period = ak0991x_get_sample_interval(state->mag_info.req_cfg.odr);
     //start time calculation should be similar to above use_sync_stream case
     //If this sensor is doing polling, it would be good to synchronize the Mag polling timer,
     //with other polling timers on the system.

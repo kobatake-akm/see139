@@ -499,12 +499,11 @@ static void process_fifo_samples(
         // if config was updated, send correct config.
         if( state->mag_info.cur_cfg.odr      != tmp.odr ||
             state->mag_info.cur_cfg.fifo_wmk != tmp.fifo_wmk ||
-            state->mag_info.cur_cfg.dae_wmk  != tmp.dae_wmk)
+            state->mag_info.cur_cfg.dae_wmk  != tmp.dae_wmk ||
+            state->mag_info.cur_cfg.odr      != state->mag_info.cur_cfg.odr ||
+            state->mag_info.cur_cfg.fifo_wmk != state->mag_info.cur_cfg.fifo_wmk ||
+            state->mag_info.cur_cfg.dae_wmk  != state->mag_info.cur_cfg.dae_wmk)
         {
-          state->mag_info.req_cfg.odr        = tmp.odr;
-          state->mag_info.req_cfg.fifo_wmk   = tmp.fifo_wmk;
-          state->mag_info.req_cfg.dae_wmk    = tmp.dae_wmk;
-
           AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u requested odr=%d fifo_wmk=%d, dae_wmk=%d",
               (uint32_t)state->dae_event_time,
               state->mag_info.req_cfg.odr,

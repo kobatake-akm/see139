@@ -284,8 +284,6 @@ typedef struct ak0991x_instance_state
   sns_data_stream       *async_com_port_data_stream;
   sns_data_stream       *s4s_timer_data_stream;
 
-  sns_std_sensor_config mag_req;
-
   size_t encoded_mag_event_len;
 
   /**----------Axis Conversion----------*/

@@ -458,12 +458,12 @@ static uint32_t ak0991x_calc_dae_wmk(
 }
 #endif
 
-static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this,
-                                     float mag_chosen_sample_rate,
-                                     ak0991x_mag_odr mag_chosen_sample_rate_reg_value)
+static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
+
+  ak0991x_mag_odr odr = state->mag_info.req_cfg.odr;
 
   state->this_is_the_last_flush = true;
   AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
@@ -478,15 +478,13 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this,
   // stop timer
   if (state->timer_data_stream != NULL)
   {
-    state->mag_req.sample_rate = AK0991X_ODR_0;
     state->mag_info.req_cfg.odr = AK0991X_MAG_ODR_OFF;
     ak0991x_reconfig_hw(this, false);
     ak0991x_register_timer(this);
     AK0991X_INST_PRINT(LOW, this, "stop register_timer");
 
     // reset
-    state->mag_req.sample_rate = mag_chosen_sample_rate;
-    state->mag_info.req_cfg.odr = mag_chosen_sample_rate_reg_value;
+    state->mag_info.req_cfg.odr = odr;
   }
 }
 
@@ -552,9 +550,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       (sns_ak0991x_mag_req *)client_request->request;
     desired_sample_rate = payload->sample_rate;
     desired_report_rate = payload->report_rate;
-    state->mag_info.flush_only = payload->is_flush_only;
-    state->mag_info.max_batch = payload->is_max_batch;
-    state->mag_info.flush_period = payload->flush_period;
     
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
     if(NULL != state->device_mode_stream )
@@ -598,12 +593,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       return rv;
     }
 
+    // update requested config
+    state->mag_info.flush_only = payload->is_flush_only;
+    state->mag_info.max_batch = payload->is_max_batch;
+    state->mag_info.flush_period = payload->flush_period;
     state->mag_info.req_cfg.odr      = mag_chosen_sample_rate_reg_value;
     state->mag_info.req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, mag_chosen_sample_rate);
 #ifdef AK0991X_ENABLE_DAE
     state->mag_info.req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate);
 #endif
-    state->mag_req.sample_rate       = mag_chosen_sample_rate;
 
     AK0991X_INST_PRINT(LOW, this, "odr=%u, req_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
         state->mag_info.req_cfg.odr,
@@ -629,15 +627,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       return SNS_RC_SUCCESS;
     }
 
-    if( AK0991X_MAG_ODR_OFF == state->mag_info.cur_cfg.odr )
+    if(state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF)
     {
       ak0991x_send_config_event(this);
     }
 
-    AK0991X_INST_PRINT(LOW, this, "sample_rate=%d, reg_value=%d, config_step=%d",
-                       (int)mag_chosen_sample_rate,
-                       (int)mag_chosen_sample_rate_reg_value,
-                       (int)state->config_step);
+    AK0991X_INST_PRINT(LOW, this, "SR:desired=%d[Hz] -> chosen=%d[Hz] (0x%02X), config_step=%d",
+        (int)desired_sample_rate,
+        (int)mag_chosen_sample_rate,
+        (int)mag_chosen_sample_rate_reg_value,
+        (int)state->config_step);
 
     if(state->in_clock_error_procedure)
     {
@@ -667,9 +666,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if ( !state->this_is_first_data && state->mag_info.use_fifo
            && state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
       {
-        ak0991x_care_fifo_buffer(this,
-                                 mag_chosen_sample_rate,
-                                 mag_chosen_sample_rate_reg_value);
+        ak0991x_care_fifo_buffer(this);
       }
     }
 #ifdef AK0991X_ENABLE_DAE
@@ -753,10 +750,13 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
     {
       AK0991X_INST_PRINT(LOW, this, "pause the stream for self-test.");
-      mag_chosen_sample_rate = state->mag_req.sample_rate;
       mag_chosen_sample_rate_reg_value = state->mag_info.req_cfg.odr;
-      state->mag_req.sample_rate = 0;
+      mag_chosen_sample_rate = ak0991x_get_sample_interval(state->mag_info.req_cfg.odr);
+
+      // stop timer
       state->mag_info.req_cfg.odr = AK0991X_MAG_ODR_OFF;
+      ak0991x_reconfig_hw(this, false);
+      ak0991x_register_timer(this);
 
 #ifdef AK0991X_ENABLE_DAE
       if (AK0991X_CONFIG_IDLE == state->config_step &&
@@ -772,9 +772,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         // care the FIFO buffer if enabled FIFO and already streaming
         if (!state->this_is_first_data && state->mag_info.use_fifo)
         {
-          ak0991x_care_fifo_buffer(this,
-              state->mag_req.sample_rate,
-              state->mag_info.req_cfg.odr);
+          ak0991x_care_fifo_buffer(this);
         }
 
         if(!ak0991x_dae_if_available(this))
@@ -803,7 +801,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->system_time = sns_get_system_time();
 
       AK0991X_INST_PRINT(LOW, this, "Resume the stream.");
-      state->mag_req.sample_rate = mag_chosen_sample_rate;
       state->mag_info.req_cfg.odr = mag_chosen_sample_rate_reg_value;
 
       // Register for timer
