@@ -2202,6 +2202,7 @@ void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance)
 {
   ak0991x_state *state = (ak0991x_state*)this->state->state;
+  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
 
   pb_arg_reg_group_arg arg = {.instance = instance };
 
@@ -2213,6 +2214,11 @@ void ak0991x_update_registry(sns_sensor *const this,
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   hw_id = state->registration_idx;
 #endif
+  if(inst_state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
+  {
+    AK0991X_INST_PRINT(HIGH, instance,"Unknown cal id, do not update registry");
+    return;
+  }
 
   ak0991x_create_registry_faccal_str(hw_id, 0, name, sizeof(name));
 
@@ -2225,7 +2231,6 @@ void ak0991x_update_registry(sns_sensor *const this,
   write_req.name.funcs.encode = &pb_encode_string_cb;
   write_req.name.arg = &name_data;
   write_req.data.items.funcs.encode = &ak0991x_encode_registry_cb;
-  ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
   arg.version = inst_state->cal.params[inst_state->cal.id].version;
   write_req.data.items.arg = &arg;
 
@@ -2259,6 +2264,11 @@ void ak0991x_update_sensor_state(sns_sensor *const this,
   ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
   sns_sensor *sensor = NULL;
   uint32_t id = 0;
+  if(inst_state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
+  {
+    AK0991X_INST_PRINT(HIGH, instance,"Unknown cal id, do not update sensor state");
+    return;
+  }
 
   for(sensor = this->cb->get_library_sensor(this, true);
       sensor != NULL;

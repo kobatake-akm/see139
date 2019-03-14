@@ -1938,10 +1938,13 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   }
 
   // factory calibration
-  opdata_cal = sns_apply_calibration_correction_3(
+  if(state->cal.id != AK0991X_UNKNOWN_DEVICE_MODE)
+  {
+    opdata_cal = sns_apply_calibration_correction_3(
       make_vector3_from_array(opdata_raw),
       make_vector3_from_array(state->cal.params[state->cal.id].bias),
       state->cal.params[state->cal.id].corr_mat);
+  }
 
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
       (opdata_raw[0] == 0) &&
@@ -1952,6 +1955,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
+  AK0991X_INST_PRINT(MED, instance, "mag generate sample, status:%u", status);
 
   state->mag_info.previous_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
   state->mag_info.previous_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
@@ -2751,6 +2755,11 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
+  {
+    AK0991X_INST_PRINT(HIGH, instance, "send Unknown cal id");
+    //return;
+  }
   sns_cal_event cal_event = sns_cal_event_init_default;
   pb_buffer_arg buff_arg_bias = { 
     .buf     = &state->cal.params[state->cal.id].bias,
@@ -2763,10 +2772,16 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   cal_event.bias.arg                 = &buff_arg_bias;
   cal_event.comp_matrix.funcs.encode = &pb_encode_float_arr_cb;
   cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
-  cal_event.status                   = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
+  if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
+    cal_event.status                 = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
+  else
+    cal_event.status                 = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   cal_event.has_cal_id               = true;
-  cal_event.cal_id                   =  state->cal.id;
+  if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
+    cal_event.cal_id                 = 0;
+  else
+    cal_event.cal_id                   =  state->cal.id;
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx CAL_EVENT: cm %X/%X/%X bias %X/%X/%X",
                      state->cal.params[state->cal.id].corr_mat.e00,
@@ -2793,6 +2808,11 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
   float bias_data[] = {0,0,0};
   float comp_matrix_data[] = {1,0,0,0,1,0,0,0,1};
 
+  if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
+  {
+    AK0991X_INST_PRINT(HIGH, instance, "unknown cal id, do not reset cal data");
+    return;
+  }
   for (int i = 0; i < ARR_SIZE(bias_data); i++)
   {
     state->cal.params[state->cal.id].bias[i] = bias_data[i];
