@@ -87,6 +87,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.req_cfg.odr = AK0991X_MAG_ODR_OFF;
   state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
+  state->mag_info.last_sent_cfg.odr = AK0991X_MAG_ODR_OFF;
+
   sns_memscpy(&state->mag_info.sstvt_adj,
               sizeof(state->mag_info.sstvt_adj),
               &sensor_state->sstvt_adj,

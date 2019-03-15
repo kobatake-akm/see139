@@ -2771,7 +2771,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   char *operating_mode;
   pb_buffer_arg op_mode_args;
 
-  if(AK0991X_MAG_ODR_OFF == state->mag_info.req_cfg.odr)
+  if(AK0991X_MAG_ODR_OFF == state->mag_info.cur_cfg.odr)
   {
     return SNS_RC_SUCCESS;
   }
@@ -2915,12 +2915,12 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   op_mode_args.buf_len = sizeof(operating_mode);
   phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
   phy_sensor_config.operation_mode.arg = &op_mode_args;
-  phy_sensor_config.water_mark         = state->mag_info.req_cfg.fifo_wmk;
+  phy_sensor_config.water_mark         = state->mag_info.cur_cfg.fifo_wmk;
   phy_sensor_config.has_sample_rate    = true;
-  phy_sensor_config.sample_rate        = ak0991x_get_mag_odr(state->mag_info.req_cfg.odr);
+  phy_sensor_config.sample_rate        = ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr);
   phy_sensor_config.has_DAE_watermark  = ak0991x_dae_if_available(instance);
 #ifdef AK0991X_ENABLE_DAE
-  phy_sensor_config.DAE_watermark      = SNS_MAX(state->mag_info.req_cfg.dae_wmk, 1);
+  phy_sensor_config.DAE_watermark      = SNS_MAX(state->mag_info.cur_cfg.dae_wmk, 1);
 #endif
 
   state->system_time = sns_get_system_time();
@@ -2939,15 +2939,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
 
-  // set current config values in state parameter
-  state->mag_info.cur_cfg.odr       = state->mag_info.req_cfg.odr;
-  state->mag_info.cur_cfg.fifo_wmk  = state->mag_info.req_cfg.fifo_wmk;
+  state->mag_info.last_sent_cfg.odr       = state->mag_info.cur_cfg.odr;
+  state->mag_info.last_sent_cfg.fifo_wmk  = state->mag_info.cur_cfg.fifo_wmk;
 #ifdef AK0991X_ENABLE_DAE
-  state->mag_info.cur_cfg.dae_wmk   = state->mag_info.req_cfg.dae_wmk;
+  state->mag_info.last_sent_cfg.dae_wmk   = state->mag_info.cur_cfg.dae_wmk;
 #endif
-
-  // update averaged_interval
-  ak0991x_reset_averaged_interval(instance);
 
   if( !state->is_called_cal_event )
   {
@@ -3242,7 +3238,13 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
 
   SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
 
-  ak0991x_reset_averaged_interval(this);
+  // set current config values in state parameter
+  state->mag_info.cur_cfg.odr       = state->mag_info.req_cfg.odr;
+  state->mag_info.cur_cfg.fifo_wmk  = state->mag_info.req_cfg.fifo_wmk;
+#ifdef AK0991X_ENABLE_DAE
+  state->mag_info.cur_cfg.dae_wmk   = state->mag_info.req_cfg.dae_wmk;
+#endif
+
 
   if(reset_device)
   {
@@ -3251,11 +3253,15 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
     AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. at %u", (uint32_t)state->last_sw_reset_time);
   }
 
+  // update averaged_interval
+  ak0991x_reset_averaged_interval(this);
+
   if (state->mag_info.req_cfg.odr != AK0991X_MAG_ODR_OFF)
   {
     AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
-    if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING || state->irq_info.is_ready ||
-       ak0991x_dae_if_is_streaming(this))
+    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING ||
+        state->irq_info.is_ready ||
+        ak0991x_dae_if_is_streaming(this))
     {
       rv = ak0991x_start_mag_streaming(this);
       if(rv != SNS_RC_SUCCESS)

@@ -391,18 +391,15 @@ static void process_fifo_samples(
   size_t              buf_len)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-  ak0991x_config_event_info tmp;
+  ak0991x_mag_odr odr;
   uint8_t dummy_count = 0;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
-  uint16_t batch_num = 1;
   uint32_t sampling_intvl;
 
-  tmp.odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
-  tmp.fifo_wmk = 1;
-  tmp.dae_wmk = 1;
+  odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
 
   state->is_orphan = false;
-  sampling_intvl = (ak0991x_get_sample_interval(tmp.odr) *
+  sampling_intvl = (ak0991x_get_sample_interval(odr) *
                     state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
   //////////////////////////////
@@ -433,12 +430,10 @@ static void process_fifo_samples(
       if(state->mag_info.device_select == AK09917)
       {
         state->num_samples = buf[2] >> 2;
-        tmp.fifo_wmk = (buf[0] & 0x1F) + 1; // +1 because FIFO register 0x00 means WM=1
       }
       else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
       {
         state->num_samples = state->mag_info.cur_cfg.fifo_wmk;  // when orphan, this may be wrong
-        tmp.fifo_wmk = state->mag_info.cur_cfg.fifo_wmk;        // when orphan, this may be wrong
       }
     }
     else
@@ -458,17 +453,6 @@ static void process_fifo_samples(
           state->flush_sample_count = 0;
         }
       }
-    }
-
-    // check dae_wmk
-    if(state->mag_info.flush_only || state->mag_info.max_batch)
-    {
-      tmp.dae_wmk = UINT32_MAX;
-    }
-    else
-    {
-      batch_num = SNS_MAX(state->mag_info.cur_cfg.dae_wmk, 1) / tmp.fifo_wmk;
-      tmp.dae_wmk = batch_num * tmp.fifo_wmk;
     }
 
     if( state->is_orphan )  // orphan
@@ -497,20 +481,16 @@ static void process_fifo_samples(
       if( !state->is_orphan ) // regular sequence
       {
         // if config was updated, send correct config.
-        if( state->mag_info.cur_cfg.odr      != tmp.odr ||
-            state->mag_info.cur_cfg.fifo_wmk != tmp.fifo_wmk ||
-            state->mag_info.cur_cfg.dae_wmk  != tmp.dae_wmk ||
-            state->mag_info.cur_cfg.odr      != state->mag_info.cur_cfg.odr ||
-            state->mag_info.cur_cfg.fifo_wmk != state->mag_info.cur_cfg.fifo_wmk ||
-            state->mag_info.cur_cfg.dae_wmk  != state->mag_info.cur_cfg.dae_wmk)
+        if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
+            state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
+            state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
         {
-          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u requested odr=%d fifo_wmk=%d, dae_wmk=%d",
+          AK0991X_INST_PRINT(MED, this, "ak0991x_send_config_event in DAE dae_event_time=%u current odr=%d fifo_wmk=%d, dae_wmk=%d",
               (uint32_t)state->dae_event_time,
-              state->mag_info.req_cfg.odr,
-              state->mag_info.req_cfg.fifo_wmk,
-              state->mag_info.req_cfg.dae_wmk);
+              state->mag_info.cur_cfg.odr,
+              state->mag_info.cur_cfg.fifo_wmk,
+              state->mag_info.cur_cfg.dae_wmk);
           ak0991x_send_config_event(this);
-          ak0991x_reset_mag_parameters(this, false);
         }
 
         if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
@@ -550,7 +530,7 @@ static void process_fifo_samples(
 #ifdef AK0991X_ENABLE_TS_DEBUG
       AK0991X_INST_PRINT(
         MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X first_data=%d",
-        tmp.odr, (uint32_t)sampling_intvl, state->num_samples,
+        odr, (uint32_t)sampling_intvl, state->num_samples,
         (uint32_t)state->first_data_ts_of_batch,
         (uint32_t)state->irq_event_time,
         state->this_is_first_data);
@@ -607,11 +587,9 @@ static void process_fifo_samples(
         {
           state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
         }
-        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) wm=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
-            tmp.odr,
-            state->mag_info.req_cfg.odr,
-            tmp.fifo_wmk,
-            state->mag_info.req_cfg.fifo_wmk,
+        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
+            odr,
+            state->mag_info.cur_cfg.odr,
             state->num_samples,
             (uint32_t)state->last_sw_reset_time,
             (uint32_t)state->dae_event_time);

@@ -160,6 +160,7 @@ typedef struct ak0991x_mag_info
 {
   ak0991x_config_event_info req_cfg;
   ak0991x_config_event_info cur_cfg;
+  ak0991x_config_event_info last_sent_cfg;
   sns_time          flush_period;
   ak0991x_int_op_mode int_mode; // 0: polling.  1:DRI.   2:IBI.
   ak0991x_mag_sstvt sstvt_adj[3];
