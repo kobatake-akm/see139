@@ -2711,33 +2711,49 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  pb_buffer_arg buff_arg_bias;
+  pb_buffer_arg buff_arg_comp_matrix;
   if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
   {
     AK0991X_INST_PRINT(HIGH, instance, "send Unknown cal id");
     //return;
+    buff_arg_bias.buf     = &state->cal.params[0].bias;
+    buff_arg_bias.buf_len = ARR_SIZE(state->cal.params[0].bias);
+    buff_arg_comp_matrix.buf     = &state->cal.params[0].corr_mat.data;
+    buff_arg_comp_matrix.buf_len = ARR_SIZE(state->cal.params[0].corr_mat.data);
   }
+  else
+  {
+    buff_arg_bias.buf     = &state->cal.params[state->cal.id].bias;
+    buff_arg_bias.buf_len = ARR_SIZE(state->cal.params[state->cal.id].bias);
+    buff_arg_comp_matrix.buf     = &state->cal.params[state->cal.id].corr_mat.data;
+    buff_arg_comp_matrix.buf_len = ARR_SIZE(state->cal.params[state->cal.id].corr_mat.data);
+  }
+
   sns_cal_event cal_event = sns_cal_event_init_default;
-  pb_buffer_arg buff_arg_bias = { 
-    .buf     = &state->cal.params[state->cal.id].bias,
-    .buf_len = ARR_SIZE(state->cal.params[state->cal.id].bias) };
-  pb_buffer_arg buff_arg_comp_matrix = { 
-    .buf     = &state->cal.params[state->cal.id].corr_mat.data,
-    .buf_len = ARR_SIZE(state->cal.params[state->cal.id].corr_mat.data) };
 
   cal_event.bias.funcs.encode        = &pb_encode_float_arr_cb;
   cal_event.bias.arg                 = &buff_arg_bias;
   cal_event.comp_matrix.funcs.encode = &pb_encode_float_arr_cb;
   cal_event.comp_matrix.arg          = &buff_arg_comp_matrix;
   if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
+  {
     cal_event.status                 = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
+  }
   else
+  {
     cal_event.status                 = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
+  }
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   cal_event.has_cal_id               = true;
   if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
+  {
     cal_event.cal_id                 = 0;
+  }
   else
+  {
     cal_event.cal_id                   =  state->cal.id;
+  }
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx CAL_EVENT: cm %X/%X/%X bias %X/%X/%X",
                      state->cal.params[state->cal.id].corr_mat.e00,
