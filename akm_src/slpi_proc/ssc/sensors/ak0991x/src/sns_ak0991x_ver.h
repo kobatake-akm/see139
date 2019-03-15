@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/14/19     020044.1   Qualcomm         Added AK0991X_UNKNOWN_DEVICE_MODE status for device mode
  * 03/13/19                AKM              Reviewed and modifed for WM, heart_beat timer
  * 03/13/19                AKM              Merged Qualcomm's 020045 to the AKM mainline
  * 03/08/19                AKM              Refactor for odr,fifo_wmk and dae_wmk

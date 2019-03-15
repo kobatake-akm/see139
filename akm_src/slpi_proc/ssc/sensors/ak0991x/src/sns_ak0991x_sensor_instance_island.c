@@ -112,10 +112,13 @@ static void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
 {
   uint32_t cal_id = 0;
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  for(int i = 0; i < MAX_DEVICE_MODE_SUPPORTED; ++i)
+  for(int i = 0; i < state->device_mode_cnt; ++i)
   {
-    if(state->device_mode[i].mode == SNS_DEVICE_MODE_UNKNOWN)
+    if(state->device_mode[i].mode == SNS_DEVICE_MODE_UNKNOWN && 
+       state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE)
     {
+      // -1 denotes unknown device mode 
+      cal_id = AK0991X_UNKNOWN_DEVICE_MODE;
       break;
     }
     uint8_t state_set = state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE ? 0 : 1;
@@ -400,7 +403,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
 
   //Handle device_mode stream events
-  if( ak0991x_handle_device_mode_stream(this) == SNS_RC_SUCCESS )
+  if( ak0991x_handle_device_mode_stream(this) == SNS_RC_SUCCESS)
   {
     // report
     ak0991x_send_cal_event(this);
