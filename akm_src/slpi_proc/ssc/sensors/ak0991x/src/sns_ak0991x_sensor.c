@@ -1157,7 +1157,6 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_boolean = true;
-    value.boolean = false;
     value.boolean = state->int_mode;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
@@ -1165,7 +1164,6 @@ ak0991x_publish_registry_attributes(sns_sensor *const this)
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_boolean = true;
-    value.boolean = false;
     value.boolean = state->supports_sync_stream;
     sns_publish_attribute(
         this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
@@ -1899,7 +1897,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         }
         else
         {
-		  inst_state->flush_req_count++;	
           ak0991x_send_flush_config(this, instance);
         }
       }

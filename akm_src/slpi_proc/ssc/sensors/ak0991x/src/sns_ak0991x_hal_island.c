@@ -2981,11 +2981,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   state->mag_info.last_sent_cfg.dae_wmk   = state->mag_info.cur_cfg.dae_wmk;
 #endif
 
-  if( !state->is_called_cal_event )
-  {
-    ak0991x_send_cal_event(instance);
-    state->is_called_cal_event = true;
-  }
+  ak0991x_send_cal_event(instance);
 
   return SNS_RC_SUCCESS;
 }
