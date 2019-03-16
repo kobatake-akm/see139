@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/14/19     020044.1   Qualcomm         Added AK0991X_UNKNOWN_DEVICE_MODE status for device mode
  * 03/12/19     020046     AKM              Fixed wm value when send_config_event in DAE
  * 03/12/19                AKM              add checking when the timestamp is newer than the dae_event_time
  * 03/12/19     020045     AKM              modified for rail timer
