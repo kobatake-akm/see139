@@ -271,6 +271,7 @@ typedef struct ak0991x_instance_state
   uint32_t ts_debug_count;
   uint32_t flush_req_count;
   uint32_t flush_done_count;
+  uint32_t prev_cal_id;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
