@@ -241,6 +241,7 @@ typedef struct ak0991x_instance_state
   bool is_previous_irq;
   bool flush_requested_in_dae;
   uint32_t total_samples; /* throughout the life of this instance */
+  uint32_t prev_cal_id;
   int32_t delta_ts_time;
   int64_t internal_clock_error;
   sns_time irq_event_time;
@@ -260,7 +261,6 @@ typedef struct ak0991x_instance_state
   sns_time dae_event_time;
   sns_time dae_polling_offset;
   sns_timer_sensor_config req_payload;
-  uint32_t prev_cal_id;
 
   /** Timer info */
   sns_sensor_uid timer_suid;

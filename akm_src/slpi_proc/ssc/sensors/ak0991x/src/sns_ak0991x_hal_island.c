@@ -2717,13 +2717,6 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   {
     AK0991X_INST_PRINT(HIGH, instance, "send Unknown cal id");
   }
-  else
-  {
-    buff_arg_bias.buf     = &state->cal.params[state->cal.id].bias;
-    buff_arg_bias.buf_len = ARR_SIZE(state->cal.params[state->cal.id].bias);
-    buff_arg_comp_matrix.buf     = &state->cal.params[state->cal.id].corr_mat.data;
-    buff_arg_comp_matrix.buf_len = ARR_SIZE(state->cal.params[state->cal.id].corr_mat.data);
-  }
 
   sns_cal_event cal_event = sns_cal_event_init_default;
   pb_buffer_arg buff_arg_bias = { 
