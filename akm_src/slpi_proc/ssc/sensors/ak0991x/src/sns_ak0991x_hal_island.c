@@ -1860,6 +1860,7 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   uint8_t i = 0;
   sns_std_sensor_sample_status status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
   vector3 opdata_cal;
+  uint32_t cal_id;
 
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
@@ -1894,14 +1895,13 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
       ipdata[state->axis_map[i].ipaxis];
   }
 
+  cal_id = (state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE) ? state->prev_cal_id : state->cal.id;
+
   // factory calibration
-  if(state->cal.id != AK0991X_UNKNOWN_DEVICE_MODE)
-  {
-    opdata_cal = sns_apply_calibration_correction_3(
-      make_vector3_from_array(opdata_raw),
-      make_vector3_from_array(state->cal.params[state->cal.id].bias),
-      state->cal.params[state->cal.id].corr_mat);
-  }
+  opdata_cal = sns_apply_calibration_correction_3(
+    make_vector3_from_array(opdata_raw),
+    make_vector3_from_array(state->cal.params[cal_id].bias),
+    state->cal.params[cal_id].corr_mat);
 
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
       (opdata_raw[0] == 0) &&
@@ -2711,16 +2711,11 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  pb_buffer_arg buff_arg_bias;
-  pb_buffer_arg buff_arg_comp_matrix;
+  uint32_t cal_id = (state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE) ? state->prev_cal_id : state->cal.id;
+
   if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
   {
     AK0991X_INST_PRINT(HIGH, instance, "send Unknown cal id");
-    //return;
-    buff_arg_bias.buf     = &state->cal.params[0].bias;
-    buff_arg_bias.buf_len = ARR_SIZE(state->cal.params[0].bias);
-    buff_arg_comp_matrix.buf     = &state->cal.params[0].corr_mat.data;
-    buff_arg_comp_matrix.buf_len = ARR_SIZE(state->cal.params[0].corr_mat.data);
   }
   else
   {
@@ -2731,6 +2726,12 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   }
 
   sns_cal_event cal_event = sns_cal_event_init_default;
+  pb_buffer_arg buff_arg_bias = { 
+    .buf     = &state->cal.params[cal_id].bias,
+    .buf_len = ARR_SIZE(state->cal.params[cal_id].bias) };
+  pb_buffer_arg buff_arg_comp_matrix = { 
+    .buf     = &state->cal.params[cal_id].corr_mat.data,
+    .buf_len = ARR_SIZE(state->cal.params[cal_id].corr_mat.data) };
 
   cal_event.bias.funcs.encode        = &pb_encode_float_arr_cb;
   cal_event.bias.arg                 = &buff_arg_bias;
@@ -2756,12 +2757,12 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   }
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx CAL_EVENT: cm %X/%X/%X bias %X/%X/%X",
-                     state->cal.params[state->cal.id].corr_mat.e00,
-                     state->cal.params[state->cal.id].corr_mat.e11,
-                     state->cal.params[state->cal.id].corr_mat.e22,
-                     state->cal.params[state->cal.id].bias[0],
-                     state->cal.params[state->cal.id].bias[1],
-                     state->cal.params[state->cal.id].bias[2]);
+                     state->cal.params[cal_id].corr_mat.e00,
+                     state->cal.params[cal_id].corr_mat.e11,
+                     state->cal.params[cal_id].corr_mat.e22,
+                     state->cal.params[cal_id].bias[0],
+                     state->cal.params[cal_id].bias[1],
+                     state->cal.params[cal_id].bias[2]);
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT, cal_id:%u", cal_event.cal_id);
 #else //AK0991X_ENABLE_DEVICE_MODE_SENSOR
   AK0991X_INST_PRINT(HIGH, instance, "tx CAL_EVENT");

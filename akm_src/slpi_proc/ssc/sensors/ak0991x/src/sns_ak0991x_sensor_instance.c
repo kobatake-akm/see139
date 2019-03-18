@@ -261,8 +261,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
        (int)(state->cal.params[i].bias[1]),
        (int)(state->cal.params[i].bias[2]));
   }
-  state->cal.id = 0;
-
+  state->cal.id = state->prev_cal_id = 0;
 
   /** Initialize Timer info to be used by the Instance */
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "timer", &state->timer_suid);

@@ -260,6 +260,7 @@ typedef struct ak0991x_instance_state
   sns_time dae_event_time;
   sns_time dae_polling_offset;
   sns_timer_sensor_config req_payload;
+  uint32_t prev_cal_id;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
