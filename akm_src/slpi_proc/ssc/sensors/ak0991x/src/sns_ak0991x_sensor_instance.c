@@ -183,7 +183,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
   state->reg_event_done = false;
   state->is_previous_irq = false;
-  state->is_called_cal_event = false;
   state->total_samples = 0;
   state->tx_count = 0;
   state->flush_requested_in_dae = false;
@@ -639,7 +638,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->new_cfg.dae_wmk      = state->mag_info.req_wmk;
 #endif //AK0991X_ENABLE_DAE
 
-//    if (desired_sample_rate > 0)
     if( 0.0f == state->last_sent_cfg.odr )
     {
       ak0991x_send_config_event(this);

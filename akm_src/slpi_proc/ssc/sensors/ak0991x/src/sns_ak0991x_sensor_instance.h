@@ -236,7 +236,7 @@ typedef struct ak0991x_instance_state
   bool fifo_flush_in_progress;
   bool new_self_test_request;
   bool enable_polling_timer_filter;
-  bool is_called_cal_event;
+  bool new_client_request;
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
   bool config_mag_after_ascp_xfer;

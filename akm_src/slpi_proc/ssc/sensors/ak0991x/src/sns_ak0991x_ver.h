@@ -22,7 +22,11 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/19/19     020048     AKM
+ * 03/19/19                AKM              Prevent tx cal event calling when self test
+ * 03/19/19                AKM/Qualcomm     Modified for using previous offset during UNKNOWN_DEVICE_MODE state
  * 03/14/19     020044.1   Qualcomm         Added AK0991X_UNKNOWN_DEVICE_MODE status for device mode
+ * 03/14/19     020047     Qualcomm         Checked in
  * 03/12/19     020046     AKM              Fixed wm value when send_config_event in DAE
  * 03/12/19                AKM              add checking when the timestamp is newer than the dae_event_time
  * 03/12/19     020045     AKM              modified for rail timer
@@ -264,5 +268,5 @@
 // major:02 minor:00 revision:47
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      47
+#define AK0991X_DRV_VER_REV      48
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
