@@ -22,14 +22,14 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/19/19     020048     AKM
+ * 03/19/19                AKM              Prevent tx cal event calling when self test
+ * 03/19/19                AKM/Qualcomm     Modified for using previous offset during UNKNOWN_DEVICE_MODE state
  * 03/14/19     020044.1   Qualcomm         Added AK0991X_UNKNOWN_DEVICE_MODE status for device mode
- * 03/13/19                AKM              Reviewed and modifed for WM, heart_beat timer
- * 03/13/19                AKM              Merged Qualcomm's 020045 to the AKM mainline
- * 03/08/19                AKM              Refactor for odr,fifo_wmk and dae_wmk
- * 03/07/19                AKM              Change cur_wm min from 0(=register value) to 1.
- * 03/06/19     020046     AKM              Fixed wm value when send_config_event in DAE
- * 03/06/19                AKM              add checking when the timestamp is newer than the dae_event_time
- * 03/06/19     020045     AKM              modified for rail timer
+ * 03/14/19     020047     Qualcomm         Checked in
+ * 03/12/19     020046     AKM              Fixed wm value when send_config_event in DAE
+ * 03/12/19                AKM              add checking when the timestamp is newer than the dae_event_time
+ * 03/12/19     020045     AKM              modified for rail timer
  * 03/08/19     020045     Qualcomm         Modified not to flush samples while still warming up
  * 02/22/19     020044     AKM              add dummy for DRI+FIFO+nonDAE when detect gap at last
  * 02/22/19                AKM              timestamp adjustment for flush only testing(MAG-048) on DRI+FIFO+nonDAE
@@ -268,5 +268,5 @@
 // major:02 minor:00 revision:47
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      47
+#define AK0991X_DRV_VER_REV      48
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

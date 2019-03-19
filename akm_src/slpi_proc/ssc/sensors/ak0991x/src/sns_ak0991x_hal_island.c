@@ -2713,6 +2713,12 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint32_t cal_id = (state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE) ? state->prev_cal_id : state->cal.id;
 
+  if(!state->new_client_request)
+  {
+    AK0991X_INST_PRINT(LOW, instance, "skip send cal event");
+    return;
+  }
+
   if(state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE)
   {
     AK0991X_INST_PRINT(HIGH, instance, "send Unknown cal id");
@@ -2766,6 +2772,8 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
                 sns_get_system_time(),
                 SNS_CAL_MSGID_SNS_CAL_EVENT,
                 &state->mag_info.suid);
+
+  state->new_client_request = false;
 }
 
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
