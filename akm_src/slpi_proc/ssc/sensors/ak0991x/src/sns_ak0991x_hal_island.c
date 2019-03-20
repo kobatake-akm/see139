@@ -1015,8 +1015,11 @@ void ak0991x_set_curr_odr(sns_sensor_instance *const this)
   state->mag_info.curr_odr = state->mag_info.desired_odr;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
-  state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
-  state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+  if( state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF )
+  {
+    state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+    state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+  }
 }
 
 void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_reset)
