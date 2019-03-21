@@ -985,9 +985,9 @@ void ak0991x_reset_averaged_interval(sns_sensor_instance *const this)
   sns_time meas_usec;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
-  if( state->mag_info.desired_odr != AK0991X_MAG_ODR_OFF )
+  if( state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
   {
-    state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.curr_odr);
+    state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
     state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
   }
 }
@@ -1915,7 +1915,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
-  AK0991X_INST_PRINT(MED, instance, "mag generate sample, status:%u", status);
 
   state->mag_info.previous_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
   state->mag_info.previous_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
