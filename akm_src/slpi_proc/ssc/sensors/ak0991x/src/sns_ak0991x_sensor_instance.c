@@ -644,12 +644,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
 #endif
 
-    if(!ak0991x_dae_if_available(this))
+    if(state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF)
     {
-      AK0991X_INST_PRINT(MED, this, "Send new config: odr=0x%02X fifo_wmk=%d",
-          (uint32_t)state->mag_info.cur_cfg.odr,
-          (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
-
+      AK0991X_INST_PRINT(LOW, this, "Send config because last_sent_cfg.ort=0[Hz]");
       ak0991x_send_config_event(this);
     }
 
