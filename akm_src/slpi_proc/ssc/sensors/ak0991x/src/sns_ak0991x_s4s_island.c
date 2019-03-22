@@ -34,12 +34,12 @@ sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
   sns_rc  rv = SNS_RC_SUCCESS;
 
   // Configure TPH and RR for S4S
-  if((state->mag_info.req_cfg.odr != AK0991X_MAG_ODR_OFF) && state->mag_info.use_sync_stream)
+  if((state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF) && state->mag_info.use_sync_stream)
   {
     uint8_t buf_s4s[3];
     uint32_t xfer_bytes;
     uint16_t t_ph_cnt;
-    t_ph_cnt = (uint16_t)ak0991x_get_sample_interval(state->mag_info.req_cfg.odr) * (AK0991X_S4S_INTERVAL_MS / 1000);
+    t_ph_cnt = (uint16_t)ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr) * (AK0991X_S4S_INTERVAL_MS / 1000);
 
     buf_s4s[0] = 0x0
       | (1 << 7)                                   // TPH
@@ -205,7 +205,7 @@ void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
   req_payload.priority = SNS_TIMER_PRIORITY_S4S;
   req_payload.timeout_period = t_ph_period;
 
-  if (state->mag_info.req_cfg.odr != AK0991X_MAG_ODR_OFF)
+  if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
   {
     AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
     AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);

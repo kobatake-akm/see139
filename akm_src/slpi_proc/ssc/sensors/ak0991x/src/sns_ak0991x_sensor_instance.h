@@ -158,7 +158,6 @@ typedef struct ak0991x_config_event_info
 
 typedef struct ak0991x_mag_info
 {
-  ak0991x_config_event_info req_cfg;
   ak0991x_config_event_info cur_cfg;
   ak0991x_config_event_info last_sent_cfg;
   sns_time          flush_period;
