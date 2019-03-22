@@ -1958,7 +1958,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
     status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
-  AK0991X_INST_PRINT(MED, instance, "mag generate sample, status:%u", status);
 
   state->mag_info.previous_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
   state->mag_info.previous_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
@@ -2231,6 +2230,7 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
         }
         delta_ts_now = state->system_time - state->interrupt_timestamp;
         if( !state->this_is_the_last_flush &&
+            state->mag_info.data_count_for_dri > (state->mag_info.cur_wmk * 10) &&
             delta_ts_now > state->delta_ts_time)
         {
             AK0991X_INST_PRINT(LOW, instance, "detect delay: delta %u",
