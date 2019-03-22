@@ -2185,6 +2185,7 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
         }
         delta_ts_now = state->system_time - state->interrupt_timestamp;
         if( !state->this_is_the_last_flush &&
+            state->mag_info.data_count_for_dri > (state->mag_info.cur_wmk * 10) &&
             delta_ts_now > state->delta_ts_time)
         {
             AK0991X_INST_PRINT(LOW, instance, "detect delay: delta %u",
