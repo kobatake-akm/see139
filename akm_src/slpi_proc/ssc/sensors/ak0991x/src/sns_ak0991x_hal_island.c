@@ -2118,6 +2118,7 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
           SNS_INST_PRINTF(HIGH, instance, "Calculated interval %u is too different from the previous %u",
               (uint32_t)calculated_average_interval,
               (uint32_t)state->averaged_interval);
+          rc = SNS_RC_FAILED;
         }
       }
       else
