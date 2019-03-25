@@ -498,18 +498,21 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this)
 
   ak0991x_reconfig_hw(this, true);
 
-  if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
+  if(!ak0991x_dae_if_available(this))
   {
-    ak0991x_register_timer(this);
-    // Register for s4s timer
-    if (state->mag_info.use_sync_stream)
+    if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
     {
-      ak0991x_s4s_register_timer(this);
+      ak0991x_register_timer(this);
+      // Register for s4s timer
+      if (state->mag_info.use_sync_stream)
+      {
+        ak0991x_s4s_register_timer(this);
+      }
     }
-  }
-  else if(!ak0991x_dae_if_available(this))
-  {
-    ak0991x_register_interrupt(this);
+    else
+    {
+      ak0991x_register_interrupt(this);
+    }
   }
 }
 
@@ -646,7 +649,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if(state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF)
     {
-      AK0991X_INST_PRINT(LOW, this, "Send config because last_sent_cfg.ort=0[Hz]");
+      AK0991X_INST_PRINT(LOW, this, "Send config because last_sent_cfg.odr=0[Hz]");
       ak0991x_send_config_event(this);
     }
 
@@ -762,76 +765,76 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     // When the self-test completes, the paused stream shall be restarted.
     if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
     {
-      AK0991X_INST_PRINT(LOW, this, "pause the stream for self-test.");
+
+      //////////////////////////////////////////////////////////////////
+      // 1. store current ODR.
       mag_chosen_sample_rate_reg_value = state->mag_info.cur_cfg.odr;
-      mag_chosen_sample_rate = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
 
-      // stop timer
+      //////////////////////////////////////////////////////////////////
+      // 2. pause streaming.
+      AK0991X_INST_PRINT(LOW, this, "Pause streaming before self-test.");
       state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
-      ak0991x_reconfig_hw(this, false);
-      ak0991x_register_timer(this);
-
-#ifdef AK0991X_ENABLE_DAE
-      if (AK0991X_CONFIG_IDLE == state->config_step &&
-          ak0991x_dae_if_stop_streaming(this))
+      if(!ak0991x_dae_if_available(this))
       {
-        AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
-        state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
-      }
-#endif //AK0991X_ENABLE_DAE
-
-      if (state->config_step == AK0991X_CONFIG_IDLE || state->config_step == AK0991X_CONFIG_UPDATING_HW)
-      {
+        ak0991x_reconfig_hw(this, false);
+        if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
+        {
+          // stop timer
+          ak0991x_register_timer(this);
+        }
         // care the FIFO buffer if enabled FIFO and already streaming
         ak0991x_care_fifo_buffer(this);
-
-        if(!ak0991x_dae_if_available(this))
+      }
+      else  // DAE enabled
+      {
+        if (AK0991X_CONFIG_IDLE == state->config_step &&
+            ak0991x_dae_if_stop_streaming(this))
         {
-          ak0991x_reconfig_hw(this, false);
-          if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
-          {
-            // Register for timer for polling
-            ak0991x_register_timer(this);
-          }
+          AK0991X_INST_PRINT(LOW, this, "done dae_if_stop_streaming");
+          state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
         }
-        else
-        {
-          ak0991x_dae_if_start_streaming(this);
-          state->config_step = AK0991X_CONFIG_UPDATING_HW;
-        }
+        ak0991x_dae_if_process_events(this);
       }
 
-      ak0991x_dae_if_process_events(this);
-
+      //////////////////////////////////////////////////////////////////
+      // 3. run self-test.
       AK0991X_INST_PRINT(LOW, this, "Execute the self-test.");
       ak0991x_run_self_test(this);
       state->new_self_test_request = false;
 
+      //////////////////////////////////////////////////////////////////
+      // 4. clear events during the test.
       ak0991x_clear_old_events(this);
       state->system_time = sns_get_system_time();
 
-      AK0991X_INST_PRINT(LOW, this, "Resume the stream.");
-      state->mag_info.cur_cfg.odr = mag_chosen_sample_rate_reg_value;
+      //////////////////////////////////////////////////////////////////
+      // 5. resume streaming using stored ODR
+      AK0991X_INST_PRINT(LOW, this, "Resume streaming after self-test.");
 
-      // Register for timer
-      if ( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING )
+      state->mag_info.cur_cfg.odr = mag_chosen_sample_rate_reg_value;
+      if(!ak0991x_dae_if_available(this))
       {
-        if(!ak0991x_dae_if_available(this))
+        ak0991x_reconfig_hw(this, false);
+        if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
         {
-          ak0991x_reconfig_hw(this, false);
+          // Register for timer for polling
           ak0991x_register_timer(this);
         }
+        else
+        {
+          SNS_INST_PRINTF(LOW, this, "Re register heart beat timer at %u", state->system_time);
+          ak0991x_register_heart_beat_timer(this);
+        }
       }
-      else
+      else  // DAE enabled
       {
-        SNS_INST_PRINTF(LOW, this, "Re register heart beat timer at %u", state->system_time);
-        ak0991x_register_heart_beat_timer(this);
+        if (state->config_step == AK0991X_CONFIG_IDLE || state->config_step == AK0991X_CONFIG_UPDATING_HW)
+        {
+          ak0991x_dae_if_start_streaming(this);
+          state->config_step = AK0991X_CONFIG_UPDATING_HW;
+        }
+        ak0991x_dae_if_process_events(this);
       }
-
-      ak0991x_send_config_event(this);
-
-      // DAE handles SET_STREAMING_CONFIG request
-      ak0991x_dae_if_process_events(this);
     }
     else
     {

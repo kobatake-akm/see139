@@ -484,7 +484,7 @@ static void process_fifo_samples(
             state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
             state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
         {
-          AK0991X_INST_PRINT(ERROR, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+          AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
               (uint32_t)state->mag_info.cur_cfg.odr,
               (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
               (uint32_t)state->mag_info.cur_cfg.dae_wmk);

@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 03/22/19                AKM              Refactor for config. 
+ * 03/25/19                AKM              Modified self test for MAG-213,221 and 223.
+ * 03/22/19                AKM              Refactor for config. Created req_cfg.
  * 03/22/19                AKM              Modified for DRI+FIFO+nonDAE gap issue
  * 03/21/19     020048     AKM              Prevent to re-initialize average interval when ODR=0
  * 03/19/19                AKM              Prevent tx cal event calling when self test
