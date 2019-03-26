@@ -776,14 +776,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
       if(!ak0991x_dae_if_available(this))
       {
+        // care the FIFO buffer if enabled FIFO and already streaming
+        ak0991x_care_fifo_buffer(this);
+
         ak0991x_reconfig_hw(this, false);
         if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
         {
           // stop timer
           ak0991x_register_timer(this);
         }
-        // care the FIFO buffer if enabled FIFO and already streaming
-        ak0991x_care_fifo_buffer(this);
       }
       else  // DAE enabled
       {
