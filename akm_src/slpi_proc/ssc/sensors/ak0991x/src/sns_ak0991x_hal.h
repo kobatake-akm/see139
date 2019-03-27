@@ -694,4 +694,3 @@ void ak0991x_send_cal_event(sns_sensor_instance * const instance);
  * @return none
  */
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
-

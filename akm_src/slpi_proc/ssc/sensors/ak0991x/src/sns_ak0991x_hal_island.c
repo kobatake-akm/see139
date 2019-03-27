@@ -390,7 +390,6 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
                                                xfer_bytes);
 }
 
-
 void ak0991x_clear_old_events(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)instance->state->state;
@@ -2084,8 +2083,8 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
 static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time intvl)
 {
-  state->internal_clock_error = ((state->interrupt_timestamp - state->previous_irq_time) << 
-                                 AK0991X_CALC_BIT_RESOLUTION) / intvl;
+    state->internal_clock_error = ((state->interrupt_timestamp - state->previous_irq_time) <<
+                                   AK0991X_CALC_BIT_RESOLUTION) / intvl;
 }
 
 static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const instance)
@@ -2100,8 +2099,20 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
     state->interrupt_timestamp = state->irq_event_time;
     if( !state->this_is_first_data )
     {
-      // keep re-calculating for clock frequency drifting.
-      ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count_for_dri);
+      if(!(state->ascp_xfer_in_progress>0 && state->this_is_the_last_flush) &&
+          (state->interrupt_timestamp > state->previous_irq_time))
+      {
+        // keep re-calculating for clock frequency drifting.
+        ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count_for_dri);
+      }
+      else
+      {
+        AK0991X_INST_PRINT(HIGH, instance, "Skip calc clock error. acsp=%d, last_flush=%d, int=%u pre_irq=%u",
+            state->ascp_xfer_in_progress,
+            state->this_is_the_last_flush,
+            (uint32_t)state->interrupt_timestamp,
+            (uint32_t)state->previous_irq_time);
+      }
 
       if( state->num_samples == state->mag_info.cur_cfg.fifo_wmk )
       {
@@ -2719,7 +2730,6 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
 
   if(!state->new_client_request)
   {
-    AK0991X_INST_PRINT(LOW, instance, "skip send cal event");
     return;
   }
 

@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/27/19                AKM              Modified for last flush during ASCP(MAG-062), fifo_wmk calc bug for MAG-073
  * 03/25/19                AKM              Modified self test for MAG-213,221 and 223.
  * 03/22/19                AKM              Refactor for config. Created req_cfg.
  * 03/22/19                AKM              Modified for DRI+FIFO+nonDAE gap issue
@@ -268,7 +269,7 @@
  *
  **/
 
-// major:02 minor:00 revision:47
+// major:02 minor:00 revision:48
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
 #define AK0991X_DRV_VER_REV      48

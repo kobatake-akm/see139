@@ -413,8 +413,9 @@ static uint16_t ak0991x_calc_fifo_wmk(
         }
         else if ( desired_wmk >= state->mag_info.max_fifo_size )
         {
-           uint32_t divider = desired_wmk / state->mag_info.max_fifo_size;
-           desired_wmk = desired_wmk / divider;
+          uint32_t divider = 1;
+          divider = (state->mag_info.max_fifo_size + desired_wmk) / state->mag_info.max_fifo_size;
+          desired_wmk = desired_wmk / SNS_MAX(divider,1);
         }
         break;
 
@@ -470,7 +471,7 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
     AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
     if(state->ascp_xfer_in_progress > 0)
     {
-      AK0991X_INST_PRINT(LOW, this, "last flush but ascp is in progress. Clear events");
+      AK0991X_INST_PRINT(ERROR, this, "last flush but ascp is in progress... Clear events");
       ak0991x_clear_old_events(this);
     }
     ak0991x_read_mag_samples(this);
