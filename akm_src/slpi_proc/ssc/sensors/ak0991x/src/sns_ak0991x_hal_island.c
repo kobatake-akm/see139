@@ -410,8 +410,6 @@ void ak0991x_clear_old_events(sns_sensor_instance *const instance)
   // Handle Async Com Port events
   if (NULL != state->async_com_port_data_stream)
   {
-    state->ascp_xfer_in_progress = 0;
-
     event = state->async_com_port_data_stream->api->peek_input(state->async_com_port_data_stream);
 
     while (NULL != event && SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_VECTOR_RW == event->message_id)
@@ -984,7 +982,8 @@ void ak0991x_reset_averaged_interval(sns_sensor_instance *const this)
   sns_time meas_usec;
   ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
   state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
-  if( state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
+  if( state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF &&
+      state->internal_clock_error != 0)
   {
     state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
     state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
@@ -2083,8 +2082,8 @@ void ak0991x_send_fifo_flush_done(sns_sensor_instance *const instance)
 
 static void ak0991x_calc_clock_error(ak0991x_instance_state *state, sns_time intvl)
 {
-    state->internal_clock_error = ((state->interrupt_timestamp - state->previous_irq_time) <<
-                                   AK0991X_CALC_BIT_RESOLUTION) / intvl;
+  state->internal_clock_error =
+      ((state->interrupt_timestamp - state->previous_irq_time) << AK0991X_CALC_BIT_RESOLUTION) / intvl;
 }
 
 static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const instance)
@@ -2104,38 +2103,39 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
       {
         // keep re-calculating for clock frequency drifting.
         ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count_for_dri);
-      }
-      else
-      {
-        AK0991X_INST_PRINT(HIGH, instance, "Skip calc clock error. acsp=%d, last_flush=%d, int=%u pre_irq=%u",
-            state->ascp_xfer_in_progress,
-            state->this_is_the_last_flush,
-            (uint32_t)state->interrupt_timestamp,
-            (uint32_t)state->previous_irq_time);
-      }
 
-      if( state->num_samples == state->mag_info.cur_cfg.fifo_wmk )
-      {
-        calculated_average_interval = ((state->interrupt_timestamp - state->previous_irq_time) /
-                                    state->mag_info.data_count_for_dri);
-        if( (calculated_average_interval > state->averaged_interval - state->averaged_interval/50) &&
-            (calculated_average_interval < state->averaged_interval + state->averaged_interval/50) )
+        if( state->num_samples == state->mag_info.cur_cfg.fifo_wmk )
         {
-          //update
-          state->averaged_interval = calculated_average_interval;
+          calculated_average_interval = ((state->interrupt_timestamp - state->previous_irq_time) /
+                                      state->mag_info.data_count_for_dri);
+          if( (calculated_average_interval > state->averaged_interval - state->averaged_interval/50) &&
+              (calculated_average_interval < state->averaged_interval + state->averaged_interval/50) )
+          {
+            //update
+            state->averaged_interval = calculated_average_interval;
+          }
+          else
+          {
+            SNS_INST_PRINTF(HIGH, instance, "Calculated interval %u is too different from the previous %u",
+                (uint32_t)calculated_average_interval,
+                (uint32_t)state->averaged_interval);
+            rc = SNS_RC_FAILED;
+          }
         }
         else
         {
-          SNS_INST_PRINTF(HIGH, instance, "Calculated interval %u is too different from the previous %u",
-              (uint32_t)calculated_average_interval,
-              (uint32_t)state->averaged_interval);
+          SNS_INST_PRINTF(LOW, instance, "Unreliable irq. (#samples != WM) (%d != %d)",
+              (int)state->num_samples, state->mag_info.cur_cfg.fifo_wmk);
           rc = SNS_RC_FAILED;
         }
       }
       else
       {
-        SNS_INST_PRINTF(LOW, instance, "Unreliable irq. (#samples != WM) (%d != %d)",
-            (int)state->num_samples, state->mag_info.cur_cfg.fifo_wmk);
+        AK0991X_INST_PRINT(HIGH, instance, "Skip calc clock error. ascp=%d, last_flush=%d, int=%u pre_irq=%u",
+            state->ascp_xfer_in_progress,
+            state->this_is_the_last_flush,
+            (uint32_t)state->interrupt_timestamp,
+            (uint32_t)state->previous_irq_time);
         rc = SNS_RC_FAILED;
       }
     }
@@ -2143,10 +2143,9 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
 
   if(state->this_is_first_data) // come into DRI and flush request
   {
-    AK0991X_INST_PRINT(LOW, instance, "this is the first data. avg_intvl %u clk_err %u rc=%d",
+    AK0991X_INST_PRINT(LOW, instance, "this is the first data. avg_intvl %u clk_err %u",
                        (uint32_t)state->averaged_interval,
-                       (uint32_t)state->internal_clock_error,
-                       (uint8_t)rc);
+                       (uint32_t)state->internal_clock_error);
   }
 
   return rc;
