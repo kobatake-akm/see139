@@ -1028,13 +1028,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");
 
-  if(state->ascp_xfer_in_progress)
-  {
-    AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming skipped. wait for the ASCP done.");
-    state->config_mag_after_ascp_xfer = true;
-    return SNS_RC_SUCCESS;
-  }
-
   // Enable Mag Streaming
 
   //Transit to Power-down mode first and then transit to other modes.
@@ -2358,10 +2351,6 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
       if(state->num_samples == 0)
       {
         AK0991X_INST_PRINT(LOW, instance, "num_samples==0!!!");
-        if( state->fifo_flush_in_progress && !state->this_is_the_last_flush )
-        {
-          ak0991x_send_fifo_flush_done(instance);
-        }
       }
     }
     else
@@ -2436,7 +2425,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_rc rc = SNS_RC_SUCCESS;
-  bool complete_flush = false;
 
   // is ASCP is still during in the process, skip flush
   if(state->ascp_xfer_in_progress > 0)
@@ -2450,7 +2438,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     // whether IRQ detected or not, no flushing can be done during clock error procedure
     AK0991X_INST_PRINT(LOW, instance, "irq for osc error is not received yet. wait...");
     rc |= SNS_RC_FAILED;
-    complete_flush = true;
   }
 
   if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING &&
@@ -2461,7 +2448,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     {
       AK0991X_INST_PRINT(LOW, instance, "FIFO empty");
       rc |= SNS_RC_FAILED;
-      complete_flush = true;
     }
     else
     {
@@ -2478,12 +2464,6 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
       }
     }
   }
-
-  if(state->fifo_flush_in_progress && complete_flush)
-  {
-    ak0991x_send_fifo_flush_done(instance);
-  }
-
   return rc;
 }
 

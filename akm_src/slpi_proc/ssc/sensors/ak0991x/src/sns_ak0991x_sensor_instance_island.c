@@ -295,7 +295,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           AK0991X_INST_PRINT(ERROR, this, "ascp_xfer_in_progress is already 0. Can't decriment.");
         }
 
-        if(state->ascp_xfer_in_progress != 0)
+        if(state->ascp_xfer_in_progress>0)
         {
           AK0991X_INST_PRINT(LOW, this, "ascp_xfer_in_progress = %d", state->ascp_xfer_in_progress);
         }
@@ -303,14 +303,13 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         if(state->re_read_data_after_ascp && (state->ascp_xfer_in_progress == 0))
         {
           ak0991x_read_mag_samples(this);
-          ak0991x_send_fifo_flush_done(this);
           state->re_read_data_after_ascp = false;
         }
 
         if(state->config_mag_after_ascp_xfer)
         {
-          ak0991x_start_mag_streaming(this);
           state->config_mag_after_ascp_xfer = false;
+          ak0991x_continue_client_config(this);
         }
       }
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)

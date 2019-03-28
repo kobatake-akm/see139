@@ -465,29 +465,18 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
 
   if (!state->this_is_first_data && state->mag_info.use_fifo)
   {
-    ak0991x_mag_odr odr = state->mag_info.cur_cfg.odr;
-
     state->this_is_the_last_flush = true;
     AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
     if(state->ascp_xfer_in_progress > 0)
     {
-      AK0991X_INST_PRINT(ERROR, this, "last flush but ascp is in progress. Clear events");
-      ak0991x_clear_old_events(this);
+      state->config_mag_after_ascp_xfer = true;
+      state->re_read_data_after_ascp = true;
+      AK0991X_INST_PRINT(ERROR, this, "last flush but ascp is in progress. Skip");
     }
-    ak0991x_read_mag_samples(this);
-    state->ascp_xfer_in_progress = 0;
-    state->this_is_the_last_flush = false;
-
-    // stop timer
-    if (state->timer_data_stream != NULL)
+    else
     {
-      state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
-      ak0991x_reconfig_hw(this, false);
-      ak0991x_register_timer(this);
-      AK0991X_INST_PRINT(LOW, this, "stop register_timer");
-
-      // reset
-      state->mag_info.cur_cfg.odr = odr;
+      ak0991x_read_mag_samples(this);
+      state->this_is_the_last_flush = false;
     }
   }
 }
@@ -495,6 +484,12 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
 void ak0991x_continue_client_config(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
+
+  if( state->config_mag_after_ascp_xfer )
+  {
+    SNS_INST_PRINTF(LOW, this, "skip reconfig_hw because config_mag_after_ascp_xfer.");
+    return;
+  }
 
   AK0991X_INST_PRINT(LOW, this, "continue_client_config::");
 
@@ -684,8 +679,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if(!ak0991x_dae_if_available(this))
     {
-      // care the FIFO buffer if enabled FIFO and already streaming
       ak0991x_care_fifo_buffer(this);
+      if (state->timer_data_stream != NULL)
+      {
+        ak0991x_mag_odr odr = state->mag_info.cur_cfg.odr;
+        state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
+        ak0991x_register_timer(this);
+        AK0991X_INST_PRINT(LOW, this, "stop timer");
+        state->mag_info.cur_cfg.odr = odr;
+      }
     }
 #ifdef AK0991X_ENABLE_DAE
     else
@@ -780,13 +782,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       {
         // care the FIFO buffer if enabled FIFO and already streaming
         ak0991x_care_fifo_buffer(this);
-
         ak0991x_reconfig_hw(this, false);
-        if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
-        {
-          // stop timer
-          ak0991x_register_timer(this);
-        }
+        ak0991x_register_timer(this);        // stop timer
       }
       else  // DAE enabled
       {
