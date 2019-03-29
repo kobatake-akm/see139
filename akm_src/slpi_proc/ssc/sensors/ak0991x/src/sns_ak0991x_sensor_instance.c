@@ -463,7 +463,7 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  if (!state->this_is_first_data && state->mag_info.use_fifo)
+  if (!state->this_is_first_data)
   {
     state->this_is_the_last_flush = true;
     AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
@@ -527,7 +527,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
   sns_rc          rv = SNS_RC_SUCCESS;
 
-  SNS_INST_PRINTF(MED, this, "inst_set_client_config msg_id %d first_data=%d pre=%u total=%d",
+  SNS_INST_PRINTF(MED, this, "@@@ inst_set_client_config msg_id %d first_data=%d pre=%u total=%d",
       client_request->message_id,
       state->this_is_first_data,
       (uint32_t)state->pre_timestamp,
@@ -680,7 +680,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(!ak0991x_dae_if_available(this))
     {
       ak0991x_care_fifo_buffer(this);
-      if (state->timer_data_stream != NULL)
+      if(state->timer_data_stream != NULL) // stop timer
       {
         ak0991x_mag_odr odr = state->mag_info.cur_cfg.odr;
         state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;

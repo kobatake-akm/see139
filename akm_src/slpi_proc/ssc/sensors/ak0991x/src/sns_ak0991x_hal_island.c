@@ -1878,6 +1878,19 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     }
   }
 
+  if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
+      (lsbdata[TRIAXIS_X] == 0) &&
+      (lsbdata[TRIAXIS_Y] == 0) &&
+      (lsbdata[TRIAXIS_Z] == 0)
+      )
+  {
+    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0), use prev_data");
+    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
+    lsbdata[TRIAXIS_X] = state->mag_info.previous_lsbdata[TRIAXIS_X];
+    lsbdata[TRIAXIS_Y] = state->mag_info.previous_lsbdata[TRIAXIS_Y];
+    lsbdata[TRIAXIS_Z] = state->mag_info.previous_lsbdata[TRIAXIS_Z];
+  }
+
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.resolution;
   ipdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y] * state->mag_info.resolution;
   ipdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z] * state->mag_info.resolution;
@@ -1896,16 +1909,6 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     make_vector3_from_array(opdata_raw),
     make_vector3_from_array(state->cal.params[cal_id].bias),
     state->cal.params[cal_id].corr_mat);
-
-  if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
-      (opdata_raw[0] == 0) &&
-      (opdata_raw[1] == 0) &&
-      (opdata_raw[2] == 0)
-      )
-  {
-    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
-  }
 
   state->mag_info.previous_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
   state->mag_info.previous_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
@@ -2608,7 +2611,6 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   }
   else  // Non FIFO mode, read one data
   {
-    state->num_samples = 1;
     ak0991x_read_hxl_st2(state,
                          1,
                          &buffer[0]);
@@ -2693,8 +2695,25 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       else // no FIFO
       {
         ak0991x_get_st1_status(instance);
-        state->num_samples = 1;
+
+        if( state->this_is_the_last_flush )
+        {
+          state->num_samples = ( state->pre_timestamp + state->averaged_interval * 8/10 < state->system_time ) ? 1 : 0;
+        }
+        else
+        {
+          state->num_samples = 1;
+        }
       }
+    }
+
+    if( state->this_is_the_last_flush )
+    {
+      AK0991X_INST_PRINT(LOW, instance,"last_flush num=%d sys=%u pre=%u ave=%u",
+          state->num_samples,
+          (uint32_t)state->system_time,
+          (uint32_t)state->pre_timestamp,
+          (uint32_t)state->averaged_interval);
     }
 
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP

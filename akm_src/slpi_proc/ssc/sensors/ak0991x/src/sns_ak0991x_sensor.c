@@ -1742,7 +1742,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif // AK0991X_ENABLE_DUAL_SENSOR
 
-  AK0991X_PRINT(HIGH, this, "set_client_request - msg_id=%d/%d remove=%u",
+  AK0991X_PRINT(HIGH, this, "### set_client_request - msg_id=%d/%d remove=%u",
                 exist_request ? exist_request->message_id : -1,
                 new_request ? new_request->message_id : -1, remove);
 
