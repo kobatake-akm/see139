@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/03/19                AKM              Support 1Hz ODR for AK09915 and AK09917
  * 04/01/19     020049     AKM              Modified for last flush during ASCP(MAG-062), fifo_wmk calc bug for MAG-073
  * 03/25/19                AKM              Modified self test for MAG-213,221 and 223.
  * 03/22/19                AKM              Refactor for config. Created req_cfg.
