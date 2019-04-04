@@ -395,12 +395,6 @@ static void process_fifo_samples(
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
 
-  odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
-
-  state->is_orphan = false;
-  sampling_intvl = (ak0991x_get_sample_interval(odr) *
-                    state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
-
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
   // buf[0] : CNTL1
@@ -415,6 +409,11 @@ static void process_fifo_samples(
   // buf[9] : TMPS
   // buf[10]: ST2
   //////////////////////////////
+  odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+
+  state->is_orphan = false;
+  sampling_intvl = (ak0991x_get_sample_interval(odr) *
+                    state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
   state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
 
@@ -633,7 +632,7 @@ static void process_fifo_samples(
       // keep re-register HB timer when DAE enabled.
       if(state->in_clock_error_procedure || !(state->mag_info.flush_only || state->mag_info.max_batch))
       {
-        SNS_INST_PRINTF(LOW, this, "Re register heart beat timer at %u", state->system_time);
+        AK0991X_INST_PRINT(LOW, this, "Re register heart beat timer at %u", state->system_time);
         ak0991x_register_heart_beat_timer(this);
       }
     }
