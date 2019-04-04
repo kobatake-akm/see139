@@ -172,8 +172,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     return SNS_RC_FAILED;
   }
  
-  state->pre_timestamp = sns_get_system_time();
-  state->pre_timestamp_for_orphan = state->pre_timestamp;
+  state->system_time = state->pre_timestamp = state->pre_timestamp_for_orphan = sns_get_system_time();
   state->this_is_first_data = true;
   state->heart_beat_attempt_count = 0;
   state->flush_sample_count = 0;
@@ -402,7 +401,7 @@ static uint16_t ak0991x_calc_fifo_wmk(
       case AK09915C:
       case AK09915D:
       case AK09917:
-        desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01 * desired_report_rate) / desired_report_rate;
+        desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate;
         if (state->mag_info.max_batch)
         {
           desired_wmk = state->mag_info.max_fifo_size;
@@ -431,13 +430,14 @@ static uint16_t ak0991x_calc_fifo_wmk(
   return desired_wmk;
 }
 
-#ifdef AK0991X_ENABLE_DAE
 static uint32_t ak0991x_calc_dae_wmk(
     sns_sensor_instance *const this,
     float desired_report_rate,
     float mag_chosen_sample_rate)
 {
   uint32_t dae_wmk = 1;
+
+#ifdef AK0991X_ENABLE_DAE
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
@@ -454,9 +454,13 @@ static uint32_t ak0991x_calc_dae_wmk(
       dae_wmk,
       state->mag_info.flush_only,
       state->mag_info.max_batch);
+#else
+  UNUSED_VAR(this);
+  UNUSED_VAR(desired_report_rate);
+  UNUSED_VAR(mag_chosen_sample_rate);
+#endif
   return dae_wmk;
 }
-#endif
 
 static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
 {
@@ -550,6 +554,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     //   2. Configure sensor HW.
     //   3. Save the current config information like type, sample_rate, report_rate, etc.
     //   4. sendRequest() for Timer to start/stop in case of polling using timer_data_stream.
+
     sns_ak0991x_mag_req *payload =
       (sns_ak0991x_mag_req *)client_request->request;
     desired_sample_rate = payload->sample_rate;
@@ -608,13 +613,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_info.flush_period = payload->flush_period;
     req_cfg.odr      = mag_chosen_sample_rate_reg_value;
     req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, mag_chosen_sample_rate);
-#ifdef AK0991X_ENABLE_DAE
     req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate);
-#endif
 
-    AK0991X_INST_PRINT(LOW, this, "odr=%u, req_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
+    AK0991X_INST_PRINT(LOW, this, "odr=%u, req_wmk=%u, dae_wmk=%d, flush_period=%u, flushonly=%d, max_batch=%d",
         req_cfg.odr,
         req_cfg.fifo_wmk,
+        req_cfg.dae_wmk,
         state->mag_info.flush_period,
         state->mag_info.flush_only?1:0,
         state->mag_info.max_batch?1:0 );
@@ -640,13 +644,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     // set current config values in state parameter
     state->mag_info.cur_cfg.odr       = req_cfg.odr;
     state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
-#ifdef AK0991X_ENABLE_DAE
     state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
-#endif
 
     if(state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF)
     {
-      AK0991X_INST_PRINT(LOW, this, "Send config because last_sent_cfg.odr=0[Hz]");
+      // reset timestamp
+      state->system_time = state->pre_timestamp = state->pre_timestamp_for_orphan = sns_get_system_time();
+      AK0991X_INST_PRINT(LOW, this, "Reset time: %u and send config because last_sent_cfg.odr=0[Hz]",
+          (uint32_t)state->system_time);
       ak0991x_send_config_event(this);
     }
 

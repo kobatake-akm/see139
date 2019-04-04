@@ -930,7 +930,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   return ret;
 }
 
-static void ak0991x_set_timer_request_payload(sns_sensor_instance *const this);
+static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this);
 
 
 
@@ -1066,8 +1066,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     else
     {
       AK0991X_INST_PRINT(LOW, this, "Register heart beat timer for DRI");
-      ak0991x_set_timer_request_payload(this);
-      ak0991x_register_heart_beat_timer(this);
+      ak0991x_register_timer(this);
     }
   }
   else
@@ -1829,6 +1828,10 @@ float ak0991x_get_mag_odr(ak0991x_mag_odr curr_odr)
  */
 sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr)
 {
+  if(curr_odr == AK0991X_MAG_ODR_OFF)
+  {
+    return 0;
+  }
   return sns_convert_ns_to_ticks(1000000000 / ak0991x_get_mag_odr(curr_odr));
 }
 
@@ -1841,7 +1844,7 @@ sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr)
  * @param[i] instance          The current ak0991x sensor instance
  * @param[i] state             The state of the ak0991x sensor instance
  */
-static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
+static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample[8],
                                       sns_time timestamp,
                                       sns_sensor_instance *const instance,
                                       ak0991x_instance_state *state,
@@ -1881,14 +1884,20 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
       (lsbdata[TRIAXIS_X] == 0) &&
       (lsbdata[TRIAXIS_Y] == 0) &&
-      (lsbdata[TRIAXIS_Z] == 0)
-      )
+      (lsbdata[TRIAXIS_Z] == 0) )
   {
-    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0), use prev_data");
-    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
     lsbdata[TRIAXIS_X] = state->mag_info.previous_lsbdata[TRIAXIS_X];
     lsbdata[TRIAXIS_Y] = state->mag_info.previous_lsbdata[TRIAXIS_Y];
     lsbdata[TRIAXIS_Z] = state->mag_info.previous_lsbdata[TRIAXIS_Z];
+
+    // no measurement done yet, set UNRELIABLE
+    if( (lsbdata[TRIAXIS_X] == 0) &&
+        (lsbdata[TRIAXIS_Y] == 0) &&
+        (lsbdata[TRIAXIS_Z] == 0) )
+    {
+      AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
+      status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
+    }
   }
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.resolution;
@@ -1930,6 +1939,8 @@ static void ak0991x_handle_mag_sample(uint8_t mag_sample[8],
     timestamp,
     status);
   state->total_samples++;
+
+  return status;
 }
 
 void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
@@ -1943,6 +1954,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   uint32_t i;
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_time timestamp = state->pre_timestamp;
+  sns_std_sensor_sample_status accuracy = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 
   if(!state->this_is_the_last_flush && state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF)
   {
@@ -1985,11 +1997,12 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   for(i = 0; i < num_bytes_to_report; i += AK0991X_NUM_DATA_HXL_TO_ST2)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
-    ak0991x_handle_mag_sample(&fifo_start[i],
-                              timestamp - state->half_measurement_time,
-                              instance,
-                              state,
-                              &log_mag_state_raw_info);
+    accuracy = ak0991x_handle_mag_sample(
+        &fifo_start[i],
+        timestamp - state->half_measurement_time,
+        instance,
+        state,
+        &log_mag_state_raw_info);
 
 #ifdef AK0991X_ENABLE_TS_DEBUG
     if(num_samples_sets == 1 || num_samples_sets == (num_bytes>>3) )
@@ -2039,10 +2052,15 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   // reset flags
   state->irq_info.detect_irq_event = false;
   state->this_is_the_last_flush = false;
-  if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
-      (ak0991x_dae_if_available(instance) && state->mag_info.int_mode  == AK0991X_INT_OP_MODE_POLLING && state->flush_requested_in_dae) )
+  if(accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH)
   {
-    ak0991x_send_fifo_flush_done(instance);
+    if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
+        (ak0991x_dae_if_available(instance) &&
+            state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
+            state->flush_requested_in_dae) )
+    {
+      ak0991x_send_fifo_flush_done(instance);
+    }
   }
 
   ak0991x_log_sensor_state_raw_submit(&log_mag_state_raw_info, true);
@@ -2957,17 +2975,15 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   phy_sensor_config.has_sample_rate    = true;
   phy_sensor_config.sample_rate        = ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr);
   phy_sensor_config.has_DAE_watermark  = ak0991x_dae_if_available(instance);
-#ifdef AK0991X_ENABLE_DAE
   phy_sensor_config.DAE_watermark      = SNS_MAX(state->mag_info.cur_cfg.dae_wmk, 1);
-#endif
 
   state->system_time = sns_get_system_time();
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u wm %u dae_wm %u sync %u",
                      (uint32_t)state->system_time,
                      (uint32_t)(phy_sensor_config.sample_rate),
-                     phy_sensor_config.has_water_mark ? phy_sensor_config.water_mark : 0,
-                     phy_sensor_config.has_DAE_watermark ? phy_sensor_config.DAE_watermark : 0,
+                     phy_sensor_config.water_mark,
+                     phy_sensor_config.DAE_watermark,
                      phy_sensor_config.stream_is_synchronous);
 
   pb_send_event(instance,
@@ -2979,9 +2995,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
 
   state->mag_info.last_sent_cfg.odr       = state->mag_info.cur_cfg.odr;
   state->mag_info.last_sent_cfg.fifo_wmk  = state->mag_info.cur_cfg.fifo_wmk;
-#ifdef AK0991X_ENABLE_DAE
   state->mag_info.last_sent_cfg.dae_wmk   = state->mag_info.cur_cfg.dae_wmk;
-#endif
 
   ak0991x_send_cal_event(instance);
 
@@ -3093,89 +3107,97 @@ static sns_rc ak0991x_send_timer_request(sns_sensor_instance *const this)
 }
 
 
-void ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
+sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
-  sns_time                sample_period;
-  state->system_time = sns_get_system_time();
+  sns_rc rv = SNS_RC_SUCCESS;
 
-  // for heat beat timer
-  if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+  if(state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
   {
-    req_payload.has_priority = true;
-    req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
-    req_payload.is_periodic = false;
-    req_payload.start_time = state->system_time;
-    sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
+    sns_time sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
+    state->system_time = sns_get_system_time();
 
-    // Set timeout_period for heart beat in DRI/FIFO+DRI
-    // as 5 samples time for DRI
-    // or 5 FIFO buffers time for FIFO+DRI
-    if (state->mag_info.use_fifo)
+    // for heart beat timer
+    if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
     {
-      if(state->in_clock_error_procedure)
+      req_payload.has_priority = true;
+      req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
+      req_payload.is_periodic = false;
+      req_payload.start_time = state->system_time;
+
+      // Set timeout_period for heart beat in DRI/FIFO+DRI
+      // as 5 samples time for DRI
+      // or 5 FIFO buffers time for FIFO+DRI
+      if (state->mag_info.use_fifo)
       {
-        // 100Hz dummy measurement fixed.
-        req_payload.timeout_period = sns_convert_ns_to_ticks(10 * 1000 * 1000) * 5 * 11 / 10;
+        if(state->in_clock_error_procedure)
+        {
+          // 100Hz dummy measurement fixed.
+          req_payload.timeout_period = sns_convert_ns_to_ticks(10 * 1000 * 1000) * 5 * 11 / 10;
+        }
+        else
+        {
+          if(!ak0991x_dae_if_available(this))
+          {
+            sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
+            req_payload.timeout_period = sample_period * 5 * state->mag_info.cur_cfg.fifo_wmk;
+            if(req_payload.timeout_period > max_timeout)
+            {
+              req_payload.timeout_period = max_timeout; // to avoid large data gap
+            }
+          }
+          else  // DAE enabled
+          {
+            req_payload.timeout_period = (sample_period* 5 * state->mag_info.cur_cfg.dae_wmk) * 11 / 10;
+          }
+        }
       }
       else
       {
-        if(!ak0991x_dae_if_available(this))
-        {
-          sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
-          req_payload.timeout_period = sample_period * 5 * state->mag_info.cur_cfg.fifo_wmk;
-          if(req_payload.timeout_period > max_timeout)
-          {
-            req_payload.timeout_period = max_timeout; // to avoid large data gap
-          }
-        }
-        else  // DAE enabled
-        {
-          req_payload.timeout_period = (sample_period* 5 * state->mag_info.cur_cfg.dae_wmk) * 11 / 10;
-        }
+        req_payload.timeout_period = sample_period * 5;
       }
+      AK0991X_INST_PRINT(MED, this, "HB timeout=%u cur_wmk=%d",
+          (uint32_t)req_payload.timeout_period,
+          state->mag_info.cur_cfg.fifo_wmk);
     }
+    // for S4S timer
+    else if (state->mag_info.use_sync_stream)
+    {
+      req_payload.has_priority = true;
+      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      req_payload.is_periodic = true;
+      req_payload.start_time = state->system_time - sample_period;
+      req_payload.start_config.early_start_delta = 0;
+      req_payload.start_config.late_start_delta = sample_period * 2;
+      req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
+    }
+    // for polling timer
     else
     {
-      req_payload.timeout_period = sample_period * 5;
+      req_payload.has_priority = true;
+      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      req_payload.is_periodic = true;
+      req_payload.start_time = state->pre_timestamp_for_orphan;
+      req_payload.start_config.early_start_delta = 0;
+      req_payload.start_config.late_start_delta = sample_period;
+      req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
+
+      AK0991X_INST_PRINT(LOW, this, "polling timer now= %u start= %u, delta= %u, pre_timestamp= %u",
+          (uint32_t)state->system_time,
+          (uint32_t)req_payload.start_time,
+          (uint32_t)req_payload.start_config.late_start_delta,
+          (uint32_t)state->pre_timestamp);
     }
-    AK0991X_INST_PRINT(MED, this, "HB timeout=%u cur_wmk=%d",
-        (uint32_t)req_payload.timeout_period,
-        state->mag_info.cur_cfg.fifo_wmk);
+
+    // reset request payload
+    state->req_payload = req_payload;
   }
-  // for S4S timer
-  else if (state->mag_info.use_sync_stream)
-  {
-    req_payload.has_priority = true;
-    req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-    req_payload.is_periodic = true;
-    sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
-    req_payload.start_time = state->system_time - sample_period;
-    req_payload.start_config.early_start_delta = 0;
-    req_payload.start_config.late_start_delta = sample_period * 2;
-    req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
-  }
-  // for polling timer
   else
   {
-    req_payload.has_priority = true;
-    req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-    req_payload.is_periodic = true;
-    req_payload.start_time = state->system_time;
-    sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
-    //start time calculation should be similar to above use_sync_stream case
-    //If this sensor is doing polling, it would be good to synchronize the Mag polling timer,
-    //with other polling timers on the system.
-    //For example, that the pressure sensor is polling at 20Hz.
-    //It would be good to make sure the mag polling timer and the pressure polling timer are synchronized if possible.
-    req_payload.start_config.early_start_delta = 0;
-    req_payload.start_config.late_start_delta = sample_period * 2;
-    req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
+    rv = SNS_RC_FAILED;
   }
-
-  // reset request payload
-  state->req_payload = req_payload;
+  return rv;
 }
 
 void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)

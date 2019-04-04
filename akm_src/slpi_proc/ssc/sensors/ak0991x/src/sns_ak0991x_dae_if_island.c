@@ -245,12 +245,12 @@ static bool send_mag_config(sns_sensor_instance *this)
         config_req.polling_config.polling_interval_ticks *
         config_req.polling_config.polling_interval_ticks;
 
-    // when the polling_offset is shorter than the measurement time + margin(=12msec),
+    // when the polling_offset is smaller than current system time,
     // add one polling_interval_ticks for preventing UNRELIABLE data
-    if((config_req.polling_config.polling_offset - state->system_time) < sns_convert_ns_to_ticks(12*1000000ULL))
-    {
-      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
-    }
+//    if(config_req.polling_config.polling_offset < state->system_time)
+//    {
+//      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
+//    }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
   }
   config_req.has_accel_info      = false;
@@ -258,7 +258,13 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.expected_get_data_bytes = 
       wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: offset=%u", (uint32_t)(config_req.polling_config.polling_offset - state->system_time));
+//  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: offset=%u", (uint32_t)(config_req.polling_config.polling_offset - state->system_time));
+
+  AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: sys= %u, pre_orphan= %u, polling_offset= %u interval= %u",
+      (uint32_t)state->system_time,
+      (uint32_t)state->pre_timestamp_for_orphan,
+      (uint32_t)config_req.polling_config.polling_offset,
+      (uint32_t)config_req.polling_config.polling_interval_ticks);
 
   SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%x%08x sys=%x%08x inteval_tick=%u",
       (uint32_t)(config_req.polling_config.polling_offset>>32),
@@ -266,6 +272,7 @@ static bool send_mag_config(sns_sensor_instance *this)
       (uint32_t)(state->system_time>>32),
       (uint32_t)(state->system_time & 0xFFFFFFFF),
       (uint32_t)config_req.polling_config.polling_interval_ticks);
+
 
   SNS_INST_PRINTF(HIGH, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark,
@@ -391,9 +398,10 @@ static void process_fifo_samples(
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_mag_odr odr;
-  uint8_t dummy_count = 0;
+//  uint8_t dummy_count = 0;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
+
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -409,6 +417,7 @@ static void process_fifo_samples(
   // buf[9] : TMPS
   // buf[10]: ST2
   //////////////////////////////
+
   odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
 
   state->is_orphan = false;
@@ -431,7 +440,7 @@ static void process_fifo_samples(
       }
       else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
       {
-        state->num_samples = state->mag_info.cur_cfg.fifo_wmk;  // when orphan, this may be wrong
+        state->num_samples = 1 + (buf[0] & 0x1F); // read value from WM[4:0]
       }
     }
     else
@@ -512,13 +521,13 @@ static void process_fifo_samples(
           }
           else
           {
-            if(state->dae_event_time < state->pre_timestamp + sampling_intvl * state->num_samples)
+            if(state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)
             {
               state->interrupt_timestamp = state->dae_event_time;
             }
             else
             {
-              state->interrupt_timestamp = state->pre_timestamp + sampling_intvl;
+              state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl;
             }
           }
           state->first_data_ts_of_batch = state->interrupt_timestamp;
@@ -533,7 +542,7 @@ static void process_fifo_samples(
         (uint32_t)state->irq_event_time,
         state->this_is_first_data);
 #endif
-
+/*
         // add dummy data when detecting gap
         if( state->this_is_first_data &&
             (sampling_intvl != 0) &&
@@ -559,6 +568,7 @@ static void process_fifo_samples(
                                             AK0991X_NUM_DATA_HXL_TO_ST2);
           }
         }
+*/
       }
       else  // orphan
       {
