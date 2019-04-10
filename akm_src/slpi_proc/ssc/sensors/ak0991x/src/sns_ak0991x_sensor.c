@@ -56,7 +56,7 @@ float ak09913_odr_table[] =
 static char *ak09913_ope_mode_table[] = {AK0991X_NORMAL};
 
 float ak09915_odr_table[] =
-{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09915_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 
 float ak09916_odr_table[] =
@@ -64,7 +64,7 @@ float ak09916_odr_table[] =
 static char *ak09916_ope_mode_table[] = {AK0991X_NORMAL};
 
 float ak09917_odr_table[] =
-{AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+{AK0991X_ODR_1, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09917_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 
 float ak09918_odr_table[] =
@@ -1294,11 +1294,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  {
    uint32_t value_len = 0;
    float *odr_table = NULL;
-#ifdef AK0991X_FORCE_MAX_ODR_50HZ
-   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR};
-#else
-   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR};
-#endif // AK0991X_FORCE_MAX_ODR_50HZ
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR}; // 1Hz, 10Hz, 20Hz, 50Hz, 100Hz
 
    if((state->device_select == AK09915C) || (state->device_select == AK09915D))
    {
@@ -1317,8 +1313,8 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
    }
 
 #ifdef AK0991X_FORCE_MAX_ODR_50HZ
-   // over write value_len when MAX=50Hz, 10Hz/20Hz/50Hz
-   value_len = 3;
+   // over write value_len when MAX=50Hz, remove 100Hz
+   value_len--;
 #endif // AK0991X_FORCE_MAX_ODR_50HZ
 
    if(odr_table != NULL)
@@ -1334,7 +1330,6 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
        }
      }
    }
-
    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
        values, value_len, false);
  }
@@ -2056,6 +2051,11 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   {
     *chosen_sample_rate = AK0991X_ODR_0;
     *chosen_reg_value = AK0991X_MAG_ODR_OFF;
+  }
+  else if (desired_sample_rate <= AK0991X_ODR_1)
+  {
+    *chosen_sample_rate = AK0991X_ODR_1;
+    *chosen_reg_value = AK0991X_MAG_ODR1;
   }
   else if (desired_sample_rate <= AK0991X_ODR_10)
   {
