@@ -79,7 +79,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               &mag_suid,
               sizeof(state->mag_info.suid));
 
-  SNS_INST_PRINTF(HIGH, this, "ak0991x inst init DRIVER_VER:%02d.%02d.%02d",
+  AK0991X_INST_PRINT(HIGH, this, "ak0991x inst init DRIVER_VER:%02d.%02d.%02d",
       (int)AK0991X_DRIVER_VERSION>>16,
       (int)(0xFF & (AK0991X_DRIVER_VERSION>>8)),
       (int)(0xFF & AK0991X_DRIVER_VERSION) );
@@ -158,7 +158,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-    SNS_INST_PRINTF(HIGH, this, "AK09917 RSV1=0x%02X", (int)sensor_state->reg_rsv1_value);
+    AK0991X_INST_PRINT(HIGH, this, "AK09917 RSV1=0x%02X", (int)sensor_state->reg_rsv1_value);
     break;
   case AK09918:
     state->mag_info.resolution = AK09918_RESOLUTION;
@@ -171,7 +171,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   default:
     return SNS_RC_FAILED;
   }
- 
+
+  // reset timestamp and parameters
   state->system_time = state->pre_timestamp = state->pre_timestamp_for_orphan = sns_get_system_time();
   state->this_is_first_data = true;
   state->heart_beat_attempt_count = 0;
@@ -351,7 +352,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   if((!ak0991x_dae_if_available(this) && state->fifo_flush_in_progress) ||
      (ak0991x_dae_if_available(this) && state->flush_requested_in_dae))
   {
-    SNS_INST_PRINTF(HIGH, this, "flush_done in deinit");
+    AK0991X_INST_PRINT(HIGH, this, "flush_done in deinit");
     ak0991x_send_fifo_flush_done(this);
   }
 
@@ -380,7 +381,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
     state->scp_service->api->sns_scp_deregister_com_port(&state->com_port_info.port_handle);
   }
-  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
+  AK0991X_INST_PRINT(HIGH, this, "deinit:: #samples=%u", state->total_samples);
 
   return SNS_RC_SUCCESS;
 }
@@ -491,7 +492,7 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this)
 
   if( state->config_mag_after_ascp_xfer )
   {
-    SNS_INST_PRINTF(LOW, this, "skip reconfig_hw because config_mag_after_ascp_xfer.");
+    AK0991X_INST_PRINT(LOW, this, "skip reconfig_hw because config_mag_after_ascp_xfer.");
     return;
   }
 
@@ -531,7 +532,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
   sns_rc          rv = SNS_RC_SUCCESS;
 
-  SNS_INST_PRINTF(MED, this, "@@@ inst_set_client_config msg_id %d first_data=%d pre=%u total=%d",
+  AK0991X_INST_PRINT(MED, this, "@@@ inst_set_client_config msg_id %d first_data=%d pre=%u total=%d",
       client_request->message_id,
       state->this_is_first_data,
       (uint32_t)state->pre_timestamp,
@@ -652,6 +653,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->system_time = state->pre_timestamp = state->pre_timestamp_for_orphan = sns_get_system_time();
       AK0991X_INST_PRINT(LOW, this, "Reset time: %u and send config because last_sent_cfg.odr=0[Hz]",
           (uint32_t)state->system_time);
+
+      // update averaged_interval
+      ak0991x_reset_averaged_interval(this);
+
       ak0991x_send_config_event(this);
     }
 
@@ -700,13 +705,13 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if ((AK0991X_CONFIG_IDLE == state->config_step)
            && ak0991x_dae_if_stop_streaming(this))
       {
-        SNS_INST_PRINTF(LOW, this, "dae_if_stop_streaming");
+        AK0991X_INST_PRINT(LOW, this, "dae_if_stop_streaming");
         state->config_step = AK0991X_CONFIG_STOPPING_STREAM;
       }
       if ((AK0991X_CONFIG_IDLE == state->config_step || AK0991X_CONFIG_UPDATING_HW == state->config_step)
            && ak0991x_dae_if_start_streaming(this))
       {
-        SNS_INST_PRINTF(LOW, this, "ak0991x_dae_if_start_streaming");
+        AK0991X_INST_PRINT(LOW, this, "ak0991x_dae_if_start_streaming");
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
       }
     }
@@ -827,7 +832,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
         else
         {
-          SNS_INST_PRINTF(LOW, this, "Re register heart beat timer at %u", state->system_time);
+          AK0991X_INST_PRINT(LOW, this, "Re register heart beat timer at %u", state->system_time);
           ak0991x_register_heart_beat_timer(this);
         }
       }

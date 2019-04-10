@@ -245,12 +245,12 @@ static bool send_mag_config(sns_sensor_instance *this)
         config_req.polling_config.polling_interval_ticks *
         config_req.polling_config.polling_interval_ticks;
 
-    // when the polling_offset is smaller than current system time,
+    // when the polling_offset is smaller than system time + measurement time + margin 50%,
     // add one polling_interval_ticks for preventing UNRELIABLE data
-//    if(config_req.polling_config.polling_offset < state->system_time)
-//    {
-//      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
-//    }
+    if(config_req.polling_config.polling_offset < state->system_time + 3 * state->half_measurement_time)
+    {
+      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
+    }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
   }
   config_req.has_accel_info      = false;
@@ -817,7 +817,7 @@ static void process_response(
     switch(resp.msg_id)
     {
     case SNS_DAE_MSGID_SNS_DAE_SET_STATIC_CONFIG:
-      SNS_INST_PRINTF(LOW, this, "STATIC_CONFIG - err=%u state=%u",
+      AK0991X_INST_PRINT(LOW, this, "STATIC_CONFIG - err=%u state=%u",
                          resp.err, dae_stream->state);
       if(SNS_STD_ERROR_NO_ERROR == resp.err)
       {
@@ -828,7 +828,7 @@ static void process_response(
         }
         else
         {
-          SNS_INST_PRINTF(LOW, this, "ak0991x_dae_if_start_streaming return false - err=%u state=%u odr=%d dae_mag_state=%d",
+          AK0991X_INST_PRINT(LOW, this, "ak0991x_dae_if_start_streaming return false - err=%u state=%u odr=%d dae_mag_state=%d",
                              resp.err, dae_stream->state, state->mag_info.cur_cfg.odr, state->dae_if.mag.state);
         }
       }
@@ -854,7 +854,7 @@ static void process_response(
       //ak0991x_s4s_handle_timer_event(this);
       break;
     case SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG:
-      SNS_INST_PRINTF(LOW, this,"DAE_SET_STREAMING_CONFIG - err=%u state=%u",
+      AK0991X_INST_PRINT(LOW, this,"DAE_SET_STREAMING_CONFIG - err=%u state=%u",
                          resp.err, dae_stream->state);
       if(dae_stream->stream != NULL && dae_stream->state == STREAM_STARTING)
       {
@@ -869,7 +869,7 @@ static void process_response(
           if(SNS_STD_ERROR_INVALID_STATE == resp.err &&
               state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
           {
-            SNS_INST_PRINTF(LOW, this,"stop and restart dae streaming");
+            AK0991X_INST_PRINT(LOW, this,"stop and restart dae streaming");
             ak0991x_dae_if_stop_streaming(this);
             state->config_step = AK0991X_CONFIG_UPDATING_HW;
           }
@@ -881,7 +881,7 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_HW:
-      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_HW - err=%u state=%u config_step=%d",
+      AK0991X_INST_PRINT(LOW, this, "DAE_FLUSH_HW - err=%u state=%u config_step=%d",
                          resp.err, dae_stream->state, state->config_step);
       dae_stream->flushing_hw = false;
 
@@ -903,7 +903,7 @@ static void process_response(
 
       break;
     case SNS_DAE_MSGID_SNS_DAE_FLUSH_DATA_EVENTS:
-      SNS_INST_PRINTF(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d num_samples=%d",
+      AK0991X_INST_PRINT(LOW, this, "DAE_FLUSH_DATA - err=%u state=%u config_step=%d num_samples=%d",
                          resp.err, dae_stream->state, state->config_step, state->num_samples);
       if(state->flush_requested_in_dae)
       {
@@ -913,13 +913,13 @@ static void process_response(
         }
         else
         {
-          SNS_INST_PRINTF(LOW, this, "flush_done_skipped");
+          AK0991X_INST_PRINT(LOW, this, "flush_done_skipped");
         }
       }
       dae_stream->flushing_data = false;
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
-      SNS_INST_PRINTF(LOW, this,
+      AK0991X_INST_PRINT(LOW, this,
                          "DAE_PAUSE_SAMPLING stream_state=%u if_state=%u config_step=%u",
                          dae_stream->state, state->dae_if.mag.state, state->config_step);
       if(dae_stream->state == STREAM_STOPPING)
@@ -935,11 +935,11 @@ static void process_response(
           {
             state->config_step = AK0991X_CONFIG_FLUSHING_HW;
             state->this_is_the_last_flush = true;
-            SNS_INST_PRINTF(LOW, this,"Last flush before changing ODR.");
+            AK0991X_INST_PRINT(LOW, this,"Last flush before changing ODR.");
           }
           else
           {
-            SNS_INST_PRINTF(LOW, this,"Couldn't run last flush before changing ODR.");
+            AK0991X_INST_PRINT(LOW, this,"Couldn't run last flush before changing ODR.");
           }
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
@@ -1199,7 +1199,7 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
   if(stream_usable(&state->dae_if.mag) &&
      (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
   {
-    SNS_INST_PRINTF(LOW, this,"stopping mag stream=0x%x", &dae_if->mag.stream);
+    AK0991X_INST_PRINT(LOW, this,"stopping mag stream=0x%x", &dae_if->mag.stream);
     cmd_sent |= stop_streaming(&dae_if->mag);
   }
   return cmd_sent;

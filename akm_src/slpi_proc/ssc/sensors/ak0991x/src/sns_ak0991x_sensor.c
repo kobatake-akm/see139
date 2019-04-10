@@ -1531,7 +1531,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             rv = ak0991x_enter_i3c_mode(NULL, &state->com_port_info, state->scp_service);
             if (rv == SNS_RC_SUCCESS)
             {
-              SNS_PRINTF(LOW, this, "I3C mode enabled");
+              AK0991X_PRINT(LOW, this, "I3C mode enabled");
             }
             else
             {
@@ -1975,7 +1975,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
     if(sns_suid_lookup_complete(&state->suid_lookup_data))
     {
       sns_suid_lookup_deinit(this, &state->suid_lookup_data);
-      SNS_PRINTF(LOW, this, "sns_suid_lookup_deinit");
+      AK0991X_PRINT(LOW, this, "sns_suid_lookup_deinit");
     }
   }
 

@@ -462,7 +462,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   {
     if(NULL != instance)
     {
-      SNS_INST_PRINTF(MED, instance, "already in i3c mode");
+      AK0991X_INST_PRINT(MED, instance, "already in i3c mode");
     }
     return SNS_RC_SUCCESS;
   }
@@ -2130,7 +2130,7 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
           }
           else
           {
-            SNS_INST_PRINTF(HIGH, instance, "Calculated interval %u is too different from the previous %u",
+            AK0991X_INST_PRINT(HIGH, instance, "Calculated interval %u is too different from the previous %u",
                 (uint32_t)calculated_average_interval,
                 (uint32_t)state->averaged_interval);
             rc = SNS_RC_FAILED;
@@ -2138,7 +2138,7 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
         }
         else
         {
-          SNS_INST_PRINTF(LOW, instance, "Unreliable irq. (#samples != WM) (%d != %d)",
+          AK0991X_INST_PRINT(LOW, instance, "Unreliable irq. (#samples != WM) (%d != %d)",
               (int)state->num_samples, state->mag_info.cur_cfg.fifo_wmk);
           rc = SNS_RC_FAILED;
         }
@@ -2355,7 +2355,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
               if( ( state->system_time + (state->averaged_interval>>1) ) <= state->pre_timestamp + (state->averaged_interval * state->num_samples) )
               {
                 state->num_samples--;
-                SNS_INST_PRINTF(LOW, instance, "interval is less than averaged_interval/2. num_sample is now %d", state->num_samples);
+                AK0991X_INST_PRINT(LOW, instance, "interval is less than averaged_interval/2. num_sample is now %d", state->num_samples);
               }
             }
             else
@@ -2393,9 +2393,9 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
     state->num_samples = state->data_is_ready ? 1 : 0;
   }
 
-  if(state->data_over_run)
+  if(state->data_over_run && state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
   {
-    SNS_INST_PRINTF(HIGH, instance, "DOR detected");
+    AK0991X_INST_PRINT(LOW, instance, "DOR detected");
   }
 }
 
@@ -2434,7 +2434,7 @@ static void ak0991x_ascp_request(sns_sensor_instance *const instance)
   if(rc == SNS_RC_SUCCESS)
   {
     state->ascp_xfer_in_progress++;
-    SNS_INST_PRINTF(LOW, instance, "Succeeded sending request to ASCP");
+    AK0991X_INST_PRINT(LOW, instance, "Succeeded sending request to ASCP");
   }
   else
   {
@@ -2663,7 +2663,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
       (state->system_time + (state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk) > state->hb_timer_fire_time) &&
       (state->in_clock_error_procedure || !(state->mag_info.flush_only && state->mag_info.max_batch)))
   {
-    SNS_INST_PRINTF(LOW, instance, "Re register heart beat timer cur_wm:%d", state->mag_info.cur_cfg.fifo_wmk);
+    AK0991X_INST_PRINT(LOW, instance, "Re register heart beat timer cur_wm:%d", state->mag_info.cur_cfg.fifo_wmk);
     ak0991x_register_heart_beat_timer(instance);
   }
 }
@@ -3178,9 +3178,9 @@ sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
       req_payload.has_priority = true;
       req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
       req_payload.is_periodic = true;
-      req_payload.start_time = state->pre_timestamp_for_orphan;
+      req_payload.start_time = state->system_time - sample_period + 3 * state->half_measurement_time; // For DRDY is ready, added 1.5 x measurement time;
       req_payload.start_config.early_start_delta = 0;
-      req_payload.start_config.late_start_delta = sample_period;
+      req_payload.start_config.late_start_delta = 0;
       req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
 
       AK0991X_INST_PRINT(LOW, this, "polling timer now= %u start= %u, delta= %u, pre_timestamp= %u",
@@ -3329,7 +3329,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
     rv = ak0991x_stop_mag_streaming(this);
   }
 
-  SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u, ODR=%d result=%d",
+  AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: reset=%u, ODR=%d result=%d",
       reset_device, state->mag_info.cur_cfg.odr, rv);
   return rv;
 }
@@ -3349,7 +3349,7 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 
  if(state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF)
  {
-   SNS_INST_PRINTF(ERROR, this, "heart beat timer event is skipped since ODR=0.");
+   AK0991X_INST_PRINT(HIGH, this, "heart beat timer event is skipped since ODR=0.");
    return rv;
  }
 
