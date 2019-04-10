@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/10/19                AKM              Fixed for cal_event sending and timestamp.
  * 04/10/19                AKM              Modified polling start time to prevent UNRELIABLE data.
  * 04/03/19     020050     AKM              Support 1Hz ODR for AK09915 and AK09917
  * 04/01/19     020049     AKM              Modified for last flush during ASCP(MAG-062), fifo_wmk calc bug for MAG-073

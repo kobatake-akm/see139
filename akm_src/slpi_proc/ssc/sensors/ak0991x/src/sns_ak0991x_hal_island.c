@@ -2817,7 +2817,7 @@ void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
 }
 
 /** See sns_ak0991x_hal.h */
-sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
+sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_new_config)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
@@ -2826,6 +2826,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
     sns_std_sensor_physical_config_event_init_default;
   char *operating_mode;
   pb_buffer_arg op_mode_args;
+  sns_time timestamp;
 
   if(AK0991X_MAG_ODR_OFF == state->mag_info.cur_cfg.odr)
   {
@@ -2978,18 +2979,20 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   phy_sensor_config.DAE_watermark      = SNS_MAX(state->mag_info.cur_cfg.dae_wmk, 1);
 
   state->system_time = sns_get_system_time();
+  timestamp = is_new_config ? state->system_time : state->last_config_sent_time;
+
   AK0991X_INST_PRINT(HIGH, instance,
-                     "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u wm %u dae_wm %u sync %u",
-                     (uint32_t)state->system_time,
+                     "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u wm %u dae_wm %u is_new_config %d",
+                     (uint32_t)timestamp,
                      (uint32_t)(phy_sensor_config.sample_rate),
                      phy_sensor_config.water_mark,
                      phy_sensor_config.DAE_watermark,
-                     phy_sensor_config.stream_is_synchronous);
+                     is_new_config);
 
   pb_send_event(instance,
                 sns_std_sensor_physical_config_event_fields,
                 &phy_sensor_config,
-                state->system_time,
+                timestamp,
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
 
@@ -2997,8 +3000,12 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance)
   state->mag_info.last_sent_cfg.fifo_wmk  = state->mag_info.cur_cfg.fifo_wmk;
   state->mag_info.last_sent_cfg.dae_wmk   = state->mag_info.cur_cfg.dae_wmk;
 
-  ak0991x_send_cal_event(instance);
+  if(is_new_config)
+  {
+    ak0991x_send_cal_event(instance);
+  }
 
+  state->last_config_sent_time = state->system_time;
   return SNS_RC_SUCCESS;
 }
 
@@ -3320,7 +3327,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
         AK0991X_INST_PRINT(MED, this, "Send new config: odr=0x%02X fifo_wmk=%d",
             (uint32_t)state->mag_info.cur_cfg.odr,
             (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
-        ak0991x_send_config_event(this);
+        ak0991x_send_config_event(this, true);
       }
     }
   }

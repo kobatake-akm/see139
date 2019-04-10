@@ -173,7 +173,12 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   }
 
   // reset timestamp and parameters
-  state->system_time = state->pre_timestamp = state->pre_timestamp_for_orphan = sns_get_system_time();
+  state->system_time =
+  state->pre_timestamp =
+  state->pre_timestamp_for_orphan =
+  state->last_config_sent_time =
+      sns_get_system_time();
+
   state->this_is_first_data = true;
   state->heart_beat_attempt_count = 0;
   state->flush_sample_count = 0;
@@ -583,8 +588,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     // If already a request, send out existing config before the next data events are sent
     if (desired_sample_rate > 0)
     {
-      AK0991X_INST_PRINT(LOW, this, "Send previous config.");
-      ak0991x_send_config_event(this);
+      ak0991x_send_config_event(this, false);
     }
 
     rv = ak0991x_mag_match_odr(desired_sample_rate,
@@ -632,7 +636,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "Config not changed.");
       if(!state->in_clock_error_procedure && !ak0991x_dae_if_available(this))
       {
-        ak0991x_send_config_event(this);
+        ak0991x_send_config_event(this, false);
       }
 
       // Turn COM port OFF
@@ -650,14 +654,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF)
     {
       // reset timestamp
-      state->system_time = state->pre_timestamp = state->pre_timestamp_for_orphan = sns_get_system_time();
-      AK0991X_INST_PRINT(LOW, this, "Reset time: %u and send config because last_sent_cfg.odr=0[Hz]",
-          (uint32_t)state->system_time);
+      state->system_time =
+      state->pre_timestamp =
+      state->pre_timestamp_for_orphan =
+      state->last_config_sent_time =
+          sns_get_system_time();
 
       // update averaged_interval
       ak0991x_reset_averaged_interval(this);
 
-      ak0991x_send_config_event(this);
+      ak0991x_send_config_event(this, true);
     }
 
     if(state->in_clock_error_procedure)

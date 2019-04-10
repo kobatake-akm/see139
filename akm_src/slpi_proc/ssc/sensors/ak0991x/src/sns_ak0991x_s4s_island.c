@@ -357,7 +357,7 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   else if (state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCED;
-    ak0991x_send_config_event(instance);
+    ak0991x_send_config_event(instance, true);
     AK0991X_INST_PRINT(LOW, instance, "S4S synced");
   }
 

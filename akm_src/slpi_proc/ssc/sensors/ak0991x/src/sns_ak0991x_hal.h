@@ -515,9 +515,10 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance);
  * @return sns_rc
  * SNS_RC_FAILED
  * SNS_RC_SUCCESS
- * @param[i] instance    reference to this Instance
+ * @param[i] instance       reference to this Instance
+ * @param[i] is_new_config  true: new config. false: previous
  */
-sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance);
+sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_new_config);
 
 /**
  * Submit the Sensor State Raw Log Packet

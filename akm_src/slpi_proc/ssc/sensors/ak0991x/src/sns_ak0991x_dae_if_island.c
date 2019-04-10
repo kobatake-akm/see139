@@ -497,7 +497,7 @@ static void process_fifo_samples(
               (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
               (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-          ak0991x_send_config_event(this);
+          ak0991x_send_config_event(this, true);
         }
 
         if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
