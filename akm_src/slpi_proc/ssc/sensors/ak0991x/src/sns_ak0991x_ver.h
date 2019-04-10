@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 04/03/19                AKM              Support 1Hz ODR for AK09915 and AK09917
+ * 04/03/19     020050     AKM              Support 1Hz ODR for AK09915 and AK09917
  * 04/01/19     020049     AKM              Modified for last flush during ASCP(MAG-062), fifo_wmk calc bug for MAG-073
  * 03/25/19                AKM              Modified self test for MAG-213,221 and 223.
  * 03/22/19                AKM              Refactor for config. Created req_cfg.
@@ -273,5 +273,5 @@
 // major:02 minor:00 revision:49
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      49
+#define AK0991X_DRV_VER_REV      50
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
