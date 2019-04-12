@@ -684,9 +684,10 @@ void ak0991x_clear_old_events(sns_sensor_instance *const instance);
  * Send Calibration event to client
  *
  * @param[i] instance        instance reference
+ * @param[i] is_new_config   true:new config. false:previous
  * @return none
  */
-void ak0991x_send_cal_event(sns_sensor_instance * const instance);
+void ak0991x_send_cal_event(sns_sensor_instance * const instance, bool is_new_config);
 
 /**
  * Reset Calibration values

@@ -481,7 +481,7 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
     {
       state->config_mag_after_ascp_xfer = true;
       state->re_read_data_after_ascp = true;
-      AK0991X_INST_PRINT(ERROR, this, "last flush but ascp is in progress. Skip");
+      AK0991X_INST_PRINT(LOW, this, "last flush but ascp is in progress. Skip");
     }
     else
     {

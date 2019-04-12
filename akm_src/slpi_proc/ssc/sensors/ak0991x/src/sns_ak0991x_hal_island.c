@@ -1954,7 +1954,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   uint32_t i;
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_time timestamp = state->pre_timestamp;
-  sns_std_sensor_sample_status accuracy = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
 
   if(!state->this_is_the_last_flush && state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF)
   {
@@ -1997,7 +1996,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   for(i = 0; i < num_bytes_to_report; i += AK0991X_NUM_DATA_HXL_TO_ST2)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
-    accuracy = ak0991x_handle_mag_sample(
+    state->accuracy = ak0991x_handle_mag_sample(
         &fifo_start[i],
         timestamp - state->half_measurement_time,
         instance,
@@ -2052,7 +2051,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   // reset flags
   state->irq_info.detect_irq_event = false;
   state->this_is_the_last_flush = false;
-  if(accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH)
+  if(state->accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH)
   {
     if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
         (ak0991x_dae_if_available(instance) &&
@@ -2739,7 +2738,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
   }
 }
 
-void ak0991x_send_cal_event(sns_sensor_instance *const instance)
+void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_config)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_cal_event cal_event = sns_cal_event_init_default;
@@ -2748,6 +2747,8 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   {
     return;
   }
+
+  sns_time timestamp = is_new_config ? sns_get_system_time() : state->last_config_sent_time;
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
@@ -2787,11 +2788,14 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance)
   pb_send_event(instance,
                 sns_cal_event_fields,
                 &cal_event,
-                sns_get_system_time(),
+                timestamp,
                 SNS_CAL_MSGID_SNS_CAL_EVENT,
                 &state->mag_info.suid);
 
-  state->new_client_request = false;
+  if(is_new_config)
+  {
+    state->new_client_request = false;
+  }
 }
 
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance)
@@ -3000,10 +3004,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   state->mag_info.last_sent_cfg.fifo_wmk  = state->mag_info.cur_cfg.fifo_wmk;
   state->mag_info.last_sent_cfg.dae_wmk   = state->mag_info.cur_cfg.dae_wmk;
 
-  if(is_new_config)
-  {
-    ak0991x_send_cal_event(instance);
-  }
+  ak0991x_send_cal_event(instance, is_new_config);
 
   state->last_config_sent_time = state->system_time;
   return SNS_RC_SUCCESS;
@@ -3302,8 +3303,8 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   if(reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
-    state->last_sw_reset_time = sns_get_system_time();
-    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. at %u", (uint32_t)state->last_sw_reset_time);
+//    state->last_sw_reset_time = sns_get_system_time();
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. at %u", (uint32_t)sns_get_system_time());
   }
 
   if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)

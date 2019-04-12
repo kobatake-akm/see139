@@ -245,11 +245,17 @@ static bool send_mag_config(sns_sensor_instance *this)
         config_req.polling_config.polling_interval_ticks *
         config_req.polling_config.polling_interval_ticks;
 
-    // when the polling_offset is smaller than system time + measurement time + margin 50%,
-    // add one polling_interval_ticks for preventing UNRELIABLE data
-    if(config_req.polling_config.polling_offset < state->system_time + 3 * state->half_measurement_time)
+    // when the polling_offset is smaller than system time + measurement time + margin(following soft reset and I3C enter time),
+    // add polling_interval_ticks for preventing UNRELIABLE data
+    if( (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
+        (state->mag_info.previous_lsbdata[TRIAXIS_Y] == 0) &&
+        (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0)
+      )
     {
-      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
+      while( config_req.polling_config.polling_offset < state->system_time + 4 * state->half_measurement_time )
+      {
+        config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
+      }
     }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
   }
@@ -257,8 +263,6 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.has_expected_get_data_bytes = true;
   config_req.expected_get_data_bytes = 
       wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
-
-//  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: offset=%u", (uint32_t)(config_req.polling_config.polling_offset - state->system_time));
 
   AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: sys= %u, pre_orphan= %u, polling_offset= %u interval= %u",
       (uint32_t)state->system_time,
@@ -272,7 +276,6 @@ static bool send_mag_config(sns_sensor_instance *this)
       (uint32_t)(state->system_time>>32),
       (uint32_t)(state->system_time & 0xFFFFFFFF),
       (uint32_t)config_req.polling_config.polling_interval_ticks);
-
 
   SNS_INST_PRINTF(HIGH, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark,
@@ -429,7 +432,7 @@ static void process_fifo_samples(
   // calculate num_samples
   if(!state->in_clock_error_procedure)
   {
-    state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
+    state->is_orphan = (state->dae_event_time < state->last_stop_stream_time);
 
     if(state->mag_info.use_fifo)
     {
@@ -448,8 +451,16 @@ static void process_fifo_samples(
       // num_samples update when Polling mode.
       if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)  // polling mode: *** Doesn't care FIFO+Polling ***
       {
-        // only timer event. skip all flush requests.
-        state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
+        if( !state->this_is_the_last_flush )
+        {
+          // only timer event. skip all flush requests.
+          state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
+        }
+        else
+        {
+          // when current flush time is greater than expected polling time, add data
+          state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
+        }
 
         if( state->num_samples > 0 && state->fifo_flush_in_progress )
         {
@@ -487,19 +498,6 @@ static void process_fifo_samples(
 
       if( !state->is_orphan ) // regular sequence
       {
-        // if config was updated, send correct config.
-        if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
-            state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
-            state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
-        {
-          AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-              (uint32_t)state->mag_info.cur_cfg.odr,
-              (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-              (uint32_t)state->mag_info.cur_cfg.dae_wmk);
-
-          ak0991x_send_config_event(this, true);
-        }
-
         if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
         {
           ak0991x_validate_timestamp_for_dri(this);
@@ -517,7 +515,15 @@ static void process_fifo_samples(
             {
               state->interrupt_timestamp = state->dae_event_time;
             }
-            state->dae_polling_offset += sampling_intvl;
+          }
+          else if( state->this_is_the_last_flush )
+          {
+            state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl;
+            AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u",
+                state->total_samples,
+                (uint32_t)state->pre_timestamp_for_orphan,
+                (uint32_t)state->interrupt_timestamp,
+                (uint32_t)state->system_time);
           }
           else
           {
@@ -532,15 +538,16 @@ static void process_fifo_samples(
           }
           state->first_data_ts_of_batch = state->interrupt_timestamp;
           state->averaged_interval = sampling_intvl;
+          state->dae_polling_offset += sampling_intvl;
         }
 
 #ifdef AK0991X_ENABLE_TS_DEBUG
-      AK0991X_INST_PRINT(
-        MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X first_data=%d",
-        odr, (uint32_t)sampling_intvl, state->num_samples,
-        (uint32_t)state->first_data_ts_of_batch,
-        (uint32_t)state->irq_event_time,
-        state->this_is_first_data);
+        AK0991X_INST_PRINT(
+          MED, this, "fifo_samples:: odr=0x%X intvl=%u #samples=%u ts=%X-%X first_data=%d",
+          odr, (uint32_t)sampling_intvl, state->num_samples,
+          (uint32_t)state->first_data_ts_of_batch,
+          (uint32_t)state->irq_event_time,
+          state->this_is_first_data);
 #endif
 /*
         // add dummy data when detecting gap
@@ -569,6 +576,18 @@ static void process_fifo_samples(
           }
         }
 */
+        // if config was updated, send correct config.
+        if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
+            state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
+            state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
+        {
+          AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+              (uint32_t)state->mag_info.cur_cfg.odr,
+              (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+              (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+
+          ak0991x_send_config_event(this, true);
+        }
       }
       else  // orphan
       {
@@ -595,11 +614,11 @@ static void process_fifo_samples(
         {
           state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
         }
-        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) num_samples=%d last_sw_reset=%u event_time=%u",
+        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) num_samples=%d last_stop=%u event_time=%u",
             odr,
             state->mag_info.cur_cfg.odr,
             state->num_samples,
-            (uint32_t)state->last_sw_reset_time,
+            (uint32_t)state->last_stop_stream_time,
             (uint32_t)state->dae_event_time);
       }
 
@@ -907,7 +926,8 @@ static void process_response(
                          resp.err, dae_stream->state, state->config_step, state->num_samples);
       if(state->flush_requested_in_dae)
       {
-        if( state->num_samples>0 || state->this_is_the_last_flush )
+        if( (state->num_samples>0 || state->this_is_the_last_flush) &&
+            (state->accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH) )
         {
           ak0991x_send_fifo_flush_done(this);
         }
@@ -922,6 +942,9 @@ static void process_response(
       AK0991X_INST_PRINT(LOW, this,
                          "DAE_PAUSE_SAMPLING stream_state=%u if_state=%u config_step=%u",
                          dae_stream->state, state->dae_if.mag.state, state->config_step);
+
+      state->last_stop_stream_time = sns_get_system_time();
+
       if(dae_stream->state == STREAM_STOPPING)
       {
         dae_stream->state = (SNS_STD_ERROR_NO_ERROR != resp.err) ? STREAMING : IDLE;

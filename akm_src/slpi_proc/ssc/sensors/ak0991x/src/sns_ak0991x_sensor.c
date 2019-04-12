@@ -1849,7 +1849,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
              ak0991x_update_registry(this, instance);
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
-             ak0991x_send_cal_event(instance);
+             ak0991x_send_cal_event(instance, true);
           }
           else
           {

@@ -22,8 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 04/10/19                AKM              Fixed for cal_event sending and timestamp.
- * 04/10/19                AKM              Modified polling start time to prevent UNRELIABLE data.
+ * 04/12/19                AKM              Added a data when last flush in DAE+Polling if long gap
+ * 04/12/19                AKM              Changed to use AK0991X_INST_PRINT for LOW and MED level debug messages
+ * 04/11/19                AKM              Modified for not to send flush done when UNRELIABLE data.
+ * 04/11/19                AKM              Fixed for cal_event sending and timestamp.
  * 04/03/19     020050     AKM              Support 1Hz ODR for AK09915 and AK09917
  * 04/01/19     020049     AKM              Modified for last flush during ASCP(MAG-062), fifo_wmk calc bug for MAG-073
  * 03/25/19                AKM              Modified self test for MAG-213,221 and 223.
