@@ -917,15 +917,10 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
                                    &xfer_bytes,
                                    false);
 
-//  state->mag_info.cur_cfg.odr       = state->mag_info.req_cfg.odr;
-//  state->mag_info.cur_cfg.fifo_wmk  = state->mag_info.req_cfg.fifo_wmk;
-
-  // update other parameters
-//  sns_time meas_usec;
-//  ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
-//  state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
-//  state->nominal_intvl = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
-//  state->averaged_interval = (state->nominal_intvl * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
+  if(!force_off)
+  {
+    ak0991x_reset_mag_parameters(this, true);
+  }
 
   return ret;
 }
@@ -1013,8 +1008,8 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_res
     {
       state->pre_timestamp = state->system_time;
     }
-    state->irq_event_time = state->system_time;
-    state->previous_irq_time = state->system_time;
+    state->irq_event_time = state->pre_timestamp;
+    state->previous_irq_time = state->pre_timestamp;
 
     AK0991X_INST_PRINT(LOW, this, "reset pre_timestamp %u",
         (uint32_t)state->pre_timestamp);
@@ -1047,8 +1042,6 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   {
     return rv;
   }
-
-  ak0991x_reset_mag_parameters(this, true);
 
   AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %X pre_ts %X avg %u half %u", 
                      (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,
@@ -2106,7 +2099,7 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
   sns_time calculated_average_interval;
 
   // set interrupt_timestamp
-  if(state->irq_info.detect_irq_event)  // DRI
+  if( state->irq_info.detect_irq_event && !state->is_orphan )  // DRI
   {
     state->interrupt_timestamp = state->irq_event_time;
     if( !state->this_is_first_data )
@@ -2114,11 +2107,11 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
       if(!(state->ascp_xfer_in_progress>0 && state->this_is_the_last_flush) &&
           (state->interrupt_timestamp > state->previous_irq_time))
       {
-        // keep re-calculating for clock frequency drifting.
-        ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count_for_dri);
-
         if( state->num_samples == state->mag_info.cur_cfg.fifo_wmk )
         {
+          // keep re-calculating for clock frequency drifting.
+          ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count_for_dri);
+
           calculated_average_interval = ((state->interrupt_timestamp - state->previous_irq_time) /
                                       state->mag_info.data_count_for_dri);
           if( (calculated_average_interval > state->averaged_interval - state->averaged_interval/50) &&
@@ -3303,8 +3296,8 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   if(reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
-//    state->last_sw_reset_time = sns_get_system_time();
-    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. at %u", (uint32_t)sns_get_system_time());
+    state->last_sw_reset_time = sns_get_system_time();
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. at %u", (uint32_t)state->last_sw_reset_time);
   }
 
   if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)

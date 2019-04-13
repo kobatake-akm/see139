@@ -432,7 +432,7 @@ static void process_fifo_samples(
   // calculate num_samples
   if(!state->in_clock_error_procedure)
   {
-    state->is_orphan = (state->dae_event_time < state->last_stop_stream_time);
+    state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
 
     if(state->mag_info.use_fifo)
     {
@@ -487,7 +487,10 @@ static void process_fifo_samples(
     state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
   }
 
-  state->mag_info.data_count_for_dri += state->num_samples;
+  if( !state->is_orphan )
+  {
+    state->mag_info.data_count_for_dri += state->num_samples;
+  }
 
   if(state->num_samples >= 1)
   {
@@ -618,7 +621,7 @@ static void process_fifo_samples(
             odr,
             state->mag_info.cur_cfg.odr,
             state->num_samples,
-            (uint32_t)state->last_stop_stream_time,
+            (uint32_t)state->last_sw_reset_time,
             (uint32_t)state->dae_event_time);
       }
 
@@ -941,9 +944,9 @@ static void process_response(
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
       AK0991X_INST_PRINT(LOW, this,
                          "DAE_PAUSE_SAMPLING stream_state=%u if_state=%u config_step=%u",
-                         dae_stream->state, state->dae_if.mag.state, state->config_step);
-
-      state->last_stop_stream_time = sns_get_system_time();
+                         dae_stream->state,
+                         state->dae_if.mag.state,
+                         state->config_step);
 
       if(dae_stream->state == STREAM_STOPPING)
       {
