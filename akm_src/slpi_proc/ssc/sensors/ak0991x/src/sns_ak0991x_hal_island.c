@@ -919,7 +919,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 
   if(!force_off)
   {
-    ak0991x_reset_mag_parameters(this, true);
+    ak0991x_reset_mag_parameters(this);
   }
 
   return ret;
@@ -985,7 +985,7 @@ void ak0991x_reset_averaged_interval(sns_sensor_instance *const this)
   }
 }
 
-void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_reset)
+void ak0991x_reset_mag_parameters(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
 
@@ -994,26 +994,23 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this, bool time_res
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
   state->heart_beat_sample_count = 0;
+  state->system_time = sns_get_system_time();
+  state->heart_beat_timestamp = state->system_time;
 
-  if(time_reset)
+  if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
   {
-    state->system_time = sns_get_system_time();
-    state->heart_beat_timestamp = state->system_time;
-
-    if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
-    {
-      state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
-    }
-    else
-    {
-      state->pre_timestamp = state->system_time;
-    }
-    state->irq_event_time = state->pre_timestamp;
-    state->previous_irq_time = state->pre_timestamp;
-
-    AK0991X_INST_PRINT(LOW, this, "reset pre_timestamp %u",
-        (uint32_t)state->pre_timestamp);
+    state->pre_timestamp = state->system_time + (state->half_measurement_time<<1) - state->averaged_interval;
   }
+  else
+  {
+    state->pre_timestamp = state->system_time;
+  }
+  state->irq_event_time = state->pre_timestamp;
+  state->previous_irq_time = state->pre_timestamp;
+
+  AK0991X_INST_PRINT(LOW, this, "reset pre_timestamp %u pre_orphan %u",
+      (uint32_t)state->pre_timestamp,
+      (uint32_t)state->pre_timestamp_for_orphan);
 }
 
 sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
@@ -1082,7 +1079,7 @@ sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
   // Disable Mag Streaming
   AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
 
-  rv = ak0991x_set_mag_config(this, true );
+  rv = ak0991x_set_mag_config(this, true);
 
   if (rv != SNS_RC_SUCCESS)
   {

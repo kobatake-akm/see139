@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 04/12/19                AKM              Added a data when last flush in DAE+Polling if long gap
+ * 04/15/19                AKM              Added dummy data when last flush and orphan. (For MAG-048 in DAE+DRI+FIFO)
  * 04/12/19                AKM              Changed to use AK0991X_INST_PRINT for LOW and MED level debug messages
  * 04/11/19                AKM              Modified for not to send flush done when UNRELIABLE data.
  * 04/11/19                AKM              Fixed for cal_event sending and timestamp.

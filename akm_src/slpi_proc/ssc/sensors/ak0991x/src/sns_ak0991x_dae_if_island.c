@@ -401,10 +401,9 @@ static void process_fifo_samples(
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_mag_odr odr;
-//  uint8_t dummy_count = 0;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
-
+  uint8_t dummy_count = 0;
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -475,7 +474,24 @@ static void process_fifo_samples(
 
     if( state->is_orphan )  // orphan
     {
-      AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d", state->num_samples);
+      // calc dummy data count
+      if( state->this_is_the_last_flush &&
+          (sampling_intvl != 0) &&
+          (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sampling_intvl/2) )
+      {
+        dummy_count = (state->dae_event_time - state->pre_timestamp_for_orphan - sampling_intvl * state->num_samples + sampling_intvl/2) / sampling_intvl;
+        if(dummy_count>2)
+        {
+          dummy_count = 2;  //  MAX dummy count : 2
+        }
+      }
+      AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d, dummy=%d, pre_orphan=%u, event=%u, intvl=%u",
+          state->num_samples,
+          dummy_count,
+          (uint32_t)state->pre_timestamp_for_orphan,
+          (uint32_t)state->dae_event_time,
+          (uint32_t)sampling_intvl);
+
     }
   }
 
@@ -552,33 +568,7 @@ static void process_fifo_samples(
           (uint32_t)state->irq_event_time,
           state->this_is_first_data);
 #endif
-/*
-        // add dummy data when detecting gap
-        if( state->this_is_first_data &&
-            (sampling_intvl != 0) &&
-            (state->first_data_ts_of_batch > state->pre_timestamp_for_orphan + sampling_intvl) )
-        {
-          dummy_count = (state->first_data_ts_of_batch - state->pre_timestamp_for_orphan - sampling_intvl/2) / sampling_intvl;
-          if(dummy_count > 2)
-          {
-            dummy_count = 2;  // MAX dummy count : 2
-          }
-          for(int i=0; i<dummy_count; i++)
-          {
-            // add dummy data
-            AK0991X_INST_PRINT(LOW, this, "dummy data added. pre_timestamp %u first_data_ts %u intvl %u # %u",
-                (uint32_t)state->pre_timestamp_for_orphan,
-                (uint32_t)state->first_data_ts_of_batch,
-                (uint32_t)sampling_intvl,
-                (uint32_t)state->total_samples);
-            ak0991x_process_mag_data_buffer(this,
-                                            state->first_data_ts_of_batch - ( dummy_count - i ) * sampling_intvl,
-                                            sampling_intvl,
-                                            buf + state->dae_if.mag.status_bytes_per_fifo,
-                                            AK0991X_NUM_DATA_HXL_TO_ST2);
-          }
-        }
-*/
+
         // if config was updated, send correct config.
         if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
             state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
@@ -631,6 +621,23 @@ static void process_fifo_samples(
                                       buf + state->dae_if.mag.status_bytes_per_fifo,
                                       fifo_len);
 
+      // add dummy data when detecting gap
+      {
+        for(int i=0; i<dummy_count; i++)
+        {
+          // add dummy data
+          AK0991X_INST_PRINT(LOW, this, "dummy data added. pre_timestamp_for_orphan %u event %u intvl %u # %u",
+              (uint32_t)state->pre_timestamp_for_orphan,
+              (uint32_t)state->dae_event_time,
+              (uint32_t)sampling_intvl,
+              (uint32_t)state->total_samples);
+          ak0991x_process_mag_data_buffer(this,
+                                          state->pre_timestamp_for_orphan + (i+1) * sampling_intvl,
+                                          sampling_intvl,
+                                          buf + state->dae_if.mag.status_bytes_per_fifo,
+                                          AK0991X_NUM_DATA_HXL_TO_ST2);
+        }
+      }
     }
     else  // in clock error procedure
     {
