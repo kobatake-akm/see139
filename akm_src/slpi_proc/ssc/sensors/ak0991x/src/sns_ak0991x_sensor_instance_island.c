@@ -304,6 +304,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         {
           ak0991x_read_mag_samples(this);
           state->re_read_data_after_ascp = false;
+          state->this_is_the_last_flush = false;
         }
 
         if(state->config_mag_after_ascp_xfer)

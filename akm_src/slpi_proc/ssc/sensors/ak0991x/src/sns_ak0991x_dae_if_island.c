@@ -433,41 +433,44 @@ static void process_fifo_samples(
   {
     state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
 
-    if(state->mag_info.use_fifo)
+    // calc num_samples
     {
-      // num_samples update when FIFO enabled.
-      if(state->mag_info.device_select == AK09917)
+      if(state->mag_info.use_fifo)
       {
-        state->num_samples = buf[2] >> 2;
-      }
-      else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
-      {
-        state->num_samples = 1 + (buf[0] & 0x1F); // read value from WM[4:0]
-      }
-    }
-    else
-    {
-      // num_samples update when Polling mode.
-      if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)  // polling mode: *** Doesn't care FIFO+Polling ***
-      {
-        if( !state->this_is_the_last_flush )
+        // num_samples update when FIFO enabled.
+        if(state->mag_info.device_select == AK09917)
         {
-          // only timer event. skip all flush requests.
-          state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
+          state->num_samples = buf[2] >> 2;
         }
-        else
+        else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
         {
-          // when current flush time is greater than expected polling time, add data
-          state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
+          state->num_samples = 1 + (buf[0] & 0x1F); // read value from WM[4:0]
         }
+      }
+      else
+      {
+        // num_samples update when Polling mode.
+        if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)  // polling mode: *** Doesn't care FIFO+Polling ***
+        {
+          if( !state->this_is_the_last_flush )
+          {
+            // only timer event. skip all flush requests.
+            state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
+          }
+          else
+          {
+            // when current time is greater than expected polling time, add data
+            state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl + sns_convert_ns_to_ticks(4 * 1000 * 1000) ) ? 1 : 0;
+          }
 
-        if( state->num_samples > 0 && state->fifo_flush_in_progress )
-        {
-          state->flush_sample_count++;
-        }
-        else
-        {
-          state->flush_sample_count = 0;
+          if( state->num_samples > 0 && state->fifo_flush_in_progress )
+          {
+            state->flush_sample_count++;
+          }
+          else
+          {
+            state->flush_sample_count = 0;
+          }
         }
       }
     }
@@ -535,24 +538,25 @@ static void process_fifo_samples(
               state->interrupt_timestamp = state->dae_event_time;
             }
           }
-          else if( state->this_is_the_last_flush )
-          {
-            state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl;
-            AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u",
-                state->total_samples,
-                (uint32_t)state->pre_timestamp_for_orphan,
-                (uint32_t)state->interrupt_timestamp,
-                (uint32_t)state->system_time);
-          }
           else
           {
+            // to prevent negative latency
             if(state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)
             {
               state->interrupt_timestamp = state->dae_event_time;
             }
             else
             {
-              state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl;
+              state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
+            }
+
+            if( state->this_is_the_last_flush )
+            {
+              AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u",
+                  state->total_samples,
+                  (uint32_t)state->pre_timestamp_for_orphan,
+                  (uint32_t)state->interrupt_timestamp,
+                  (uint32_t)state->system_time);
             }
           }
           state->first_data_ts_of_batch = state->interrupt_timestamp;
@@ -947,6 +951,7 @@ static void process_response(
         }
       }
       dae_stream->flushing_data = false;
+      state->this_is_the_last_flush = false;
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
       AK0991X_INST_PRINT(LOW, this,
