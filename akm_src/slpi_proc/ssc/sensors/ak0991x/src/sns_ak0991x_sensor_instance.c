@@ -628,12 +628,23 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         state->mag_info.flush_only?1:0,
         state->mag_info.max_batch?1:0 );
 
-    if( state->mag_info.cur_cfg.fifo_wmk == req_cfg.fifo_wmk
-        && state->mag_info.cur_cfg.odr == req_cfg.odr
-        && ((state->mag_info.cur_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
+    if( state->mag_info.cur_cfg.fifo_wmk == req_cfg.fifo_wmk &&
+        state->mag_info.cur_cfg.odr == req_cfg.odr &&
+        ((state->mag_info.cur_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
       AK0991X_INST_PRINT(LOW, this, "Config not changed.");
+
+      if(ak0991x_dae_if_available(this))
+      {
+        // reset last_sw_reset_time for detecting orphan
+        state->system_time =
+        state->last_sw_reset_time =
+          sns_get_system_time();
+
+        ak0991x_dae_if_flush_hw(this);
+      }
+
       if(!state->in_clock_error_procedure && !ak0991x_dae_if_available(this))
       {
         ak0991x_send_config_event(this, false);

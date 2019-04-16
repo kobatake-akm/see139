@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/16/19                AKM              Perform flush when Config not changed. (For MAG-052 in DAE+DRI+FIFO)
+ * 04/16/19                AKM              Modified for negative latency when last flush in Polling+DAE.(MAG-059/062)
  * 04/15/19                AKM              Added dummy data when last flush and orphan. (For MAG-048 in DAE+DRI+FIFO)
  * 04/12/19                AKM              Changed to use AK0991X_INST_PRINT for LOW and MED level debug messages
  * 04/11/19                AKM              Modified for not to send flush done when UNRELIABLE data.
@@ -274,7 +276,7 @@
  *
  **/
 
-// major:02 minor:00 revision:49
+// major:02 minor:00 revision:50
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
 #define AK0991X_DRV_VER_REV      50
