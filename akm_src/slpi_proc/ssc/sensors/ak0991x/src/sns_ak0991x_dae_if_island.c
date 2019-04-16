@@ -477,9 +477,9 @@ static void process_fifo_samples(
       // calc dummy data count
       if( state->this_is_the_last_flush &&
           (sampling_intvl != 0) &&
-          (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sampling_intvl/2) )
+          (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sns_convert_ns_to_ticks(4 * 1000 * 1000)) )
       {
-        dummy_count = (state->dae_event_time - state->pre_timestamp_for_orphan - sampling_intvl * state->num_samples + sampling_intvl/2) / sampling_intvl;
+        dummy_count = (state->dae_event_time - state->pre_timestamp_for_orphan - sampling_intvl * state->num_samples + sns_convert_ns_to_ticks(4 * 1000 * 1000)) / sampling_intvl;
         if(dummy_count>2)
         {
           dummy_count = 2;  //  MAX dummy count : 2
