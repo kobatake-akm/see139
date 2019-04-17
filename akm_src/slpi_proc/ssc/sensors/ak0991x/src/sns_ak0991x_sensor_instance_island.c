@@ -310,7 +310,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         if(state->config_mag_after_ascp_xfer)
         {
           state->config_mag_after_ascp_xfer = false;
-          ak0991x_continue_client_config(this);
+          ak0991x_continue_client_config(this, true);
         }
       }
       else if (SNS_ASYNC_COM_PORT_MSGID_SNS_ASYNC_COM_PORT_ERROR == event->message_id)

@@ -492,7 +492,7 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
   }
 }
 
-void ak0991x_continue_client_config(sns_sensor_instance *const this)
+void ak0991x_continue_client_config(sns_sensor_instance *const this, bool reset_device)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
 
@@ -504,13 +504,15 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this)
 
   AK0991X_INST_PRINT(LOW, this, "continue_client_config::");
 
-  ak0991x_reconfig_hw(this, true);
+  ak0991x_reconfig_hw(this, reset_device);
 
   if(!ak0991x_dae_if_available(this))
   {
     if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
     {
+      // Register polling timer
       ak0991x_register_timer(this);
+
       // Register for s4s timer
       if (state->mag_info.use_sync_stream)
       {
@@ -522,6 +524,7 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this)
       ak0991x_register_interrupt(this);
     }
   }
+  ak0991x_register_heart_beat_timer(this);
 }
 
 /** See sns_sensor_instance_api::set_client_config */
@@ -704,13 +707,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     if(!ak0991x_dae_if_available(this))
     {
       ak0991x_care_fifo_buffer(this);
-      if(state->timer_data_stream != NULL) // stop timer
+      if( state->timer_data_stream != NULL )
       {
-        ak0991x_mag_odr odr = state->mag_info.cur_cfg.odr;
-        state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
-        ak0991x_register_timer(this);
-        AK0991X_INST_PRINT(LOW, this, "stop timer");
-        state->mag_info.cur_cfg.odr = odr;
+        sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
       }
     }
 #ifdef AK0991X_ENABLE_DAE
@@ -733,7 +732,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     if (state->config_step == AK0991X_CONFIG_IDLE)
     {
-      ak0991x_continue_client_config(this);
+      ak0991x_continue_client_config(this, true);
     }
   }
   else if(client_request->message_id == SNS_STD_MSGID_SNS_STD_FLUSH_REQ)
@@ -793,6 +792,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     // When the self-test completes, the paused stream shall be restarted.
     if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
     {
+      state->system_time = sns_get_system_time();
 
       //////////////////////////////////////////////////////////////////
       // 1. store current ODR.
@@ -802,15 +802,21 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       // 2. pause streaming.
       AK0991X_INST_PRINT(LOW, this, "Pause streaming before self-test.");
       state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
+
       if(!ak0991x_dae_if_available(this))
       {
         // care the FIFO buffer if enabled FIFO and already streaming
         ak0991x_care_fifo_buffer(this);
         ak0991x_reconfig_hw(this, false);
-        ak0991x_register_timer(this);        // stop timer
+        if(state->timer_data_stream != NULL )
+        {
+          sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+        }
       }
       else  // DAE enabled
       {
+        ak0991x_unregister_heart_beat_timer(this);
+
         if (AK0991X_CONFIG_IDLE == state->config_step &&
             ak0991x_dae_if_stop_streaming(this))
         {
@@ -836,19 +842,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "Resume streaming after self-test.");
 
       state->mag_info.cur_cfg.odr = mag_chosen_sample_rate_reg_value;
+
       if(!ak0991x_dae_if_available(this))
       {
-        ak0991x_reconfig_hw(this, false);
-        if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
-        {
-          // Register for timer for polling
-          ak0991x_register_timer(this);
-        }
-        else
-        {
-          AK0991X_INST_PRINT(LOW, this, "Re register heart beat timer at %u", state->system_time);
-          ak0991x_register_heart_beat_timer(this);
-        }
+        ak0991x_continue_client_config(this, false);  // no reset. keep
       }
       else  // DAE enabled
       {

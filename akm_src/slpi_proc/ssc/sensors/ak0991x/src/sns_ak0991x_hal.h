@@ -589,6 +589,12 @@ sns_rc ak0991x_encode_log_sensor_state_raw(
 void ak0991x_register_interrupt(sns_sensor_instance *this);
 
 /**
+ * Unregister heart beat timer if exists
+ *
+ */
+void ak0991x_unregister_heart_beat_timer(sns_sensor_instance *const this);
+
+/**
  * Enable heart beat timer if not already enabled
  *
  */
@@ -670,7 +676,7 @@ void ak0991x_clock_error_calc_procedure(sns_sensor_instance *const instance,
  *
  * @return none
  */
-void ak0991x_continue_client_config(sns_sensor_instance *const instance);
+void ak0991x_continue_client_config(sns_sensor_instance *const this, bool reset_device);
 
 void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance);
 

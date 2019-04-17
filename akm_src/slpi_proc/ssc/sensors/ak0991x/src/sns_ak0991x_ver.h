@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/17/19                AKM              Refined HB timer
  * 04/16/19                AKM              Perform flush when Config not changed. (For MAG-052 in DAE+DRI+FIFO)
  * 04/16/19                AKM              Modified for negative latency when last flush in Polling+DAE.(MAG-059/062)
  * 04/15/19                AKM              Added dummy data when last flush and orphan. (For MAG-048 in DAE+DRI+FIFO)

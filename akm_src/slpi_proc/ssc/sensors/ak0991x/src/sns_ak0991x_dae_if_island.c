@@ -661,24 +661,7 @@ static void process_fifo_samples(
 
     if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // for DRI mode
     {
-      state->heart_beat_attempt_count = 0;
-      if (NULL != state->timer_data_stream)
-      {
-        sns_sensor_event *event =
-          state->timer_data_stream->api->peek_input(state->timer_data_stream);
-
-        while (NULL != event)
-        {
-          event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
-        }
-      }
-
-      // keep re-register HB timer when DAE enabled.
-      if(state->in_clock_error_procedure || !(state->mag_info.flush_only || state->mag_info.max_batch))
-      {
-        AK0991X_INST_PRINT(LOW, this, "Re register heart beat timer at %u", state->system_time);
-        ak0991x_register_heart_beat_timer(this);
-      }
+      ak0991x_register_heart_beat_timer(this);
     }
     else  // for Polling mode
     {
@@ -873,7 +856,7 @@ static void process_response(
         dae_stream->state = PRE_INIT;
         if(state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
         {
-          ak0991x_continue_client_config(this);
+          ak0991x_continue_client_config(this, true);
         }
       }
       break;
@@ -1043,7 +1026,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
         if(dae_stream->state == INIT_PENDING && 
            state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
         {
-          ak0991x_continue_client_config(this);
+          ak0991x_continue_client_config(this, true);
         }
       }
       else
