@@ -431,7 +431,7 @@ static void process_fifo_samples(
   // calculate num_samples
   if(!state->in_clock_error_procedure)
   {
-    state->is_orphan = (state->dae_event_time < state->last_sw_reset_time);
+    state->is_orphan = (state->dae_event_time < state->last_flush_time);
 
     // calc num_samples
     {
@@ -523,6 +523,7 @@ static void process_fifo_samples(
         if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
         {
           ak0991x_validate_timestamp_for_dri(this);
+          sampling_intvl = state->averaged_interval; // update sampling_intvl
         }
         else
         {
@@ -615,7 +616,7 @@ static void process_fifo_samples(
             odr,
             state->mag_info.cur_cfg.odr,
             state->num_samples,
-            (uint32_t)state->last_sw_reset_time,
+            (uint32_t)state->last_flush_time,
             (uint32_t)state->dae_event_time);
       }
 
@@ -920,6 +921,11 @@ static void process_response(
 
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
+        if( state->this_is_the_last_flush )
+        {
+          state->last_flush_time = sns_get_system_time();
+        }
+
         ak0991x_dae_if_start_streaming(this);
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
         ak0991x_dae_if_flush_samples(this);

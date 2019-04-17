@@ -177,6 +177,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->pre_timestamp =
   state->pre_timestamp_for_orphan =
   state->last_config_sent_time =
+  state->last_flush_time =
       sns_get_system_time();
 
   state->this_is_first_data = true;
@@ -633,15 +634,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ((state->mag_info.cur_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
-      AK0991X_INST_PRINT(LOW, this, "Config not changed.");
+      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d", state->total_samples);
 
       if(ak0991x_dae_if_available(this))
       {
-        // reset last_sw_reset_time for detecting orphan
-        state->system_time =
-        state->last_sw_reset_time =
-          sns_get_system_time();
-
         ak0991x_dae_if_flush_hw(this);
       }
 
@@ -669,6 +665,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->pre_timestamp =
       state->pre_timestamp_for_orphan =
       state->last_config_sent_time =
+      state->last_flush_time =
           sns_get_system_time();
 
       // update averaged_interval

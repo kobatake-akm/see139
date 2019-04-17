@@ -258,7 +258,7 @@ typedef struct ak0991x_instance_state
   sns_time nominal_intvl;
   sns_time half_measurement_time;
   sns_time hb_timer_fire_time;
-  sns_time last_sw_reset_time;
+  sns_time last_flush_time;
   sns_time dae_event_time;
   sns_time last_config_sent_time;
   sns_time dae_polling_offset;

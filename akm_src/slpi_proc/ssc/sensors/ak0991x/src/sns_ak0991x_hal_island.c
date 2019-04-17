@@ -2105,14 +2105,14 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
       {
         if( state->num_samples == state->mag_info.cur_cfg.fifo_wmk )
         {
-          // keep re-calculating for clock frequency drifting.
-          ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count_for_dri);
-
           calculated_average_interval = ((state->interrupt_timestamp - state->previous_irq_time) /
                                       state->mag_info.data_count_for_dri);
           if( (calculated_average_interval > state->averaged_interval - state->averaged_interval/50) &&
               (calculated_average_interval < state->averaged_interval + state->averaged_interval/50) )
           {
+            // keep re-calculating for clock frequency drifting.
+            ak0991x_calc_clock_error(state, state->nominal_intvl * state->mag_info.data_count_for_dri);
+
             //update
             state->averaged_interval = calculated_average_interval;
           }
@@ -2121,7 +2121,6 @@ static sns_rc ak0991x_calc_average_interval_for_dri(sns_sensor_instance *const i
             AK0991X_INST_PRINT(HIGH, instance, "Calculated interval %u is too different from the previous %u",
                 (uint32_t)calculated_average_interval,
                 (uint32_t)state->averaged_interval);
-            rc = SNS_RC_FAILED;
           }
         }
         else
@@ -2164,7 +2163,6 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance)
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp -
       (state->averaged_interval * (state->mag_info.cur_cfg.fifo_wmk-1));
-
     state->mag_info.data_count_for_dri = 0; // reset only for DRI mode
     state->previous_irq_time = state->interrupt_timestamp;
     state->delta_ts_time = state->system_time - state->interrupt_timestamp; // update delta_ts_time
@@ -3292,8 +3290,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   if(reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
-    state->last_sw_reset_time = sns_get_system_time();
-    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. at %u", (uint32_t)state->last_sw_reset_time);
+    AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset. at %u", (uint32_t)state->last_flush_time);
   }
 
   if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
