@@ -209,7 +209,7 @@ static bool send_mag_config(sns_sensor_instance *this)
 
   config_req.has_data_age_limit_ticks = true;
 
-  if (mag_info->max_batch)
+  if (state->mag_info.flush_only || state->mag_info.max_batch)
   {
      config_req.data_age_limit_ticks = UINT64_MAX;
   }

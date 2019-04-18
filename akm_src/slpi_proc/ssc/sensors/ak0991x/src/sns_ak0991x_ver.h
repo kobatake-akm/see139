@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/18/19     020051     AKM              Modified data_age_limit_ticks for MAG-051 in DAE+DRI+FIFO
  * 04/17/19                AKM              Refined HB timer
  * 04/16/19                AKM              Perform flush when Config not changed. (For MAG-052 in DAE+DRI+FIFO)
  * 04/16/19                AKM              Modified for negative latency when last flush in Polling+DAE.(MAG-059/062)
@@ -277,8 +278,8 @@
  *
  **/
 
-// major:02 minor:00 revision:50
+// major:02 minor:00 revision:51
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      50
+#define AK0991X_DRV_VER_REV      51
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

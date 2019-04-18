@@ -417,7 +417,7 @@ static uint16_t ak0991x_calc_fifo_wmk(
         {
           desired_wmk = state->mag_info.max_fifo_size;
         }
-        else if ( desired_wmk >= state->mag_info.max_fifo_size )
+        else if ( desired_wmk > state->mag_info.max_fifo_size )
         {
           uint32_t divider = 1;
           divider = (state->mag_info.max_fifo_size + desired_wmk) / state->mag_info.max_fifo_size;
