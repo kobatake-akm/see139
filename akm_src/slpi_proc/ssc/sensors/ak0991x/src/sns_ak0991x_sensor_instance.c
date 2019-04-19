@@ -474,21 +474,18 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  if (!state->this_is_first_data)
+  state->this_is_the_last_flush = true;
+  AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
+  if(state->ascp_xfer_in_progress > 0)
   {
-    state->this_is_the_last_flush = true;
-    AK0991X_INST_PRINT(LOW, this, "last flush before changing ODR");
-    if(state->ascp_xfer_in_progress > 0)
-    {
-      state->config_mag_after_ascp_xfer = true;
-      state->re_read_data_after_ascp = true;
-      AK0991X_INST_PRINT(LOW, this, "last flush but ascp is in progress. Skip");
-    }
-    else
-    {
-      ak0991x_read_mag_samples(this);
-      state->this_is_the_last_flush = false;
-    }
+    state->config_mag_after_ascp_xfer = true;
+    state->re_read_data_after_ascp = true;
+    AK0991X_INST_PRINT(LOW, this, "last flush but ascp is in progress. Skip");
+  }
+  else
+  {
+    ak0991x_read_mag_samples(this);
+    state->this_is_the_last_flush = false;
   }
 }
 
