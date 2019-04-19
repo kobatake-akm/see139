@@ -2729,7 +2729,10 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_con
     return;
   }
 
-  sns_time timestamp = is_new_config ? sns_get_system_time() : state->last_config_sent_time;
+  if(is_new_config)
+  {
+    state->last_cal_event_sent_time = sns_get_system_time();
+  }
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
@@ -2769,7 +2772,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_con
   pb_send_event(instance,
                 sns_cal_event_fields,
                 &cal_event,
-                timestamp,
+                state->last_cal_event_sent_time,
                 SNS_CAL_MSGID_SNS_CAL_EVENT,
                 &state->mag_info.suid);
 
