@@ -624,11 +624,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, mag_chosen_sample_rate);
     req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate);
 
-    AK0991X_INST_PRINT(LOW, this, "odr=%u, req_wmk=%u, dae_wmk=%d, flush_period=%u, flushonly=%d, max_batch=%d",
+    AK0991X_INST_PRINT(LOW, this, "odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
         req_cfg.odr,
         req_cfg.fifo_wmk,
         req_cfg.dae_wmk,
-        state->mag_info.flush_period,
+        (uint32_t)state->mag_info.flush_period,
         state->mag_info.flush_only?1:0,
         state->mag_info.max_batch?1:0 );
 

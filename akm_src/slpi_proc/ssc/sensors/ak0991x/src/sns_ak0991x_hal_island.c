@@ -2833,6 +2833,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09911_MIN_RANGE;
     phy_sensor_config.range[1] = AK09911_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = false;
     break;
   case AK09912:
     operating_mode = AK0991X_NORMAL;
@@ -2844,6 +2845,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09912_MIN_RANGE;
     phy_sensor_config.range[1] = AK09912_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = true;
     break;
   case AK09913:
     operating_mode = AK0991X_NORMAL;
@@ -2855,6 +2857,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09913_MIN_RANGE;
     phy_sensor_config.range[1] = AK09913_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = false;
     break;
   case AK09915C:
 
@@ -2875,6 +2878,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09915_MIN_RANGE;
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = true;
     break;
   case AK09915D:
 
@@ -2895,6 +2899,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09915_MIN_RANGE;
     phy_sensor_config.range[1] = AK09915_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = true;
     break;
   case AK09916C:
     operating_mode = AK0991X_NORMAL;
@@ -2906,6 +2911,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = false;
     break;
   case AK09916D:
     operating_mode = AK0991X_NORMAL;
@@ -2917,6 +2923,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09916_MIN_RANGE;
     phy_sensor_config.range[1] = AK09916_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = true;
     break;
   case AK09917:
 
@@ -2937,6 +2944,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09917_MIN_RANGE;
     phy_sensor_config.range[1] = AK09917_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = true;
     break;
   case AK09918:
     operating_mode = AK0991X_NORMAL;
@@ -2948,6 +2956,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range_count = 2;
     phy_sensor_config.range[0] = AK09918_MIN_RANGE;
     phy_sensor_config.range[1] = AK09918_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = false;
     break;
   default:
     return SNS_RC_FAILED;
@@ -2965,6 +2974,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   phy_sensor_config.sample_rate        = ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr);
   phy_sensor_config.has_DAE_watermark  = ak0991x_dae_if_available(instance);
   phy_sensor_config.DAE_watermark      = SNS_MAX(state->mag_info.cur_cfg.dae_wmk, 1);
+  phy_sensor_config.dri_enabled        = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
 
   state->system_time = sns_get_system_time();
   timestamp = is_new_config ? state->system_time : state->last_config_sent_time;
