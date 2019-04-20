@@ -408,7 +408,7 @@ static uint16_t ak0991x_calc_fifo_wmk(
       case AK09915C:
       case AK09915D:
       case AK09917:
-        desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate;
+        desired_wmk = (uint16_t) (mag_chosen_sample_rate / desired_report_rate);
         if (state->mag_info.max_batch)
         {
           desired_wmk = state->mag_info.max_fifo_size;
