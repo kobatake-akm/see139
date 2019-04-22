@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/22/19                AKM              Modified is_orphan decision without using time
  * 04/18/19     020051     AKM              Modified data_age_limit_ticks for MAG-051 in DAE+DRI+FIFO
  * 04/17/19                AKM              Refined HB timer
  * 04/16/19                AKM              Perform flush when Config not changed. (For MAG-052 in DAE+DRI+FIFO)

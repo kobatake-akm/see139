@@ -177,7 +177,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->pre_timestamp =
   state->pre_timestamp_for_orphan =
   state->last_config_sent_time =
-  state->last_flush_time =
       sns_get_system_time();
 
   state->this_is_first_data = true;
@@ -408,7 +407,7 @@ static uint16_t ak0991x_calc_fifo_wmk(
       case AK09915C:
       case AK09915D:
       case AK09917:
-        desired_wmk = (uint16_t) (mag_chosen_sample_rate / desired_report_rate);
+        desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate;
         if (state->mag_info.max_batch)
         {
           desired_wmk = state->mag_info.max_fifo_size;
@@ -665,7 +664,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->pre_timestamp =
       state->pre_timestamp_for_orphan =
       state->last_config_sent_time =
-      state->last_flush_time =
           sns_get_system_time();
 
       // update averaged_interval

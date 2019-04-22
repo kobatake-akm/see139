@@ -400,10 +400,10 @@ static void process_fifo_samples(
   size_t              buf_len)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
-  ak0991x_mag_odr odr;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
   uint8_t dummy_count = 0;
+  sns_time margin = sns_convert_ns_to_ticks(4 * 1000 * 1000);
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -420,7 +420,8 @@ static void process_fifo_samples(
   // buf[10]: ST2
   //////////////////////////////
 
-  odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+  ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
+  uint16_t fifo_wmk = (state->mag_info.use_fifo) ? (uint8_t)(buf[0] & 0x1F) + 1 : 1;  // read value from WM[4:0]
 
   state->is_orphan = false;
   sampling_intvl = (ak0991x_get_sample_interval(odr) *
@@ -431,7 +432,9 @@ static void process_fifo_samples(
   // calculate num_samples
   if(!state->in_clock_error_procedure)
   {
-    state->is_orphan = (state->dae_event_time < state->last_flush_time);
+    state->is_orphan =
+        ( odr != state->mag_info.cur_cfg.odr ) ||
+        ( fifo_wmk != state->mag_info.cur_cfg.fifo_wmk );
 
     // calc num_samples
     {
@@ -444,7 +447,7 @@ static void process_fifo_samples(
         }
         else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
         {
-          state->num_samples = 1 + (buf[0] & 0x1F); // read value from WM[4:0]
+          state->num_samples = fifo_wmk; // read value from WM[4:0]
         }
       }
       else
@@ -460,7 +463,7 @@ static void process_fifo_samples(
           else
           {
             // when current time is greater than expected polling time, add data
-            state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl + sns_convert_ns_to_ticks(4 * 1000 * 1000) ) ? 1 : 0;
+            state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl + margin ) ? 1 : 0;
           }
 
           if( state->num_samples > 0 && state->fifo_flush_in_progress )
@@ -480,9 +483,9 @@ static void process_fifo_samples(
       // calc dummy data count
       if( state->this_is_the_last_flush &&
           (sampling_intvl != 0) &&
-          (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sns_convert_ns_to_ticks(4 * 1000 * 1000)) )
+          (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + margin) )
       {
-        dummy_count = (state->dae_event_time - state->pre_timestamp_for_orphan - sampling_intvl * state->num_samples + sns_convert_ns_to_ticks(4 * 1000 * 1000)) / sampling_intvl;
+        dummy_count = (state->dae_event_time - state->pre_timestamp_for_orphan - sampling_intvl * state->num_samples + margin) / sampling_intvl;
         if(dummy_count>2)
         {
           dummy_count = 2;  //  MAX dummy count : 2
@@ -612,11 +615,10 @@ static void process_fifo_samples(
         {
           state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
         }
-        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) num_samples=%d last_stop=%u event_time=%u",
+        AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) num_samples=%d event_time=%u",
             odr,
             state->mag_info.cur_cfg.odr,
             state->num_samples,
-            (uint32_t)state->last_flush_time,
             (uint32_t)state->dae_event_time);
       }
 
@@ -904,11 +906,6 @@ static void process_response(
 
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
-        if( state->this_is_the_last_flush )
-        {
-          state->last_flush_time = sns_get_system_time();
-        }
-
         ak0991x_dae_if_start_streaming(this);
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
         ak0991x_dae_if_flush_samples(this);
