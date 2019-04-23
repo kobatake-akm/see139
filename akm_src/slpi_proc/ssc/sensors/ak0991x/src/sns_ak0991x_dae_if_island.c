@@ -208,22 +208,15 @@ static bool send_mag_config(sns_sensor_instance *this)
   }
 
   config_req.has_data_age_limit_ticks = true;
-
-  if (state->mag_info.flush_only || state->mag_info.max_batch)
-  {
-     config_req.data_age_limit_ticks = UINT64_MAX;
-  }
-  else
-  {
-    config_req.data_age_limit_ticks =
-      sns_convert_ns_to_ticks((uint64_t)mag_info->flush_period*1000ULL);
-    config_req.data_age_limit_ticks += config_req.data_age_limit_ticks / 10;
-  }
-
+  config_req.data_age_limit_ticks = (state->mag_info.max_batch) ? UINT64_MAX : (state->mag_info.flush_only) ? mag_info->flush_period : mag_info->flush_period * 1.1f;
   config_req.has_polling_config  = (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING);
   if( config_req.has_polling_config )
   {
-    if (mag_info->use_sync_stream)
+    if( mag_info->flush_only )
+    {
+      config_req.polling_config.polling_interval_ticks = UINT64_MAX;
+    }
+    else if (mag_info->use_sync_stream)
     {
       config_req.polling_config.polling_interval_ticks =
         sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_cfg.fifo_wmk)

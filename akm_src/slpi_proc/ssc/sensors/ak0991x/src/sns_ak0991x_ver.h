@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/22/19                AKM              Modified data_age_limit_ticks calculation
+ * 04/22/19                AKM              Modified flush_period when flush_only and change parameter from sns_time from uint32_t
  * 04/22/19                AKM              Modified is_orphan decision without using time
  * 04/18/19     020051     AKM              Modified data_age_limit_ticks for MAG-051 in DAE+DRI+FIFO
  * 04/17/19                AKM              Refined HB timer

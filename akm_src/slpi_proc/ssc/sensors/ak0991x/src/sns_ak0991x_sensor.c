@@ -231,7 +231,7 @@ static void ak0991x_get_mag_config(
                                    sns_sensor_instance *instance,
                                    float *chosen_sample_rate,
                                    float *chosen_report_rate,
-                                   uint32_t *chosen_flush_period,
+                                   sns_time *chosen_flush_period,
                                    bool *is_flush_only,
                                    bool *is_max_batch,
                                    bool *sensor_client_present)
@@ -269,7 +269,7 @@ static void ak0991x_get_mag_config(
           this, request, &decoded_request, &decoded_payload))
       {
         float report_rate;
-        uint32_t flush_period;
+        sns_time flush_period;
         bool max_batch  = false;
         bool flush_only = false;
 
@@ -306,7 +306,12 @@ static void ak0991x_get_mag_config(
         else
         {
           report_rate = decoded_payload.sample_rate;
-          flush_period = UINT32_MAX;
+          flush_period = UINT64_MAX;
+        }
+
+        if( flush_only )
+        {
+          flush_period = UINT64_MAX;
         }
 
         *is_max_batch  &= max_batch;
@@ -327,7 +332,7 @@ static void ak0991x_set_mag_inst_config(sns_sensor *this,
                                         float chosen_sample_rate,
                                         uint32_t chosen_cal_id,
                                         uint32_t cal_version,
-                                        uint32_t chosen_flush_period,
+                                        sns_time chosen_flush_period,
                                         bool is_flush_only,
                                         bool is_max_batch)
 {
@@ -367,7 +372,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
    */
   float chosen_sample_rate = 0;
   float chosen_report_rate = 0;
-  uint32_t chosen_flush_period = 0;
+  sns_time chosen_flush_period = 0;
   bool is_flush_only = false;
   bool is_max_batch = false;
   bool m_sensor_client_present;
@@ -407,7 +412,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
 
   AK0991X_PRINT(LOW, this, "RR=%u/100 SR=%u/100 fl_per=%u, fl_only=%u, max_batch=%u",
                   (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
-                  chosen_flush_period,is_flush_only?1:0, is_max_batch?1:0 );
+                  (uint32_t)chosen_flush_period,is_flush_only?1:0, is_max_batch?1:0 );
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   cal_id = inst_state->cal.id;
