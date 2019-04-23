@@ -268,58 +268,63 @@ static void ak0991x_get_mag_config(
       if(ak0991x_get_decoded_mag_request(
           this, request, &decoded_request, &decoded_payload))
       {
-        float report_rate;
-        sns_time flush_period;
         bool max_batch  = false;
         bool flush_only = false;
+        float report_rate = decoded_payload.sample_rate;
+        sns_time flush_period_ticks = UINT64_MAX;
+        uint32_t flush_period = UINT32_MAX;
+        uint32_t report_period_us = (uint32_t)(1000000.0f / decoded_payload.sample_rate);
 
-        if (decoded_request.has_batching) {
+        if(decoded_request.has_batching)
+        {
+          if(decoded_request.batching.has_flush_period)
+          {
+            flush_period = decoded_request.batching.flush_period;
+          }
+          else if(decoded_request.batching.batch_period > 0)
+          {
+            flush_period = decoded_request.batching.batch_period;
+          }
+
+          if(decoded_request.batching.batch_period > 0)
+          {
+            report_period_us = decoded_request.batching.batch_period;
+          }
+
           flush_only = (decoded_request.batching.has_flush_only && decoded_request.batching.flush_only);
-          if (!flush_only){
-            max_batch = (decoded_request.batching.has_max_batch && decoded_request.batching.max_batch);
+          if(!flush_only)
+          {
+            max_batch  = (decoded_request.batching.has_max_batch && decoded_request.batching.max_batch);
+          }
+          if(flush_only || flush_period == 0)
+          {
+            report_period_us = UINT32_MAX;
+          }
+
+          if(max_batch)
+          {
+            report_rate = (1.0f / UINT32_MAX);
+            flush_period_ticks = UINT64_MAX;
+          }
+          else
+          {
+            flush_period_ticks = sns_convert_ns_to_ticks((uint64_t)flush_period*1000);
+            report_rate = (1000000.0f / (float)report_period_us);
           }
         }
-        *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
-                                      decoded_payload.sample_rate);
 
         AK0991X_PRINT(
           MED, this, "SR=%u/100 batch_per=%d", (uint32_t)(decoded_payload.sample_rate*100),
           decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
 
-        if (decoded_request.has_batching
-            &&
-            decoded_request.batching.batch_period > 0)
-        {
-          report_rate = 1000000.0f / (float)decoded_request.batching.batch_period;
-          if( decoded_request.batching.has_flush_period )
-          {
-            flush_period = decoded_request.batching.flush_period;
-          }
-          else
-          {
-            // To ensure there is a reasonable age to direct the "throw away" of "aged" samples
-            // from DDR memory, thereby preventing DDR from getting full,
-            // use batch period when given, and when flush period is not given.
-            flush_period = decoded_request.batching.batch_period; 
-          }
-        }
-        else
-        {
-          report_rate = decoded_payload.sample_rate;
-          flush_period = UINT64_MAX;
-        }
-
-        if( flush_only )
-        {
-          flush_period = UINT64_MAX;
-        }
-
+        *chosen_sample_rate = SNS_MAX(*chosen_sample_rate,
+                                      decoded_payload.sample_rate);
         *is_max_batch  &= max_batch;
         *is_flush_only &= flush_only;
         *chosen_report_rate = SNS_MAX(*chosen_report_rate,
                                       report_rate);
         *chosen_flush_period = SNS_MAX(*chosen_flush_period,
-                                       flush_period);
+            flush_period_ticks);
         *sensor_client_present = true;
       }
     }
@@ -540,7 +545,7 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
      (sns_stream_service*)smgr->get_service(smgr, SNS_STREAM_SERVICE);
 
   AK0991X_PRINT(LOW, this, "start_power_rail_timer: timeout=%u state=%u",
-                (uint32_t)timeout_ticks, pwr_rail_pend_state);
+                (uint32_t)timeout_ticks, (uint32_t)pwr_rail_pend_state);
 
   if (state->timer_stream == NULL)
   {
@@ -562,7 +567,9 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
        .request = buffer, .request_len = req_len};
     state->timer_stream->api->send_request(state->timer_stream, &timer_req);
     state->power_rail_pend_state = pwr_rail_pend_state;
-    SNS_PRINTF(HIGH, this, "power timer is started: hw_id = %d, pend_state = %u", state->hardware_id, pwr_rail_pend_state);
+    SNS_PRINTF(HIGH, this, "power timer is started: hw_id = %u, pend_state = %u",
+        (uint32_t)state->hardware_id,
+        (uint32_t)pwr_rail_pend_state);
   }
   else
   {

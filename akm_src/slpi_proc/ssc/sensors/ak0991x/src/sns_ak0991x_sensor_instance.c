@@ -386,7 +386,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
     state->scp_service->api->sns_scp_deregister_com_port(&state->com_port_info.port_handle);
   }
-  AK0991X_INST_PRINT(HIGH, this, "deinit:: #samples=%u", state->total_samples);
+  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
 
   return SNS_RC_SUCCESS;
 }

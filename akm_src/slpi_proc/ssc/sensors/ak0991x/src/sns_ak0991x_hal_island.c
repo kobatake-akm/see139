@@ -3083,7 +3083,7 @@ static sns_rc ak0991x_send_timer_request(sns_sensor_instance *const this)
                                                    state->timer_suid,
                                                    &state->timer_data_stream
                                                    );
-    SNS_INST_PRINTF(LOW, this, "create timer data stream");
+    AK0991X_INST_PRINT(LOW, this, "create timer data stream");
   }
 
   if (NULL != state->timer_data_stream)
@@ -3161,7 +3161,7 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
         req_payload.timeout_period = sample_period * 5;
       }
       state->hb_timer_fire_time = req_payload.start_time + req_payload.timeout_period;
-      SNS_INST_PRINTF(LOW, this, "Register HB timer. Fire time= %u", (uint32_t)state->hb_timer_fire_time);
+      AK0991X_INST_PRINT(LOW, this, "Register HB timer. Fire time= %u", (uint32_t)state->hb_timer_fire_time);
     }
     // for S4S timer
     else if (state->mag_info.use_sync_stream)
@@ -3210,7 +3210,7 @@ void ak0991x_unregister_heart_beat_timer(sns_sensor_instance *const this)
   if(state->timer_data_stream != NULL && state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING )
   {
     sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
-    SNS_INST_PRINTF(LOW, this, "Unregister HB timer");
+    AK0991X_INST_PRINT(LOW, this, "Unregister HB timer");
   }
 }
 
@@ -3245,7 +3245,7 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
   }
   else
   {
-    SNS_INST_PRINTF(LOW, this, "No need to register HB timer because polling mode.");
+    AK0991X_INST_PRINT(LOW, this, "No need to register HB timer because polling mode.");
   }
 }
 

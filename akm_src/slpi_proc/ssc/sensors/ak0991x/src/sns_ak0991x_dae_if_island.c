@@ -208,15 +208,11 @@ static bool send_mag_config(sns_sensor_instance *this)
   }
 
   config_req.has_data_age_limit_ticks = true;
-  config_req.data_age_limit_ticks = (state->mag_info.max_batch) ? UINT64_MAX : (state->mag_info.flush_only) ? mag_info->flush_period : mag_info->flush_period * 1.1f;
+  config_req.data_age_limit_ticks = (state->mag_info.max_batch) ? UINT64_MAX : mag_info->flush_period * 1.1f;
   config_req.has_polling_config  = (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING);
   if( config_req.has_polling_config )
   {
-    if( mag_info->flush_only )
-    {
-      config_req.polling_config.polling_interval_ticks = UINT64_MAX;
-    }
-    else if (mag_info->use_sync_stream)
+    if (mag_info->use_sync_stream)
     {
       config_req.polling_config.polling_interval_ticks =
         sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_cfg.fifo_wmk)
@@ -231,7 +227,6 @@ static bool send_mag_config(sns_sensor_instance *this)
 
     //TODO: it looks like the polling offset will not be adjusted for S4S.
     //So it won't be synced with any other sensors
-
     config_req.polling_config.polling_offset =
         (state->system_time +
         config_req.polling_config.polling_interval_ticks) /
@@ -245,9 +240,10 @@ static bool send_mag_config(sns_sensor_instance *this)
         (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0)
       )
     {
-      while( config_req.polling_config.polling_offset < state->system_time + 4 * state->half_measurement_time )
+      if( config_req.polling_config.polling_offset < state->system_time + 4 * state->half_measurement_time ) // for preventing negative
       {
-        config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
+        uint8_t num_interval_ticks = (uint8_t)(( state->system_time + 4 * state->half_measurement_time - config_req.polling_config.polling_offset ) / config_req.polling_config.polling_interval_ticks);
+        config_req.polling_config.polling_offset += (config_req.polling_config.polling_interval_ticks * num_interval_ticks);
       }
     }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
