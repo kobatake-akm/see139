@@ -400,14 +400,18 @@ static uint16_t ak0991x_calc_fifo_wmk(
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  if(state->mag_info.use_fifo)
+  if(state->mag_info.use_fifo && mag_chosen_sample_rate != 0.0f)
   {
     switch (state->mag_info.device_select)
     {
       case AK09915C:
       case AK09915D:
       case AK09917:
-        desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate;
+        if( desired_report_rate != 0.0f )
+        {
+          desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate;
+        }
+
         if (state->mag_info.max_batch)
         {
           desired_wmk = state->mag_info.max_fifo_size;
@@ -439,7 +443,8 @@ static uint16_t ak0991x_calc_fifo_wmk(
 static uint32_t ak0991x_calc_dae_wmk(
     sns_sensor_instance *const this,
     float desired_report_rate,
-    float mag_chosen_sample_rate)
+    float mag_chosen_sample_rate,
+    uint16_t fifo_wmk)
 {
   uint32_t dae_wmk = 1;
 
@@ -447,20 +452,22 @@ static uint32_t ak0991x_calc_dae_wmk(
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 
-  if (desired_report_rate != 0.0f)
+  if (desired_report_rate != 0.0f && mag_chosen_sample_rate != 0.0f)
   {
-    dae_wmk = (state->mag_info.flush_only || state->mag_info.max_batch) ? UINT32_MAX : (uint32_t)(mag_chosen_sample_rate / desired_report_rate);
-  }
-  else
-  {
-    dae_wmk = 1;
+    dae_wmk = SNS_MAX(1, (uint32_t)((mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate)); // prevent dae_wmk=0
+    if(state->mag_info.flush_only || state->mag_info.max_batch)
+    {
+      dae_wmk = UINT32_MAX;
+    }
   }
 
   AK0991X_INST_PRINT(LOW, this, "calculated  dae_wmk=%u flush_only=%d max_batch=%d",
       dae_wmk,
       state->mag_info.flush_only,
       state->mag_info.max_batch);
+  UNUSED_VAR(fifo_wmk);
 #else
+  dae_wmk = fifo_wmk; // dae_wmk = fifo_wmk when nonDAE? (MAG-042 on DRI+FIFO+nonDAE still fails)
   UNUSED_VAR(this);
   UNUSED_VAR(desired_report_rate);
   UNUSED_VAR(mag_chosen_sample_rate);
@@ -618,7 +625,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_info.flush_period = payload->flush_period;
     req_cfg.odr      = mag_chosen_sample_rate_reg_value;
     req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, mag_chosen_sample_rate);
-    req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate);
+    req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate, req_cfg.fifo_wmk);
 
     AK0991X_INST_PRINT(LOW, this, "odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
         req_cfg.odr,
