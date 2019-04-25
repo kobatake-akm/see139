@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 04/25/19                AKM              update last_sent_cfg and last_config_sent_time only when it is new config
+ * 04/25/19                AKM              removed dummy add sequence from DAE
  * 04/24/19                AKM              calc_fifo_wmk bug fix No calculation when desired sample rate = 0
  * 04/23/19     020052     AKM              Modified ak0991x_get_decoded_mag_request for repoort_rate and flush_period
  * 04/22/19                AKM              Modified data_age_limit_ticks calculation

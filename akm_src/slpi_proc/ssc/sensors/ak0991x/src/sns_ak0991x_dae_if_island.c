@@ -474,11 +474,13 @@ static void process_fifo_samples(
           (sampling_intvl != 0) &&
           (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + margin) )
       {
+/*
         dummy_count = (state->dae_event_time - state->pre_timestamp_for_orphan - sampling_intvl * state->num_samples + margin) / sampling_intvl;
         if(dummy_count>2)
         {
           dummy_count = 2;  //  MAX dummy count : 2
         }
+*/
       }
       AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d, dummy=%d, pre_orphan=%u, event=%u, intvl=%u",
           state->num_samples,

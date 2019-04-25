@@ -2994,13 +2994,15 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
 
-  state->mag_info.last_sent_cfg.odr       = state->mag_info.cur_cfg.odr;
-  state->mag_info.last_sent_cfg.fifo_wmk  = state->mag_info.cur_cfg.fifo_wmk;
-  state->mag_info.last_sent_cfg.dae_wmk   = state->mag_info.cur_cfg.dae_wmk;
-
   ak0991x_send_cal_event(instance, is_new_config);
 
-  state->last_config_sent_time = state->system_time;
+  if(is_new_config)
+  {
+    state->mag_info.last_sent_cfg.odr       = state->mag_info.cur_cfg.odr;
+    state->mag_info.last_sent_cfg.fifo_wmk  = state->mag_info.cur_cfg.fifo_wmk;
+    state->mag_info.last_sent_cfg.dae_wmk   = state->mag_info.cur_cfg.dae_wmk;
+    state->last_config_sent_time = state->system_time;
+  }
   return SNS_RC_SUCCESS;
 }
 
