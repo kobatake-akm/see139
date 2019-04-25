@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 04/25/19                AKM              use last_sent_cfg for judging "Config not changed"
+ * 04/25/19     020053     AKM              use last_sent_cfg for judging "Config not changed"
  * 04/25/19                AKM              update last_sent_cfg and last_config_sent_time only when it is new config
  * 04/25/19                AKM              removed dummy add sequence from DAE
  * 04/24/19                AKM              calc_fifo_wmk bug fix No calculation when desired sample rate = 0
@@ -286,8 +286,8 @@
  *
  **/
 
-// major:02 minor:00 revision:52
+// major:02 minor:00 revision:53
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      52
+#define AK0991X_DRV_VER_REV      53
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
