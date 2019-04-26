@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 04/25/19     020053     AKM              fixed for bug to prevent UNRELIABLE data.
+ * 04/26/19     020053     AKM              fixed for bug to prevent UNRELIABLE data.
  * 04/25/19                AKM              use last_sent_cfg for judging "Config not changed"
  * 04/25/19                AKM              update last_sent_cfg and last_config_sent_time only when it is new config
  * 04/25/19                AKM              removed dummy add sequence from DAE
