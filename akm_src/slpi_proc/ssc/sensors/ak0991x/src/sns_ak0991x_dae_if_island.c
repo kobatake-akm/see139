@@ -240,9 +240,9 @@ static bool send_mag_config(sns_sensor_instance *this)
         (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0)
       )
     {
-      if( config_req.polling_config.polling_offset < state->system_time + 4 * state->half_measurement_time )
+      while( config_req.polling_config.polling_offset < state->system_time + 4 * state->half_measurement_time )
       {
-        config_req.polling_config.polling_offset += (config_req.polling_config.polling_interval_ticks);
+        config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
       }
     }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
