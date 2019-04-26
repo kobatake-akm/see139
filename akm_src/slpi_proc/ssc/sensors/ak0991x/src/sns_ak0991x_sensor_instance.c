@@ -706,7 +706,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     state->system_time = sns_get_system_time();
 
-    if(!ak0991x_dae_if_available(this))
+    if( !ak0991x_dae_if_available(this) && state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
     {
       ak0991x_care_fifo_buffer(this);
       if( state->timer_data_stream != NULL )
@@ -803,12 +803,17 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       //////////////////////////////////////////////////////////////////
       // 2. pause streaming.
       AK0991X_INST_PRINT(LOW, this, "Pause streaming before self-test.");
-      state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
 
       if(!ak0991x_dae_if_available(this))
       {
         // care the FIFO buffer if enabled FIFO and already streaming
         ak0991x_care_fifo_buffer(this);
+      }
+
+      state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
+
+      if(!ak0991x_dae_if_available(this))
+      {
         ak0991x_reconfig_hw(this, false);
         if(state->timer_data_stream != NULL )
         {
