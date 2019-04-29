@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 04/26/19                AKM              removed dummy on DRI+FIFO+nonDAE. removed care_fifo_buffer when ODR=0
+ * 04/29/19     020054     AKM              removed dummy on DRI+FIFO+nonDAE. removed care_fifo_buffer when ODR=0
  * 04/26/19     020053     AKM              fixed for bug to prevent UNRELIABLE data.
  * 04/25/19                AKM              use last_sent_cfg for judging "Config not changed"
  * 04/25/19                AKM              update last_sent_cfg and last_config_sent_time only when it is new config
@@ -288,8 +288,8 @@
  *
  **/
 
-// major:02 minor:00 revision:53
+// major:02 minor:00 revision:54
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      53
+#define AK0991X_DRV_VER_REV      54
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
