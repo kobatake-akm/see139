@@ -1019,6 +1019,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
   sns_rc rv;
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");
+  state->start_mag_time = sns_get_system_time();
 
   // Enable Mag Streaming
 
@@ -2732,11 +2733,6 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_con
     return;
   }
 
-  if(is_new_config)
-  {
-    state->last_cal_event_sent_time = sns_get_system_time();
-  }
-
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
   // use prev_cal_id when AK0991X_UNKNOWN_DEVICE_MODE
@@ -2980,12 +2976,9 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   phy_sensor_config.DAE_watermark      = SNS_MAX(cfg.dae_wmk, 1);
   phy_sensor_config.dri_enabled        = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
 
-  state->system_time = sns_get_system_time();
-  state->last_config_sent_time = is_new_config ? state->system_time : state->last_config_sent_time;
-
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u wm %u dae_wm %u is_new_config %d",
-                     (uint32_t)state->last_config_sent_time,
+                     (uint32_t)state->start_mag_time,
                      (uint32_t)(phy_sensor_config.sample_rate),
                      phy_sensor_config.water_mark,
                      phy_sensor_config.DAE_watermark,
@@ -2994,10 +2987,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   pb_send_event(instance,
                 sns_std_sensor_physical_config_event_fields,
                 &phy_sensor_config,
-                state->last_config_sent_time,
+                state->start_mag_time,
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
 
+  state->last_cal_event_sent_time = state->start_mag_time;
   ak0991x_send_cal_event(instance, is_new_config);
 
   state->mag_info.last_sent_cfg = cfg;

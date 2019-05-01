@@ -564,6 +564,11 @@ static void process_fifo_samples(
               (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
               (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
+          // on polling mode in DAE, update start_mag_time for preventing negative timestamp
+          if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING )
+          {
+            state->start_mag_time = state->first_data_ts_of_batch - (2 * state->half_measurement_time);
+          }
           ak0991x_send_config_event(this, true);
         }
       }

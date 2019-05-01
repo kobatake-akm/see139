@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 05/01/19     020055     AKM              modified timestamp for config event(JIRA1710) Test version
  * 04/29/19     020054     AKM              removed dummy on DRI+FIFO+nonDAE. removed care_fifo_buffer when ODR=0
  * 04/26/19     020053     AKM              fixed for bug to prevent UNRELIABLE data.
  * 04/25/19                AKM              use last_sent_cfg for judging "Config not changed"
@@ -288,8 +289,8 @@
  *
  **/
 
-// major:02 minor:00 revision:54
+// major:02 minor:00 revision:55
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      54
+#define AK0991X_DRV_VER_REV      55
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

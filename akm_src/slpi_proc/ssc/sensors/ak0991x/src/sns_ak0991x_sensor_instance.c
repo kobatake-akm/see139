@@ -176,7 +176,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->system_time =
   state->pre_timestamp =
   state->pre_timestamp_for_orphan =
-  state->last_config_sent_time =
+  state->start_mag_time =
       sns_get_system_time();
 
   state->this_is_first_data = true;
@@ -670,7 +670,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       state->system_time =
       state->pre_timestamp =
       state->pre_timestamp_for_orphan =
-      state->last_config_sent_time =
+      state->start_mag_time =
           sns_get_system_time();
 
       // update averaged_interval
