@@ -22,7 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 05/01/19     020055     AKM              modified timestamp for config event(JIRA1710) Test version
+ * 05/03/19     020055     AKM              modified timestamp for config event
  * 04/29/19     020054     AKM              removed dummy on DRI+FIFO+nonDAE. removed care_fifo_buffer when ODR=0
  * 04/26/19     020053     AKM              fixed for bug to prevent UNRELIABLE data.
  * 04/25/19                AKM              use last_sent_cfg for judging "Config not changed"
