@@ -2652,7 +2652,6 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-//  int dummy_num = 0;
 
   if(state->this_is_the_last_flush || SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
@@ -2661,18 +2660,6 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       if(!state->irq_info.detect_irq_event) // flush request received.
       {
         ak0991x_get_st1_status(instance);
-/*
-        if( (state->this_is_the_last_flush) &&
-            (state->averaged_interval > 0) )
-        {
-          dummy_num = (state->system_time + 4 * 19200 - (state->pre_timestamp + state->num_samples * state->averaged_interval)) / state->averaged_interval;
-          if(dummy_num > 0)
-          {
-            AK0991X_INST_PRINT(HIGH, instance,"detect gap at last flush. add %d dummy", dummy_num);
-            state->num_samples+=dummy_num;
-          }
-        }
-*/
       }
       // else, use state->num_samples when check DRDY status by INTERRUPT_EVENT
     }

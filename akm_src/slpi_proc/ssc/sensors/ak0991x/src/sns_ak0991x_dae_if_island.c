@@ -392,7 +392,6 @@ static void process_fifo_samples(
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
-  sns_time margin = sns_convert_ns_to_ticks(4 * 1000 * 1000);
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -451,8 +450,8 @@ static void process_fifo_samples(
           }
           else
           {
-            // when current time is greater than expected polling time, add data
-            state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl + margin ) ? 1 : 0;
+            // when flush requested time(=dae_event_time) is geater than expected polling time, add data
+            state->num_samples = (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
           }
 
           if( state->num_samples > 0 && state->fifo_flush_in_progress )
