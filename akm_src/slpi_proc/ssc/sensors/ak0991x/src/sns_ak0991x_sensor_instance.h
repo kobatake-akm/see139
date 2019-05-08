@@ -259,7 +259,7 @@ typedef struct ak0991x_instance_state
   sns_time half_measurement_time;
   sns_time hb_timer_fire_time;
   sns_time dae_event_time;
-  sns_time start_mag_time;
+  sns_time config_set_time;
   sns_time last_cal_event_sent_time;
   sns_time dae_polling_offset;
   sns_timer_sensor_config req_payload;

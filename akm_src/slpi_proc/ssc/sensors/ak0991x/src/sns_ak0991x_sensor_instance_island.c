@@ -406,8 +406,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   if( ak0991x_handle_device_mode_stream(this) == SNS_RC_SUCCESS)
   {
     // report
-    state->last_cal_event_sent_time = sns_get_system_time();
-    ak0991x_send_cal_event(this, true);
+    ak0991x_send_cal_event(this, true);    // send new cal event
   }
 
   // Handle timer data stream for S4S

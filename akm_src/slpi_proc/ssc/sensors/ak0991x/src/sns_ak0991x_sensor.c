@@ -1861,8 +1861,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
              ak0991x_update_registry(this, instance);
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
-             inst_state->last_cal_event_sent_time = sns_get_system_time();
-             ak0991x_send_cal_event(instance, true);
+             ak0991x_send_cal_event(instance, true);    // send previous cal event
           }
           else
           {
@@ -1885,8 +1884,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               AK0991X_PRINT(
                MED, this, "new request. SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate,
                decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
-
-              inst_state->new_client_request = true; // ignore self test
             }
             else if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
                new_request->message_id)

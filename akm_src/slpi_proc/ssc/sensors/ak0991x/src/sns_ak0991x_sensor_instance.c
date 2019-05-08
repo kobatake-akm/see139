@@ -176,7 +176,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->system_time =
   state->pre_timestamp =
   state->pre_timestamp_for_orphan =
-  state->start_mag_time =
       sns_get_system_time();
 
   state->this_is_first_data = true;
@@ -593,9 +592,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         (int)desired_sample_rate, (int)(desired_report_rate*100));
 
     // If already a request, send out existing config before the next data events are sent
-    if (desired_sample_rate > 0)
+    if (desired_sample_rate > 0 &&
+        state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF)
     {
-      ak0991x_send_config_event(this, false);
+      ak0991x_send_config_event(this, false); // send previous config event
+      ak0991x_send_cal_event(this, false);    // send previous cal event
     }
 
     rv = ak0991x_mag_match_odr(desired_sample_rate,
@@ -649,7 +650,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
       if(!state->in_clock_error_procedure && !ak0991x_dae_if_available(this))
       {
-        ak0991x_send_config_event(this, false);
+        ak0991x_send_config_event(this, false); // send previous config event
+        ak0991x_send_cal_event(this, false);    // send previous cal event
       }
 
       // Turn COM port OFF
@@ -664,19 +666,23 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
     state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
 
+    state->system_time =
+    state->config_set_time =
+    sns_get_system_time();
+
+    // after inst init.
     if(state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF)
     {
       // reset timestamp
-      state->system_time =
       state->pre_timestamp =
       state->pre_timestamp_for_orphan =
-      state->start_mag_time =
-          sns_get_system_time();
+      state->system_time;
 
       // update averaged_interval
       ak0991x_reset_averaged_interval(this);
 
-      ak0991x_send_config_event(this, true);
+      ak0991x_send_config_event(this, true); // send new config event
+      ak0991x_send_cal_event(this, true);    // send new cal event
     }
 
     if(state->in_clock_error_procedure)
@@ -703,8 +709,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       return SNS_RC_SUCCESS;
     }
 #endif //AK0991X_ENABLE_DAE
-
-    state->system_time = sns_get_system_time();
 
     if( !ak0991x_dae_if_available(this) && state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
     {
