@@ -450,8 +450,9 @@ static void process_fifo_samples(
           }
           else
           {
-            // when flush requested time(=dae_event_time) is geater than expected polling time, add data
-            state->num_samples = (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
+            // when flush requested time(=dae_event_time) is greater than 80% sampling and enough time, add data
+            state->num_samples = (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * 4/5
+                && state->system_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
           }
 
           if( state->num_samples > 0 && state->fifo_flush_in_progress )
@@ -563,6 +564,7 @@ static void process_fifo_samples(
               (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
               (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
+          state->config_set_time = state->first_data_ts_of_batch - (2 * state->half_measurement_time);
           ak0991x_send_config_event(this, true);  // send new config event
           ak0991x_send_cal_event(this, false);    // send previous cal event
         }

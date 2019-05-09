@@ -2743,6 +2743,11 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_cal
   cal_event.status = (state->cal.id == AK0991X_UNKNOWN_DEVICE_MODE) ?
       SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE : SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
   cal_event.has_cal_id               = true;
+
+  AK0991X_INST_PRINT(HIGH, instance,
+                     "tx CAL_EVENT Time %u",
+                     (uint32_t)state->last_cal_event_sent_time);
+
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx CAL_EVENT: cm %X/%X/%X bias %X/%X/%X",
                      state->cal.params[cal_event.cal_id].corr_mat.e00,

@@ -1686,7 +1686,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               ak0991x_instance_state *inst_state =
                 (ak0991x_instance_state*) instance->state->state;
               ak0991x_reval_instance_config(this, instance);
-              if(inst_state->new_self_test_request)
+              if(inst_state->in_self_test)
               {
                 AK0991X_PRINT(LOW, this, "new_self_test_request = true");
                 ak0991x_set_self_test_inst_config(this, instance);
@@ -1851,7 +1851,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       {
         // if self-test is running,
         // Keep the exist_request and Reject the incoming stream request.
-        if (!inst_state->new_self_test_request)
+        if (!inst_state->in_self_test)
         {
           if(SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id) 
           {
@@ -1891,7 +1891,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               if(ak0991x_extract_self_test_info(this, instance, new_request))
               {
                 AK0991X_PRINT(LOW, this, "new_self_test_request = true");
-                inst_state->new_self_test_request = true;
+                inst_state->in_self_test = true;
                    AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
                 ak0991x_set_self_test_inst_config(this, instance);
               }
