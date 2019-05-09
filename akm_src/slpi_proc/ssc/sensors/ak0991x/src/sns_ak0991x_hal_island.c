@@ -3327,12 +3327,17 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
       }
       else if(!state->in_clock_error_procedure && !ak0991x_dae_if_available(this))
       {
-        // config changed. send config event if non DAE mode
-        AK0991X_INST_PRINT(MED, this, "Send new config: odr=0x%02X fifo_wmk=%d",
-            (uint32_t)state->mag_info.cur_cfg.odr,
-            (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
+        // if config was updated, send correct config.
+        if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
+            state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk )
+        {
+          // config changed. send config event if non DAE mode
+          AK0991X_INST_PRINT(MED, this, "Send new config: odr=0x%02X fifo_wmk=%d",
+              (uint32_t)state->mag_info.cur_cfg.odr,
+              (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
+          ak0991x_send_config_event(this, true);  // send new config event
+          ak0991x_send_cal_event(this, false);    // send previous cal event
+        }
       }
     }
   }

@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 05/08/19                AKM              modified for sending cal event on self test.
+ * 05/09/19                AKM              modified for sending only config event when "Config not changed" on nonDAE.
+ * 05/08/19                AKM              modified for sending cal event on self test for DAE.
  * 05/07/19                AKM              modified for negative timestamp when polling+DAE.
  * 05/03/19     020055     AKM              modified timestamp for config event
  * 04/29/19     020054     AKM              removed dummy on DRI+FIFO+nonDAE. removed care_fifo_buffer when ODR=0

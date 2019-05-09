@@ -450,9 +450,17 @@ static void process_fifo_samples(
           }
           else
           {
-            // when flush requested time(=dae_event_time) is greater than 80% sampling and enough time, add data
-            state->num_samples = (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * 4/5
-                && state->system_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
+            if( !state->fifo_flush_in_progress ) // last batch but not last flush
+            {
+              // only timer event. skip all flush requests.
+              state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
+            }
+            else  // last flush data
+            {
+              // if there is enough gap before next coming first data(=polling_offset) time, add data
+              state->num_samples =
+                  ( state->dae_polling_offset > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
+            }
           }
 
           if( state->num_samples > 0 && state->fifo_flush_in_progress )
@@ -469,11 +477,13 @@ static void process_fifo_samples(
 
     if( state->is_orphan )  // orphan
     {
-      AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d, pre_orphan=%u, event=%u, intvl=%u",
+      AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d, pre_orphan=%u, event=%u, intvl=%u sys=%u offset=%u",
           state->num_samples,
           (uint32_t)state->pre_timestamp_for_orphan,
           (uint32_t)state->dae_event_time,
-          (uint32_t)sampling_intvl);
+          (uint32_t)sampling_intvl,
+          (uint32_t)state->system_time,
+          (uint32_t)state->dae_polling_offset);
 
     }
   }
@@ -542,7 +552,6 @@ static void process_fifo_samples(
           }
           state->first_data_ts_of_batch = state->interrupt_timestamp;
           state->averaged_interval = sampling_intvl;
-          state->dae_polling_offset += sampling_intvl;
         }
 
 #ifdef AK0991X_ENABLE_TS_DEBUG
