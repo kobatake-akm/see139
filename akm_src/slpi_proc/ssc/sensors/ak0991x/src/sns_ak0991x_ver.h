@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 05/10/19     020056     AKM              add dummy data when flush only request on DRI+FIFO+nonDAE
  * 05/09/19                AKM              modified for sending only config event when "Config not changed" on nonDAE.
  * 05/08/19                AKM              modified for sending cal event on self test for DAE.
  * 05/07/19                AKM              modified for negative timestamp when polling+DAE.
@@ -292,8 +293,8 @@
  *
  **/
 
-// major:02 minor:00 revision:55
+// major:02 minor:00 revision:56
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      55
+#define AK0991X_DRV_VER_REV      56
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

@@ -457,9 +457,10 @@ static void process_fifo_samples(
             }
             else  // last flush data
             {
-              // if there is enough gap before next coming first data(=polling_offset) time, add data
+              // if there is enough gap before next coming first data(=polling_offset) and system time, add data
               state->num_samples =
-                  ( state->dae_polling_offset > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
+                  ( state->dae_polling_offset > state->pre_timestamp_for_orphan + sampling_intvl &&
+                    state->system_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
             }
           }
 

@@ -1853,18 +1853,11 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
   if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0 ||
       (mag_sample[7] & (inv_fifo_bit)) != 0)
   {
-    if(state->this_is_the_last_flush)
-    {
-      // dummy added data.
-      lsbdata[TRIAXIS_X] = state->mag_info.previous_lsbdata[TRIAXIS_X];
-      lsbdata[TRIAXIS_Y] = state->mag_info.previous_lsbdata[TRIAXIS_Y];
-      lsbdata[TRIAXIS_Z] = state->mag_info.previous_lsbdata[TRIAXIS_Z];
-    }
-    else
-    {
-      AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: HOFL_BIT=1 or INV=1");
-      status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
-    }
+    // data is unreliable. use previous measured data instead.
+    lsbdata[TRIAXIS_X] = state->mag_info.previous_lsbdata[TRIAXIS_X];
+    lsbdata[TRIAXIS_Y] = state->mag_info.previous_lsbdata[TRIAXIS_Y];
+    lsbdata[TRIAXIS_Z] = state->mag_info.previous_lsbdata[TRIAXIS_Z];
+    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: HOFL_BIT=1 or INV=1 ST2=0x%X", mag_sample[7]);
   }
 
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
@@ -2651,6 +2644,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
+  uint8_t num_count = 0;
 
   if(state->this_is_the_last_flush || SNS_RC_SUCCESS == ak0991x_check_ascp(instance))
   {
@@ -2659,6 +2653,19 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       if(!state->irq_info.detect_irq_event) // flush request received.
       {
         ak0991x_get_st1_status(instance);
+
+        // add dummy when last flush. For MAG-048 on DRI+FIFO caused by calculated average_intarval mismatch on flush only measurement
+        if( (state->this_is_the_last_flush) &&
+            (state->averaged_interval > 0) )
+        {
+          while( state->system_time + sns_convert_ns_to_ticks(4 * 1000 * 1000) >
+                 state->pre_timestamp + state->averaged_interval * (state->num_samples + 1) ) // margin 4msec
+          {
+            state->num_samples++;
+            AK0991X_INST_PRINT(LOW, instance,"add dummy");
+          }
+          state->num_samples = SNS_MIN(state->num_samples, AK0991X_MAX_FIFO_SIZE);
+        }
       }
       // else, use state->num_samples when check DRDY status by INTERRUPT_EVENT
     }
@@ -2666,7 +2673,6 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
     {
       if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)
       {
-        uint8_t num_count = 0;
         ak0991x_get_st1_status(instance);
 
         // check num_samples when the last fifo flush to prevent negative timestamp
