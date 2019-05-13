@@ -592,6 +592,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     AK0991X_INST_PRINT(LOW, this, "desired_SR=%d desired_RR=%d/100",
         (int)desired_sample_rate, (int)(desired_report_rate*100));
 
+    // If already a request, send out existing config before the next data events are sent
+    if (desired_sample_rate > 0 &&
+        state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF)
+    {
+      ak0991x_send_config_event(this, false); // send previous config event
+      ak0991x_send_cal_event(this, false);    // send previous cal event
+    }
+
     rv = ak0991x_mag_match_odr(desired_sample_rate,
                                &mag_chosen_sample_rate,
                                &mag_chosen_sample_rate_reg_value,
@@ -652,16 +660,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                                         state->com_port_info.port_handle,
                                                         false);
       return SNS_RC_SUCCESS;
-    }
-    else  // config changed
-    {
-      // If already a request, send out existing config before the next data events are sent
-      if (desired_sample_rate > 0 &&
-          state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF)
-      {
-        ak0991x_send_config_event(this, false); // send previous config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
     }
 
     // set current config values in state parameter

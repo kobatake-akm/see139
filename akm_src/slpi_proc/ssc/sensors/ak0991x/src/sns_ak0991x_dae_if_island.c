@@ -604,6 +604,8 @@ static void process_fifo_samples(
                 (uint32_t)state->mag_info.cur_cfg.odr,
                 (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
                 (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+
+            // only send previous config event. no need to send cal event
             ak0991x_send_config_event(this, false);  // send previous config event
           }
         }
