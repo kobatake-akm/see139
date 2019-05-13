@@ -457,16 +457,22 @@ static void process_fifo_samples(
             }
             else  // last flush data
             {
-              // if there is enough gap before next coming first data(=polling_offset) timestamp, add data
-              state->num_samples =
-                  ( state->system_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
-
-              if(state->system_time > state->dae_polling_offset)
+              if( state->system_time > state->dae_polling_offset )
               {
-                AK0991X_INST_PRINT(MED, this, "system > polling_offset!!!");
+                // num_samples=0 when system_time is more than 1 sample time advanced from dae_polling_offset(MAG-048)
+                state->num_samples = (state->system_time - state->dae_polling_offset < sampling_intvl) ? 1 : 0;
+                AK0991X_INST_PRINT(LOW, this, "system > polling_offset!!! num=%d delta= %u",
+                    state->num_samples,
+                    state->system_time - state->dae_polling_offset);
+              }
+              else
+              {
+                // if system_time is before polling_offset, but advanced compare to next coming sample, add data
+                state->num_samples =
+                    ( state->system_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
               }
 
-              AK0991X_INST_PRINT(MED, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u p_off=%u",
+              AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u p_off=%u",
                   state->num_samples,
                   state->is_orphan,
                   (uint32_t)state->system_time,
@@ -489,7 +495,7 @@ static void process_fifo_samples(
 
     if( state->is_orphan )  // orphan
     {
-      AK0991X_INST_PRINT(MED, this, "orphan num_samples=%d, pre_orphan=%u, event=%u, intvl=%u sys=%u offset=%u",
+      AK0991X_INST_PRINT(LOW, this, "orphan num_samples=%d, pre_orphan=%u, event=%u, intvl=%u sys=%u offset=%u",
           state->num_samples,
           (uint32_t)state->pre_timestamp_for_orphan,
           (uint32_t)state->dae_event_time,
@@ -576,19 +582,30 @@ static void process_fifo_samples(
           state->this_is_first_data);
 #endif
 
-        // if config was updated, send correct config.
-        if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
-            state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
-            state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
+        if( state->mag_info.cur_cfg.num != state->mag_info.last_sent_cfg.num )
         {
-          AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-              (uint32_t)state->mag_info.cur_cfg.odr,
-              (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-              (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+          // if config was updated, send correct config.
+          if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
+              state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
+              state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
+          {
+            AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+                (uint32_t)state->mag_info.cur_cfg.odr,
+                (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+                (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-          state->config_set_time = state->first_data_ts_of_batch - (2 * state->half_measurement_time);
-          ak0991x_send_config_event(this, true);  // send new config event
-          ak0991x_send_cal_event(this, false);    // send previous cal event
+            state->config_set_time = state->first_data_ts_of_batch - (2 * state->half_measurement_time);
+            ak0991x_send_config_event(this, true);  // send new config event
+            ak0991x_send_cal_event(this, false);    // send previous cal event
+          }
+          else
+          {
+            AK0991X_INST_PRINT(HIGH, this, "Config not changed in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+                (uint32_t)state->mag_info.cur_cfg.odr,
+                (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+                (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+            ak0991x_send_config_event(this, false);  // send previous config event
+          }
         }
       }
       else  // orphan

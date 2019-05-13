@@ -154,6 +154,7 @@ typedef struct ak0991x_config_event_info
   ak0991x_mag_odr  odr;
   uint16_t         fifo_wmk;
   uint32_t         dae_wmk;
+  uint32_t         num;
 } ak0991x_config_event_info;
 
 typedef struct ak0991x_mag_info

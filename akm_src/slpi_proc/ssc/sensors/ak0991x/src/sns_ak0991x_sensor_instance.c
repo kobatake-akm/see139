@@ -85,6 +85,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
       (int)(0xFF & AK0991X_DRIVER_VERSION) );
 
   /**-------------------------Init Mag State-------------------------*/
+  state->mag_info.cur_cfg.num = 0;
   state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
   state->mag_info.last_sent_cfg.odr = AK0991X_MAG_ODR_OFF;
 
@@ -664,6 +665,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     }
 
     // set current config values in state parameter
+    state->mag_info.cur_cfg.num++;
     state->mag_info.cur_cfg.odr       = req_cfg.odr;
     state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
     state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
