@@ -2354,8 +2354,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
       state->num_samples = state->mag_info.cur_cfg.fifo_wmk;
     }
 
-    if( (state->heart_beat_attempt_count==0) &&
-        (state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2) > AK0991X_MAX_FIFO_SIZE)
+    if((state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2) > AK0991X_MAX_FIFO_SIZE)
     {
       SNS_INST_PRINTF(ERROR, instance,
           "FIFO size should not be greater than AK0991X_MAX_FIFO_SIZE."

@@ -234,18 +234,12 @@ static bool send_mag_config(sns_sensor_instance *this)
         config_req.polling_config.polling_interval_ticks;
 
     // when the polling_offset is smaller than system time + measurement time + margin(following soft reset and I3C enter time),
-    // add polling_interval_ticks for preventing UNRELIABLE data
-    if( (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
-        (state->mag_info.previous_lsbdata[TRIAXIS_Y] == 0) &&
-        (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0)
-      )
+    // add polling_interval_ticks
+    uint8_t count = 0;
+    while( (config_req.polling_config.polling_offset < (state->system_time + 4 * state->half_measurement_time)) && (count < 4) )
     {
-      uint8_t count = 0;
-      while( (config_req.polling_config.polling_offset < (state->system_time + 4 * state->half_measurement_time)) && (count < 4) )
-      {
-        config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
-        count++;
-      }
+      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
+      count++;
     }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
   }
@@ -457,26 +451,22 @@ static void process_fifo_samples(
             }
             else  // last flush data
             {
-              if( state->system_time > state->dae_polling_offset )
+              // prevent negative delay
+              if( state->pre_timestamp_for_orphan + sampling_intvl > state->system_time )
               {
-                // num_samples=0 when system_time is more than 1 sample time advanced from dae_polling_offset(MAG-048)
-                state->num_samples = (state->system_time - state->dae_polling_offset < sampling_intvl) ? 1 : 0;
-                AK0991X_INST_PRINT(LOW, this, "system > polling_offset!!! num=%d delta= %u",
-                    state->num_samples,
-                    state->system_time - state->dae_polling_offset);
+                state->num_samples = 0;
               }
               else
               {
-                // if system_time is before polling_offset, but advanced compare to next coming sample, add data
-                state->num_samples =
-                    ( state->system_time > state->pre_timestamp_for_orphan + sampling_intvl ) ? 1 : 0;
+                state->num_samples = ((state->dae_polling_offset - state->system_time) / sampling_intvl) ? 1 : 0;
               }
 
-              AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u p_off=%u",
+              AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u config=%u, p_off=%u",
                   state->num_samples,
                   state->is_orphan,
                   (uint32_t)state->system_time,
                   (uint32_t)state->pre_timestamp_for_orphan,
+                  (uint32_t)state->config_set_time,
                   (uint32_t)state->dae_polling_offset);
             }
           }
@@ -594,7 +584,7 @@ static void process_fifo_samples(
                 (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
                 (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-            state->config_set_time = state->first_data_ts_of_batch - (2 * state->half_measurement_time);
+//            state->config_set_time = state->first_data_ts_of_batch - (2 * state->half_measurement_time);
             ak0991x_send_config_event(this, true);  // send new config event
             ak0991x_send_cal_event(this, false);    // send previous cal event
           }
