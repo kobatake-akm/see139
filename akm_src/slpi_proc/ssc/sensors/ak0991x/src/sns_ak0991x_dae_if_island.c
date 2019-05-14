@@ -162,8 +162,10 @@ static bool send_mag_config(sns_sensor_instance *this)
   ak0991x_dae_stream     *dae_stream = &state->dae_if.mag;
   ak0991x_mag_info       *mag_info   = &state->mag_info;
   sns_dae_set_streaming_config config_req = sns_dae_set_streaming_config_init_default;
-  uint8_t encoded_msg[sns_dae_set_streaming_config_size];
   uint16_t batch_num = 0;
+  uint8_t encoded_msg[sns_dae_set_streaming_config_size];
+  uint8_t count = 0;
+  sns_time margin =  sns_convert_ns_to_ticks(8 * 1000 * 1000);  // set margin 8 msec
 
   sns_request req = {
     .message_id   = SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG,
@@ -233,10 +235,17 @@ static bool send_mag_config(sns_sensor_instance *this)
         config_req.polling_config.polling_interval_ticks *
         config_req.polling_config.polling_interval_ticks;
 
-    // when the polling_offset is smaller than system time + measurement time + margin(following soft reset and I3C enter time),
-    // add polling_interval_ticks
-    uint8_t count = 0;
-    while( (config_req.polling_config.polling_offset < (state->system_time + 4 * state->half_measurement_time)) && (count < 4) )
+    // shift calculated polling_offset time if it is too early.
+    if( (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
+        (state->mag_info.previous_lsbdata[TRIAXIS_Y] == 0) &&
+        (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0)
+      )
+    {
+      // when the polling_offset is smaller than system time + measurement time + margin(following soft reset and I3C enter time),
+      margin += (2 * state->half_measurement_time);
+    }
+    // for adding margin for following soft reset and I3C enter time
+    while( (config_req.polling_config.polling_offset < (state->system_time + margin )) && (count < 4) )
     {
       config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
       count++;
