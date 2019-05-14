@@ -598,16 +598,6 @@ static void process_fifo_samples(
             ak0991x_send_config_event(this, true);  // send new config event
             ak0991x_send_cal_event(this, false);    // send previous cal event
           }
-          else
-          {
-            AK0991X_INST_PRINT(HIGH, this, "Config not changed in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-                (uint32_t)state->mag_info.cur_cfg.odr,
-                (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-                (uint32_t)state->mag_info.cur_cfg.dae_wmk);
-
-            // only send previous config event. no need to send cal event
-            ak0991x_send_config_event(this, false);  // send previous config event
-          }
         }
       }
       else  // orphan

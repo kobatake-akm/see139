@@ -649,12 +649,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_dae_if_flush_hw(this);
       }
 
-      if( !state->in_clock_error_procedure && !ak0991x_dae_if_available(this) )
-      {
-        // only send previous config event. no need to send cal event
-        ak0991x_send_config_event(this, false); // send previous config event
-      }
-
       // Turn COM port OFF
       state->scp_service->api->sns_scp_update_bus_power(
                                                         state->com_port_info.port_handle,
