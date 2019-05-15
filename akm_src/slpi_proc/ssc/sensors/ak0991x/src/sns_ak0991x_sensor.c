@@ -1763,7 +1763,10 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                    Putting all HW resources (sensor HW, COM port, power rail)in
                    low power state happens in Instance deinit().*/
 
-      ak0991x_reval_instance_config(this, instance);
+      if( SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG == exist_request->message_id )
+      {
+        ak0991x_reval_instance_config(this, instance);
+      }
     }
   }
   else if(NULL != new_request)
