@@ -641,8 +641,17 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ak0991x_dae_if_flush_hw(this);
       }
 
-      // only send config. No cal event send for MAG-213
-      ak0991x_send_config_event(this, false); // send previous config event
+      // self test done and resumed. No need to send config event.
+      if( state->in_self_test )
+      {
+        AK0991X_INST_PRINT(LOW, this, "selftest done!" );
+        state->in_self_test = false;
+      }
+      else
+      {
+        ak0991x_send_config_event(this, false); // send previous config event
+        ak0991x_send_cal_event(this, false);    // send previous cal event
+      }
 
       // Turn COM port OFF
       state->scp_service->api->sns_scp_update_bus_power(
@@ -871,9 +880,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       AK0991X_INST_PRINT(LOW, this, "SENSOR_TEST_CONFIG for selftest" );
       ak0991x_run_self_test(this);
+      AK0991X_INST_PRINT(LOW, this, "selftest done!" );
+      state->in_self_test = false;
     }
-    AK0991X_INST_PRINT(LOW, this, "selftest done!" );
-    state->in_self_test = false;
   }
 
   // Turn COM port OFF

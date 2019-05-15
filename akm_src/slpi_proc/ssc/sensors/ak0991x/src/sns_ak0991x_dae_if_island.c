@@ -241,7 +241,7 @@ static bool send_mag_config(sns_sensor_instance *this)
         (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0)
       )
     {
-      // when the polling_offset is smaller than system time + measurement time + margin(following soft reset and I3C enter time),
+      // This is very first data. Needs extra margin to get first reliable data.
       margin += (2 * state->half_measurement_time);
     }
     // for adding margin for following soft reset and I3C enter time
