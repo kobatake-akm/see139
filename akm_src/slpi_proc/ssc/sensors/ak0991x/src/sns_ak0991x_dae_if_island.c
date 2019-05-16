@@ -162,16 +162,15 @@ static bool send_mag_config(sns_sensor_instance *this)
   ak0991x_dae_stream     *dae_stream = &state->dae_if.mag;
   ak0991x_mag_info       *mag_info   = &state->mag_info;
   sns_dae_set_streaming_config config_req = sns_dae_set_streaming_config_init_default;
-  uint16_t batch_num = 0;
   uint8_t encoded_msg[sns_dae_set_streaming_config_size];
   uint8_t count = 0;
-  sns_time margin =  sns_convert_ns_to_ticks(8 * 1000 * 1000);  // set margin 8 msec
-
+  uint16_t batch_num = 0;
+  uint16_t wm;
   sns_request req = {
     .message_id   = SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG,
     .request      = encoded_msg
   };
-  uint16_t wm;
+  sns_time margin =  sns_convert_ns_to_ticks(8 * 1000 * 1000);  // set margin 8 msec
   sns_time meas_usec;
   ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 
@@ -210,7 +209,15 @@ static bool send_mag_config(sns_sensor_instance *this)
   }
 
   config_req.has_data_age_limit_ticks = true;
-  config_req.data_age_limit_ticks = (state->mag_info.max_batch) ? UINT64_MAX : mag_info->flush_period * 1.1f;
+  if(state->mag_info.max_batch)
+  {
+    config_req.data_age_limit_ticks = UINT64_MAX;
+  }
+  else
+  {
+    config_req.data_age_limit_ticks = mag_info->flush_period * 1.1f;
+  }
+
   config_req.has_polling_config  = (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING);
   if( config_req.has_polling_config )
   {
@@ -263,17 +270,17 @@ static bool send_mag_config(sns_sensor_instance *this)
       (uint32_t)config_req.polling_config.polling_offset,
       (uint32_t)config_req.polling_config.polling_interval_ticks);
 
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%x%08x sys=%x%08x inteval_tick=%u",
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_offset=%X%08X sys=%X%08X inteval_tick=%u",
       (uint32_t)(config_req.polling_config.polling_offset>>32),
       (uint32_t)(config_req.polling_config.polling_offset & 0xFFFFFFFF),
       (uint32_t)(state->system_time>>32),
       (uint32_t)(state->system_time & 0xFFFFFFFF),
       (uint32_t)config_req.polling_config.polling_interval_ticks);
 
-  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%x%x, wm=%u,expected_get_data_bytes=%d ",
+  SNS_INST_PRINTF(HIGH, this, "send_mag_config:: dae_watermark=%u, data_age_limit_ticks=0x%X%08X, wm=%u,expected_get_data_bytes=%d ",
                        config_req.dae_watermark,
                        (uint32_t)(config_req.data_age_limit_ticks>>32),
-                       (uint32_t)(config_req.data_age_limit_ticks &0xFFFFFFFF),
+                       (uint32_t)(config_req.data_age_limit_ticks & 0xFFFFFFFF),
                         wm,
                         config_req.expected_get_data_bytes);
 
