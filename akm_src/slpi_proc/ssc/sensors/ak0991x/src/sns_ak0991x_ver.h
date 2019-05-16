@@ -22,8 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 05/14/19     020056     Qualcomm         Sometimes, num_samples exceeding max fifo size and causing
-                                            stack curruption(Stability issue)
+ * 05/16/19     020056     AKM              modified for data_age_limit_ticks to use if-else
+ * 05/14/19                Qualcomm         Sometimes, num_samples exceeding max fifo size and causing
+                                            stack corruption(Stability issue)
  * 05/10/19                AKM              add dummy data when flush only request on DRI+FIFO+nonDAE
  * 05/09/19                AKM              modified for sending only config event when "Config not changed" on nonDAE.
  * 05/08/19                AKM              modified for sending cal event on self test for DAE.
