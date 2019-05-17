@@ -3315,6 +3315,10 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
     AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset.");
   }
+  else
+  {
+    ak0991x_enter_i3c_mode(this, &state->com_port_info, state->scp_service);
+  }
 
   if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
   {

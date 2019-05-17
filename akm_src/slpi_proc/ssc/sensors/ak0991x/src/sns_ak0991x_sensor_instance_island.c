@@ -244,7 +244,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             if (!state->in_clock_error_procedure)
             {
               // actual ODR measurement start.
-              ak0991x_reconfig_hw(this, true);
+              ak0991x_reconfig_hw(this, false);
             }
           }
         }
