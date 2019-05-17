@@ -468,16 +468,17 @@ static void process_fifo_samples(
             }
             else  // last flush data
             {
-              // prevent negative delay
-              if( state->pre_timestamp_for_orphan + sampling_intvl > state->system_time +  sns_convert_ns_to_ticks( 4 * 1000 * 1000ULL ) ) // margin 4[msec]
-              {
-                state->num_samples = 0;
-              }
-              else
-              {
-                state->num_samples = ((state->dae_polling_offset - state->system_time) / sampling_intvl) ? 1 : 0;
-              }
+              state->num_samples = 0;
 
+              // when there is one sample gap
+              if( state->pre_timestamp_for_orphan + sampling_intvl < state->dae_polling_offset )
+              {
+                // prevent negative delay
+                if( state->system_time > state->pre_timestamp_for_orphan + sampling_intvl - sns_convert_ns_to_ticks( 4 * 1000 * 1000ULL ) )
+                {
+                  state->num_samples = 1;
+                }
+              }
               AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u config=%u, p_off=%u",
                   state->num_samples,
                   state->is_orphan,
