@@ -170,7 +170,7 @@ static bool send_mag_config(sns_sensor_instance *this)
     .message_id   = SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG,
     .request      = encoded_msg
   };
-  sns_time margin =  sns_convert_ns_to_ticks(8 * 1000 * 1000);  // set margin 8 msec
+  sns_time margin =  sns_convert_ns_to_ticks(4 * 1000 * 1000);  // set margin 4 msec
   sns_time meas_usec;
   ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 
@@ -248,10 +248,11 @@ static bool send_mag_config(sns_sensor_instance *this)
         (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0)
       )
     {
-      // This is very first data. Needs extra margin to get first reliable data.
+      // This is very first data.
+      // Needs extra margin to get first reliable data. Required at least 1 measurement time
       margin += (2 * state->half_measurement_time);
     }
-    // for adding margin for following soft reset and I3C enter time
+    // add margin
     while( (config_req.polling_config.polling_offset < (state->system_time + margin )) && (count < 4) )
     {
       config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
@@ -468,7 +469,7 @@ static void process_fifo_samples(
             else  // last flush data
             {
               // prevent negative delay
-              if( state->pre_timestamp_for_orphan + sampling_intvl > state->system_time )
+              if( state->pre_timestamp_for_orphan + sampling_intvl > state->system_time +  sns_convert_ns_to_ticks( 4 * 1000 * 1000ULL ) ) // margin 4[msec]
               {
                 state->num_samples = 0;
               }
@@ -879,7 +880,8 @@ static void process_response(
         if(SNS_STD_ERROR_NO_ERROR == resp.err)
         {
           dae_stream->state = STREAMING;
-          ak0991x_reconfig_hw(this, true);
+          // No reset call when polling mode.
+          ak0991x_reconfig_hw(this, (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING));
           state->config_step = AK0991X_CONFIG_IDLE;
         }
         else
