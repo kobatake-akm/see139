@@ -867,8 +867,9 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   // Configure control register 2
   if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
+    uint8_t enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
     buffer[1] = 0x0
-      | ((uint8_t)state->mag_info.use_fifo << 7) // FIFO bit
+      | (enable_fifo << 7) // FIFO bit
       | (state->mag_info.sdr << 6)               // SDR bit
       | (uint8_t)desired_odr;                    // MODE[4:0] bits
   }

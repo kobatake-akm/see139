@@ -881,8 +881,8 @@ static void process_response(
         if(SNS_STD_ERROR_NO_ERROR == resp.err)
         {
           dae_stream->state = STREAMING;
-          // No reset call when polling mode.
-          ak0991x_reconfig_hw(this, (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING));
+          // No reset call.
+          ak0991x_reconfig_hw(this, false);
           state->config_step = AK0991X_CONFIG_IDLE;
         }
         else
