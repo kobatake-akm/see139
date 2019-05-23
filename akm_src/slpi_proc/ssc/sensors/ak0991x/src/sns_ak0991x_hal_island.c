@@ -2981,6 +2981,12 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
 
   state->mag_info.last_sent_cfg = cfg;
 
+  if( is_new_config )
+  {
+    // done new config process
+    state->processing_new_config = false;
+  }
+
   return SNS_RC_SUCCESS;
 }
 

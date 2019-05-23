@@ -431,7 +431,9 @@ static void process_fifo_samples(
   // calculate num_samples
   if(!state->in_clock_error_procedure)
   {
-    state->is_orphan = ( state->dae_event_time < state->config_set_time );
+    state->is_orphan =
+        ( odr != state->mag_info.cur_cfg.odr ) ||
+        ( fifo_wmk != state->mag_info.cur_cfg.fifo_wmk );
 
     // calc num_samples
     {
@@ -544,31 +546,24 @@ static void process_fifo_samples(
         }
         else
         {
-          if(state->this_is_first_data)
-          {
-            if( state->dae_event_time > state->dae_polling_offset - sampling_intvl/2 &&
-                state->dae_event_time < state->dae_polling_offset + sampling_intvl/2 )
-            {
-              state->interrupt_timestamp = state->dae_polling_offset;
-            }
-            else
-            {
-              state->interrupt_timestamp = state->dae_event_time;
-            }
-          }
-          else
+          state->interrupt_timestamp = state->dae_event_time;
+
+          // use ideal interval for more than 50Hz ODR because of the timer jitter
+          if( !state->this_is_first_data && (sampling_intvl < 384000 ) ) 
           {
             state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
-            if( state->this_is_the_last_flush && state->fifo_flush_in_progress )
-            {
-              AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u p_off=%u",
-                  state->total_samples,
-                  (uint32_t)state->pre_timestamp_for_orphan,
-                  (uint32_t)state->interrupt_timestamp,
-                  (uint32_t)state->system_time,
-                  (uint32_t)state->dae_polling_offset);
-            }
           }
+          
+          if( state->this_is_the_last_flush && state->fifo_flush_in_progress )
+          {
+            AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u p_off=%u",
+                state->total_samples,
+                (uint32_t)state->pre_timestamp_for_orphan,
+                (uint32_t)state->interrupt_timestamp,
+                (uint32_t)state->system_time,
+                (uint32_t)state->dae_polling_offset);
+          }
+
           state->first_data_ts_of_batch = state->interrupt_timestamp;
           state->averaged_interval = sampling_intvl;
         }
@@ -582,16 +577,22 @@ static void process_fifo_samples(
           state->this_is_first_data);
 #endif
 
-        if( state->mag_info.cur_cfg.num != state->mag_info.last_sent_cfg.num && 
-            state->dae_event_time > state->config_set_time)
+        if( state->mag_info.cur_cfg.num != state->mag_info.last_sent_cfg.num )
         {
-          AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-              (uint32_t)state->mag_info.cur_cfg.odr,
-              (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-              (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+          // if config was updated, send correct config.
+          if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
+              state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
+              state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
+          {
+            AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+                (uint32_t)state->mag_info.cur_cfg.odr,
+                (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+                (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-          ak0991x_send_config_event(this, true);  // send new config event
-          ak0991x_send_cal_event(this, false);    // send previous cal event
+//            state->config_set_time = state->first_data_ts_of_batch - (2 * state->half_measurement_time);
+            ak0991x_send_config_event(this, true);  // send new config event
+            ak0991x_send_cal_event(this, false);    // send previous cal event
+          }
         }
       }
       else  // orphan

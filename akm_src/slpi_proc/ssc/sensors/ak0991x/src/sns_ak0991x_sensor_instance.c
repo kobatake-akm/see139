@@ -645,33 +645,20 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     state->system_time = state->config_set_time = sns_get_system_time();
 
-    // check config not changed. If same, no change. 
-    if( state->mag_info.last_sent_cfg.fifo_wmk == req_cfg.fifo_wmk &&
+    // check if config not changed.
+    if( !state->processing_new_config &&
+        state->mag_info.last_sent_cfg.fifo_wmk == req_cfg.fifo_wmk &&
         state->mag_info.last_sent_cfg.odr == req_cfg.odr &&
         ((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
       AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d", state->total_samples);
 
-      if(ak0991x_dae_if_available(this))
-      {
-        ak0991x_dae_if_flush_hw(this);
-      }
-
       // self test done and resumed. No need to send config event.
       if( state->in_self_test )
       {
         AK0991X_INST_PRINT(LOW, this, "selftest done!" );
         state->in_self_test = false;
-      }
-      else
-      {
-        if(!ak0991x_dae_if_available(this))
-        {
-          // just send config event without re-config-hw
-          ak0991x_send_config_event(this, true);  // send new config event
-          ak0991x_send_cal_event(this, false);    // send previous cal event
-        }
       }
 
       // Turn COM port OFF
@@ -680,6 +667,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                                         false);
       return SNS_RC_SUCCESS;
     }
+
+    // new config received. start processing for new config.
+    state->processing_new_config = true;
 
     // after inst init.
     if( state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF &&

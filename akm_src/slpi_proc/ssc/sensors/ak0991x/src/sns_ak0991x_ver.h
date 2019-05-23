@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 05/23/19                AKM              Use only dae_event_time for TS on polling with < 50Hz ODR. 
+ *                                          Modified Config not changed judge.
  * 05/17/19                AKM              Removed sw reset for DAE when ODR changed. Adjusted polling_offset.
  * 05/16/19     020056     AKM              modified for data_age_limit_ticks to use if-else
  * 05/14/19                Qualcomm         Sometimes, num_samples exceeding max fifo size and causing
