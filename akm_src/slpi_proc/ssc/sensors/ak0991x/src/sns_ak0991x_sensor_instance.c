@@ -628,7 +628,24 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         (uint32_t)state->mag_info.flush_period,
         state->mag_info.flush_only?1:0,
         state->mag_info.max_batch?1:0 );
+    
+    // If already a request, send out existing config
+    if (desired_sample_rate > 0 &&
+        state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF)
+    {
+      ak0991x_send_config_event(this, false); // send previous config event
+      ak0991x_send_cal_event(this, false);    // send previous cal event
+    }
 
+    // set current config values in state parameter
+    state->mag_info.cur_cfg.num++;
+    state->mag_info.cur_cfg.odr       = req_cfg.odr;
+    state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
+    state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
+
+    state->system_time = state->config_set_time = sns_get_system_time();
+
+    // check config not changed. If same, no change. 
     if( state->mag_info.last_sent_cfg.fifo_wmk == req_cfg.fifo_wmk &&
         state->mag_info.last_sent_cfg.odr == req_cfg.odr &&
         ((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
@@ -649,8 +666,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       }
       else
       {
-        ak0991x_send_config_event(this, false); // send previous config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
+        if(!ak0991x_dae_if_available(this))
+        {
+          // just send config event without re-config-hw
+          ak0991x_send_config_event(this, true);  // send new config event
+          ak0991x_send_cal_event(this, false);    // send previous cal event
+        }
       }
 
       // Turn COM port OFF
@@ -659,24 +680,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                                         false);
       return SNS_RC_SUCCESS;
     }
-    else      // config changed
-    {
-      // If already a request, send out existing config
-      if (desired_sample_rate > 0 &&
-          state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF)
-      {
-        ak0991x_send_config_event(this, false); // send previous config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
-    }
-
-    // set current config values in state parameter
-    state->mag_info.cur_cfg.num++;
-    state->mag_info.cur_cfg.odr       = req_cfg.odr;
-    state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
-    state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
-
-    state->system_time = state->config_set_time = sns_get_system_time();
 
     // after inst init.
     if( state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF &&
