@@ -472,13 +472,15 @@ static void process_fifo_samples(
 
               if( state->pre_timestamp_for_orphan + sampling_intvl < state->dae_polling_offset )
               {
+                state->num_samples = ( (( state->dae_polling_offset - state->pre_timestamp_for_orphan + sampling_intvl/2 ) / sampling_intvl) > 1 ) ? 1 : 0;
+              }
+/*
                 // prevent negative delay
                 if( state->system_time > state->pre_timestamp_for_orphan + sampling_intvl - sns_convert_ns_to_ticks( 3 * 1000 * 1000ULL ) )
                 {
                   state->num_samples = 1;
                 }
               }
-/*
               else
               {
                 state->num_samples = ( state->system_time > state->dae_polling_offset ) ? 1 : 0;
@@ -551,7 +553,8 @@ static void process_fifo_samples(
           state->interrupt_timestamp = state->dae_event_time;
 
           // use ideal interval for more than 50Hz ODR because of the timer jitter
-          if( !state->this_is_first_data && (sampling_intvl < 384000 ) ) 
+          if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
+              !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
           {
             state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
           }
@@ -591,7 +594,6 @@ static void process_fifo_samples(
                 (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
                 (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-//            state->config_set_time = state->first_data_ts_of_batch - (2 * state->half_measurement_time);
             ak0991x_send_config_event(this, true);  // send new config event
             ak0991x_send_cal_event(this, false);    // send previous cal event
           }
