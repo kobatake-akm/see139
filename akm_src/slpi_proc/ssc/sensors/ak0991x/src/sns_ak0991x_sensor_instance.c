@@ -629,10 +629,11 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         state->mag_info.flush_only?1:0,
         state->mag_info.max_batch?1:0 );
     
-    // If already a request, send out existing config
-    if (desired_sample_rate > 0 &&
-        state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF &&
-        !state->in_self_test)
+    // Send out previous config
+    if ( desired_sample_rate > 0 &&
+         state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF &&
+         !state->in_self_test &&
+         !state->remove_request )
     {
       ak0991x_send_config_event(this, false); // send previous config event
       ak0991x_send_cal_event(this, false);    // send previous cal event

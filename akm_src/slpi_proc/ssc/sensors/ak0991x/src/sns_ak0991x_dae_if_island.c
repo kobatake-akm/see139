@@ -478,10 +478,12 @@ static void process_fifo_samples(
                   state->num_samples = 1;
                 }
               }
+/*
               else
               {
                 state->num_samples = ( state->system_time > state->dae_polling_offset ) ? 1 : 0;
               }
+*/
               AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u config=%u, p_off=%u",
                   state->num_samples,
                   state->is_orphan,

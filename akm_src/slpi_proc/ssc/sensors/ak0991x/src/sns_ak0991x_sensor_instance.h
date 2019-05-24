@@ -241,6 +241,7 @@ typedef struct ak0991x_instance_state
   bool is_previous_irq;
   bool flush_requested_in_dae;
   bool processing_new_config;
+  bool remove_request;
   sns_std_sensor_sample_status accuracy;
   uint32_t total_samples; /* throughout the life of this instance */
   uint32_t prev_cal_id;
