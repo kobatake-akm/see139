@@ -39,13 +39,13 @@ sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
     uint8_t buf_s4s[3];
     uint32_t xfer_bytes;
     uint16_t t_ph_cnt;
-    t_ph_cnt = (uint16_t)ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr) * (AK0991X_S4S_INTERVAL_MS / 1000);
-    AK0991X_INST_PRINT(LOW, this, "t_ph_cnt= %d odr = %d/1000",t_ph_cnt, (int)(1000*ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr)));
-
 #ifdef AK0991X_ENABLE_S4S_TEST
-    //t_ph_cnt = 80;//TEST
-    AK0991X_INST_PRINT(LOW, this, "t_ph_cnt= %d odr = %d/1000",t_ph_cnt, (int)(1000*ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr)));
+    t_ph_cnt = 80;//TEST
+#else
+    t_ph_cnt = (uint16_t)ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr) * (AK0991X_S4S_INTERVAL_MS / 1000);
 #endif
+
+    AK0991X_INST_PRINT(LOW, this, "t_ph_cnt= %d odr = %d/1000",t_ph_cnt, (int)(1000*ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr)));
 
     buf_s4s[0] = 0x0
       | (1 << 7)                                   // TPH

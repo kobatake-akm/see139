@@ -111,6 +111,7 @@ static void build_static_config_request(
     config_req->has_s4s_config       = false;
     break;
   }
+
   config_req->s4s_config.st_reg_addr = AKM_AK0991X_REG_SYT;
   config_req->s4s_config.st_reg_data = 0;
   config_req->s4s_config.dt_reg_addr = AKM_AK0991X_REG_DT;
@@ -265,6 +266,41 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.expected_get_data_bytes = 
       wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
+  if(mag_info->use_sync_stream)
+  {
+    sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
+    uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
+    sns_request s4s_req = {
+      .message_id  = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
+      .request     = s4s_encoded_msg,
+      .request_len = 0
+    };
+
+    //This is T_Ph start moment at the first time
+    s4s_config_req.ideal_sync_offset = state->dae_polling_offset;
+    s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+    s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
+    //st_delay is defined in the sns_dae.proto file
+    //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
+
+//    s4s_config_req.st_delay = sns_convert_ns_to_ticks( meas_usec / 2 * 1000ULL );
+    s4s_config_req.st_delay = s4s_config_req.sync_interval * 0.001;
+    config_req.polling_config.polling_offset += s4s_config_req.st_delay; // need to be before set pb_encode_request
+
+    if((s4s_req.request_len =
+        pb_encode_request(s4s_encoded_msg,
+                          sizeof(s4s_encoded_msg),
+                          &s4s_config_req,
+                          sns_dae_s4s_dynamic_config_fields,
+                          NULL)) > 0)
+    {
+      // The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
+      if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
+      {
+      }
+    }
+  }
+
   AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: sys= %u, pre_orphan= %u, polling_offset= %u interval= %u",
       (uint32_t)state->system_time,
       (uint32_t)state->pre_timestamp_for_orphan,
@@ -305,38 +341,6 @@ static bool send_mag_config(sns_sensor_instance *this)
       (uint8_t)req.request_len,
       (uint8_t)cmd_sent);
 
-  if(mag_info->use_sync_stream)
-  {
-    sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
-    uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
-    sns_request s4s_req = {
-      .message_id  = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
-      .request     = s4s_encoded_msg,
-      .request_len = 0
-    };
-
-    //This is T_Ph start moment at the first time
-    s4s_config_req.ideal_sync_offset = sns_get_system_time();
-    s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-    s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
-    //st_delay is defined in the sns_dae.proto file
-    //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
-
-    s4s_config_req.st_delay = sns_convert_ns_to_ticks( meas_usec / 2 * 1000ULL );
-
-    if((s4s_req.request_len =
-        pb_encode_request(s4s_encoded_msg,
-                          sizeof(s4s_encoded_msg),
-                          &s4s_config_req,
-                          sns_dae_s4s_dynamic_config_fields,
-                          NULL)) > 0)
-    {
-      // The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
-      if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
-      {
-      }
-    }
-  }
   return cmd_sent;
 }
 
