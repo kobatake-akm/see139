@@ -330,12 +330,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
+      pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
+                                                    event->event_len);
+
       if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
       {
-        pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
-                                                     event->event_len);
         sns_timer_sensor_event timer_event;
-        
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
           sns_time now = sns_get_system_time();
@@ -384,13 +384,13 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         // and the field in the Physical Sensor Config event (which needs absolute stiming for the future events).
         if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
         {
-          pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
-                                                      event->event_len);
-          sns_timer_sensor_event timer_event;          
-          if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
+          sns_timer_sensor_reg_event timer_reg_event;
+          if (pb_decode(&stream, sns_timer_sensor_reg_event_fields, &timer_reg_event))
           {
-            state->polling_timer_start_time = timer_event.timeout_time; // set actual polling timer start time
+            state->polling_timer_start_time = timer_reg_event.start_time + timer_reg_event.timeout_period; // set actual polling timer start time
             state->reg_event_done = true;
+            AK0991X_INST_PRINT(LOW, this, "Polling timer start time= %u",
+              (uint32_t)state->polling_timer_start_time);
           }
         }
       }

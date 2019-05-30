@@ -3167,8 +3167,8 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
       req_payload.start_config.early_start_delta = 0;
       req_payload.start_config.late_start_delta = sample_period;
       req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
+      req_payload.has_is_dry_run = true;
       req_payload.is_dry_run = ak0991x_dae_if_available(this);
-
       AK0991X_INST_PRINT(LOW, this, "polling timer now= %u start= %u, delta= %u, pre_timestamp= %u",
           (uint32_t)state->system_time,
           (uint32_t)req_payload.start_time,
@@ -3226,10 +3226,6 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
     {
       ak0991x_register_timer(this); // register HB timer for DRI mode
     }
-  }
-  else
-  {
-//    AK0991X_INST_PRINT(LOW, this, "No need to register HB timer because polling mode.");
   }
 }
 
