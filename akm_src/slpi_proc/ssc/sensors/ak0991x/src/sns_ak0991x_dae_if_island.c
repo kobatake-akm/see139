@@ -111,6 +111,7 @@ static void build_static_config_request(
     config_req->has_s4s_config       = false;
     break;
   }
+
   config_req->s4s_config.st_reg_addr = AKM_AK0991X_REG_SYT;
   config_req->s4s_config.st_reg_data = 0;
   config_req->s4s_config.dt_reg_addr = AKM_AK0991X_REG_DT;
@@ -221,26 +222,14 @@ static bool send_mag_config(sns_sensor_instance *this)
   config_req.has_polling_config  = (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING);
   if( config_req.has_polling_config )
   {
-    if (mag_info->use_sync_stream)
-    {
-      config_req.polling_config.polling_interval_ticks =
-        sns_convert_ns_to_ticks( 1000000000ULL * (uint64_t)(mag_info->cur_cfg.fifo_wmk)
-                                / (uint64_t)ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr) );
-    }
-    else
-    {
-      config_req.polling_config.polling_interval_ticks =
-        ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
-    }
+    config_req.polling_config.polling_interval_ticks =
+      wm * ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
+
     state->system_time = sns_get_system_time();
 
     //TODO: it looks like the polling offset will not be adjusted for S4S.
     //So it won't be synced with any other sensors
-    config_req.polling_config.polling_offset =
-        (state->system_time +
-        config_req.polling_config.polling_interval_ticks) /
-        config_req.polling_config.polling_interval_ticks *
-        config_req.polling_config.polling_interval_ticks;
+    config_req.polling_config.polling_offset = state->polling_timer_start_time;
 
     // shift calculated polling_offset time if it is too early.
     if( (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
@@ -260,10 +249,45 @@ static bool send_mag_config(sns_sensor_instance *this)
     }
     state->dae_polling_offset = config_req.polling_config.polling_offset;
   }
-  config_req.has_accel_info      = false;
+  config_req.has_accel_info = false;
   config_req.has_expected_get_data_bytes = true;
   config_req.expected_get_data_bytes = 
       wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
+
+  if(mag_info->use_sync_stream)
+  {
+    sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
+    uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
+    sns_request s4s_req = {
+      .message_id  = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
+      .request     = s4s_encoded_msg,
+      .request_len = 0
+    };
+
+    //This is T_Ph start moment at the first time
+    s4s_config_req.ideal_sync_offset = state->dae_polling_offset;
+    s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+    s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
+    //st_delay is defined in the sns_dae.proto file
+    //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
+
+//    s4s_config_req.st_delay = sns_convert_ns_to_ticks( meas_usec / 2 * 1000ULL );
+    s4s_config_req.st_delay = s4s_config_req.sync_interval * 0.001;
+    config_req.polling_config.polling_offset += s4s_config_req.st_delay; // need to be before set pb_encode_request
+
+    if((s4s_req.request_len =
+        pb_encode_request(s4s_encoded_msg,
+                          sizeof(s4s_encoded_msg),
+                          &s4s_config_req,
+                          sns_dae_s4s_dynamic_config_fields,
+                          NULL)) > 0)
+    {
+      // The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
+      if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
+      {
+      }
+    }
+  }
 
   AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: sys= %u, pre_orphan= %u, polling_offset= %u interval= %u",
       (uint32_t)state->system_time,
@@ -305,38 +329,6 @@ static bool send_mag_config(sns_sensor_instance *this)
       (uint8_t)req.request_len,
       (uint8_t)cmd_sent);
 
-  if(mag_info->use_sync_stream)
-  {
-    sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
-    uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
-    sns_request s4s_req = {
-      .message_id  = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
-      .request     = s4s_encoded_msg,
-      .request_len = 0
-    };
-
-    //This is T_Ph start moment at the first time
-    s4s_config_req.ideal_sync_offset = sns_get_system_time();
-    s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-    s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
-    //st_delay is defined in the sns_dae.proto file
-    //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
-
-    s4s_config_req.st_delay = sns_convert_ns_to_ticks( meas_usec / 2 * 1000ULL );
-
-    if((s4s_req.request_len =
-        pb_encode_request(s4s_encoded_msg,
-                          sizeof(s4s_encoded_msg),
-                          &s4s_config_req,
-                          sns_dae_s4s_dynamic_config_fields,
-                          NULL)) > 0)
-    {
-      // The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
-      if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
-      {
-      }
-    }
-  }
   return cmd_sent;
 }
 
@@ -390,6 +382,24 @@ static bool stop_streaming(ak0991x_dae_stream *dae_stream)
   {
     cmd_sent = true;
     dae_stream->state = STREAM_STOPPING;
+  }
+  return cmd_sent;
+}
+
+/* ------------------------------------------------------------------------------------ */
+static bool pause_s4s_streaming(ak0991x_dae_stream *dae_stream)
+{
+  bool cmd_sent = false;
+  sns_request req = {
+    .message_id   = SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED,
+    .request      = NULL,
+    .request_len  = 0
+  };
+
+  if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &req))
+  {
+    cmd_sent = true;
+//    dae_stream->state = PAUSE_S4S_SCHEDULE;
   }
   return cmd_sent;
 }
@@ -966,11 +976,16 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED:
+      AK0991X_INST_PRINT(LOW, this,
+                         "DAE_PAUSE_S4S_SCHED stream_state=%u if_state=%u config_step=%u",
+                         dae_stream->state,
+                         state->dae_if.mag.state,
+                         state->config_step);
       if(state->mag_info.use_sync_stream)
       {
-      state->mag_info.s4s_dt_abort = true;
-      ak0991x_s4s_handle_timer_event(this);
-      state->mag_info.s4s_dt_abort = false;
+        state->mag_info.s4s_dt_abort = true;
+        ak0991x_s4s_handle_timer_event(this);
+        state->mag_info.s4s_dt_abort = false;
       }
       break;
 
@@ -1207,6 +1222,25 @@ void ak0991x_dae_if_deinit(sns_sensor_instance *this)
 }
 
 /* ------------------------------------------------------------------------------------ */
+/*
+bool ak0991x_dae_if_pause_s4s_schedule(sns_sensor_instance *this)
+{
+  bool cmd_sent = false;
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  ak0991x_dae_if_info    *dae_if = &state->dae_if;
+
+  if(stream_usable(&state->dae_if.mag) && 
+     state->mag_info.use_sync_stream &&
+     (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
+  {
+    AK0991X_INST_PRINT(LOW, this,"pausing s4s schedule stream=0x%x", &dae_if->mag.stream);
+    cmd_sent |= pause_s4s_streaming(&dae_if->mag);
+  }
+  return cmd_sent;
+}
+*/
+
+/* ------------------------------------------------------------------------------------ */
 bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
@@ -1217,6 +1251,10 @@ bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this)
      (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
   {
     AK0991X_INST_PRINT(LOW, this,"stopping mag stream=0x%x", &dae_if->mag.stream);
+    if( state->mag_info.use_sync_stream )
+    {
+      cmd_sent |= pause_s4s_streaming(&dae_if->mag);
+    }
     cmd_sent |= stop_streaming(&dae_if->mag);
   }
   return cmd_sent;
