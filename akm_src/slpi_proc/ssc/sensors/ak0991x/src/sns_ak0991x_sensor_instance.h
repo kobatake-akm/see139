@@ -262,6 +262,8 @@ typedef struct ak0991x_instance_state
   sns_time config_set_time;
   sns_time last_cal_event_sent_time;
   sns_time dae_polling_offset;
+  sns_time s4s_tph_start_time;
+  sns_time polling_timer_start_time;
   sns_timer_sensor_config req_payload;
 
   /** Timer info */

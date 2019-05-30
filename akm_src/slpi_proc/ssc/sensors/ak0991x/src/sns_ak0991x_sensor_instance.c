@@ -509,24 +509,25 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this, bool reset_
 
   ak0991x_reconfig_hw(this, reset_device);
 
-  if(!ak0991x_dae_if_available(this))
+  if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
   {
-    if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
-    {
-      // Register polling timer
-      ak0991x_register_timer(this);
+    // Register polling timer
+    ak0991x_register_timer(this);
 
-      // Register for s4s timer
-      if (state->mag_info.use_sync_stream)
-      {
-        ak0991x_s4s_register_timer(this);
-      }
-    }
-    else
+    // Register for s4s timer
+    if (state->mag_info.use_sync_stream)
     {
-      ak0991x_register_interrupt(this);
+      ak0991x_s4s_register_timer(this);
     }
   }
+  else
+  {
+    if(!ak0991x_dae_if_available(this))
+    {
+        ak0991x_register_interrupt(this);
+    }
+  }
+
   ak0991x_register_heart_beat_timer(this);
 }
 

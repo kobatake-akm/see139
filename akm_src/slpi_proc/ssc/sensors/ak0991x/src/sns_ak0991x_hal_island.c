@@ -3151,28 +3151,17 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
       state->hb_timer_fire_time = req_payload.start_time + req_payload.timeout_period;
       AK0991X_INST_PRINT(LOW, this, "Register HB timer. Fire time= %u", (uint32_t)state->hb_timer_fire_time);
     }
-    // for S4S timer
-    else if (state->mag_info.use_sync_stream)
-    {
-      req_payload.has_priority = true;
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-      req_payload.is_periodic = true;
-      req_payload.start_time = state->system_time - sample_period;
-      req_payload.start_config.early_start_delta = 0;
-      req_payload.start_config.late_start_delta = sample_period * 2;
-      req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
-    }
     // for polling timer
     else
     {
       req_payload.has_priority = true;
       req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
       req_payload.is_periodic = true;
-//      req_payload.start_time = state->system_time - sample_period + 3 * state->half_measurement_time; // For DRDY is ready, added 1.5 x measurement time;
       req_payload.start_time = state->system_time - sample_period + 3 * state->half_measurement_time; // For DRDY is ready, added 1.5 x measurement time;
       req_payload.start_config.early_start_delta = 0;
       req_payload.start_config.late_start_delta = sample_period;
       req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
+      req_payload.is_dry_run = ak0991x_dae_if_available(this);
 
       AK0991X_INST_PRINT(LOW, this, "polling timer now= %u start= %u, delta= %u, pre_timestamp= %u",
           (uint32_t)state->system_time,
@@ -3234,7 +3223,7 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
   }
   else
   {
-    AK0991X_INST_PRINT(LOW, this, "No need to register HB timer because polling mode.");
+//    AK0991X_INST_PRINT(LOW, this, "No need to register HB timer because polling mode.");
   }
 }
 

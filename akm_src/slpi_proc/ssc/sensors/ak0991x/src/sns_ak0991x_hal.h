@@ -152,7 +152,7 @@
 
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
-#define AK0991X_S4S_RR                              1
+#define AK0991X_S4S_RR                              3    // 2 or 3 is better for accurate S4S, 1RR = 250usec
 
 /** Limit of factory shipment test */
 #define TLIMIT_NO_READ_ID                           0x001

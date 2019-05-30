@@ -33,7 +33,7 @@ typedef enum
   STREAM_STARTING,
   STREAMING,
   STREAM_STOPPING,
-
+//  PAUSE_S4S_SCHEDULE,
 } ak0991x_dae_if_state;
 
 typedef struct
@@ -80,6 +80,8 @@ sns_rc ak0991x_dae_if_init(
   struct ak0991x_state      *sensor_state);
 
 void ak0991x_dae_if_deinit(sns_sensor_instance *this);
+
+//bool ak0991x_dae_if_pause_s4s_schedule(sns_sensor_instance *this);
 
 bool ak0991x_dae_if_stop_streaming(sns_sensor_instance *this);
 
