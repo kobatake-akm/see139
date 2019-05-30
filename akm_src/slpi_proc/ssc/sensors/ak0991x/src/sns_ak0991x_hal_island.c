@@ -2284,11 +2284,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   }
 
   state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;  // check data over run
-  state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
-
-#ifdef AK0991X_ENABLE_S4S_TEST
-  state->data_is_ready = true;
-#endif
+  state->data_is_ready = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) ? ((st1_buf & AK0991X_DRDY_BIT) ? true : false) : true; // check DRDY when DRI mode
 
   if( state->mag_info.use_fifo )
   {

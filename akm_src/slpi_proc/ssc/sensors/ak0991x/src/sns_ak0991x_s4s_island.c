@@ -388,8 +388,6 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   else if (state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCED;
-    ak0991x_send_config_event(instance, true);  // send new config event
-    ak0991x_send_cal_event(instance, false);    // send previous cal event
     AK0991X_INST_PRINT(LOW, instance, "S4S synced");
   }
 
@@ -410,7 +408,7 @@ void ak0991x_s4s_handle_timer_data_stream(sns_sensor_instance *const this)
     {
       pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
                                                    event->event_len);
-                                                   
+
       if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
       {
         AK0991X_INST_PRINT(LOW, this, "Received config id=%d",

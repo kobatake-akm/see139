@@ -345,8 +345,8 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               state->reg_event_done &&
               timer_event.requested_timeout_time != 0)
           {
-//            state->system_time = timer_event.requested_timeout_time;
-            state->system_time = timer_event.timeout_time;  // for S4S test
+            state->system_time = timer_event.requested_timeout_time;
+//            state->system_time = timer_event.timeout_time;  // for S4S test
             AK0991X_INST_PRINT(LOW, this, "Polling: now %u event %u req %u",
                        (uint32_t)now,
                        (uint32_t)state->system_time,
@@ -387,7 +387,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           sns_timer_sensor_reg_event timer_reg_event;
           if (pb_decode(&stream, sns_timer_sensor_reg_event_fields, &timer_reg_event))
           {
-            state->polling_timer_start_time = timer_reg_event.start_time + timer_reg_event.timeout_period; // set actual polling timer start time
+            state->polling_timer_start_time = timer_reg_event.start_time; // set actual polling timer start time
             state->reg_event_done = true;
             AK0991X_INST_PRINT(LOW, this, "Polling timer start time= %u",
               (uint32_t)state->polling_timer_start_time);
