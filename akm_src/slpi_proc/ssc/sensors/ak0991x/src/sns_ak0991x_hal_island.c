@@ -2638,7 +2638,8 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
     state->heart_beat_attempt_count = 0;
   }
-  if( !state->this_is_the_last_flush &&
+  if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING &&
+      !state->this_is_the_last_flush &&
       state->system_time + (state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk) > state->hb_timer_fire_time )
   {
     ak0991x_register_heart_beat_timer(instance);
@@ -3194,6 +3195,7 @@ void ak0991x_unregister_heart_beat_timer(sns_sensor_instance *const this)
   }
 }
 
+// Only perform for DRI modes
 void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
@@ -3211,17 +3213,14 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
     }
   }
 
-  if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING )
+  if( !state->in_clock_error_procedure &&
+      (state->mag_info.flush_only || state->mag_info.max_batch) )
   {
-    if( !state->in_clock_error_procedure &&
-        (state->mag_info.flush_only || state->mag_info.max_batch) )
-    {
-      ak0991x_unregister_heart_beat_timer(this);
-    }
-    else
-    {
-      ak0991x_register_timer(this); // register HB timer for DRI mode
-    }
+    ak0991x_unregister_heart_beat_timer(this);
+  }
+  else
+  {
+    ak0991x_register_timer(this); // register HB timer for DRI mode
   }
 }
 

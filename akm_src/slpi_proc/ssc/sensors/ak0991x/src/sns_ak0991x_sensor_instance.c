@@ -527,9 +527,8 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this, bool reset_
     {
         ak0991x_register_interrupt(this);
     }
+    ak0991x_register_heart_beat_timer(this);
   }
-
-  ak0991x_register_heart_beat_timer(this);
 }
 
 /** See sns_sensor_instance_api::set_client_config */

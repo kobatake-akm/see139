@@ -261,10 +261,10 @@ void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
   }
 }
 
+#ifdef AK0991X_OPEN_SSC_704_PATCH
 // patch for OpenSSC7.0.4
 static sns_time convert_bus_ts( sns_time bus_ts )
 {
-#ifdef AK0991X_OPEN_SSC_704_PATCH
   sns_time ts;
   sns_time now = sns_get_system_time();
   bus_ts = 0xFFFFFFFFULL & bus_ts;
@@ -276,10 +276,8 @@ static sns_time convert_bus_ts( sns_time bus_ts )
     ts -= 1ULL<<32<<7;
   }
   return ts;
-#else
-  return bus_ts;
-#endif
 }
+#endif
 
 
 sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
@@ -319,7 +317,10 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   // Get the start time for s4s
   rv = state->scp_service->api->sns_scp_get_write_time(state->com_port_info.port_handle,
                                                        &i2c_start_time);
+
+#ifdef AK0991X_OPEN_SSC_704_PATCH
   i2c_start_time = convert_bus_ts(i2c_start_time);  // patch for OpenSSC7.0.4
+#endif
 
   if (rv != SNS_RC_SUCCESS)
   {
