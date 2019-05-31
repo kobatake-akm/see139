@@ -1269,8 +1269,27 @@ bool ak0991x_dae_if_start_streaming(sns_sensor_instance *this)
   if(stream_usable(&state->dae_if.mag) && state->dae_if.mag.state > PRE_INIT &&
      (AK0991X_MAG_ODR_OFF != state->mag_info.cur_cfg.odr))
   {
-    cmd_sent |= send_mag_config(this);
+    if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+    {
+      cmd_sent |= send_mag_config(this);
+    }
+    else
+    {
+      if(state->reg_event_for_dae_poll_sync)
+      {
+        cmd_sent |= send_mag_config(this);
+        state->reg_event_for_dae_poll_sync = false;
+      }
+      else
+      {
+        // Register timer to synchronize the DAE polling timing with other sensors.
+        ak0991x_register_timer(this);
+        cmd_sent = true;
+        AK0991X_INST_PRINT(LOW, this,"register timer with is_dry_run=ture");
+      }
+    }
   }
+
   return cmd_sent;
 }
 

@@ -187,6 +187,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
   state->reg_event_done = false;
+  state->reg_event_for_dae_poll_sync = false;
   state->is_previous_irq = false;
   state->total_samples = 0;
   state->flush_requested_in_dae = false;

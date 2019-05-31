@@ -235,6 +235,7 @@ typedef struct ak0991x_instance_state
   bool re_read_data_after_ascp;
   bool this_is_the_last_flush;
   bool reg_event_done;
+  bool reg_event_for_dae_poll_sync;
   bool s4s_reg_event_done;
   bool in_clock_error_procedure;
   bool is_orphan;

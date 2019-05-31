@@ -387,8 +387,15 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           sns_timer_sensor_reg_event timer_reg_event;
           if (pb_decode(&stream, sns_timer_sensor_reg_event_fields, &timer_reg_event))
           {
+            AK0991X_INST_PRINT(LOW, this, "Received TIMER_SENSOR_REG_EVENT");
             state->polling_timer_start_time = timer_reg_event.start_time; // set actual polling timer start time
             state->reg_event_done = true;
+            if(ak0991x_dae_if_available(this) && (state->config_step != AK0991X_CONFIG_IDLE))
+            {
+              state->reg_event_for_dae_poll_sync = true;
+              ak0991x_dae_if_start_streaming(this);
+              state->config_step = AK0991X_CONFIG_UPDATING_HW;
+            }
             AK0991X_INST_PRINT(LOW, this, "Polling timer start time= %u",
               (uint32_t)state->polling_timer_start_time);
           }
