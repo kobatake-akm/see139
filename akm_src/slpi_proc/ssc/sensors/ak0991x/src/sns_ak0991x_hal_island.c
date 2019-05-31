@@ -1046,8 +1046,8 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
-  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %X pre_ts %X avg %u half %u", 
-                     (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,
+  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u half %u", 
+                     (uint32_t)sns_get_system_time(), (uint32_t)state->pre_timestamp,
                      (uint32_t)state->averaged_interval, (uint32_t)state->half_measurement_time);
 
   // QC - is it not possible to miss any of the interrupts during dummy measurement?
@@ -3158,13 +3158,17 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     // for polling timer
     else
     {
-      sns_time delay =  sns_convert_ns_to_ticks(6 * 1000 * 1000); // delay to start sensor from timer
-      if( (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
+      // Wait measurement time + margin(2msec)
+      sns_time delay = (2 * state->half_measurement_time) + sns_convert_ns_to_ticks(2 * 1000 * 1000);
+
+      // DAE streaming is already started. But sensor is not started yet on DAE. 
+      // Required additional delay for the first sample to ignore UNRELIABLE data received.
+      if( ak0991x_dae_if_available(this) &&
+          (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
           (state->mag_info.previous_lsbdata[TRIAXIS_Y] == 0) &&
           (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0))
       {
-        // additional delay for very first sample to ignore UNRELIABLE
-        delay += (3 * state->half_measurement_time);
+        delay += (2 * state->half_measurement_time);
       }
       req_payload.has_priority = true;
       req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
