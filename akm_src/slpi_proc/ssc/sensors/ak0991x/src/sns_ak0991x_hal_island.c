@@ -907,7 +907,8 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     }
     else
     {
-      AK0991X_INST_PRINT(LOW, this, "Real measurement start.");
+      AK0991X_INST_PRINT(LOW, this, "Real measurement start at %u"
+        ,(uint32_t)sns_get_system_time());
     }
   }
 
@@ -3157,10 +3158,18 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     // for polling timer
     else
     {
+      sns_time delay =  sns_convert_ns_to_ticks(6 * 1000 * 1000); // delay to start sensor from timer
+      if( (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
+          (state->mag_info.previous_lsbdata[TRIAXIS_Y] == 0) &&
+          (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0))
+      {
+        // additional delay for very first sample to ignore UNRELIABLE
+        delay += (3 * state->half_measurement_time);
+      }
       req_payload.has_priority = true;
       req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
       req_payload.is_periodic = true;
-      req_payload.start_time = state->system_time - sample_period + 3 * state->half_measurement_time; // For DRDY is ready, added 1.5 x measurement time;
+      req_payload.start_time = state->system_time - sample_period + delay;  // add delay for RELIABLE data sample
       req_payload.start_config.early_start_delta = 0;
       req_payload.start_config.late_start_delta = sample_period;
       req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);

@@ -22,6 +22,9 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 05/31/19                AKM              Modified for S4S+DAE. Test version. 
+ * 05/31/19                AKM              Use the timer with is_dry_run=true to sync DAE polling timing.
+ * 05/31/19                Qualcomm/AKM     Fix for avoiding timer reg event read by heart beat timer 
  * 05/23/19                AKM              Use only dae_event_time for TS on polling with < 50Hz ODR. 
  *                                          Modified Config not changed judge.
  * 05/17/19                AKM              Removed sw reset for DAE when ODR changed. Adjusted polling_offset.

@@ -164,16 +164,12 @@ static bool send_mag_config(sns_sensor_instance *this)
   ak0991x_mag_info       *mag_info   = &state->mag_info;
   sns_dae_set_streaming_config config_req = sns_dae_set_streaming_config_init_default;
   uint8_t encoded_msg[sns_dae_set_streaming_config_size];
-  uint8_t count = 0;
   uint16_t batch_num = 0;
   uint16_t wm;
   sns_request req = {
     .message_id   = SNS_DAE_MSGID_SNS_DAE_SET_STREAMING_CONFIG,
     .request      = encoded_msg
   };
-  sns_time margin =  sns_convert_ns_to_ticks(4 * 1000 * 1000);  // set margin 4 msec
-  sns_time meas_usec;
-  ak0991x_get_meas_time(mag_info->device_select, mag_info->sdr, &meas_usec);
 
   AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x, #clk_err_meas_count=%u/%u, in_clk_err_proc=%u, use_dri=%u",
                      dae_stream->stream, 
@@ -230,24 +226,6 @@ static bool send_mag_config(sns_sensor_instance *this)
     //TODO: it looks like the polling offset will not be adjusted for S4S.
     //So it won't be synced with any other sensors
     config_req.polling_config.polling_offset = state->polling_timer_start_time;
-
-    // shift calculated polling_offset time if it is too early.
-    if( (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
-        (state->mag_info.previous_lsbdata[TRIAXIS_Y] == 0) &&
-        (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0)
-      )
-    {
-      // This is very first data.
-      // Needs extra margin to get first reliable data. Required at least 1 measurement time
-      margin += (2 * state->half_measurement_time);
-    }
-    // add margin
-    while( (config_req.polling_config.polling_offset < (state->system_time + margin )) && (count < 4) )
-    {
-      config_req.polling_config.polling_offset += config_req.polling_config.polling_interval_ticks;
-      count++;
-    }
-    state->dae_polling_offset = config_req.polling_config.polling_offset;
   }
   config_req.has_accel_info = false;
   config_req.has_expected_get_data_bytes = true;
@@ -265,13 +243,12 @@ static bool send_mag_config(sns_sensor_instance *this)
     };
 
     //This is T_Ph start moment at the first time
-    s4s_config_req.ideal_sync_offset = state->dae_polling_offset;
+    s4s_config_req.ideal_sync_offset = state->polling_timer_start_time;
     s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
     s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
     //st_delay is defined in the sns_dae.proto file
     //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
 
-//    s4s_config_req.st_delay = sns_convert_ns_to_ticks( meas_usec / 2 * 1000ULL );
     s4s_config_req.st_delay = s4s_config_req.sync_interval * 0.001;
     config_req.polling_config.polling_offset += s4s_config_req.st_delay; // need to be before set pb_encode_request
 
@@ -478,12 +455,12 @@ static void process_fifo_samples(
             }
             else  // last flush data
             {
-              state->num_samples = 0;
+              state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
 
-              if( state->pre_timestamp_for_orphan + sampling_intvl < state->dae_polling_offset )
-              {
-                state->num_samples = ( (( state->dae_polling_offset - state->pre_timestamp_for_orphan + sampling_intvl/2 ) / sampling_intvl) > 1 ) ? 1 : 0;
-              }
+//              if( state->pre_timestamp_for_orphan + sampling_intvl < state->polling_timer_start_time )
+//              {
+//                state->num_samples = ( (( state->polling_timer_start_time - state->pre_timestamp_for_orphan + sampling_intvl/2 ) / sampling_intvl) > 1 ) ? 1 : 0;
+//              }
 /*
                 // prevent negative delay
                 if( state->system_time > state->pre_timestamp_for_orphan + sampling_intvl - sns_convert_ns_to_ticks( 3 * 1000 * 1000ULL ) )
@@ -493,7 +470,7 @@ static void process_fifo_samples(
               }
               else
               {
-                state->num_samples = ( state->system_time > state->dae_polling_offset ) ? 1 : 0;
+                state->num_samples = ( state->system_time > state->polling_timer_start_time ) ? 1 : 0;
               }
 */
               AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u config=%u, p_off=%u",
@@ -502,7 +479,7 @@ static void process_fifo_samples(
                   (uint32_t)state->system_time,
                   (uint32_t)state->pre_timestamp_for_orphan,
                   (uint32_t)state->config_set_time,
-                  (uint32_t)state->dae_polling_offset);
+                  (uint32_t)state->polling_timer_start_time);
             }
           }
 
@@ -526,7 +503,7 @@ static void process_fifo_samples(
           (uint32_t)state->dae_event_time,
           (uint32_t)sampling_intvl,
           (uint32_t)state->system_time,
-          (uint32_t)state->dae_polling_offset);
+          (uint32_t)state->polling_timer_start_time);
 
     }
   }
@@ -579,7 +556,7 @@ static void process_fifo_samples(
                 (uint32_t)state->pre_timestamp_for_orphan,
                 (uint32_t)state->interrupt_timestamp,
                 (uint32_t)state->system_time,
-                (uint32_t)state->dae_polling_offset);
+                (uint32_t)state->polling_timer_start_time);
           }
 
           state->first_data_ts_of_batch = state->interrupt_timestamp;
