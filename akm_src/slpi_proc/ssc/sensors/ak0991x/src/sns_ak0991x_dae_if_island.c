@@ -956,17 +956,19 @@ static void process_response(
       }
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_S4S_SCHED:
+      // After DAE receivce PAUSE_S4S_SCHEDULE message,
+      // Stop sending the ST/DT message to the HW automatically
       AK0991X_INST_PRINT(LOW, this,
                          "DAE_PAUSE_S4S_SCHED stream_state=%u if_state=%u config_step=%u",
                          dae_stream->state,
                          state->dae_if.mag.state,
                          state->config_step);
-      if(state->mag_info.use_sync_stream)
-      {
-        state->mag_info.s4s_dt_abort = true;
-        ak0991x_s4s_handle_timer_event(this);
-        state->mag_info.s4s_dt_abort = false;
-      }
+      //if(state->mag_info.use_sync_stream)
+      //{
+      //  state->mag_info.s4s_dt_abort = true;
+      //  ak0991x_s4s_handle_timer_event(this);
+      //  state->mag_info.s4s_dt_abort = false;
+      //}
       break;
 
     case SNS_DAE_MSGID_SNS_DAE_RESP:
