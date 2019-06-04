@@ -418,7 +418,8 @@ static void process_fifo_samples(
   // calculate num_samples
   if(!state->in_clock_error_procedure)
   {
-    state->is_orphan =
+    state->is_orphan = 
+//        (state->dae_event_time < state->config_set_time); // use time
         ( odr != state->mag_info.cur_cfg.odr ) ||
         ( fifo_wmk != state->mag_info.cur_cfg.fifo_wmk );
 
@@ -455,7 +456,8 @@ static void process_fifo_samples(
             }
             else  // last flush data
             {
-              state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
+              state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl/2) ? 1 : 0;
+//              state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
 
 //              if( state->pre_timestamp_for_orphan + sampling_intvl < state->polling_timer_start_time )
 //              {
@@ -612,7 +614,18 @@ static void process_fifo_samples(
         }
         else  // polling
         {
-          state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+          state->first_data_ts_of_batch = state->dae_event_time;
+#ifdef AK0991X_OPEN_SSC_704_PATCH
+          // use ideal interval for more than 50Hz ODR because of the timer jitter
+          // jitter will be reduced from OpenSSC7.0.5
+          if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
+              !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
+          {
+            state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+          }
+#endif
+
+
         }
         AK0991X_INST_PRINT(MED, this, "fifo_samples:: orphan batch odr=(%d->%d) num_samples=%d event_time=%u",
             odr,

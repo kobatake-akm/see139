@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/04/19                AKM              Modified for last flush num_samples. 
  * 05/31/19                AKM              Modified for S4S+DAE. Test version. 
  * 05/31/19                AKM              Use the timer with is_dry_run=true to sync DAE polling timing.
  * 05/31/19                Qualcomm/AKM     Fix for avoiding timer reg event read by heart beat timer 
