@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/07/19     020058     AKM              First tested version with new QAWA(1.0.71.0)
  * 06/04/19                AKM              Modified for last flush num_samples. 
  * 05/31/19                AKM              Modified for S4S+DAE. Test version. 
  * 05/31/19                AKM              Use the timer with is_dry_run=true to sync DAE polling timing.
@@ -303,8 +304,8 @@
  *
  **/
 
-// major:02 minor:00 revision:56
+// major:02 minor:00 revision:58
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      56
+#define AK0991X_DRV_VER_REV      58
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
