@@ -527,7 +527,10 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this, bool reset_
       ak0991x_register_interrupt(this);
     }
   }
-  ak0991x_register_heart_beat_timer(this);
+  if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+  {
+    ak0991x_register_heart_beat_timer(this);
+  }
 }
 
 /** See sns_sensor_instance_api::set_client_config */
