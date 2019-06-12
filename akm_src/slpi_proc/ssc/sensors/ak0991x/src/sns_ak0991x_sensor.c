@@ -1698,8 +1698,11 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
             if (NULL != instance)
             {
-              SNS_PRINTF(HIGH, this, "Mag: remove instance, hw_id = %d, inst = %x", state->hardware_id, instance);
-              this->cb->remove_instance(instance);
+              if(ak0991x_dae_if_available(instance))
+              {
+                SNS_PRINTF(HIGH, this, "Mag: remove instance, hw_id = %d, inst = %x", state->hardware_id, instance);
+                this->cb->remove_instance(instance);
+              }
             }
 
             AK0991X_PRINT(LOW, this, "state = POWER_RAIL_PENDING_OFF");
@@ -1933,6 +1936,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
      NULL == instance->cb->get_client_request(instance, &mag_suid, true))
   {
     sns_sensor *sensor;
+    if(!ak0991x_dae_if_available(instance))
+    {
+      SNS_PRINTF(HIGH, this, "Mag: remove instance, hw_id = %d, inst = %x", state->hardware_id, instance);
+      this->cb->remove_instance(instance);
+    }
     for (sensor = this->cb->get_library_sensor(this, true);
          NULL != sensor;
          sensor = this->cb->get_library_sensor(this, false))
