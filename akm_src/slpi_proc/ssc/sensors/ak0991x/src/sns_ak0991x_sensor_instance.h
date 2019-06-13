@@ -230,6 +230,7 @@ typedef struct ak0991x_instance_state
   bool data_over_run;
   bool data_is_ready;
   bool fifo_flush_in_progress;
+  bool wait_for_last_flush;
   bool in_self_test;
   bool config_mag_after_ascp_xfer;
   bool re_read_data_after_ascp;

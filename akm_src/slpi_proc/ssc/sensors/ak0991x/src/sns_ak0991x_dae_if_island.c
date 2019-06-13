@@ -934,6 +934,7 @@ static void process_response(
       }
       dae_stream->flushing_data = false;
       state->this_is_the_last_flush = false;
+      state->wait_for_last_flush = false;
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
       AK0991X_INST_PRINT(LOW, this,
