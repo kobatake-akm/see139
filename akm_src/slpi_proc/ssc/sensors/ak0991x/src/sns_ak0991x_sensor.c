@@ -530,15 +530,14 @@ static void ak0991x_send_flush_config(sns_sensor *const this,
 
 static void ak0991x_start_power_rail_timer(sns_sensor *const this,
                                            sns_time timeout_ticks,
-                                           ak0991x_power_rail_pending_state pwr_rail_pend_state,
-                                           bool periodic)
+                                           ak0991x_power_rail_pending_state pwr_rail_pend_state)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
 
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   size_t                  req_len;
   uint8_t                 buffer[20];
-  req_payload.is_periodic = periodic;
+  req_payload.is_periodic = (AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH == pwr_rail_pend_state);
   req_payload.start_time = sns_get_system_time();
   req_payload.timeout_period = timeout_ticks;
   sns_service_manager *smgr = this->cb->get_service_manager(this);
@@ -1648,7 +1647,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             SNS_PRINTF(HIGH, this, "start power timer #0:  hw_id = %d, pend_state = %u", state->hardware_id, (uint32_t)AK0991X_POWER_RAIL_PENDING_OFF);
             ak0991x_start_power_rail_timer(this,
                                            sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
-                                           AK0991X_POWER_RAIL_PENDING_OFF, false);
+                                           AK0991X_POWER_RAIL_PENDING_OFF);
 
             if (state->hw_is_present)
             {
@@ -1696,37 +1695,46 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF)
           {
+            AK0991X_PRINT(LOW, this, "state = POWER_RAIL_PENDING_OFF");
+            state->com_port_info.in_i3c_mode = false;
+            state->rail_config.rail_vote = SNS_RAIL_OFF;
+            SNS_PRINTF(HIGH, this, "vote_power_rail_update: RAIL_OFF#2, hw_id = %d", state->hardware_id);
+            state->pwr_rail_service->api->
+            sns_vote_power_rail_update(state->pwr_rail_service, this,
+                                      &state->rail_config,     NULL);
+            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+            state->remove_timer_stream = true;
+          }
+          else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH)
+          {
             sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
+
             if (NULL != instance)
             {
               ak0991x_instance_state *inst_state =
                 (ak0991x_instance_state*) instance->state->state;
 
-              if(!inst_state->wait_for_last_flush)
+              if(!inst_state->wait_for_last_flush || inst_state->last_flush_poll_check_count>10)
               {
-                if(ak0991x_dae_if_available(instance))
-                {
-                  SNS_PRINTF(HIGH, this, "Mag: remove instance, hw_id = %d, inst = %x", state->hardware_id, instance);
-                  this->cb->remove_instance(instance);
-                }
+                SNS_PRINTF(HIGH, this, "Mag: remove instance, hw_id = %d, inst = %x", state->hardware_id, instance);
+                this->cb->remove_instance(instance);
               }
               else
               {
-                AK0991X_PRINT(LOW, this, "waiting for last flush...");
+                AK0991X_PRINT(LOW, this, "waiting for last flush...%d",inst_state->last_flush_poll_check_count);
+                inst_state->last_flush_poll_check_count++;
               }
             }
             
             if(NULL == instance)
             {
-              AK0991X_PRINT(LOW, this, "state = POWER_RAIL_PENDING_OFF");
-              state->com_port_info.in_i3c_mode = false;
-              state->rail_config.rail_vote = SNS_RAIL_OFF;
-              SNS_PRINTF(HIGH, this, "vote_power_rail_update: RAIL_OFF#2, hw_id = %d", state->hardware_id);
-              state->pwr_rail_service->api->
-                sns_vote_power_rail_update(state->pwr_rail_service, this,
-                                          &state->rail_config,     NULL);
-              state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-              state->remove_timer_stream = true;
+              if (state->rail_config.rail_vote != SNS_RAIL_OFF)
+              {
+                SNS_PRINTF(HIGH, this, "start power timer #2:  hw_id = %d, pend_state = %u", state->hardware_id, (uint32_t)AK0991X_POWER_RAIL_PENDING_OFF);
+                ak0991x_start_power_rail_timer(this,
+                                           sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
+                                           AK0991X_POWER_RAIL_PENDING_OFF);
+              }
             }
           }
         }
@@ -1845,7 +1853,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         ak0991x_start_power_rail_timer(this,
                                        sns_convert_ns_to_ticks(
                                        AK0991X_OFF_TO_IDLE_MS * 1000000LL) - delta,
-                                       AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ, false);
+                                       AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ);
       }
       else
       {
@@ -1910,6 +1918,19 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 
             if(SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG == new_request->message_id)
             {
+              if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF )
+              {
+                AK0991X_PRINT(HIGH, this, "new request received but power rail state is AK0991X_POWER_RAIL_PENDING_OFF");
+                state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+                state->remove_timer_stream = true;
+              }
+              else if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH )
+              {
+                AK0991X_PRINT(HIGH, this, "new request received but power rail state is AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH");
+                state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+                state->remove_timer_stream = true;
+              }
+              
               sns_std_request decoded_request;
               sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
               ak0991x_get_decoded_mag_request(this, new_request, &decoded_request,
@@ -1949,16 +1970,28 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   if(NULL != instance &&
      NULL == instance->cb->get_client_request(instance, &mag_suid, true))
   {
-      ak0991x_instance_state *inst_state =
-    (ak0991x_instance_state *)instance->state->state;
+    ak0991x_instance_state *inst_state =
+      (ak0991x_instance_state *)instance->state->state;
     sns_sensor *sensor;
 
+    ak0991x_power_rail_pending_state pending_state;
+    sns_time timeout_time;
+
     inst_state->wait_for_last_flush = true;
+    inst_state->last_flush_poll_check_count = 0;
 
     if(!ak0991x_dae_if_available(instance))
     {
+      pending_state = AK0991X_POWER_RAIL_PENDING_OFF;
+      timeout_time = AK0991X_POWER_RAIL_OFF_TIMEOUT_NS;
+
       SNS_PRINTF(HIGH, this, "Mag: remove instance, hw_id = %d, inst = %x", state->hardware_id, instance);
       this->cb->remove_instance(instance);
+    }
+    else
+    {
+      pending_state = AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH;
+      timeout_time = AK0991X_POWER_RAIL_POLLING_TIMEOUT_NS;
     }
 
     for (sensor = this->cb->get_library_sensor(this, true);
@@ -1970,10 +2003,10 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 
       if (sensor_state->rail_config.rail_vote != SNS_RAIL_OFF)
       {
-        SNS_PRINTF(HIGH, this, "start power timer #2:  hw_id = %d, pend_state = %u", state->hardware_id, (uint32_t)AK0991X_POWER_RAIL_PENDING_OFF);
+        SNS_PRINTF(HIGH, this, "start power timer #2:  hw_id = %d, pend_state = %u", state->hardware_id, (uint32_t)pending_state);
         ak0991x_start_power_rail_timer(this,
-                                       sns_convert_ns_to_ticks(1000000ULL),
-                                       AK0991X_POWER_RAIL_PENDING_OFF, true);
+                                       sns_convert_ns_to_ticks(timeout_time),
+                                       pending_state);
       }
     }
   }
@@ -2070,7 +2103,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
     ak0991x_start_power_rail_timer(this,
                                    sns_convert_ns_to_ticks(
                                    AK0991X_OFF_TO_IDLE_MS * 1000000LL),
-                                   AK0991X_POWER_RAIL_PENDING_INIT, false);
+                                   AK0991X_POWER_RAIL_PENDING_INIT);
 
   }
 

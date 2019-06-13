@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/13/19     020058.1   AKM              Wait for stopping DAE stream before power rail off
  * 06/07/19     020058     AKM              First tested version with new QAWA(1.0.71.0)
  * 06/04/19                AKM              Modified for last flush num_samples. 
  * 05/31/19                AKM              Modified for S4S+DAE. Test version. 
