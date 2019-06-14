@@ -191,7 +191,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->is_previous_irq = false;
   state->total_samples = 0;
   state->flush_requested_in_dae = false;
-  state->wait_for_last_flush = false;
   state->last_flush_poll_check_count = 0;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
