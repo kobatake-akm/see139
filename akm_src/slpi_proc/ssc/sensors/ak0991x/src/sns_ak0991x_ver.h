@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/19/19                Qualcomm/AKM     No sending flush_done while DAE flushing_data is true
+ * 06/19/19                Qualcomm/AKM     S4S modification after review
  * 06/13/19     020058.1   AKM              Wait for stopping DAE stream before power rail off
  * 06/07/19     020058     AKM              First tested version with new QAWA(1.0.71.0)
  * 06/04/19                AKM              Modified for last flush num_samples. 
