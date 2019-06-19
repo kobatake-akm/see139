@@ -236,6 +236,7 @@ typedef struct ak0991x_instance_state
   bool re_read_data_after_ascp;
   bool this_is_the_last_flush;
   bool reg_event_done;
+  bool has_sync_ts_anchor;
   bool reg_event_for_dae_poll_sync;
   bool s4s_reg_event_done;
   bool in_clock_error_procedure;
@@ -268,6 +269,7 @@ typedef struct ak0991x_instance_state
   sns_time last_cal_event_sent_time;
   sns_time s4s_tph_start_time;
   sns_time polling_timer_start_time;
+  sns_time sync_ts_anchor;
   sns_timer_sensor_config req_payload;
 
   /** Timer info */

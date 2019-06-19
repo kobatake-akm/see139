@@ -187,6 +187,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
   state->reg_event_done = false;
+  state->has_sync_ts_anchor = false;
   state->reg_event_for_dae_poll_sync = false;
   state->is_previous_irq = false;
   state->total_samples = 0;
@@ -713,8 +714,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       ak0991x_reset_averaged_interval(this);
 
       AK0991X_INST_PRINT(LOW, this, "Config set time =%u", (uint32_t)state->config_set_time);
-      ak0991x_send_config_event(this, true); // send new config event
-      ak0991x_send_cal_event(this, true);    // send new cal event
+
+      // since the physical config event needs to contain a proper "sync_ts_anchor",
+      // this should be delayed until after receving the timer response for the polling timer.
+      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+      {
+        ak0991x_send_config_event(this, true); // send new config event
+        ak0991x_send_cal_event(this, true);    // send new cal event
+      }
     }
 
     if(state->in_clock_error_procedure)

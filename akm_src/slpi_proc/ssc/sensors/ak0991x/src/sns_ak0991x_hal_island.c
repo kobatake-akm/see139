@@ -2969,6 +2969,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   phy_sensor_config.has_DAE_watermark  = ak0991x_dae_if_available(instance);
   phy_sensor_config.DAE_watermark      = SNS_MAX(cfg.dae_wmk, 1);
   phy_sensor_config.dri_enabled        = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
+  phy_sensor_config.has_sync_ts_anchor = state->has_sync_ts_anchor;
+  phy_sensor_config.sync_ts_anchor     = state->sync_ts_anchor;
 
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u wm %u dae_wm %u is_new_config %d",
