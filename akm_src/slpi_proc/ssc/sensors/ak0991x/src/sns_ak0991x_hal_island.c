@@ -1939,6 +1939,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   uint32_t i;
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_time timestamp = state->pre_timestamp;
+  sns_time report_time;
 
   if(!state->this_is_the_last_flush && state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF)
   {
@@ -1981,9 +1982,10 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   for(i = 0; i < num_bytes_to_report; i += AK0991X_NUM_DATA_HXL_TO_ST2)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
+    report_time = timestamp - state->half_measurement_time;
     state->accuracy = ak0991x_handle_mag_sample(
         &fifo_start[i],
-        timestamp - state->half_measurement_time,
+        report_time,
         instance,
         state,
         &log_mag_state_raw_info);
@@ -1993,11 +1995,15 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     {
       if(ak0991x_dae_if_available(instance))
       {
-        AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u dae %u ave %u # %u of %u flush %u # %u",
-            (uint32_t)timestamp,
-            (uint32_t)state->pre_timestamp,
-            (uint32_t)state->irq_event_time,
-            (uint32_t)state->dae_event_time,
+        AK0991X_INST_PRINT(LOW, instance, "TS %X%08X dae %X%08X ave %u # %u of %u flush %u # %u",
+            (uint32_t)(report_time>>32),
+            (uint32_t)(report_time & 0xFFFFFFFF),
+//            (uint32_t)(state->pre_timestamp>>32),
+//            (uint32_t)(state->pre_timestamp & 0xFFFFFFFF),
+//            (uint32_t)(state->irq_event_time & 0xFFFFFFFF),
+//            (uint32_t)(state->system_time>>32),
+            (uint32_t)(state->irq_event_time>>32),
+            (uint32_t)(state->dae_event_time & 0xFFFFFFFF),
             (uint32_t)state->averaged_interval,
             num_samples_sets,
             state->num_samples,
@@ -2006,11 +2012,15 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
       }
       else
       {
-        AK0991X_INST_PRINT(LOW, instance, "TS %u pre %u irq %u sys %u ave %u # %u of %u flush %u # %u",
-            (uint32_t)timestamp,
-            (uint32_t)state->pre_timestamp,
-            (uint32_t)state->irq_event_time,
-            (uint32_t)state->system_time,
+        AK0991X_INST_PRINT(LOW, instance, "TS %X%08X sys %X%08X ave %u # %u of %u flush %u # %u",
+            (uint32_t)(report_time>>32),
+            (uint32_t)(report_time & 0xFFFFFFFF),
+//            (uint32_t)(state->pre_timestamp>>32),
+//            (uint32_t)(state->pre_timestamp & 0xFFFFFFFF),
+//            (uint32_t)(state->irq_event_time & 0xFFFFFFFF),
+//            (uint32_t)(state->system_time>>32),
+            (uint32_t)(state->system_time>>32),
+            (uint32_t)(state->system_time & 0xFFFFFFFF),
             (uint32_t)state->averaged_interval,
             num_samples_sets,
             state->num_samples,
