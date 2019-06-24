@@ -958,13 +958,9 @@ static void process_response(
           if(ak0991x_dae_if_flush_hw(this))
           {
             state->config_step = AK0991X_CONFIG_FLUSHING_HW;
-            state->this_is_the_last_flush = true;
             AK0991X_INST_PRINT(LOW, this,"Last flush before changing ODR.");
           }
-          else
-          {
-            AK0991X_INST_PRINT(LOW, this,"Couldn't run last flush before changing ODR.");
-          }
+          state->this_is_the_last_flush = true;
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
         {
@@ -1297,23 +1293,27 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if(stream_usable(&dae_if->mag) && dae_if->mag.state >= IDLE)
+  if( state->mag_info.use_fifo )
   {
-    if(!dae_if->mag.flushing_hw)
+    if(stream_usable(&dae_if->mag) && dae_if->mag.state >= IDLE)
     {
-      flush_hw(&dae_if->mag);
+      if(!dae_if->mag.flushing_hw)
+      {
+        flush_hw(&dae_if->mag);
+      }
+      else
+      {
+        AK0991X_INST_PRINT( HIGH, this,"Already flushing_hw=%d", (uint8_t)dae_if->mag.flushing_hw );
+      }
+      cmd_sent |= dae_if->mag.flushing_hw;
     }
-    else
-    {
-      AK0991X_INST_PRINT( HIGH, this,"Already flushing_hw=%d", (uint8_t)dae_if->mag.flushing_hw );
-    }
-    cmd_sent |= dae_if->mag.flushing_hw;
-  }
 
-  if(!cmd_sent)
-  {
-    AK0991X_INST_PRINT( HIGH, this,"Failed to flush_hw state=%d", (uint8_t)dae_if->mag.state );
+    if(!cmd_sent)
+    {
+      AK0991X_INST_PRINT( HIGH, this,"Failed to flush_hw state=%d", (uint8_t)dae_if->mag.state );
+    }
   }
 
   return cmd_sent;
