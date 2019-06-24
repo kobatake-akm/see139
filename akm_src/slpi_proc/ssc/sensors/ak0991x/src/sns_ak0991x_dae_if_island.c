@@ -543,9 +543,8 @@ static void process_fifo_samples(
         {
           state->interrupt_timestamp = state->dae_event_time;
 
-#ifdef AK0991X_OPEN_SSC_704_PATCH
+#ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
           // use ideal interval for more than 50Hz ODR because of the timer jitter
-          // jitter will be reduced from OpenSSC7.0.5
           if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
               !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
           {
@@ -600,9 +599,8 @@ static void process_fifo_samples(
         else  // polling
         {
           state->first_data_ts_of_batch = state->dae_event_time;
-#ifdef AK0991X_OPEN_SSC_704_PATCH
+#ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
           // use ideal interval for more than 50Hz ODR because of the timer jitter
-          // jitter will be reduced from OpenSSC7.0.5
           if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
               !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
           {
