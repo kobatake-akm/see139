@@ -955,12 +955,12 @@ static void process_response(
       {
         if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM)
         {
+          state->this_is_the_last_flush = true;
           if(ak0991x_dae_if_flush_hw(this))
           {
             state->config_step = AK0991X_CONFIG_FLUSHING_HW;
             AK0991X_INST_PRINT(LOW, this,"Last flush before changing ODR.");
           }
-          state->this_is_the_last_flush = true;
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
         {
@@ -1295,7 +1295,7 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if( state->mag_info.use_fifo )
+  if( state->mag_info.use_fifo || state->this_is_the_last_flush )
   {
     if(stream_usable(&dae_if->mag) && dae_if->mag.state >= IDLE)
     {
