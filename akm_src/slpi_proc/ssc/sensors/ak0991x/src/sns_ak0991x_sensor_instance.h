@@ -235,11 +235,14 @@ typedef struct ak0991x_instance_state
   bool re_read_data_after_ascp;
   bool this_is_the_last_flush;
   bool reg_event_done;
+  bool reg_event_for_dae_poll_sync;
   bool s4s_reg_event_done;
   bool in_clock_error_procedure;
   bool is_orphan;
   bool is_previous_irq;
   bool flush_requested_in_dae;
+  bool processing_new_config;
+  bool remove_request;
   sns_std_sensor_sample_status accuracy;
   uint32_t total_samples; /* throughout the life of this instance */
   uint32_t prev_cal_id;
@@ -261,7 +264,8 @@ typedef struct ak0991x_instance_state
   sns_time dae_event_time;
   sns_time config_set_time;
   sns_time last_cal_event_sent_time;
-  sns_time dae_polling_offset;
+  sns_time s4s_tph_start_time;
+  sns_time polling_timer_start_time;
   sns_timer_sensor_config req_payload;
 
   /** Timer info */

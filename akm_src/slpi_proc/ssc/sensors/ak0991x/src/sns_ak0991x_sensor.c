@@ -1752,6 +1752,12 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   AK0991X_PRINT(HIGH, this, "### set_client_request - msg_id=%d/%d remove=%u",
                 exist_request ? exist_request->message_id : -1,
                 new_request ? new_request->message_id : -1, remove);
+  
+  if (NULL != instance)
+  {
+    ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
+    inst_state->remove_request = remove;
+  }
 
   if (remove)
   {

@@ -58,7 +58,7 @@ log_sensor_state_raw_info log_mag_state_raw_info;
  * @param[i] log Pointer to log packet information
  * @param[i] log_size Size of log packet information
  * @param[i] encoded_log_size Maximum permitted encoded size of
- *                            the log
+ *                            the logz
  * @param[o] encoded_log Pointer to location where encoded
  *                       log should be generated
  * @param[o] bytes_written Pointer to actual bytes written
@@ -833,6 +833,10 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     desired_odr = AK0991X_MAG_ODR_OFF;
   }
 
+#ifdef AK0991X_ENABLE_S4S_TEST
+  desired_odr = AK0991X_MAG_ODR10;
+#endif
+
   AK0991X_INST_PRINT(LOW, this, "set_mag_config: ODR: %d dev:%d wmk:%d",
                                 desired_odr, state->mag_info.device_select,
                                 state->mag_info.cur_cfg.fifo_wmk );
@@ -867,8 +871,9 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   // Configure control register 2
   if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
+    uint8_t enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
     buffer[1] = 0x0
-      | ((uint8_t)state->mag_info.use_fifo << 7) // FIFO bit
+      | (enable_fifo << 7) // FIFO bit
       | (state->mag_info.sdr << 6)               // SDR bit
       | (uint8_t)desired_odr;                    // MODE[4:0] bits
   }
@@ -902,7 +907,8 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     }
     else
     {
-      AK0991X_INST_PRINT(LOW, this, "Real measurement start.");
+      AK0991X_INST_PRINT(LOW, this, "Real measurement start at %u"
+        ,(uint32_t)sns_get_system_time());
     }
   }
 
@@ -1040,8 +1046,8 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
-  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %X pre_ts %X avg %u half %u", 
-                     (uint32_t)state->system_time, (uint32_t)state->pre_timestamp,
+  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u half %u", 
+                     (uint32_t)sns_get_system_time(), (uint32_t)state->pre_timestamp,
                      (uint32_t)state->averaged_interval, (uint32_t)state->half_measurement_time);
 
   // QC - is it not possible to miss any of the interrupts during dummy measurement?
@@ -2031,10 +2037,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   state->irq_info.detect_irq_event = false;
   if(state->accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH)
   {
-    if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
-        (ak0991x_dae_if_available(instance) &&
-            state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
-            state->flush_requested_in_dae) )
+    if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) 
     {
       ak0991x_send_fifo_flush_done(instance);
     }
@@ -2279,7 +2282,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   }
 
   state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;  // check data over run
-  state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
+  state->data_is_ready = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) ? ((st1_buf & AK0991X_DRDY_BIT) ? true : false) : true; // check DRDY when DRI mode
 
   if( state->mag_info.use_fifo )
   {
@@ -2633,7 +2636,8 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
     state->heart_beat_attempt_count = 0;
   }
-  if( !state->this_is_the_last_flush &&
+  if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING &&
+      !state->this_is_the_last_flush &&
       state->system_time + (state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk) > state->hb_timer_fire_time )
   {
     ak0991x_register_heart_beat_timer(instance);
@@ -2980,6 +2984,12 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
 
   state->mag_info.last_sent_cfg = cfg;
 
+  if( is_new_config )
+  {
+    // done new config process
+    state->processing_new_config = false;
+  }
+
   return SNS_RC_SUCCESS;
 }
 
@@ -3142,28 +3152,30 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
       state->hb_timer_fire_time = req_payload.start_time + req_payload.timeout_period;
       AK0991X_INST_PRINT(LOW, this, "Register HB timer. Fire time= %u", (uint32_t)state->hb_timer_fire_time);
     }
-    // for S4S timer
-    else if (state->mag_info.use_sync_stream)
-    {
-      req_payload.has_priority = true;
-      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
-      req_payload.is_periodic = true;
-      req_payload.start_time = state->system_time - sample_period;
-      req_payload.start_config.early_start_delta = 0;
-      req_payload.start_config.late_start_delta = sample_period * 2;
-      req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
-    }
     // for polling timer
     else
     {
+      // Wait measurement time + margin(2msec)
+      sns_time delay = (2 * state->half_measurement_time) + sns_convert_ns_to_ticks(2 * 1000 * 1000);
+
+      // DAE streaming is already started. But sensor is not started yet on DAE. 
+      // Required additional delay for the first sample to ignore UNRELIABLE data received.
+      if( ak0991x_dae_if_available(this) &&
+          (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
+          (state->mag_info.previous_lsbdata[TRIAXIS_Y] == 0) &&
+          (state->mag_info.previous_lsbdata[TRIAXIS_Z] == 0))
+      {
+        delay += (2 * state->half_measurement_time);
+      }
       req_payload.has_priority = true;
       req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
       req_payload.is_periodic = true;
-      req_payload.start_time = state->system_time - sample_period + 3 * state->half_measurement_time; // For DRDY is ready, added 1.5 x measurement time;
+      req_payload.start_time = state->system_time - sample_period + delay;  // add delay for RELIABLE data sample
       req_payload.start_config.early_start_delta = 0;
-      req_payload.start_config.late_start_delta = 0;
+      req_payload.start_config.late_start_delta = sample_period;
       req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
-
+      req_payload.has_is_dry_run = true;
+      req_payload.is_dry_run = ak0991x_dae_if_available(this);
       AK0991X_INST_PRINT(LOW, this, "polling timer now= %u start= %u, delta= %u, pre_timestamp= %u",
           (uint32_t)state->system_time,
           (uint32_t)req_payload.start_time,
@@ -3193,6 +3205,7 @@ void ak0991x_unregister_heart_beat_timer(sns_sensor_instance *const this)
   }
 }
 
+// Only perform for DRI modes
 void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
@@ -3210,21 +3223,14 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
     }
   }
 
-  if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING )
+  if( !state->in_clock_error_procedure &&
+      (state->mag_info.flush_only || state->mag_info.max_batch) )
   {
-    if( !state->in_clock_error_procedure &&
-        (state->mag_info.flush_only || state->mag_info.max_batch) )
-    {
-      ak0991x_unregister_heart_beat_timer(this);
-    }
-    else
-    {
-      ak0991x_register_timer(this); // register HB timer for DRI mode
-    }
+    ak0991x_unregister_heart_beat_timer(this);
   }
   else
   {
-    AK0991X_INST_PRINT(LOW, this, "No need to register HB timer because polling mode.");
+    ak0991x_register_timer(this); // register HB timer for DRI mode
   }
 }
 
@@ -3313,6 +3319,10 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
     AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset.");
+  }
+  else
+  {
+    ak0991x_enter_i3c_mode(this, &state->com_port_info, state->scp_service);
   }
 
   if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)

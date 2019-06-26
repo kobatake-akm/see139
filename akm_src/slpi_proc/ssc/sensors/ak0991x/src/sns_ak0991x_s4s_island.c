@@ -20,6 +20,7 @@
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_ak0991x_s4s.h"
+#include "sns_ak0991x_dae_if.h"
 
 #include "sns_timer.pb.h"
 
@@ -39,7 +40,14 @@ sns_rc ak0991x_s4s_set_mag_config(sns_sensor_instance *const this)
     uint8_t buf_s4s[3];
     uint32_t xfer_bytes;
     uint16_t t_ph_cnt;
-    t_ph_cnt = (uint16_t)ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr) * (AK0991X_S4S_INTERVAL_MS / 1000);
+#ifdef AK0991X_ENABLE_S4S_TEST
+    t_ph_cnt = 80;//TEST
+//    t_ph_cnt = (uint16_t)ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr) * (AK0991X_S4S_INTERVAL_MS / 1000);
+#else
+    t_ph_cnt = (uint16_t)ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr) * (AK0991X_S4S_INTERVAL_MS / 1000);
+#endif
+
+    AK0991X_INST_PRINT(LOW, this, "t_ph_cnt= %d odr = %d/1000",t_ph_cnt, (int)(1000*ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr)));
 
     buf_s4s[0] = 0x0
       | (1 << 7)                                   // TPH
@@ -204,12 +212,14 @@ void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
   req_payload.start_config.late_start_delta = t_ph_period;
   req_payload.priority = SNS_TIMER_PRIORITY_S4S;
   req_payload.timeout_period = t_ph_period;
+  req_payload.has_is_dry_run = true;
+  req_payload.is_dry_run = ak0991x_dae_if_available(this);
 
   if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
   {
-    AK0991X_INST_PRINT(LOW, this, "timeout_period=%u", (uint32_t)req_payload.timeout_period);
-    AK0991X_INST_PRINT(LOW, this, "start_time=%u", (uint32_t)req_payload.start_time);
-    AK0991X_INST_PRINT(LOW, this, "late_start_delta=%u", (uint32_t)req_payload.start_config.late_start_delta);
+    AK0991X_INST_PRINT(LOW, this, "timeout_period=   %u", (uint32_t)req_payload.timeout_period);
+    AK0991X_INST_PRINT(LOW, this, "start_time=       %u", (uint32_t)req_payload.start_time);
+    AK0991X_INST_PRINT(LOW, this, "late_start_delta= %u", (uint32_t)req_payload.start_config.late_start_delta);
 
     if (NULL == state->s4s_timer_data_stream)
     {
@@ -251,14 +261,32 @@ void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
   }
 }
 
+#ifdef AK0991X_OPEN_SSC_704_PATCH
+// patch for OpenSSC7.0.4
+static sns_time convert_bus_ts( sns_time bus_ts )
+{
+  sns_time ts;
+  sns_time now = sns_get_system_time();
+  bus_ts = 0xFFFFFFFFULL & bus_ts;
+  ts = (now & (UINT64_MAX << 32 << 7)) | (bus_ts<<7);
+  
+  if(ts > now)
+  {
+    // rollover -- subtract 1<<32<<7;
+    ts -= 1ULL<<32<<7;
+  }
+  return ts;
+}
+#endif
+
+
 sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
 
-  AK0991X_INST_PRINT(LOW, instance, "handle s4s_timer event");
+//  AK0991X_INST_PRINT(LOW, instance, "handle s4s_timer event");
 
-  sns_time t_ph_time = sns_get_system_time();
   sns_time i2c_start_time;
   uint8_t  buffer;
   uint16_t dt_count;
@@ -290,19 +318,23 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   rv = state->scp_service->api->sns_scp_get_write_time(state->com_port_info.port_handle,
                                                        &i2c_start_time);
 
+#ifdef AK0991X_OPEN_SSC_704_PATCH
+  i2c_start_time = convert_bus_ts(i2c_start_time);  // patch for OpenSSC7.0.4
+#endif
+
   if (rv != SNS_RC_SUCCESS)
   {
     return rv;
   }
 
-  dt_count = (i2c_start_time - t_ph_time) * (1 << state->mag_info.s4s_rr) * 2048
-             / (float)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+  dt_count = (i2c_start_time - state->s4s_tph_start_time) * (1 << state->mag_info.s4s_rr) * 2048ULL
+             / sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000ULL);
 
   AK0991X_INST_PRINT(LOW, instance, "i2c_start_time=%u", (uint32_t)i2c_start_time);
-  AK0991X_INST_PRINT(LOW, instance, "t_ph_time=%u", (uint32_t)t_ph_time);
-  AK0991X_INST_PRINT(LOW, instance, "dt_count=%u", (uint32_t)dt_count);
-  AK0991X_INST_PRINT(LOW, instance, "t_ph_interval=%u",(uint32_t)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000));
-
+  AK0991X_INST_PRINT(LOW, instance, "t_ph_time=     %u", (uint32_t)state->s4s_tph_start_time);
+  AK0991X_INST_PRINT(LOW, instance, "t_ph_interval= %u", (uint32_t)sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000ULL));
+  AK0991X_INST_PRINT(LOW, instance, "rr=            %u", (uint32_t)state->mag_info.s4s_rr);
+  AK0991X_INST_PRINT(LOW, instance, "dt_count=      %u", (uint32_t)dt_count);
 
   if ( dt_count > 127 || state->mag_info.s4s_dt_abort)
   {
@@ -357,9 +389,9 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   else if (state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCED;
+    AK0991X_INST_PRINT(LOW, instance, "S4S synced");
     ak0991x_send_config_event(instance, true);  // send new config event
     ak0991x_send_cal_event(instance, false);    // send previous cal event
-    AK0991X_INST_PRINT(LOW, instance, "S4S synced");
   }
 
   return rv;
@@ -373,44 +405,46 @@ void ak0991x_s4s_handle_timer_data_stream(sns_sensor_instance *const this)
   // Handle timer event for s4s
   if (NULL != state->s4s_timer_data_stream)
   {
-    AK0991X_INST_PRINT(LOW, this, "s4s_timer_data_stream");
     event = state->s4s_timer_data_stream->api->peek_input(state->s4s_timer_data_stream);
 
     while (NULL != event)
     {
       pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
                                                    event->event_len);
-      sns_timer_sensor_event timer_event;
 
-      if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
+      if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
       {
-        if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG == event->message_id)
-        {
-          AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
-                                        event->message_id);
-        }
-        else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
+        AK0991X_INST_PRINT(LOW, this, "Received config id=%d",
+                                      event->message_id);
+      }
+      else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
+      {
+        sns_timer_sensor_event timer_event;
+        if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
           if(state->s4s_reg_event_done)
           {
-            ak0991x_s4s_handle_timer_event(this);
-            AK0991X_INST_PRINT(LOW, this, "Execute handle s4s timer event");
+            state->s4s_tph_start_time = timer_event.timeout_time;
+            AK0991X_INST_PRINT(LOW, this, "Execute handle s4s timer event tph= %u",
+              (uint32_t)state->s4s_tph_start_time);
+            ak0991x_s4s_handle_timer_event(this); // send ST/DT
           }
         }
-        else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
+      }
+      else if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_REG_EVENT == event->message_id)
+      {
+        sns_timer_sensor_reg_event timer_reg_event;
+        if (pb_decode(&stream, sns_timer_sensor_reg_event_fields, &timer_reg_event))
         {
+          state->s4s_tph_start_time = timer_reg_event.start_time;
+          AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr s4s reg event: tph start time= %u",
+            (uint32_t)state->s4s_tph_start_time);
           state->s4s_reg_event_done = true;
-          AK0991X_INST_PRINT(LOW, this, "Execute handle tiemr s4s reg event");
-        }
-        else
-        {
-          AK0991X_INST_PRINT(ERROR, this, "handle timer ERROR s4s");
         }
       }
       else
       {
-        AK0991X_INST_PRINT(ERROR, this, "Received invalid event id=%d",
-                                      event->message_id);
+        AK0991X_INST_PRINT(ERROR, this, "handle timer ERROR s4s");
       }
 
       event = state->s4s_timer_data_stream->api->get_next_input(state->s4s_timer_data_stream);

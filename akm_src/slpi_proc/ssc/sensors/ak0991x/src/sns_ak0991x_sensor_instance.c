@@ -187,6 +187,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
   state->reg_event_done = false;
+  state->reg_event_for_dae_poll_sync = false;
   state->is_previous_irq = false;
   state->total_samples = 0;
   state->flush_requested_in_dae = false;
@@ -509,26 +510,23 @@ void ak0991x_continue_client_config(sns_sensor_instance *const this, bool reset_
 
   ak0991x_reconfig_hw(this, reset_device);
 
-  if(!ak0991x_dae_if_available(this))
+  if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
   {
-    if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
-    {
-      // Register polling timer
-      ak0991x_register_timer(this);
+    // Register polling timer
+    ak0991x_register_timer(this);
 
-      // Register for s4s timer
-      if (state->mag_info.use_sync_stream)
-      {
-        ak0991x_s4s_register_timer(this);
-      }
-    }
-    else
+    // Register for s4s timer
+    if (state->mag_info.use_sync_stream)
     {
-      ak0991x_register_interrupt(this);
+      ak0991x_s4s_register_timer(this);
     }
   }
-  if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+  else
   {
+    if(!ak0991x_dae_if_available(this))
+    {
+        ak0991x_register_interrupt(this);
+    }
     ak0991x_register_heart_beat_timer(this);
   }
 }
@@ -631,46 +629,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         (uint32_t)state->mag_info.flush_period,
         state->mag_info.flush_only?1:0,
         state->mag_info.max_batch?1:0 );
-
-    if( state->mag_info.last_sent_cfg.fifo_wmk == req_cfg.fifo_wmk &&
-        state->mag_info.last_sent_cfg.odr == req_cfg.odr &&
-        ((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
+    
+    // Send out previous config
+    if ( desired_sample_rate > 0 &&
+         state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF &&
+         !state->in_self_test &&
+         !state->remove_request )
     {
-      // No change needed -- return success
-      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d", state->total_samples);
-
-      if(ak0991x_dae_if_available(this))
-      {
-        ak0991x_dae_if_flush_hw(this);
-      }
-
-      // self test done and resumed. No need to send config event.
-      if( state->in_self_test )
-      {
-        AK0991X_INST_PRINT(LOW, this, "selftest done!" );
-        state->in_self_test = false;
-      }
-      else
-      {
-        ak0991x_send_config_event(this, false); // send previous config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
-
-      // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-                                                        state->com_port_info.port_handle,
-                                                        false);
-      return SNS_RC_SUCCESS;
-    }
-    else      // config changed
-    {
-      // If already a request, send out existing config
-      if (desired_sample_rate > 0 &&
-          state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF)
-      {
-        ak0991x_send_config_event(this, false); // send previous config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
+      ak0991x_send_config_event(this, false); // send previous config event
+      ak0991x_send_cal_event(this, false);    // send previous cal event
     }
 
     // set current config values in state parameter
@@ -680,6 +647,32 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
 
     state->system_time = state->config_set_time = sns_get_system_time();
+
+    // check if config not changed.
+    if( !state->processing_new_config &&
+        state->mag_info.last_sent_cfg.fifo_wmk == req_cfg.fifo_wmk &&
+        state->mag_info.last_sent_cfg.odr == req_cfg.odr &&
+        ((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
+    {
+      // No change needed -- return success
+      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d", state->total_samples);
+
+      // self test done and resumed. No need to send config event.
+      if( state->in_self_test )
+      {
+        AK0991X_INST_PRINT(LOW, this, "selftest done!" );
+        state->in_self_test = false;
+      }
+
+      // Turn COM port OFF
+      state->scp_service->api->sns_scp_update_bus_power(
+                                                        state->com_port_info.port_handle,
+                                                        false);
+      return SNS_RC_SUCCESS;
+    }
+
+    // new config received. start processing for new config.
+    state->processing_new_config = true;
 
     // after inst init.
     if( state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF &&

@@ -22,7 +22,15 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
-*  05/15/19     020057     Qualcomm         Fix for avoiding timer reg event read by heart beat timer 
+ * 06/24/19     020059     Qualcomm         Flush done event should be sent after flush completes
+ * 06/07/19     020058     AKM              First tested version with new QAWA(1.0.71.0)
+ * 06/04/19                AKM              Modified for last flush num_samples. 
+ * 05/31/19                AKM              Modified for S4S+DAE. Test version. 
+ * 05/31/19                AKM              Use the timer with is_dry_run=true to sync DAE polling timing.
+ * 05/31/19                Qualcomm/AKM     Fix for avoiding timer reg event read by heart beat timer 
+ * 05/23/19                AKM              Use only dae_event_time for TS on polling with < 50Hz ODR. 
+ *                                          Modified Config not changed judge.
+ * 05/17/19                AKM              Removed sw reset for DAE when ODR changed. Adjusted polling_offset.
  * 05/16/19     020056     AKM              modified for data_age_limit_ticks to use if-else
  * 05/14/19                Qualcomm         Sometimes, num_samples exceeding max fifo size and causing
                                             stack corruption(Stability issue)
@@ -297,8 +305,8 @@
  *
  **/
 
-// major:02 minor:00 revision:56
+// major:02 minor:00 revision:58
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      57
+#define AK0991X_DRV_VER_REV      59
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

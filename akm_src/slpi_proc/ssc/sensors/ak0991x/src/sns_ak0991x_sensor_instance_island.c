@@ -244,7 +244,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
             if (!state->in_clock_error_procedure)
             {
               // actual ODR measurement start.
-              ak0991x_reconfig_hw(this, true);
+              ak0991x_reconfig_hw(this, false);
             }
           }
         }
@@ -330,12 +330,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
     while (NULL != event)
     {
+      pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
+                                                    event->event_len);
+
       if (SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
       {
-        pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event,
-                                                     event->event_len);
         sns_timer_sensor_event timer_event;
-
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
           sns_time now = sns_get_system_time();
@@ -346,9 +346,11 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               timer_event.requested_timeout_time != 0)
           {
             state->system_time = timer_event.requested_timeout_time;
-            AK0991X_INST_PRINT(LOW, this, "Execute handle timer event. now %u req_timeout_time %u",
+//            state->system_time = timer_event.timeout_time;  // for S4S test
+            AK0991X_INST_PRINT(LOW, this, "Polling: now %u event %u req %u",
                        (uint32_t)now,
-                       (uint32_t)state->system_time);
+                       (uint32_t)state->system_time,
+                       (uint32_t)timer_event.requested_timeout_time);
 
             // mag data read
             ak0991x_read_mag_samples(this);
@@ -379,11 +381,24 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         //TODO:add support for handling SNS_TIMER_SENSOR_REG_EVENT timer event to successfully support S4S
         // When a range of start times is provided to the timer sensor, the timer sensor will pick a specific time.
         // That specific time will be returned in the SNS_TIMER_SENSOR_REG_EVENT event --
-        // and will be needed by the mag sensor to populate the fields sent to the DAE sensor(so that timers remain synchronized in the DAE environment),
-        // and the field in the Physical Sensor Config event (which needs absolute timing for the future events).
+        // and the field in the Physical Sensor Config event (which needs absolute stiming for the future events).
         if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)
         {
-          state->reg_event_done = true;
+          sns_timer_sensor_reg_event timer_reg_event;
+          if (pb_decode(&stream, sns_timer_sensor_reg_event_fields, &timer_reg_event))
+          {
+            state->polling_timer_start_time = timer_reg_event.start_time + timer_reg_event.timeout_period; // set actual polling timer start time
+            AK0991X_INST_PRINT(LOW, this, "Received TIMER_SENSOR_REG_EVENT now= %u start_time= %u",
+              (uint32_t)sns_get_system_time(),
+              (uint32_t)state->polling_timer_start_time);
+            state->reg_event_done = true;
+            if(ak0991x_dae_if_available(this) && (state->config_step != AK0991X_CONFIG_IDLE))
+            {
+              state->reg_event_for_dae_poll_sync = true;
+              ak0991x_dae_if_start_streaming(this);
+              state->config_step = AK0991X_CONFIG_UPDATING_HW;
+            }
+          }
         }
       }
       else if(SNS_STD_MSGID_SNS_STD_ERROR_EVENT == event->message_id)
