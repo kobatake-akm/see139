@@ -621,26 +621,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                &mag_chosen_sample_rate,
                                &mag_chosen_sample_rate_reg_value,
                                state->mag_info.device_select);
-    if (rv != SNS_RC_SUCCESS || 
-        (state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF && mag_chosen_sample_rate_reg_value == AK0991X_MAG_ODR_OFF) )
-    {
-      sns_service_manager *manager =
-        this->cb->get_service_manager(this);
-      sns_event_service *event_service =
-      	(sns_event_service*)manager->get_service(manager, SNS_EVENT_SERVICE);
-      SNS_INST_PRINTF(ERROR, this, "Cannot find match ODR: rv=%d, desired_SR=%d, mag device=%d",
-        rv, (int)desired_sample_rate, state->mag_info.device_select);
-      event_service->api->publish_error(event_service,this, SNS_RC_INVALID_VALUE);
-
-      ak0991x_send_config_event(this, false); // send previous config event
-      ak0991x_send_cal_event(this, false);    // send previous cal event
-      
-      // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-                                                        state->com_port_info.port_handle,
-                                                        false);
-      return rv;
-    }
 
     // update requested config
     state->mag_info.flush_only = payload->is_flush_only;
@@ -923,3 +903,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   return SNS_RC_SUCCESS;
 }
 
+void ak0991x_inst_publish_error(sns_sensor_instance *const this, sns_rc rc)
+{
+  sns_service_manager *manager = this->cb->get_service_manager(this);
+  sns_event_service *event_service = (sns_event_service*)manager->get_service(manager, SNS_EVENT_SERVICE);
+  event_service->api->publish_error(event_service, this, rc);
+}
