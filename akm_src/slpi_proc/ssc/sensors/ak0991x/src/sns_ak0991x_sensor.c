@@ -2001,16 +2001,17 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     ak0991x_power_rail_pending_state pending_state;
     sns_time timeout_time;
 
-    inst_state->wait_for_last_flush = true;
+    inst_state->wait_for_last_flush = !inst_state->in_self_test;
     inst_state->last_flush_poll_check_count = 0;
 
-    if(!ak0991x_dae_if_available(instance))
+    if(!ak0991x_dae_if_available(instance) || !inst_state->wait_for_last_flush)
     {
       SNS_PRINTF(HIGH, this, "Mag: remove instance, hw_id = %d, inst = %x", state->hardware_id, instance);
       this->cb->remove_instance(instance);
 
       pending_state = AK0991X_POWER_RAIL_PENDING_OFF;
       timeout_time = AK0991X_POWER_RAIL_OFF_TIMEOUT_NS;
+      inst_state->in_self_test = false;
     }
     else
     {

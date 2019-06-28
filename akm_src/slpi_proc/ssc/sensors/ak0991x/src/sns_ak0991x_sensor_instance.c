@@ -669,7 +669,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if( state->in_self_test )
       {
         AK0991X_INST_PRINT(LOW, this, "selftest done!" );
-        state->in_self_test = false;
       }
 
       // Turn COM port OFF
@@ -891,7 +890,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "SENSOR_TEST_CONFIG for selftest" );
       ak0991x_run_self_test(this);
       AK0991X_INST_PRINT(LOW, this, "selftest done!" );
-      state->in_self_test = false;
     }
   }
 
