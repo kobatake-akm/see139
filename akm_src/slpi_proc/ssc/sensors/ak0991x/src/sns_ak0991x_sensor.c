@@ -1940,6 +1940,24 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               AK0991X_PRINT(
                MED, this, "new request. SR=%u batch_per=%d", (uint32_t)decoded_payload.sample_rate,
                decoded_request.has_batching ? decoded_request.batching.batch_period : -1);
+
+              // Check decoded sample_rate
+              float chosen_sample_rate = 0;
+              ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
+              sns_rc rv = ak0991x_mag_match_odr(decoded_payload.sample_rate,
+                                                &chosen_sample_rate,
+                                                &mag_chosen_sample_rate_reg_value,
+                                                state->device_select);
+              if(rv != SNS_RC_SUCCESS || (uint32_t)decoded_payload.sample_rate <= 0)
+              {
+                AK0991X_PRINT(HIGH, this, "Invalid sample_rate. Reject request.");
+                ak0991x_inst_publish_error(instance, SNS_RC_INVALID_VALUE);
+                instance->cb->remove_client_request(instance, new_request);
+              }
+              else
+              {
+                ak0991x_reval_instance_config(this, instance);
+              }
             }
             else if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
                new_request->message_id)
@@ -1951,8 +1969,12 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                    AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
                 ak0991x_set_self_test_inst_config(this, instance);
               }
+              ak0991x_reval_instance_config(this, instance);
             }
-            ak0991x_reval_instance_config(this, instance);
+            else
+            {
+              ak0991x_reval_instance_config(this, instance);
+            }
           }
         }
         else
