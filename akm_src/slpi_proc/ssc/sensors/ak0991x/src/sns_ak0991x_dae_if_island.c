@@ -925,15 +925,7 @@ static void process_response(
                          resp.err, dae_stream->state, state->config_step, state->num_samples);
       if(state->flush_requested_in_dae)
       {
-        if( (state->num_samples>0 || state->this_is_the_last_flush) &&
-            (state->accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH) )
-        {
-          ak0991x_send_fifo_flush_done(this);
-        }
-        else
-        {
-          AK0991X_INST_PRINT(LOW, this, "flush_done_skipped");
-        }
+        ak0991x_send_fifo_flush_done(this);
       }
       dae_stream->flushing_data = false;
       state->this_is_the_last_flush = false;

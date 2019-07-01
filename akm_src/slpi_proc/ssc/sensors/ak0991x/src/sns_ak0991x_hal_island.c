@@ -2046,18 +2046,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   // reset flags
   state->irq_info.detect_irq_event = false;
 
-#ifdef AK0991X_ENABLE_DAE
-  bool flushing_data =
-      ((ak0991x_instance_state*)instance->state->state)->dae_if.mag.flushing_data;
-#else
-  bool flushing_data = false;
-#endif
   if(state->accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH)
   {
-    if( (!ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) ||
-        (ak0991x_dae_if_available(instance) &&
-            state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
-            state->flush_requested_in_dae && !flushing_data) )
+    if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) 
     {
       ak0991x_send_fifo_flush_done(instance);
     }
