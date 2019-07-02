@@ -97,6 +97,9 @@
 #elif SSC_TARGET_SM7150
 #define BUS_TYPE                   SNS_BUS_I3C_SDR
 #define IRQ_NUM                    88
+#elif SSC_TARGET_SAIPAN
+#define BUS_TYPE                   SNS_BUS_I3C_SDR
+#define IRQ_NUM                    110
 #else
 #define BUS_TYPE                   SNS_BUS_I3C_SDR
 #define IRQ_NUM                    134

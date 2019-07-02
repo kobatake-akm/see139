@@ -782,7 +782,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
           ak0991x_send_fifo_flush_done(this);
         }
         state->flush_requested_in_dae = true;
-        ak0991x_dae_if_flush_hw(this);
+        if( state->mag_info.use_fifo )
+        {
+          ak0991x_dae_if_flush_hw(this);
+        }
+        else
+        {
+          ak0991x_dae_if_flush_samples(this);
+        }
       }
     }
     else
