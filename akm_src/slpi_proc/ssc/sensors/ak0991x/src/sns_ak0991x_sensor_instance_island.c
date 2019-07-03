@@ -410,6 +410,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               //then valid values to put into here would be "1234ms + (10ms * N)" for any (reasonable) value of N.
               state->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period - state->half_measurement_time;
 
+              if( !state->in_self_test )
               {
                 bool is_new_cal_event = false;
                 // after inst init.
