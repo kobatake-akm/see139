@@ -408,7 +408,6 @@ static void process_fifo_samples(
 
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
   uint16_t fifo_wmk = (state->mag_info.use_fifo) ? (uint8_t)(buf[0] & 0x1F) + 1 : 1;  // read value from WM[4:0]
-  bool last_flush = false;
 
   state->is_orphan = false;
   sampling_intvl = (ak0991x_get_sample_interval(odr) *
@@ -457,26 +456,7 @@ static void process_fifo_samples(
             }
             else  // last flush data
             {
-              last_flush = true;
               state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl/2) ? 1 : 0;
-//              state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
-
-//              if( state->pre_timestamp_for_orphan + sampling_intvl < state->polling_timer_start_time )
-//              {
-//                state->num_samples = ( (( state->polling_timer_start_time - state->pre_timestamp_for_orphan + sampling_intvl/2 ) / sampling_intvl) > 1 ) ? 1 : 0;
-//              }
-/*
-                // prevent negative delay
-                if( state->system_time > state->pre_timestamp_for_orphan + sampling_intvl - sns_convert_ns_to_ticks( 3 * 1000 * 1000ULL ) )
-                {
-                  state->num_samples = 1;
-                }
-              }
-              else
-              {
-                state->num_samples = ( state->system_time > state->polling_timer_start_time ) ? 1 : 0;
-              }
-*/
               AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u config=%u, p_off=%u",
                   state->num_samples,
                   state->is_orphan,
@@ -658,26 +638,6 @@ static void process_fifo_samples(
       {
         // check heart beat fire time
 //        ak0991x_heart_beat_timer_event(this);
-      }
-    }
-  }
-
-  if(last_flush)
-  {
-    if( state->mag_info.cur_cfg.num != state->mag_info.last_sent_cfg.num )
-    {
-      // if config was updated, send correct config.
-      if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
-          state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
-          state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
-      {
-        AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-            (uint32_t)state->mag_info.cur_cfg.odr,
-            (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-            (uint32_t)state->mag_info.cur_cfg.dae_wmk);
-
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
       }
     }
   }
