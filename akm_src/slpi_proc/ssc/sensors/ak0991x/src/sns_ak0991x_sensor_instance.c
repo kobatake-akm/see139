@@ -572,27 +572,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     //   2. Configure sensor HW.
     //   3. Save the current config information like type, sample_rate, report_rate, etc.
     //   4. sendRequest() for Timer to start/stop in case of polling using timer_data_stream.
-/*
-    // For preventing WaitForEvents
-    // In case last send config event is not sent out. 
-    // For example in DAE mode, there is no data detected and then new request detected.
-    if( state->mag_info.cur_cfg.num != state->mag_info.last_sent_cfg.num )
-    {
-      // if config was updated, send correct config.
-      if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
-          state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
-          state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
-      {
-        AK0991X_INST_PRINT(HIGH, this, "Send new config because last one was missing: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-            (uint32_t)state->mag_info.cur_cfg.odr,
-            (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-            (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
-    }
-*/
     sns_ak0991x_mag_req *payload =
       (sns_ak0991x_mag_req *)client_request->request;
     desired_sample_rate = payload->sample_rate;
@@ -644,6 +624,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
          !state->in_self_test &&
          !state->remove_request )
     {
+      AK0991X_INST_PRINT(MED, this, "Send current config: odr=0x%02X fifo_wmk=%d",
+          (uint32_t)state->mag_info.cur_cfg.odr,
+          (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
       ak0991x_send_config_event(this, false); // send previous config event
       ak0991x_send_cal_event(this, false);    // send previous cal event
     }
