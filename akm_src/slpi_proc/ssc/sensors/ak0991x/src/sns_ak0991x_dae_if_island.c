@@ -450,6 +450,7 @@ static void process_fifo_samples(
           }
           else
           {
+            last_flush = !state->irq_info.detect_irq_event;
             if( !state->fifo_flush_in_progress ) // last batch but not last flush
             {
               // only timer event. skip all flush requests.
@@ -457,8 +458,10 @@ static void process_fifo_samples(
             }
             else  // last flush data
             {
-              last_flush = true;
               state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl/2) ? 1 : 0;
+            }
+            if( last_flush )
+            {
               AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u config=%u, p_off=%u",
                   state->num_samples,
                   state->is_orphan,
@@ -644,14 +647,18 @@ static void process_fifo_samples(
     }
   }
 
-  if(last_flush)
+  if( !state->in_self_test && 
+      last_flush && 
+      state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
+      state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
   {
-    AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+    AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+        state->mag_info.cur_cfg.num,
         (uint32_t)state->mag_info.cur_cfg.odr,
         (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
         (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-    ak0991x_send_config_event(this, false);  // send previous config event
+    ak0991x_send_config_event(this, true);  // send previous config event
     ak0991x_send_cal_event(this, false);    // send previous cal event
   }
 }

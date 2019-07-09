@@ -398,10 +398,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                   sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000 * 0.001f); //This is a hardware and sampling-rate dependent value
               }
               state->reg_event_done = true;
-              AK0991X_INST_PRINT(LOW, this, "Received TIMER_SENSOR_REG_EVENT now= %u start_time= %u pre_ts= %u",
-                (uint32_t)sns_get_system_time(),
-                (uint32_t)state->polling_timer_start_time,
-                (uint32_t)state->pre_timestamp);
+              AK0991X_INST_PRINT(LOW, this, "Received TIMER_SENSOR_REG_EVENT odr=%d wm=%d dae_wm=%d last_cfg.num= %d cur_cfg.num= %d",
+                state->mag_info.cur_cfg.odr,
+                state->mag_info.cur_cfg.fifo_wmk,
+                state->mag_info.cur_cfg.dae_wmk,
+                state->mag_info.last_sent_cfg.num,
+                state->mag_info.cur_cfg.num);
 
               state->has_sync_ts_anchor = true;
               //This value should be a timestamp(ideally in the nearby future) of a valid synchronized sample
@@ -410,24 +412,18 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               //then valid values to put into here would be "1234ms + (10ms * N)" for any (reasonable) value of N.
               state->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period - state->half_measurement_time;
 
-              if( !state->in_self_test )
+              // very first time after inst init, and when new request received before sending config event(cur-last>1) to prevent WaitForEvents
+              if( !state->in_self_test && 
+                  (state->mag_info.last_sent_cfg.num == 0 || state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ))
               {
-                bool is_new_cal_event = false;
-                // after inst init.
-                if( state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF &&
-                    state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
-                {
-                  is_new_cal_event = true;
-                }
-
-                AK0991X_INST_PRINT(HIGH, this, "Send new config in REG_EVENT: odr=0x%02X fifo_wmk=%d, dae_wmk=%d cal_new=%d",
+                AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in REG_EVENT: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+                  state->mag_info.cur_cfg.num,
                   (uint32_t)state->mag_info.cur_cfg.odr,
                   (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-                  (uint32_t)state->mag_info.cur_cfg.dae_wmk,
-                  is_new_cal_event);
+                  (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
                 ak0991x_send_config_event(this, true); // send new config event
-                ak0991x_send_cal_event(this, is_new_cal_event);    // send new cal event
+                ak0991x_send_cal_event(this, (state->mag_info.cur_cfg.num == 1));    // send new cal event
               }
               
               state->has_sync_ts_anchor = false;

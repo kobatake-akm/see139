@@ -87,6 +87,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.cur_cfg.num = 0;
   state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
+  state->mag_info.last_sent_cfg.num = 0;
   state->mag_info.last_sent_cfg.odr = AK0991X_MAG_ODR_OFF;
 
   sns_memscpy(&state->mag_info.sstvt_adj,
@@ -610,7 +611,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, mag_chosen_sample_rate);
     req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate, req_cfg.fifo_wmk);
 
-    AK0991X_INST_PRINT(LOW, this, "odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
+    AK0991X_INST_PRINT(LOW, this, "Calc odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
         req_cfg.odr,
         req_cfg.fifo_wmk,
         req_cfg.dae_wmk,
@@ -631,14 +632,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       ak0991x_send_cal_event(this, false);    // send previous cal event
     }
 
-    // set current config values in state parameter
-    state->mag_info.cur_cfg.num++;
-    state->mag_info.cur_cfg.odr       = req_cfg.odr;
-    state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
-    state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
-
-    state->system_time = state->config_set_time = sns_get_system_time();
-
     // check if config not changed.
     if( !state->processing_new_config &&
         state->mag_info.last_sent_cfg.fifo_wmk == req_cfg.fifo_wmk &&
@@ -646,7 +639,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
-      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d", state->total_samples);
+      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d", 
+      state->total_samples,
+      state->mag_info.cur_cfg.num,
+      (uint32_t)state->mag_info.cur_cfg.odr,
+      (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+      (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
       // self test done and resumed. No need to send config event.
       if( state->in_self_test )
@@ -663,6 +661,18 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     // new config received. start processing for new config.
     state->processing_new_config = true;
+ 
+    // set current config values in state parameter
+    state->mag_info.cur_cfg.num++;
+    state->mag_info.cur_cfg.odr       = req_cfg.odr;
+    state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
+    state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
+
+    AK0991X_INST_PRINT(HIGH, this, "Set new config #%d : odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+    state->mag_info.cur_cfg.num,
+    (uint32_t)state->mag_info.cur_cfg.odr,
+    (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+    (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
     // after inst init.
     if( state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF &&
