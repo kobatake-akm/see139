@@ -769,19 +769,28 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u, requesed_in_dae=%d",
             (uint32_t)state->system_time, state->flush_requested_in_dae);
 
-        if(state->flush_requested_in_dae)
+        // During configuration. Wait for send config...
+        if( state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num )
         {
-          AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
+          AK0991X_INST_PRINT(LOW, this, "Wait for send config event...");
           ak0991x_send_fifo_flush_done(this);
-        }
-        state->flush_requested_in_dae = true;
-        if( state->mag_info.use_fifo )
-        {
-          ak0991x_dae_if_flush_hw(this);
         }
         else
         {
-          ak0991x_dae_if_flush_samples(this);
+          if(state->flush_requested_in_dae)
+          {
+            AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
+            ak0991x_send_fifo_flush_done(this);
+          }
+          state->flush_requested_in_dae = true;
+          if( state->mag_info.use_fifo )
+          {
+            ak0991x_dae_if_flush_hw(this);
+          }
+          else
+          {
+            ak0991x_dae_if_flush_samples(this);
+          }
         }
       }
     }
