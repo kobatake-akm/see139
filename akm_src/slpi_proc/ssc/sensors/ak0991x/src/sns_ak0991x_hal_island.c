@@ -3349,23 +3349,28 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
     ak0991x_reset_averaged_interval(this);
 
     AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: irq_ready=%u", state->irq_info.is_ready);
-
-    rv = ak0991x_start_mag_streaming(this);
-    if(rv != SNS_RC_SUCCESS)
+    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING ||
+        state->irq_info.is_ready ||
+        ak0991x_dae_if_is_streaming(this))
     {
-      SNS_INST_PRINTF(ERROR, this, "reconfig_hw: failed to start");
-    }
-    else if(!state->in_clock_error_procedure && state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // on DRI mode
-    {
-      // if config was updated, send correct config.
-      if( state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num )
+      rv = ak0991x_start_mag_streaming(this);
+      if(rv != SNS_RC_SUCCESS)
       {
-        // config changed. send config event if non DAE mode
-        AK0991X_INST_PRINT(MED, this, "Send new config: odr=0x%02X fifo_wmk=%d",
-            (uint32_t)state->mag_info.cur_cfg.odr,
-            (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
+        SNS_INST_PRINTF(ERROR, this, "reconfig_hw: failed to start");
+      }
+      else if(!state->in_clock_error_procedure && state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // on DRI mode
+      {
+        // if config was updated, send correct config.
+        if( ( !ak0991x_dae_if_is_streaming(this) && state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num ) ||
+            ( ak0991x_dae_if_is_streaming(this) && state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ) )  // wait for in order to send config in DAE
+        {
+          // config changed. send config event if non DAE mode
+          AK0991X_INST_PRINT(MED, this, "Send new config: odr=0x%02X fifo_wmk=%d",
+              (uint32_t)state->mag_info.cur_cfg.odr,
+              (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
+          ak0991x_send_config_event(this, true);  // send new config event
+          ak0991x_send_cal_event(this, false);    // send previous cal event
+        }
       }
     }
   }
@@ -3374,8 +3379,15 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
     rv = ak0991x_stop_mag_streaming(this);
   }
 
-  AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: reset=%u, ODR=%d result=%d",
-      reset_device, state->mag_info.cur_cfg.odr, rv);
+  if( state->in_clock_error_procedure )
+  {
+    AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: in clock error procedure.");
+  }
+  else
+  {
+    AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: reset=%u, ODR=%d result=%d",
+        reset_device, state->mag_info.cur_cfg.odr, rv);
+  }
   return rv;
 }
 

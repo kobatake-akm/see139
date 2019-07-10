@@ -416,7 +416,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               if( !state->in_self_test && 
                   (!ak0991x_dae_if_available(this) || 
                    state->mag_info.last_sent_cfg.num == 0 || 
-                   state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ))
+                   state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ))  // wait for in order to send config in DAE
               {
                 AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in REG_EVENT: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
                   state->mag_info.cur_cfg.num,
