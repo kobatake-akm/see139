@@ -414,7 +414,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
               // very first time after inst init, and when new request received before sending config event(cur-last>1) to prevent WaitForEvents
               if( !state->in_self_test && 
-                  (state->mag_info.last_sent_cfg.num == 0 || state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ))
+                  (!ak0991x_dae_if_available(this) || 
+                   state->mag_info.last_sent_cfg.num == 0 || 
+                   state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ))
               {
                 AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in REG_EVENT: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
                   state->mag_info.cur_cfg.num,

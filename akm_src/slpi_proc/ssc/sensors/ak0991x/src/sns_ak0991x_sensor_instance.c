@@ -621,7 +621,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     
     // Send out previous config
     if ( desired_sample_rate > 0 &&
-         state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF &&
+         state->mag_info.last_sent_cfg.num > 0 &&
          !state->in_self_test &&
          !state->remove_request )
     {
@@ -675,8 +675,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
     // after inst init.
-    if( state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF &&
-        state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
+    if( state->mag_info.last_sent_cfg.num == 0 )
     {
       // reset timestamp
       state->pre_timestamp =

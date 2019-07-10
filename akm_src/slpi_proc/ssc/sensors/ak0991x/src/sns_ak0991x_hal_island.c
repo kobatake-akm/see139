@@ -3358,8 +3358,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
     else if(!state->in_clock_error_procedure && state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // on DRI mode
     {
       // if config was updated, send correct config.
-      if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
-          state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk )
+      if( state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num )
       {
         // config changed. send config event if non DAE mode
         AK0991X_INST_PRINT(MED, this, "Send new config: odr=0x%02X fifo_wmk=%d",
