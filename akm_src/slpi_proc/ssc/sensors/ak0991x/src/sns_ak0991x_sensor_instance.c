@@ -675,7 +675,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
     // after inst init.
-    if( state->mag_info.last_sent_cfg.num == 0 )
+    if( state->mag_info.last_sent_cfg.num == 0 && 
+        state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
     {
       // reset timestamp
       state->pre_timestamp =
@@ -685,12 +686,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       // update averaged_interval
       ak0991x_reset_averaged_interval(this);
 
-      AK0991X_INST_PRINT(LOW, this, "Config set time =%u", (uint32_t)state->config_set_time);
-
       // since the physical config event needs to contain a proper "sync_ts_anchor",
       // this should be delayed until after receving the timer response for the polling timer.
-      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING )
       {
+        AK0991X_INST_PRINT(LOW, this, "Config set time =%u", (uint32_t)state->config_set_time);
+
         ak0991x_send_config_event(this, true); // send new config event
         ak0991x_send_cal_event(this, true);    // send new cal event
       }
