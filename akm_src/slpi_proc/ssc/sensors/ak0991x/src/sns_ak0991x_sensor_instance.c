@@ -87,6 +87,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.cur_cfg.num = 0;
   state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
+  state->mag_info.last_sent_cfg.num = 0;
   state->mag_info.last_sent_cfg.odr = AK0991X_MAG_ODR_OFF;
 
   sns_memscpy(&state->mag_info.sstvt_adj,
@@ -572,27 +573,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     //   2. Configure sensor HW.
     //   3. Save the current config information like type, sample_rate, report_rate, etc.
     //   4. sendRequest() for Timer to start/stop in case of polling using timer_data_stream.
-/*
-    // For preventing WaitForEvents
-    // In case last send config event is not sent out. 
-    // For example in DAE mode, there is no data detected and then new request detected.
-    if( state->mag_info.cur_cfg.num != state->mag_info.last_sent_cfg.num )
-    {
-      // if config was updated, send correct config.
-      if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
-          state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
-          state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
-      {
-        AK0991X_INST_PRINT(HIGH, this, "Send new config because last one was missing: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-            (uint32_t)state->mag_info.cur_cfg.odr,
-            (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-            (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
-    }
-*/
     sns_ak0991x_mag_req *payload =
       (sns_ak0991x_mag_req *)client_request->request;
     desired_sample_rate = payload->sample_rate;
@@ -630,7 +611,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, mag_chosen_sample_rate);
     req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate, req_cfg.fifo_wmk);
 
-    AK0991X_INST_PRINT(LOW, this, "odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
+    AK0991X_INST_PRINT(LOW, this, "Calc odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
         req_cfg.odr,
         req_cfg.fifo_wmk,
         req_cfg.dae_wmk,
@@ -640,21 +621,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     
     // Send out previous config
     if ( desired_sample_rate > 0 &&
-         state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF &&
+         state->mag_info.last_sent_cfg.num > 0 &&
          !state->in_self_test &&
          !state->remove_request )
     {
+      AK0991X_INST_PRINT(MED, this, "Send current config: odr=0x%02X fifo_wmk=%d",
+          (uint32_t)state->mag_info.cur_cfg.odr,
+          (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
       ak0991x_send_config_event(this, false); // send previous config event
       ak0991x_send_cal_event(this, false);    // send previous cal event
     }
-
-    // set current config values in state parameter
-    state->mag_info.cur_cfg.num++;
-    state->mag_info.cur_cfg.odr       = req_cfg.odr;
-    state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
-    state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
-
-    state->system_time = state->config_set_time = sns_get_system_time();
 
     // check if config not changed.
     if( !state->processing_new_config &&
@@ -663,7 +639,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
-      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d", state->total_samples);
+      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d", 
+      state->total_samples,
+      state->mag_info.cur_cfg.num,
+      (uint32_t)state->mag_info.cur_cfg.odr,
+      (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+      (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
       // self test done and resumed. No need to send config event.
       if( state->in_self_test )
@@ -680,9 +661,21 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     // new config received. start processing for new config.
     state->processing_new_config = true;
+ 
+    // set current config values in state parameter
+    state->mag_info.cur_cfg.num++;
+    state->mag_info.cur_cfg.odr       = req_cfg.odr;
+    state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
+    state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
+
+    AK0991X_INST_PRINT(HIGH, this, "Set new config #%d : odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+    state->mag_info.cur_cfg.num,
+    (uint32_t)state->mag_info.cur_cfg.odr,
+    (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+    (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
     // after inst init.
-    if( state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF &&
+    if( state->mag_info.last_sent_cfg.num == 0 && 
         state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
     {
       // reset timestamp
@@ -693,12 +686,12 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       // update averaged_interval
       ak0991x_reset_averaged_interval(this);
 
-      AK0991X_INST_PRINT(LOW, this, "Config set time =%u", (uint32_t)state->config_set_time);
-
       // since the physical config event needs to contain a proper "sync_ts_anchor",
       // this should be delayed until after receving the timer response for the polling timer.
-      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING )
       {
+        AK0991X_INST_PRINT(LOW, this, "Config set time =%u", (uint32_t)state->config_set_time);
+
         ak0991x_send_config_event(this, true); // send new config event
         ak0991x_send_cal_event(this, true);    // send new cal event
       }
@@ -776,19 +769,28 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u, requesed_in_dae=%d",
             (uint32_t)state->system_time, state->flush_requested_in_dae);
 
-        if(state->flush_requested_in_dae)
+        // During configuration. Wait for send config...
+        if( state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num )
         {
-          AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
+          AK0991X_INST_PRINT(LOW, this, "Wait for send config event...");
           ak0991x_send_fifo_flush_done(this);
-        }
-        state->flush_requested_in_dae = true;
-        if( state->mag_info.use_fifo )
-        {
-          ak0991x_dae_if_flush_hw(this);
         }
         else
         {
-          ak0991x_dae_if_flush_samples(this);
+          if(state->flush_requested_in_dae)
+          {
+            AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
+            ak0991x_send_fifo_flush_done(this);
+          }
+          state->flush_requested_in_dae = true;
+          if( state->mag_info.use_fifo )
+          {
+            ak0991x_dae_if_flush_hw(this);
+          }
+          else
+          {
+            ak0991x_dae_if_flush_samples(this);
+          }
         }
       }
     }

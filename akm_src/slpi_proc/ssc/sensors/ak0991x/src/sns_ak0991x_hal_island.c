@@ -2980,6 +2980,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   phy_sensor_config.has_sync_ts_anchor = state->has_sync_ts_anchor;
   phy_sensor_config.sync_ts_anchor     = state->sync_ts_anchor;
 
+  if( is_new_config )
+  {
+    state->config_set_time = sns_get_system_time();
+  }
+
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u wm %u dae_wm %u is_new_config %d",
                      (uint32_t)state->config_set_time,
@@ -3353,11 +3358,11 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
       {
         SNS_INST_PRINTF(ERROR, this, "reconfig_hw: failed to start");
       }
-      else if(!state->in_clock_error_procedure && !ak0991x_dae_if_available(this))
+      else if(!state->in_clock_error_procedure && state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // on DRI mode
       {
         // if config was updated, send correct config.
-        if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
-            state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk )
+        if( ( !ak0991x_dae_if_is_streaming(this) && state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num ) ||
+            ( ak0991x_dae_if_is_streaming(this) && state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ) )  // wait for in order to send config in DAE
         {
           // config changed. send config event if non DAE mode
           AK0991X_INST_PRINT(MED, this, "Send new config: odr=0x%02X fifo_wmk=%d",
@@ -3374,8 +3379,15 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
     rv = ak0991x_stop_mag_streaming(this);
   }
 
-  AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: reset=%u, ODR=%d result=%d",
-      reset_device, state->mag_info.cur_cfg.odr, rv);
+  if( state->in_clock_error_procedure )
+  {
+    AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: in clock error procedure.");
+  }
+  else
+  {
+    AK0991X_INST_PRINT(HIGH, this, "reconfig_hw: reset=%u, ODR=%d result=%d",
+        reset_device, state->mag_info.cur_cfg.odr, rv);
+  }
   return rv;
 }
 

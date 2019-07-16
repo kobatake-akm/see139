@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 07/16/19     020059     AKM              Modified for WaitForEvents error on MovingRates test of CTS.
  * 06/24/19     020058.2   Qualcomm         Merged Qualcomm's 020059 modification.
  *                                          Flush done event should be sent after flush completes
  * 06/19/19                Qualcomm/AKM     No sending flush_done while DAE flushing_data is true
@@ -309,8 +310,8 @@
  *
  **/
 
-// major:02 minor:00 revision:58
+// major:02 minor:00 revision:59
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      58
+#define AK0991X_DRV_VER_REV      59
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
