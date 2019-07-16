@@ -230,11 +230,13 @@ typedef struct ak0991x_instance_state
   bool data_over_run;
   bool data_is_ready;
   bool fifo_flush_in_progress;
+  bool wait_for_last_flush;
   bool in_self_test;
   bool config_mag_after_ascp_xfer;
   bool re_read_data_after_ascp;
   bool this_is_the_last_flush;
   bool reg_event_done;
+  bool has_sync_ts_anchor;
   bool reg_event_for_dae_poll_sync;
   bool s4s_reg_event_done;
   bool in_clock_error_procedure;
@@ -244,6 +246,7 @@ typedef struct ak0991x_instance_state
   bool processing_new_config;
   bool remove_request;
   sns_std_sensor_sample_status accuracy;
+  uint32_t last_flush_poll_check_count;
   uint32_t total_samples; /* throughout the life of this instance */
   uint32_t prev_cal_id;
   int32_t delta_ts_time;
@@ -266,6 +269,7 @@ typedef struct ak0991x_instance_state
   sns_time last_cal_event_sent_time;
   sns_time s4s_tph_start_time;
   sns_time polling_timer_start_time;
+  sns_time sync_ts_anchor;
   sns_timer_sensor_config req_payload;
 
   /** Timer info */
@@ -337,3 +341,5 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this);
 
 sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                       sns_request const *client_request);
+
+void ak0991x_inst_publish_error(sns_sensor_instance *const this, sns_rc rc);

@@ -390,7 +390,7 @@ static void process_fifo_samples(
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
-
+  
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
   // buf[0] : CNTL1
@@ -457,31 +457,6 @@ static void process_fifo_samples(
             else  // last flush data
             {
               state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl/2) ? 1 : 0;
-//              state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl) ? 1 : 0;
-
-//              if( state->pre_timestamp_for_orphan + sampling_intvl < state->polling_timer_start_time )
-//              {
-//                state->num_samples = ( (( state->polling_timer_start_time - state->pre_timestamp_for_orphan + sampling_intvl/2 ) / sampling_intvl) > 1 ) ? 1 : 0;
-//              }
-/*
-                // prevent negative delay
-                if( state->system_time > state->pre_timestamp_for_orphan + sampling_intvl - sns_convert_ns_to_ticks( 3 * 1000 * 1000ULL ) )
-                {
-                  state->num_samples = 1;
-                }
-              }
-              else
-              {
-                state->num_samples = ( state->system_time > state->polling_timer_start_time ) ? 1 : 0;
-              }
-*/
-              AK0991X_INST_PRINT(LOW, this, "last flush num=%d orphan=%d sys=%u pre_orphan=%u config=%u, p_off=%u",
-                  state->num_samples,
-                  state->is_orphan,
-                  (uint32_t)state->system_time,
-                  (uint32_t)state->pre_timestamp_for_orphan,
-                  (uint32_t)state->config_set_time,
-                  (uint32_t)state->polling_timer_start_time);
             }
           }
 
@@ -541,9 +516,8 @@ static void process_fifo_samples(
         {
           state->interrupt_timestamp = state->dae_event_time;
 
-#ifdef AK0991X_OPEN_SSC_704_PATCH
+#ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
           // use ideal interval for more than 50Hz ODR because of the timer jitter
-          // jitter will be reduced from OpenSSC7.0.5
           if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
               !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
           {
@@ -573,23 +547,6 @@ static void process_fifo_samples(
           (uint32_t)state->irq_event_time,
           state->this_is_first_data);
 #endif
-
-        if( state->mag_info.cur_cfg.num != state->mag_info.last_sent_cfg.num )
-        {
-          // if config was updated, send correct config.
-          if( state->mag_info.cur_cfg.odr      != state->mag_info.last_sent_cfg.odr ||
-              state->mag_info.cur_cfg.fifo_wmk != state->mag_info.last_sent_cfg.fifo_wmk ||
-              state->mag_info.cur_cfg.dae_wmk  != state->mag_info.last_sent_cfg.dae_wmk)
-          {
-            AK0991X_INST_PRINT(HIGH, this, "Send new config in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-                (uint32_t)state->mag_info.cur_cfg.odr,
-                (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-                (uint32_t)state->mag_info.cur_cfg.dae_wmk);
-
-            ak0991x_send_config_event(this, true);  // send new config event
-            ak0991x_send_cal_event(this, false);    // send previous cal event
-          }
-        }
       }
       else  // orphan
       {
@@ -615,9 +572,8 @@ static void process_fifo_samples(
         else  // polling
         {
           state->first_data_ts_of_batch = state->dae_event_time;
-#ifdef AK0991X_OPEN_SSC_704_PATCH
+#ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
           // use ideal interval for more than 50Hz ODR because of the timer jitter
-          // jitter will be reduced from OpenSSC7.0.5
           if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
               !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
           {
@@ -922,18 +878,26 @@ static void process_response(
                          resp.err, dae_stream->state, state->config_step, state->num_samples);
       if(state->flush_requested_in_dae)
       {
-        if( (state->num_samples>0 || state->this_is_the_last_flush) &&
-            (state->accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH) )
-        {
-          ak0991x_send_fifo_flush_done(this);
-        }
-        else
-        {
-          AK0991X_INST_PRINT(LOW, this, "flush_done_skipped");
-        }
+        ak0991x_send_fifo_flush_done(this);
       }
       dae_stream->flushing_data = false;
       state->this_is_the_last_flush = false;
+      state->wait_for_last_flush = false;
+
+      if( !state->in_self_test && 
+          state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
+          state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
+      {
+        AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+            state->mag_info.cur_cfg.num,
+            (uint32_t)state->mag_info.cur_cfg.odr,
+            (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+            (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+
+        ak0991x_send_config_event(this, true);  // send previous config event
+        ak0991x_send_cal_event(this, false);    // send previous cal event
+      }
+
       break;
     case SNS_DAE_MSGID_SNS_DAE_PAUSE_SAMPLING:
       AK0991X_INST_PRINT(LOW, this,
@@ -951,15 +915,11 @@ static void process_response(
       {
         if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM)
         {
+          state->this_is_the_last_flush = true;
           if(ak0991x_dae_if_flush_hw(this))
           {
             state->config_step = AK0991X_CONFIG_FLUSHING_HW;
-            state->this_is_the_last_flush = true;
             AK0991X_INST_PRINT(LOW, this,"Last flush before changing ODR.");
-          }
-          else
-          {
-            AK0991X_INST_PRINT(LOW, this,"Couldn't run last flush before changing ODR.");
           }
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
@@ -1293,23 +1253,27 @@ bool ak0991x_dae_if_flush_hw(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if(stream_usable(&dae_if->mag) && dae_if->mag.state >= IDLE)
+  if( state->mag_info.use_fifo || state->this_is_the_last_flush )
   {
-    if(!dae_if->mag.flushing_hw)
+    if(stream_usable(&dae_if->mag) && dae_if->mag.state >= IDLE)
     {
-      flush_hw(&dae_if->mag);
+      if(!dae_if->mag.flushing_hw)
+      {
+        flush_hw(&dae_if->mag);
+      }
+      else
+      {
+        AK0991X_INST_PRINT( HIGH, this,"Already flushing_hw=%d", (uint8_t)dae_if->mag.flushing_hw );
+      }
+      cmd_sent |= dae_if->mag.flushing_hw;
     }
-    else
-    {
-      AK0991X_INST_PRINT( HIGH, this,"Already flushing_hw=%d", (uint8_t)dae_if->mag.flushing_hw );
-    }
-    cmd_sent |= dae_if->mag.flushing_hw;
-  }
 
-  if(!cmd_sent)
-  {
-    AK0991X_INST_PRINT( HIGH, this,"Failed to flush_hw state=%d", (uint8_t)dae_if->mag.state );
+    if(!cmd_sent)
+    {
+      AK0991X_INST_PRINT( HIGH, this,"Failed to flush_hw state=%d", (uint8_t)dae_if->mag.state );
+    }
   }
 
   return cmd_sent;

@@ -87,6 +87,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /**-------------------------Init Mag State-------------------------*/
   state->mag_info.cur_cfg.num = 0;
   state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
+  state->mag_info.last_sent_cfg.num = 0;
   state->mag_info.last_sent_cfg.odr = AK0991X_MAG_ODR_OFF;
 
   sns_memscpy(&state->mag_info.sstvt_adj,
@@ -187,10 +188,13 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.clock_error_meas_count = 0;
   state->internal_clock_error = 0x01 << AK0991X_CALC_BIT_RESOLUTION;
   state->reg_event_done = false;
+  state->has_sync_ts_anchor = false;
   state->reg_event_for_dae_poll_sync = false;
   state->is_previous_irq = false;
   state->total_samples = 0;
   state->flush_requested_in_dae = false;
+  state->wait_for_last_flush = false;
+  state->last_flush_poll_check_count = 0;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -493,6 +497,7 @@ static void ak0991x_care_fifo_buffer(sns_sensor_instance *const this)
   {
     ak0991x_read_mag_samples(this);
     state->this_is_the_last_flush = false;
+    state->wait_for_last_flush = false;
   }
 }
 
@@ -597,22 +602,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
                                &mag_chosen_sample_rate,
                                &mag_chosen_sample_rate_reg_value,
                                state->mag_info.device_select);
-    if (rv != SNS_RC_SUCCESS)
-    {
-      sns_service_manager *manager =
-        this->cb->get_service_manager(this);
-      sns_event_service *event_service =
-      	(sns_event_service*)manager->get_service(manager, SNS_EVENT_SERVICE);
-      SNS_INST_PRINTF(ERROR, this, "Cannot find match ODR: rv=%d, desired_SR=%d, mag device=%d",
-        rv, (int)desired_sample_rate, state->mag_info.device_select);
-      event_service->api->publish_error(event_service,this, SNS_RC_NOT_SUPPORTED);
-
-      // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-                                                        state->com_port_info.port_handle,
-                                                        false);
-      return rv;
-    }
 
     // update requested config
     state->mag_info.flush_only = payload->is_flush_only;
@@ -622,7 +611,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, mag_chosen_sample_rate);
     req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate, req_cfg.fifo_wmk);
 
-    AK0991X_INST_PRINT(LOW, this, "odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
+    AK0991X_INST_PRINT(LOW, this, "Calc odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
         req_cfg.odr,
         req_cfg.fifo_wmk,
         req_cfg.dae_wmk,
@@ -632,21 +621,16 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     
     // Send out previous config
     if ( desired_sample_rate > 0 &&
-         state->mag_info.last_sent_cfg.odr != AK0991X_MAG_ODR_OFF &&
+         state->mag_info.last_sent_cfg.num > 0 &&
          !state->in_self_test &&
          !state->remove_request )
     {
+      AK0991X_INST_PRINT(MED, this, "Send current config: odr=0x%02X fifo_wmk=%d",
+          (uint32_t)state->mag_info.cur_cfg.odr,
+          (uint32_t)state->mag_info.cur_cfg.fifo_wmk);
       ak0991x_send_config_event(this, false); // send previous config event
       ak0991x_send_cal_event(this, false);    // send previous cal event
     }
-
-    // set current config values in state parameter
-    state->mag_info.cur_cfg.num++;
-    state->mag_info.cur_cfg.odr       = req_cfg.odr;
-    state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
-    state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
-
-    state->system_time = state->config_set_time = sns_get_system_time();
 
     // check if config not changed.
     if( !state->processing_new_config &&
@@ -655,13 +639,17 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         ((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
     {
       // No change needed -- return success
-      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d", state->total_samples);
+      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d", 
+      state->total_samples,
+      state->mag_info.cur_cfg.num,
+      (uint32_t)state->mag_info.cur_cfg.odr,
+      (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+      (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
       // self test done and resumed. No need to send config event.
       if( state->in_self_test )
       {
         AK0991X_INST_PRINT(LOW, this, "selftest done!" );
-        state->in_self_test = false;
       }
 
       // Turn COM port OFF
@@ -673,9 +661,21 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     // new config received. start processing for new config.
     state->processing_new_config = true;
+ 
+    // set current config values in state parameter
+    state->mag_info.cur_cfg.num++;
+    state->mag_info.cur_cfg.odr       = req_cfg.odr;
+    state->mag_info.cur_cfg.fifo_wmk  = req_cfg.fifo_wmk;
+    state->mag_info.cur_cfg.dae_wmk   = req_cfg.dae_wmk;
+
+    AK0991X_INST_PRINT(HIGH, this, "Set new config #%d : odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+    state->mag_info.cur_cfg.num,
+    (uint32_t)state->mag_info.cur_cfg.odr,
+    (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+    (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
     // after inst init.
-    if( state->mag_info.last_sent_cfg.odr == AK0991X_MAG_ODR_OFF &&
+    if( state->mag_info.last_sent_cfg.num == 0 && 
         state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
     {
       // reset timestamp
@@ -686,9 +686,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       // update averaged_interval
       ak0991x_reset_averaged_interval(this);
 
-      AK0991X_INST_PRINT(LOW, this, "Config set time =%u", (uint32_t)state->config_set_time);
-      ak0991x_send_config_event(this, true); // send new config event
-      ak0991x_send_cal_event(this, true);    // send new cal event
+      // since the physical config event needs to contain a proper "sync_ts_anchor",
+      // this should be delayed until after receving the timer response for the polling timer.
+      if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING )
+      {
+        AK0991X_INST_PRINT(LOW, this, "Config set time =%u", (uint32_t)state->config_set_time);
+
+        ak0991x_send_config_event(this, true); // send new config event
+        ak0991x_send_cal_event(this, true);    // send new cal event
+      }
     }
 
     if(state->in_clock_error_procedure)
@@ -763,13 +769,29 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         AK0991X_INST_PRINT(LOW, this, "FLUSH requested in DAE at %u, requesed_in_dae=%d",
             (uint32_t)state->system_time, state->flush_requested_in_dae);
 
-        if(state->flush_requested_in_dae)
+        // During configuration. Wait for send config...
+        if( state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num )
         {
-          AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
+          AK0991X_INST_PRINT(LOW, this, "Wait for send config event...");
           ak0991x_send_fifo_flush_done(this);
         }
-        state->flush_requested_in_dae = true;
-        ak0991x_dae_if_flush_hw(this);
+        else
+        {
+          if(state->flush_requested_in_dae)
+          {
+            AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
+            ak0991x_send_fifo_flush_done(this);
+          }
+          state->flush_requested_in_dae = true;
+          if( state->mag_info.use_fifo )
+          {
+            ak0991x_dae_if_flush_hw(this);
+          }
+          else
+          {
+            ak0991x_dae_if_flush_samples(this);
+          }
+        }
       }
     }
     else
@@ -877,7 +899,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "SENSOR_TEST_CONFIG for selftest" );
       ak0991x_run_self_test(this);
       AK0991X_INST_PRINT(LOW, this, "selftest done!" );
-      state->in_self_test = false;
     }
   }
 
@@ -889,3 +910,9 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   return SNS_RC_SUCCESS;
 }
 
+void ak0991x_inst_publish_error(sns_sensor_instance *const this, sns_rc rc)
+{
+  sns_service_manager *manager = this->cb->get_service_manager(this);
+  sns_event_service *event_service = (sns_event_service*)manager->get_service(manager, SNS_EVENT_SERVICE);
+  event_service->api->publish_error(event_service, this, rc);
+}
