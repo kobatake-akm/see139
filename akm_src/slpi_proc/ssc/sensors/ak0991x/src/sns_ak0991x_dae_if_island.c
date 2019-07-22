@@ -43,6 +43,14 @@
                         _a > _b ? _a : _b; })
 #endif /* SNS_MAX */
 
+#ifdef AK0991X_PATCH_FOR_DAE_S4S_DT_EVENT_FIELDS_ON_704
+const pb_field_t sns_dae_s4s_dt_event_fields[3] = {
+    PB_FIELD(  1, FIXED64 , REQUIRED, STATIC  , FIRST, sns_dae_s4s_dt_event, timestamp, timestamp, 0),
+    PB_FIELD(  2, INT32   , REQUIRED, STATIC  , OTHER, sns_dae_s4s_dt_event, dt_value, timestamp, 0),
+    PB_LAST_FIELD
+};
+#endif
+
 /*======================================================================================
   Helper Functions
   ======================================================================================*/
