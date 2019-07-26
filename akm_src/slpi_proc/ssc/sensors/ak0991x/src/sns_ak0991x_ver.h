@@ -22,7 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 07/22/19                AKM              Merged Qualcomm's S4S codes and added the definition for compile.
+ * 07/22/19     020060.1   Qualcomm         Reject bad request and restore old request if any
+ * 07/22/19     020060     AKM              Merged Qualcomm's 020060 modification.
+ * 07/22/19                                 Merged Qualcomm's S4S codes and added the definition for compile.
+ * 07/16/19                AKM              Do not flush hw if no fifo is used.
  * 07/16/19     020059     AKM              Modified for WaitForEvents error on MovingRates test of CTS.
  * 06/24/19     020058.2   Qualcomm         Merged Qualcomm's 020059 modification.
  *                                          Flush done event should be sent after flush completes
@@ -314,6 +317,6 @@
 
 // major:02 minor:00 revision:59
 #define AK0991X_DRV_VER_MAJOR    2
-#define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      59
+#define AK0991X_DRV_VER_MINOR    1
+#define AK0991X_DRV_VER_REV      60
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

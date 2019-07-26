@@ -536,10 +536,11 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
 
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   size_t                  req_len;
-  uint8_t                 buffer[20];
+  uint8_t                 buffer[sns_timer_sensor_config_size + 8];
   req_payload.is_periodic = (AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH == pwr_rail_pend_state);
   req_payload.start_time = sns_get_system_time();
   req_payload.timeout_period = timeout_ticks;
+  req_payload.start_config.late_start_delta = timeout_ticks;
   sns_service_manager *smgr = this->cb->get_service_manager(this);
   sns_stream_service *stream_svc =
      (sns_stream_service*)smgr->get_service(smgr, SNS_STREAM_SERVICE);
@@ -1644,7 +1645,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               sns_scp_deregister_com_port(&state->com_port_info.port_handle);
 
             /**----------------------Turn Power Rail OFF--------------------------*/
-            SNS_PRINTF(HIGH, this, "start power timer #0:  hw_id = %d, pend_state = %d", state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_OFF);
+            SNS_PRINTF(HIGH, this, "start power timer #0:  hw_id = %d, pend_state = %d", (uint32_t)state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_OFF);
             ak0991x_start_power_rail_timer(this,
                                            sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
                                            AK0991X_POWER_RAIL_PENDING_OFF);
@@ -1950,9 +1951,14 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                                 state->device_select);
               if(rv != SNS_RC_SUCCESS || (uint32_t)decoded_payload.sample_rate <= 0)
               {
-                AK0991X_PRINT(HIGH, this, "Invalid sample_rate. Reject request.");
-                ak0991x_inst_publish_error(instance, SNS_RC_INVALID_VALUE);
+                SNS_PRINTF(HIGH, this, "Invalid sample_rate. Reject request.");
                 instance->cb->remove_client_request(instance, new_request);
+                if( NULL != exist_request )
+                {
+                  SNS_PRINTF(HIGH, this, "restoring existing req");
+                  instance->cb->add_client_request(instance, exist_request);
+                  instance = NULL; // no instance is handling this invalid request
+                }
               }
               else
               {
@@ -2034,6 +2040,12 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                        pending_state);
       }
     }
+  }
+
+  if(NULL == instance && NULL != new_request &&
+     SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id)
+  {
+    instance = &sns_instance_no_error;
   }
 
   return instance;
