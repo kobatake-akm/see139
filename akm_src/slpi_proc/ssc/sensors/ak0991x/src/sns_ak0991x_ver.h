@@ -22,13 +22,18 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 06/24/19     020059     Qualcomm         Flush done event should be sent after flush completes
+ * 07/16/19     020059     AKM              Modified for WaitForEvents error on MovingRates test of CTS.
+ * 06/24/19     020058.2   Qualcomm         Merged Qualcomm's 020059 modification.
+ *                                          Flush done event should be sent after flush completes
+ * 06/19/19                Qualcomm/AKM     No sending flush_done while DAE flushing_data is true
+ * 06/19/19                Qualcomm/AKM     S4S modification after review
+ * 06/13/19     020058.1   AKM              Wait for stopping DAE stream before power rail off
  * 06/07/19     020058     AKM              First tested version with new QAWA(1.0.71.0)
  * 06/04/19                AKM              Modified for last flush num_samples. 
  * 05/31/19                AKM              Modified for S4S+DAE. Test version. 
  * 05/31/19                AKM              Use the timer with is_dry_run=true to sync DAE polling timing.
  * 05/31/19                Qualcomm/AKM     Fix for avoiding timer reg event read by heart beat timer 
- * 05/23/19                AKM              Use only dae_event_time for TS on polling with < 50Hz ODR. 
+ * 05/23/19                AKM              Use only dae_event_time for TS on polling with <= 50Hz ODR.
  *                                          Modified Config not changed judge.
  * 05/17/19                AKM              Removed sw reset for DAE when ODR changed. Adjusted polling_offset.
  * 05/16/19     020056     AKM              modified for data_age_limit_ticks to use if-else
@@ -305,7 +310,7 @@
  *
  **/
 
-// major:02 minor:00 revision:58
+// major:02 minor:00 revision:59
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    0
 #define AK0991X_DRV_VER_REV      59

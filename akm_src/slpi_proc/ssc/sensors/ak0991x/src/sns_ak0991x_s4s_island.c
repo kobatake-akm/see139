@@ -106,18 +106,12 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
   case AK09915C:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
-       (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    //This value should be a timestamp(ideally in the nearby future) of a valid synchronized sample
-    //Example: if running at exactly 100Hz, samples will be 10ms apart.
-    //If the stream is synchronized to time 1234ms -- ,
-    //then valid values to put into here would be "1234ms + (10ms * N)" for any (reasonable) value of N.
-    phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
+       (state->mag_info.s4s_sync_state >= AK0991X_S4S_1ST_SYNCED)? true : false;
     break;
   case AK09915D:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
-        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
+        (state->mag_info.s4s_sync_state >= AK0991X_S4S_1ST_SYNCED)? true : false;
     break;
   case AK09916C:
     phy_sensor_config->has_stream_is_synchronous = false;
@@ -130,8 +124,7 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
   case AK09917:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
-        (state->mag_info.s4s_sync_state == AK0991X_S4S_SYNCED)? true : false;
-    phy_sensor_config->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period;
+        (state->mag_info.s4s_sync_state >= AK0991X_S4S_1ST_SYNCED)? true : false;
     break;
   case AK09918:
     phy_sensor_config->has_stream_is_synchronous = false;
@@ -385,13 +378,13 @@ sns_rc ak0991x_s4s_handle_timer_event(sns_sensor_instance *const instance)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_1ST_SYNCED;
     AK0991X_INST_PRINT(LOW, instance, "S4S 1st synced");
+    ak0991x_send_config_event(instance, true);  // send new config event
+    ak0991x_send_cal_event(instance, false);    // send previous cal event
   }
   else if (state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED)
   {
     state->mag_info.s4s_sync_state = AK0991X_S4S_SYNCED;
     AK0991X_INST_PRINT(LOW, instance, "S4S synced");
-    ak0991x_send_config_event(instance, true);  // send new config event
-    ak0991x_send_cal_event(instance, false);    // send previous cal event
   }
 
   return rv;
