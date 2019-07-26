@@ -910,9 +910,3 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   return SNS_RC_SUCCESS;
 }
 
-void ak0991x_inst_publish_error(sns_sensor_instance *const this, sns_rc rc)
-{
-  sns_service_manager *manager = this->cb->get_service_manager(this);
-  sns_event_service *event_service = (sns_event_service*)manager->get_service(manager, SNS_EVENT_SERVICE);
-  event_service->api->publish_error(event_service, this, rc);
-}

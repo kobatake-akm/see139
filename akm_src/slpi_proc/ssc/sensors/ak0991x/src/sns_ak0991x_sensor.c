@@ -1951,9 +1951,14 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                                 state->device_select);
               if(rv != SNS_RC_SUCCESS || (uint32_t)decoded_payload.sample_rate <= 0)
               {
-                AK0991X_PRINT(HIGH, this, "Invalid sample_rate. Reject request.");
-                ak0991x_inst_publish_error(instance, SNS_RC_INVALID_VALUE);
+                SNS_PRINTF(HIGH, this, "Invalid sample_rate. Reject request.");
                 instance->cb->remove_client_request(instance, new_request);
+                if( NULL != exist_request )
+                {
+                  SNS_PRINTF(HIGH, this, "restoring existing req");
+                  instance->cb->add_client_request(instance, exist_request);
+                  instance = NULL; // no instance is handling this invalid request
+                }
               }
               else
               {
@@ -2035,6 +2040,12 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                        pending_state);
       }
     }
+  }
+
+  if(NULL == instance && NULL != new_request &&
+     SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id)
+  {
+    instance = &sns_instance_no_error;
   }
 
   return instance;
