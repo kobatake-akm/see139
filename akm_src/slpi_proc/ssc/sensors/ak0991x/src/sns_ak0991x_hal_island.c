@@ -872,6 +872,10 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
     uint8_t enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
+    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream)
+    {
+      enable_fifo = 1; // FIFO always ON when Polling to prevent dupulicate samples
+    }
     buffer[1] = 0x0
       | (enable_fifo << 7) // FIFO bit
       | (state->mag_info.sdr << 6)               // SDR bit
@@ -2029,6 +2033,12 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
       }
     }
 #endif
+
+    // Since FIFO is forced to enable on Polling mode for preventing duplicate samples. Break.
+    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream )
+    {
+      break;
+    }
   }
 
   // store previous is irq status
@@ -3331,8 +3341,17 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
-
+  // ignore reconfig. same setting.
+  if( state->only_dae_wmk_is_changed )
+  {
+    SNS_INST_PRINTF(HIGH, this, "reconfig_hw ignored because same ODR and WM.");
+    return SNS_RC_SUCCESS;
+  }
+  else
+  {
+    SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
+  }
+  
   if(reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
