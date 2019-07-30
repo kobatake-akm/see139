@@ -222,6 +222,7 @@ typedef struct ak0991x_instance_state
 
   /** sampling info. */
   uint8_t num_samples;
+  uint8_t fifo_num_samples;
   uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
   uint8_t ascp_xfer_in_progress;

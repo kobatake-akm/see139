@@ -1849,7 +1849,7 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
 {
   float ipdata[TRIAXIS_NUM] = {0}, opdata_raw[TRIAXIS_NUM] = {0};
   int16_t lsbdata[TRIAXIS_NUM] = {0};
-  uint8_t inv_fifo_bit;
+  uint8_t inv_fifo_bit = 0x00;
   uint8_t i = 0;
   sns_std_sensor_sample_status status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
   vector3 opdata_cal;
@@ -1858,7 +1858,14 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
   // Check magnetic sensor overflow (and invalid data for FIFO)
-  inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
+  if(state->mag_info.use_fifo ||
+     // Since FIFO is forced to enable on Polling mode for preventing duplicate samples
+     ((state->mag_info.device_select == AK09917) &&
+     (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
+     !state->mag_info.use_sync_stream))
+  {
+    inv_fifo_bit = AK0991X_INV_FIFO_DATA;
+  }
 
   if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0 ||
       (mag_sample[7] & (inv_fifo_bit)) != 0)
@@ -2393,6 +2400,14 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   }
   else
   {
+    //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
+    if((state->mag_info.device_select == AK09917) &&
+       (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
+       !state->mag_info.use_sync_stream)
+    {
+      state->fifo_num_samples = st1_buf >> 2;
+    }
+
     state->num_samples = state->data_is_ready ? 1 : 0;
   }
 
@@ -2630,10 +2645,21 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
       }
     }
   }
-  else  // Non FIFO mode, read one data
+  else  // Non FIFO mode
   {
+    uint16_t num_samples = 1;
+
+    //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
+    if((state->mag_info.device_select == AK09917) &&
+       (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
+       !state->mag_info.use_sync_stream)
+    {
+      num_samples = (state->fifo_num_samples > num_samples)?
+                     state->fifo_num_samples : num_samples;
+    }
+
     ak0991x_read_hxl_st2(state,
-                         1,
+                         num_samples,
                          &buffer[0]);
   }
 
