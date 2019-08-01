@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 08/01/19     020060.2   AKM              Use FIFO for AK09917 polling+nonFIFO mode
  * 07/22/19     020060.1   Qualcomm         Reject bad request and restore old request if any
  * 07/22/19     020060     AKM              Merged Qualcomm's 020060 modification.
  * 07/22/19                                 Merged Qualcomm's S4S codes and added the definition for compile.
@@ -315,8 +316,8 @@
  *
  **/
 
-// major:02 minor:00 revision:59
+// major:02 minor:00 revision:60
 #define AK0991X_DRV_VER_MAJOR    2
-#define AK0991X_DRV_VER_MINOR    1
+#define AK0991X_DRV_VER_MINOR    2
 #define AK0991X_DRV_VER_REV      60
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
