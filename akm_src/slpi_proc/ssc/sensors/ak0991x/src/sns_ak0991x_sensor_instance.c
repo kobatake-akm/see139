@@ -89,6 +89,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
   state->mag_info.last_sent_cfg.num = 0;
   state->mag_info.last_sent_cfg.odr = AK0991X_MAG_ODR_OFF;
+  state->poll_interval_change = &sensor_state->poll_interval_change;
+
 
   sns_memscpy(&state->mag_info.sstvt_adj,
               sizeof(state->mag_info.sstvt_adj),
@@ -391,7 +393,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
     state->scp_service->api->sns_scp_deregister_com_port(&state->com_port_info.port_handle);
   }
-  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
+  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u, poll-int-change=%u, change cnt=%u", state->total_samples, *state->poll_interval_change, state->mag_info.duplicate_sample_count);
 
   return SNS_RC_SUCCESS;
 }

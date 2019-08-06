@@ -235,6 +235,7 @@ typedef struct ak0991x_state
   uint8_t nsf;
   uint8_t sdr;
   bool use_fifo;
+  bool poll_interval_change;
   bool supports_sync_stream;
   uint8_t resolution_idx;
   int64_t hardware_id;

@@ -171,6 +171,7 @@ typedef struct ak0991x_mag_info
   bool           flush_only;
   bool           max_batch;
   bool           use_sync_stream;
+  uint8_t        duplicate_sample_count;
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;
@@ -245,6 +246,7 @@ typedef struct ak0991x_instance_state
   bool flush_requested_in_dae;
   bool processing_new_config;
   bool remove_request;
+  bool *poll_interval_change;
   sns_std_sensor_sample_status accuracy;
   uint32_t last_flush_poll_check_count;
   uint32_t total_samples; /* throughout the life of this instance */

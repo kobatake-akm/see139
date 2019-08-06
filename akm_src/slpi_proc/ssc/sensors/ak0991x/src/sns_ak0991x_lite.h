@@ -36,6 +36,8 @@
 //#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
 #define AK0991X_ENABLE_TIMER_FILTER       // Enable polling timer filter
 //#define AK0991X_PATCH_FOR_IBI_ON_704
+//#define AK0991X_PATCH_FOR_DAE_S4S_DT_EVENT_FIELDS_ON_704
+#define POLLING_TIMER_DEVIATION_MS 0.2f   // Polling timer interval deviation in ms
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 #define MAX_DEVICE_MODE_SUPPORTED 2       // change number 2/4/8 in order to match the faccal num in the registry

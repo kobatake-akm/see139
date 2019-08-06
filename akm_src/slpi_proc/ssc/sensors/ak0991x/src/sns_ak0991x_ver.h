@@ -22,6 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       --------------------------------- 
+ * 08/01/19     020061.1   Qualcomm         dont publish has_snc_ts_anchor for non s4s 
+ *                                          keep sample rate in physical cfg event as odr for now
+ *                                          updated POLLING_TIMER_DEVIATION_MS
+ * 07/29/19     020061     Qualcomm/AKM     Fixed more than 2 duplicate samples in polling mode
  * 07/22/19     020060.1   Qualcomm         Reject bad request and restore old request if any
  * 07/16/19     020060     AKM              Modified for WaitForEvents error on MovingRates test of CTS.
  *                                          Do not flush hw if no fifo is used.
@@ -315,5 +319,5 @@
 // major:02 minor:00 revision:59
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    1
-#define AK0991X_DRV_VER_REV      60
+#define AK0991X_DRV_VER_REV      61
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
