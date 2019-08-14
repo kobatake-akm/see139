@@ -413,7 +413,9 @@ static void process_fifo_samples(
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
-  
+  uint8_t dummy_buf[] = {0U,0U,0U,0U,0U,0U,0U,AK0991X_INV_FIFO_DATA}; // set INV bit 
+  uint8_t *mag_data_buf = buf + state->dae_if.mag.status_bytes_per_fifo;
+
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
   // buf[0] : CNTL1
@@ -510,10 +512,23 @@ static void process_fifo_samples(
 
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
-    SNS_INST_PRINTF(
-      ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
-      state->num_samples, fifo_len);
-    state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
+    // for polling mode, always FIFO enabled. No sample data from DAE
+    if( fifo_len == 0 &&
+        state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && 
+        !state->mag_info.use_sync_stream )
+    {
+      AK0991X_INST_PRINT(HIGH, this, "num_samples=0 But forced to set 1, fifo_len=8.");
+      state->num_samples = 1;
+      fifo_len = AK0991X_NUM_DATA_HXL_TO_ST2;
+      mag_data_buf = dummy_buf; // switch pointer to the dummy buf data.
+    }
+    else
+    {
+      SNS_INST_PRINTF(
+        ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
+        state->num_samples, fifo_len);
+      state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
+    }
   }
 
   if( !state->is_orphan )
@@ -616,9 +631,8 @@ static void process_fifo_samples(
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,
-                                      buf + state->dae_if.mag.status_bytes_per_fifo,
+                                      mag_data_buf,
                                       fifo_len);
-
     }
     else  // in clock error procedure
     {

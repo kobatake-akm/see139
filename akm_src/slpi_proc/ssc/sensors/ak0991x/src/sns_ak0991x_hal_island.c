@@ -2721,6 +2721,16 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
           }
           state->num_samples = SNS_MIN(state->num_samples, AK0991X_MAX_FIFO_SIZE);
         }
+        else
+        {
+          if( state->num_samples == 0 && 
+              state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && 
+              !state->mag_info.use_sync_stream )
+          {
+            AK0991X_INST_PRINT(LOW, instance, "num_samples=0 But forced to set 1.");
+            state->num_samples = 1;            
+          }
+        }
       }
       // else, use state->num_samples when check DRDY status by INTERRUPT_EVENT
     }
