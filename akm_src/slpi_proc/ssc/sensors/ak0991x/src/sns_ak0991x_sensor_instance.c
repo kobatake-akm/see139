@@ -89,8 +89,6 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->mag_info.cur_cfg.odr = AK0991X_MAG_ODR_OFF;
   state->mag_info.last_sent_cfg.num = 0;
   state->mag_info.last_sent_cfg.odr = AK0991X_MAG_ODR_OFF;
-  state->poll_interval_change = &sensor_state->poll_interval_change;
-
 
   sns_memscpy(&state->mag_info.sstvt_adj,
               sizeof(state->mag_info.sstvt_adj),
@@ -393,7 +391,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
     state->scp_service->api->sns_scp_close(state->com_port_info.port_handle);
     state->scp_service->api->sns_scp_deregister_com_port(&state->com_port_info.port_handle);
   }
-  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u, poll-int-change=%u, change cnt=%u", state->total_samples, *state->poll_interval_change, state->mag_info.duplicate_sample_count);
+  SNS_INST_PRINTF(HIGH, this, "deinit:: #samples=%u", state->total_samples);
 
   return SNS_RC_SUCCESS;
 }
@@ -785,19 +783,21 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
         else
         {
-          if(state->flush_requested_in_dae)
+          if(!state->flush_requested_in_dae)
           {
-            AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
-            ak0991x_send_fifo_flush_done(this);
-          }
-          state->flush_requested_in_dae = true;
-          if( state->mag_info.use_fifo )
-          {
-            ak0991x_dae_if_flush_hw(this);
-          }
-          else
-          {
-            ak0991x_dae_if_flush_samples(this);
+            state->flush_requested_in_dae = true;
+            if(state->mag_info.use_fifo && state->mag_info.cur_cfg.fifo_wmk > 1)
+            {
+              ak0991x_dae_if_flush_hw(this);
+            }
+            else if(state->mag_info.cur_cfg.dae_wmk > 1)
+            {
+              ak0991x_dae_if_flush_samples(this);
+            }
+            else
+            {
+              ak0991x_send_fifo_flush_done(this);
+            }
           }
         }
       }

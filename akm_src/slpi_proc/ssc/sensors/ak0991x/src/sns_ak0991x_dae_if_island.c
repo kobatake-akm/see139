@@ -270,15 +270,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   {
     config_req.polling_config.polling_interval_ticks =
       wm * ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
-    
-    SNS_INST_PRINTF(HIGH, this, "send_mag_config:: %u  ",*state->poll_interval_change);             
-    if ( *state->poll_interval_change )
-    {
-      config_req.polling_config.polling_interval_ticks += sns_convert_ns_to_ticks(POLLING_TIMER_DEVIATION_MS*1000*1000);
-    }
-    SNS_INST_PRINTF(HIGH, this, "send_mag_config:: polling_interval_ticks=%X%08X  ",
-                       (uint32_t)(config_req.polling_config.polling_interval_ticks>>32),
-                       (uint32_t)(config_req.polling_config.polling_interval_ticks & 0xFFFFFFFF));
+
     state->system_time = sns_get_system_time();
 
     //TODO: it looks like the polling offset will not be adjusted for S4S.
@@ -446,11 +438,6 @@ static void process_fifo_samples(
   sampling_intvl = (ak0991x_get_sample_interval(odr) *
                     state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
-  if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream &&  *state->poll_interval_change )
-  {
-    sampling_intvl +=  sns_convert_ns_to_ticks(POLLING_TIMER_DEVIATION_MS*1000*1000);
-  }
-
   state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
 
   // calculate num_samples
@@ -537,11 +524,11 @@ static void process_fifo_samples(
     }
     else
     {
-      SNS_INST_PRINTF(
-        ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
-        state->num_samples, fifo_len);
-      state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
-    }
+    SNS_INST_PRINTF(
+      ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
+      state->num_samples, fifo_len);
+    state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
+  }
   }
 
   if( !state->is_orphan )

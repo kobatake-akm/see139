@@ -171,7 +171,6 @@ typedef struct ak0991x_mag_info
   bool           flush_only;
   bool           max_batch;
   bool           use_sync_stream;
-  uint8_t        duplicate_sample_count;
   uint8_t        nsf;
   uint8_t        sdr;
   sns_sensor_uid suid;

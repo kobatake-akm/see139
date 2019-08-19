@@ -1842,7 +1842,7 @@ sns_time ak0991x_get_sample_interval(ak0991x_mag_odr curr_odr)
  */
 static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample[8],
                                       sns_time timestamp,
-                                      sns_sensor_instance * instance,
+                                      sns_sensor_instance *const instance,
                                       ak0991x_instance_state *state,
                                       log_sensor_state_raw_info *log_mag_state_raw_info
                                       )
@@ -1915,26 +1915,6 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
     make_vector3_from_array(state->cal.params[cal_id].bias),
     state->cal.params[cal_id].corr_mat);
 
-  if ( (!(*state->poll_interval_change)) && (status !=SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE) )
-  {
-     if ( (state->mag_info.previous_lsbdata[TRIAXIS_X] == lsbdata[TRIAXIS_X]) &&
-          (state->mag_info.previous_lsbdata[TRIAXIS_Y] == lsbdata[TRIAXIS_Y]) &&
-          (state->mag_info.previous_lsbdata[TRIAXIS_Z] == lsbdata[TRIAXIS_Z]) )
-     {
-        state->mag_info.duplicate_sample_count++;
-        SNS_INST_PRINTF(HIGH, instance, " Duplicate samples detected %u", state->mag_info.duplicate_sample_count);
-  
-     }
-     else
-     {
-       state->mag_info.duplicate_sample_count = 0; 
-     }
-     if ( state->mag_info.duplicate_sample_count >= 2 )
-     {
-        *state->poll_interval_change = true;
-        SNS_INST_PRINTF(HIGH, instance, "More than 2 duplicate samples detected");
-     }
-  }
   state->mag_info.previous_lsbdata[TRIAXIS_X] = lsbdata[TRIAXIS_X];
   state->mag_info.previous_lsbdata[TRIAXIS_Y] = lsbdata[TRIAXIS_Y];
   state->mag_info.previous_lsbdata[TRIAXIS_Z] = lsbdata[TRIAXIS_Z];
@@ -2893,7 +2873,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   pb_buffer_arg op_mode_args;
 
   ak0991x_config_event_info cfg = (is_new_config) ? state->mag_info.cur_cfg : state->mag_info.last_sent_cfg;
-  float sample_rate;
 
   switch (state->mag_info.device_select)
   {
@@ -3039,16 +3018,13 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   //Set config event for s4s
   ak0991x_s4s_send_config_event(instance, &phy_sensor_config);
 
-  //sample_rate = (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream && (*state->poll_interval_change) ) ? 
-  //  1.0f/(1.0f / ak0991x_get_mag_odr(cfg.odr)+POLLING_TIMER_DEVIATION_MS/1000) : ak0991x_get_mag_odr(cfg.odr);
-  sample_rate = ak0991x_get_mag_odr(cfg.odr);  // to be changed after validation tool change
   op_mode_args.buf = operating_mode;
   op_mode_args.buf_len = sizeof(operating_mode);
   phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
   phy_sensor_config.operation_mode.arg = &op_mode_args;
   phy_sensor_config.water_mark         = cfg.fifo_wmk;
   phy_sensor_config.has_sample_rate    = true;
-  phy_sensor_config.sample_rate        = sample_rate;
+  phy_sensor_config.sample_rate        = ak0991x_get_mag_odr(cfg.odr);
   phy_sensor_config.has_DAE_watermark  = ak0991x_dae_if_available(instance);
   phy_sensor_config.DAE_watermark      = SNS_MAX(cfg.dae_wmk, 1);
   phy_sensor_config.dri_enabled        = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
@@ -3248,10 +3224,6 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
     // for polling timer
     else
     {
-      if ( *state->poll_interval_change )
-      {
-        sample_period += sns_convert_ns_to_ticks(POLLING_TIMER_DEVIATION_MS*1000*1000);
-      }
       // Wait measurement time + margin(2msec)
       sns_time delay = (2 * state->half_measurement_time) + sns_convert_ns_to_ticks(2 * 1000 * 1000);
 

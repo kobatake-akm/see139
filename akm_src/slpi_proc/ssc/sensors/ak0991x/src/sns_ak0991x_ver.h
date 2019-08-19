@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 08/16/19     020060.5   Qualcomm         dont publish has_snc_ts_anchor for non s4s
+ *                                          do not call flush_hw if wm=1
  * 08/14/19     020060.3   AKM              Modified DAE driver always num_samples=1 even no samples.
  * 08/01/19     020060.2   AKM              Use FIFO for AK09917 polling+nonFIFO mode
  * 07/22/19     020060.1   Qualcomm         Reject bad request and restore old request if any
@@ -317,8 +319,8 @@
  *
  **/
 
-// major:02 minor:00 revision:60
+// major:05 minor:00 revision:60
 #define AK0991X_DRV_VER_MAJOR    2
-#define AK0991X_DRV_VER_MINOR    3
+#define AK0991X_DRV_VER_MINOR    5
 #define AK0991X_DRV_VER_REV      60
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

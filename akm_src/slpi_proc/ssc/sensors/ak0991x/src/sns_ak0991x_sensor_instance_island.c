@@ -405,10 +405,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                 state->mag_info.last_sent_cfg.num,
                 state->mag_info.cur_cfg.num);
 
-             if( state->mag_info.use_sync_stream )
-             {
-              state->has_sync_ts_anchor = true;
-             }
+              if( state->mag_info.use_sync_stream )
+              {
+                state->has_sync_ts_anchor = true;
+              }
               //This value should be a timestamp(ideally in the nearby future) of a valid synchronized sample
               //Example: if running at exactly 100Hz, samples will be 10ms apart.
               //If the stream is synchronized to time 1234ms -- ,
