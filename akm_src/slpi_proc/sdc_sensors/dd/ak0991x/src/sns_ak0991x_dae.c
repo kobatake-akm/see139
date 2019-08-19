@@ -5,7 +5,7 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * All Rights Reserved.
  *
- * Copyright (c) 2016-2018 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * Confidential and Proprietary - Asahi Kasei Microdevices
  **/
 
@@ -96,7 +96,9 @@ ak0991x_get_data( sns_dd_handle_s*    dd_handle,
       *num_samples = 1;
     }
 
-    if( *num_samples > 0 )
+    // Always call "data_read_fptr" so that the SEE driver is informed, even if there
+    // are no samples available.
+    //if( *num_samples > 0 )
     {
       sns_com_port_data_vector_s data_vectors[] =
       {
@@ -107,7 +109,12 @@ ak0991x_get_data( sns_dd_handle_s*    dd_handle,
         { .reg_addr = AKM_AK0991X_REG_HXL,
           .buf_sz = *num_samples * 8},
       };
-      status = data_read_fptr(dd_handle, data_vectors, ARR_SIZE(data_vectors));
+      int num_vectors = ARR_SIZE(data_vectors);
+      if( *num_samples == 0 )
+      {
+        num_vectors--;
+      }
+      status = data_read_fptr(dd_handle, data_vectors, num_vectors);
     }
   }
   *delay_us = 0;
