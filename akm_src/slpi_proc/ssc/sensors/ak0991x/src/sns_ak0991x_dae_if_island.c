@@ -43,6 +43,14 @@
                         _a > _b ? _a : _b; })
 #endif /* SNS_MAX */
 
+#ifdef AK0991X_PATCH_FOR_DAE_S4S_DT_EVENT_FIELDS_ON_704
+const pb_field_t sns_dae_s4s_dt_event_fields[3] = {
+    PB_FIELD(  1, FIXED64 , REQUIRED, STATIC  , FIRST, sns_dae_s4s_dt_event, timestamp, timestamp, 0),
+    PB_FIELD(  2, INT32   , REQUIRED, STATIC  , OTHER, sns_dae_s4s_dt_event, dt_value, timestamp, 0),
+    PB_LAST_FIELD
+};
+#endif
+
 /*======================================================================================
   Helper Functions
   ======================================================================================*/
@@ -156,6 +164,48 @@ static bool stream_usable(ak0991x_dae_stream *dae_stream)
 }
 
 /* ------------------------------------------------------------------------------------ */
+void ak0991x_send_mag_s4s_config(sns_sensor_instance *this, bool send_dt_event)
+{
+  ak0991x_instance_state *state      = (ak0991x_instance_state*)this->state->state;
+  ak0991x_dae_stream     *dae_stream = &state->dae_if.mag;
+
+  sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
+  uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
+  sns_request s4s_req = {
+    .message_id  = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
+    .request     = s4s_encoded_msg,
+    .request_len = 0
+  };
+
+  //This is T_Ph start moment at the first time
+  s4s_config_req.ideal_sync_offset = state->polling_timer_start_time;
+  s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
+  s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
+  //st_delay is defined in the sns_dae.proto file
+  //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
+
+  s4s_config_req.st_delay = s4s_config_req.sync_interval * 0.001f;
+
+  // Ask DAE to send DT events until S4S is synchronized
+  s4s_config_req.has_send_dt_event = true;
+  s4s_config_req.send_dt_event = send_dt_event;
+
+  
+  if((s4s_req.request_len =
+      pb_encode_request(s4s_encoded_msg,
+                        sizeof(s4s_encoded_msg),
+                        &s4s_config_req,
+                        sns_dae_s4s_dynamic_config_fields,
+                        NULL)) > 0)
+  {
+    // The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
+    if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
+    {
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------------------ */
 static bool send_mag_config(sns_sensor_instance *this)
 {
   bool cmd_sent = false;
@@ -242,36 +292,9 @@ static bool send_mag_config(sns_sensor_instance *this)
 
   if(mag_info->use_sync_stream)
   {
-    sns_dae_s4s_dynamic_config s4s_config_req = sns_dae_s4s_dynamic_config_init_default;
-    uint8_t s4s_encoded_msg[sns_dae_s4s_dynamic_config_size];
-    sns_request s4s_req = {
-      .message_id  = SNS_DAE_MSGID_SNS_DAE_S4S_DYNAMIC_CONFIG,
-      .request     = s4s_encoded_msg,
-      .request_len = 0
-    };
-
-    //This is T_Ph start moment at the first time
-    s4s_config_req.ideal_sync_offset = state->polling_timer_start_time;
-    s4s_config_req.sync_interval = sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000);
-    s4s_config_req.resolution_ratio = AK0991X_S4S_RR;
-    //st_delay is defined in the sns_dae.proto file
-    //This is a hardware and sampling-rate dependent value which needs to be filled in by the vendor
-
-    s4s_config_req.st_delay = s4s_config_req.sync_interval * 0.001;
-    config_req.polling_config.polling_offset += s4s_config_req.st_delay; // need to be before set pb_encode_request
-
-    if((s4s_req.request_len =
-        pb_encode_request(s4s_encoded_msg,
-                          sizeof(s4s_encoded_msg),
-                          &s4s_config_req,
-                          sns_dae_s4s_dynamic_config_fields,
-                          NULL)) > 0)
-    {
-      // The mag driver on Q6 never receives this message. It only sends this message. It can be sent at any time
-      if(SNS_RC_SUCCESS == dae_stream->stream->api->send_request(dae_stream->stream, &s4s_req))
-      {
-      }
-    }
+    ak0991x_send_mag_s4s_config( this, true );
+    config_req.polling_config.polling_offset +=
+      sns_convert_ns_to_ticks(AK0991X_S4S_INTERVAL_MS * 1000 * 1000 * 0.001f);
   }
 
   AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: sys= %u, pre_orphan= %u, polling_offset= %u interval= %u",
@@ -398,7 +421,9 @@ static void process_fifo_samples(
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
-  
+  uint8_t dummy_buf[] = {0U,0U,0U,0U,0U,0U,0U,AK0991X_INV_FIFO_DATA}; // set INV bit 
+  uint8_t *mag_data_buf = buf + state->dae_if.mag.status_bytes_per_fifo;
+
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
   // buf[0] : CNTL1
@@ -500,10 +525,23 @@ static void process_fifo_samples(
 
   if((state->num_samples*AK0991X_NUM_DATA_HXL_TO_ST2) > fifo_len)
   {
-    SNS_INST_PRINTF(
-      ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
-      state->num_samples, fifo_len);
-    state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
+    // for polling mode, always FIFO enabled. No sample data from DAE
+    if( fifo_len == 0 &&
+        state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && 
+        !state->mag_info.use_sync_stream )
+    {
+      AK0991X_INST_PRINT(HIGH, this, "num_samples=0 But forced to set 1, fifo_len=8.");
+      state->num_samples = 1;
+      fifo_len = AK0991X_NUM_DATA_HXL_TO_ST2;
+      mag_data_buf = dummy_buf; // switch pointer to the dummy buf data.
+    }
+    else
+    {
+      SNS_INST_PRINTF(
+        ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
+        state->num_samples, fifo_len);
+      state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
+    }
   }
 
   if( !state->is_orphan )
@@ -606,9 +644,8 @@ static void process_fifo_samples(
       ak0991x_process_mag_data_buffer(this,
                                       state->first_data_ts_of_batch,
                                       sampling_intvl,
-                                      buf + state->dae_if.mag.status_bytes_per_fifo,
+                                      mag_data_buf,
                                       fifo_len);
-
     }
     else  // in clock error procedure
     {
@@ -965,6 +1002,48 @@ static void process_response(
 }
 
 /* ------------------------------------------------------------------------------------ */
+static void process_dt_event(
+  sns_sensor_instance *this,
+  pb_istream_t        *pbstream)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+
+  sns_dae_s4s_dt_event dt_event = sns_dae_s4s_dt_event_init_default;
+  if(pb_decode(pbstream, sns_dae_s4s_dt_event_fields, &dt_event))
+  {
+    if( dt_event.dt_value < 0x80 )
+    {
+      if( state->mag_info.s4s_sync_state < AK0991X_S4S_SYNCED )
+      {
+        state->mag_info.s4s_sync_state++;
+      }
+      if( state->mag_info.s4s_sync_state == AK0991X_S4S_1ST_SYNCED )
+      {
+        // Update config_set_time, since we need to send out phy config
+        // event with new timestamp.
+        state->config_set_time = state->pre_timestamp_for_orphan+1;
+
+        // Send config event with stream_is_synchronous=true:
+        ak0991x_send_config_event( this, true );
+
+        // Turn off DT messages from DAE, since they're no longer needed:
+        ak0991x_send_mag_s4s_config( this, false );
+
+        // send previous cal event
+        ak0991x_send_cal_event( this, false );
+      }
+    }
+    else
+    {
+      if( state->mag_info.s4s_sync_state < AK0991X_S4S_1ST_SYNCED )
+      {
+        state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
+      }
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------------------ */
 static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_stream)
 {
   sns_sensor_event *event;
@@ -1001,6 +1080,10 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
         {
           ak0991x_continue_client_config(this, true);
         }
+      }
+      else if(SNS_DAE_MSGID_SNS_DAE_S4S_DT_EVENT == event->message_id)
+      {
+        process_dt_event(this, &pbstream);
       }
       else
       {

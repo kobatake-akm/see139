@@ -872,6 +872,10 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
     uint8_t enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
+    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream)
+    {
+      enable_fifo = 1; // FIFO always ON when Polling to prevent dupulicate samples
+    }
     buffer[1] = 0x0
       | (enable_fifo << 7) // FIFO bit
       | (state->mag_info.sdr << 6)               // SDR bit
@@ -1845,7 +1849,7 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
 {
   float ipdata[TRIAXIS_NUM] = {0}, opdata_raw[TRIAXIS_NUM] = {0};
   int16_t lsbdata[TRIAXIS_NUM] = {0};
-  uint8_t inv_fifo_bit;
+  uint8_t inv_fifo_bit = 0x00;
   uint8_t i = 0;
   sns_std_sensor_sample_status status = SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH;
   vector3 opdata_cal;
@@ -1854,7 +1858,14 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
   ak0991x_get_adjusted_mag_data(instance, mag_sample, lsbdata);
 
   // Check magnetic sensor overflow (and invalid data for FIFO)
-  inv_fifo_bit = state->mag_info.use_fifo ? AK0991X_INV_FIFO_DATA : 0x00;
+  if(state->mag_info.use_fifo ||
+     // Since FIFO is forced to enable on Polling mode for preventing duplicate samples
+     ((state->mag_info.device_select == AK09917) &&
+     (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
+     !state->mag_info.use_sync_stream))
+  {
+    inv_fifo_bit = AK0991X_INV_FIFO_DATA;
+  }
 
   if ((mag_sample[7] & (AK0991X_HOFL_BIT)) != 0 ||
       (mag_sample[7] & (inv_fifo_bit)) != 0)
@@ -2049,6 +2060,12 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
       }
     }
 #endif
+
+    // Since FIFO is forced to enable on Polling mode for preventing duplicate samples. Break.
+    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream )
+    {
+      break;
+    }
   }
 
   // store previous is irq status
@@ -2307,9 +2324,14 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 
   ak0991x_read_st1(state, &st1_buf);  // read ST1
   /* Read ST2 for AK09917D RevA/B bug */
-  if(state->mag_info.device_select == AK09917 && !state->mag_info.use_fifo)
+  if( state->mag_info.device_select == AK09917 && 
+      !state->mag_info.use_fifo)
   {
-    ak0991x_read_st2(state, &st2_buf);
+    if( !(!state->mag_info.use_sync_stream &&
+        state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) )
+    {
+      ak0991x_read_st2(state, &st2_buf);
+    }
   }
 
   state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;  // check data over run
@@ -2398,6 +2420,14 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   }
   else
   {
+    //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
+    if((state->mag_info.device_select == AK09917) &&
+       (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
+       !state->mag_info.use_sync_stream)
+    {
+      state->fifo_num_samples = st1_buf >> 2;
+    }
+
     state->num_samples = state->data_is_ready ? 1 : 0;
   }
 
@@ -2635,10 +2665,21 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
       }
     }
   }
-  else  // Non FIFO mode, read one data
+  else  // Non FIFO mode
   {
+    uint16_t num_samples = 1;
+
+    //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
+    if((state->mag_info.device_select == AK09917) &&
+       (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
+       !state->mag_info.use_sync_stream)
+    {
+      num_samples = (state->fifo_num_samples > num_samples)?
+                     state->fifo_num_samples : num_samples;
+    }
+
     ak0991x_read_hxl_st2(state,
-                         1,
+                         num_samples,
                          &buffer[0]);
   }
 
@@ -2699,6 +2740,16 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
             AK0991X_INST_PRINT(LOW, instance,"add dummy");
           }
           state->num_samples = SNS_MIN(state->num_samples, AK0991X_MAX_FIFO_SIZE);
+        }
+        else
+        {
+          if( state->num_samples == 0 && 
+              state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && 
+              !state->mag_info.use_sync_stream )
+          {
+            AK0991X_INST_PRINT(LOW, instance, "num_samples=0 But forced to set 1.");
+            state->num_samples = 1;            
+          }
         }
       }
       // else, use state->num_samples when check DRDY status by INTERRUPT_EVENT
@@ -3359,8 +3410,17 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
-
+  // ignore reconfig. same setting.
+  if( state->only_dae_wmk_is_changed )
+  {
+    SNS_INST_PRINTF(HIGH, this, "reconfig_hw ignored because same ODR and WM.");
+    return SNS_RC_SUCCESS;
+  }
+  else
+  {
+    SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
+  }
+  
   if(reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);

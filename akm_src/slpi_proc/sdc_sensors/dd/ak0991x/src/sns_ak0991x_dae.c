@@ -32,6 +32,13 @@
 
 /**
 *****************************************************************************************
+                            OpenSSC 7.1.1 patch
+*****************************************************************************************
+*/
+//#define OPENSSC_VER_711
+
+/**
+*****************************************************************************************
                                   Static Functions
 *****************************************************************************************
 */
@@ -102,7 +109,13 @@ ak0991x_get_data( sns_dd_handle_s*    dd_handle,
     {
       sns_com_port_data_vector_s data_vectors[] =
       {
+#ifdef OPENSSC_VER_711
+        // For this release of OpenSSC, read the register via the I3C bus rather
+       // than the faster memcpy.
+        { .mem_addr = 0, .reg_addr = AKM_AK0991X_REG_CNTL1,
+#else
         { .mem_addr = &reg_ctl, .reg_addr = 0,
+#endif
           .buf_sz = 2 },
         { .mem_addr = &fifo_status, .reg_addr = 0,
           .buf_sz = 1 },
@@ -113,6 +126,9 @@ ak0991x_get_data( sns_dd_handle_s*    dd_handle,
       if( *num_samples == 0 )
       {
         num_vectors--;
+        // Report num_samples=1 even though there are no samples. This will update the
+        // DAE watermark count to send the register status in a timely manner
+        *num_samples = 1;
       }
       status = data_read_fptr(dd_handle, data_vectors, num_vectors);
     }
