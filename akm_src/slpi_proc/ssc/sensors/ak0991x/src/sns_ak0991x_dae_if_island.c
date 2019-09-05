@@ -524,11 +524,11 @@ static void process_fifo_samples(
     }
     else
     {
-      SNS_INST_PRINTF(
-        ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
-        state->num_samples, fifo_len);
-      state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
-    }
+    SNS_INST_PRINTF(
+      ERROR, this, "fifo_samples:: #samples %u disagrees with fifo len %u",
+      state->num_samples, fifo_len);
+    state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
+  }
   }
 
   if( !state->is_orphan )

@@ -5,7 +5,7 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  * All Rights Reserved.
  *
- * Copyright (c) 2016-2018 Asahi Kasei Microdevices
+ * Copyright (c) 2016-2017 Asahi Kasei Microdevices
  * Confidential and Proprietary - Asahi Kasei Microdevices
  **/
 
