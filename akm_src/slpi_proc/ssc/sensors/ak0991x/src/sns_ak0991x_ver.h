@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 09/05/19                AKM              Fixed a bug that caused an UNRELIABLE event
+ * 09/05/19                AKM              Fix to send correct attribute strings of operation mode
+ *                                          Fixed a bug that caused an UNRELIABLE event
  *                                          Fixed a bug that power rail timer was not deleted
  * 08/16/19     020060.5   Qualcomm         dont publish has_snc_ts_anchor for non s4s
  *                                          do not call flush_hw if wm=1
