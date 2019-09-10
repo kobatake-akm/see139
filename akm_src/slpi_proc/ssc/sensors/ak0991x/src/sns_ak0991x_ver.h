@@ -322,8 +322,8 @@
  *
  **/
 
-// major:05 minor:00 revision:60
+// major:06 minor:00 revision:60
 #define AK0991X_DRV_VER_MAJOR    2
-#define AK0991X_DRV_VER_MINOR    5
+#define AK0991X_DRV_VER_MINOR    6
 #define AK0991X_DRV_VER_REV      60
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
