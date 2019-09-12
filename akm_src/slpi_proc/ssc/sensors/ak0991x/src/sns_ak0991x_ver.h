@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/12/19                AKM              Fix to send correct attribute for send_config_event
  * 09/05/19                AKM              Fixed a bug that caused an UNRELIABLE event
  *                                          Fixed a bug that power rail timer was not deleted
  * 08/16/19     020060.5   Qualcomm         dont publish has_snc_ts_anchor for non s4s
@@ -321,8 +322,8 @@
  *
  **/
 
-// major:05 minor:00 revision:60
+// major:06 minor:00 revision:60
 #define AK0991X_DRV_VER_MAJOR    2
-#define AK0991X_DRV_VER_MINOR    5
+#define AK0991X_DRV_VER_MINOR    6
 #define AK0991X_DRV_VER_REV      60
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
