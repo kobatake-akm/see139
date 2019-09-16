@@ -2176,7 +2176,8 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_sample_rate = AK0991X_ODR_0;
     *chosen_reg_value = AK0991X_MAG_ODR_OFF;
   }
-  else if (desired_sample_rate <= AK0991X_ODR_1)
+  else if ((desired_sample_rate <= AK0991X_ODR_1) &&
+           ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
   {
     *chosen_sample_rate = AK0991X_ODR_1;
     *chosen_reg_value = AK0991X_MAG_ODR1;
