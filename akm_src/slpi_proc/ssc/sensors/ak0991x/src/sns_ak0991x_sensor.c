@@ -907,8 +907,16 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                      state->registry_pf_cfg.rigid_body_type);
           state->rail_config.num_of_rails = state->registry_pf_cfg.num_rail;
           state->registry_rail_on_state = state->registry_pf_cfg.rail_on_state;
-          state->max_odr = state->registry_pf_cfg.max_odr;
-          state->min_odr = state->registry_pf_cfg.min_odr;
+          if(state->registry_pf_cfg.max_odr == NULL)
+          {
+            state->max_odr = AK0991X_ODR_100;
+            state->min_odr = AK0991X_ODR_0;
+          }
+          else
+          {
+            state->max_odr = state->registry_pf_cfg.max_odr;
+            state->min_odr = state->registry_pf_cfg.min_odr;
+          }
 
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
           state->com_port_info.i3c_address = state->registry_pf_cfg.i3c_address;
