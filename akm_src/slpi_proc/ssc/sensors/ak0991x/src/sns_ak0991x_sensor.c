@@ -411,7 +411,8 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
     ak0991x_mag_match_odr(chosen_sample_rate,
                           &chosen_sample_rate,
                           &mag_chosen_sample_rate_reg_value,
-                          state->device_select);
+                          state->device_select,
+                          (float)state->max_odr);
     chosen_report_rate = chosen_sample_rate;
   }
 
@@ -906,6 +907,8 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                      state->registry_pf_cfg.rigid_body_type);
           state->rail_config.num_of_rails = state->registry_pf_cfg.num_rail;
           state->registry_rail_on_state = state->registry_pf_cfg.rail_on_state;
+          state->max_odr = state->registry_pf_cfg.max_odr;
+          state->min_odr = state->registry_pf_cfg.min_odr;
 
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
           state->com_port_info.i3c_address = state->registry_pf_cfg.i3c_address;
@@ -1325,22 +1328,18 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
      odr_table = ak09911_odr_table;
    }
 
-#ifdef AK0991X_FORCE_MAX_ODR_50HZ
-   // over write value_len when MAX=50Hz, remove 100Hz
-   value_len--;
-#endif // AK0991X_FORCE_MAX_ODR_50HZ
+   if ((float)state->max_odr <= AK0991X_ODR_50)
+   {
+     // over write value_len when MAX=50Hz, remove 100Hz
+     value_len--;
+   }
 
    if(odr_table != NULL)
    {
      for(uint32_t i=0; i<value_len; i++)
      {
-#ifdef AK0991X_FORCE_MAX_ODR_50HZ
-       if(odr_table[i] < AK0991X_ODR_100) // 100Hz is too high for Polling
-#endif // AK0991X_FORCE_MAX_ODR_50HZ
-       {
-         values[i].has_flt = true;
-         values[i].flt = odr_table[i];
-       }
+       values[i].has_flt = true;
+       values[i].flt = odr_table[i];
      }
    }
    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
@@ -1953,7 +1952,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               sns_rc rv = ak0991x_mag_match_odr(decoded_payload.sample_rate,
                                                 &chosen_sample_rate,
                                                 &mag_chosen_sample_rate_reg_value,
-                                                state->device_select);
+                                                state->device_select,
+                                                (float)state->max_odr);
               if(rv != SNS_RC_SUCCESS || (uint32_t)decoded_payload.sample_rate <= 0)
               {
                 SNS_PRINTF(HIGH, this, "Invalid sample_rate. Reject request.");
@@ -2162,7 +2162,8 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
 sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
                              float *chosen_sample_rate,
                              ak0991x_mag_odr *chosen_reg_value,
-                             akm_device_type device_select)
+                             akm_device_type device_select,
+                             float max_odr)
 {
   if (NULL == chosen_sample_rate
       ||
@@ -2198,24 +2199,30 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   }
   else if (desired_sample_rate <= AK0991X_ODR_100)
   {
-#ifdef AK0991X_FORCE_MAX_ODR_50HZ
-    *chosen_sample_rate = AK0991X_ODR_50;
-    *chosen_reg_value = AK0991X_MAG_ODR50;
-#else
-    *chosen_sample_rate = AK0991X_ODR_100;
-    *chosen_reg_value = AK0991X_MAG_ODR100;
-#endif // AK0991X_FORCE_MAX_ODR_50HZ
+    if (max_odr <= AK0991X_ODR_50)
+    {
+      *chosen_sample_rate = AK0991X_ODR_50;
+      *chosen_reg_value = AK0991X_MAG_ODR50;
+    }
+    else
+    {
+      *chosen_sample_rate = AK0991X_ODR_100;
+      *chosen_reg_value = AK0991X_MAG_ODR100;
+    }
   }
   else if ((desired_sample_rate <= AK0991X_ODR_200) &&
            ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)))
   {
-#ifdef AK0991X_FORCE_MAX_ODR_50HZ
-    *chosen_sample_rate = AK0991X_ODR_50;
-    *chosen_reg_value = AK0991X_MAG_ODR50;
-#else
-    *chosen_sample_rate = AK0991X_ODR_200;
-    *chosen_reg_value = AK0991X_MAG_ODR200;
-#endif // AK0991X_FORCE_MAX_ODR_50HZ
+    if (max_odr <= AK0991X_ODR_50)
+    {
+      *chosen_sample_rate = AK0991X_ODR_50;
+      *chosen_reg_value = AK0991X_MAG_ODR50;
+    }
+    else
+    {
+      *chosen_sample_rate = AK0991X_ODR_200;
+      *chosen_reg_value = AK0991X_MAG_ODR200;
+    }
   }
   else
   {

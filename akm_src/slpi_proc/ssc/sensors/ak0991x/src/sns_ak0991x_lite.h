@@ -33,7 +33,6 @@
 //#define AK0991X_ENABLE_I3C_DEBUG
 //#define AK0991X_ENABLE_DUAL_SENSOR        // Enable to set dual sensor support mode
 #define AK0991X_ENABLE_DEVICE_MODE_SENSOR // Enable devise_mode_sensor
-//#define AK0991X_FORCE_MAX_ODR_50HZ        // Force MAX ODR to 50Hz
 #define AK0991X_ENABLE_TIMER_FILTER       // Enable polling timer filter
 //#define AK0991X_PATCH_FOR_DAE_S4S_DT_EVENT_FIELDS_ON_704
 

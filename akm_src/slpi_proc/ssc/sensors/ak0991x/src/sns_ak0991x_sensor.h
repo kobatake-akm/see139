@@ -240,6 +240,8 @@ typedef struct ak0991x_state
   uint8_t resolution_idx;
   int64_t hardware_id;
   ak0991x_int_op_mode int_mode;
+  uint8_t min_odr;
+  uint8_t max_odr;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   uint32_t registration_idx;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
@@ -322,7 +324,8 @@ sns_rc ak0991x_mag_deinit(sns_sensor *const this);
 sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
                              float *chosen_sample_rate,
                              ak0991x_mag_odr *chosen_reg_value,
-                             akm_device_type device_select);
+                             akm_device_type device_select,
+                             float max_odr);
 
 void ak0991x_update_registry(sns_sensor *const this,
         sns_sensor_instance *const instance);

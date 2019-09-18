@@ -166,6 +166,7 @@ typedef struct ak0991x_mag_info
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
+  uint8_t        max_odr;
   uint16_t       max_fifo_size;
   bool           use_fifo;
   bool           flush_only;
