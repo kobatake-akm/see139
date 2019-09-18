@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/18/19                AKM              Modify to set MAX and MIN ODR from registry
  * 09/12/19                AKM              Fix to send correct attribute for send_config_event
  * 09/05/19     020060.6   AKM              Fix to send correct attribute strings of operation mode
  *                                          Fixed a bug that caused an UNRELIABLE event

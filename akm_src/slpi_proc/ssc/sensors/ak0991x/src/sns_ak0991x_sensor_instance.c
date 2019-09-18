@@ -98,6 +98,11 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               sizeof(state->mag_info.device_select),
               &sensor_state->device_select,
               sizeof(sensor_state->device_select));
+  sns_memscpy(&state->mag_info.max_odr,
+              sizeof(state->mag_info.max_odr),
+              &sensor_state->max_odr,
+              sizeof(sensor_state->max_odr));
+
   state->mag_info.cur_cfg.fifo_wmk = 1;
   // Init for s4s
   ak0991x_s4s_inst_init(this, sstate);
@@ -601,7 +606,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     rv = ak0991x_mag_match_odr(desired_sample_rate,
                                &mag_chosen_sample_rate,
                                &mag_chosen_sample_rate_reg_value,
-                               state->mag_info.device_select);
+                               state->mag_info.device_select,
+                               (float)state->mag_info.max_odr);
 
     // update requested config
     state->mag_info.flush_only = payload->is_flush_only;
