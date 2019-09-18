@@ -172,7 +172,7 @@ extern sns_sensor_api ak0991x_mag_sensor_api;
 #define AK0991X_LOW_NOISE          "LOW_NOISE"
 
 #define AK0991X_NUM_OF_ATTRIBUTES  (21)
-#define AK0991X_LEN_OF_ATTRIBUTES_STR (15)
+#define AK0991X_MAX_LEN_OF_ATTRIBUTES_STR (15)
 
 /** Power rail timeout States for the AK0991X Sensors.*/
 
