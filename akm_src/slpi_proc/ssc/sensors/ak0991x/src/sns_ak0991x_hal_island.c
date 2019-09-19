@@ -2880,7 +2880,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   case AK09911:
     operating_mode = AK0991X_NORMAL;
     op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = false;
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09911_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -2893,7 +2894,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   case AK09912:
     operating_mode = AK0991X_NORMAL;
     op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = false;
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09912_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -2906,7 +2908,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   case AK09913:
     operating_mode = AK0991X_NORMAL;
     op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = false;
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09913_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -2930,6 +2933,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     }
 
     phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09915_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -2953,6 +2957,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     }
 
     phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09915_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -2965,7 +2970,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   case AK09916C:
     operating_mode = AK0991X_NORMAL;
     op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = false;
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09916_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -2978,7 +2984,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   case AK09916D:
     operating_mode = AK0991X_NORMAL;
     op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = false;
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09916_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -3002,6 +3009,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     }
 
     phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09917_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -3014,7 +3022,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   case AK09918:
     operating_mode = AK0991X_NORMAL;
     op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = false;
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
     phy_sensor_config.has_active_current = true;
     phy_sensor_config.active_current = AK09918_HI_PWR;
     phy_sensor_config.has_resolution = true;
@@ -3035,7 +3044,6 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   op_mode_args.buf_len = op_mode_str_len;
   phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
   phy_sensor_config.operation_mode.arg = &op_mode_args;
-  phy_sensor_config.water_mark         = cfg.fifo_wmk;
   phy_sensor_config.has_sample_rate    = true;
   phy_sensor_config.sample_rate        = ak0991x_get_mag_odr(cfg.odr);
   phy_sensor_config.has_DAE_watermark  = ak0991x_dae_if_available(instance);
