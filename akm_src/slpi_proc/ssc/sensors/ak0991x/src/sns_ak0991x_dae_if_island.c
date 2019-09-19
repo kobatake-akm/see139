@@ -1313,17 +1313,32 @@ bool ak0991x_dae_if_start_streaming(sns_sensor_instance *this)
     }
     else
     {
-      if(state->reg_event_for_dae_poll_sync)
+      AK0991X_INST_PRINT(HIGH, this, "cur_cfg.num=%d, cur_cfg.odr=0x%02X, last_sent_cfg.num=%d, last_sent_cfg.odr=0x%02X",
+          state->mag_info.cur_cfg.num,
+          (uint32_t)state->mag_info.cur_cfg.odr,
+          state->mag_info.last_sent_cfg.num,
+          (uint32_t)state->mag_info.last_sent_cfg.odr);
+      float cur_odr = ak0991x_get_mag_odr(state->mag_info.cur_cfg.odr);
+      float last_odr = ak0991x_get_mag_odr(state->mag_info.last_sent_cfg.odr);
+      if(state->dae_if.mag.state == STREAM_STARTING && last_odr < cur_odr)
       {
+        AK0991X_INST_PRINT(HIGH, this, "fix not fastest......");
         cmd_sent |= send_mag_config(this);
-        state->reg_event_for_dae_poll_sync = false;
       }
       else
       {
-        // Register timer to synchronize the DAE polling timing with other sensors.
-        ak0991x_register_timer(this);
-        cmd_sent = true;
-        AK0991X_INST_PRINT(LOW, this,"register timer with is_dry_run=ture");
+        if(state->reg_event_for_dae_poll_sync)
+        {
+          cmd_sent |= send_mag_config(this);
+          state->reg_event_for_dae_poll_sync = false;
+        }
+        else
+        {
+          // Register timer to synchronize the DAE polling timing with other sensors.
+          ak0991x_register_timer(this);
+          cmd_sent = true;
+          AK0991X_INST_PRINT(LOW, this,"register timer with is_dry_run=ture");
+        }
       }
     }
   }
