@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/19/19     026200     AKM              Fix the numbering format of version
  * 09/19/19                AKM              Modify to set has_water_mark=true and water_mark=1 if FIFO not in use
  * 09/18/19                AKM              Modify to set MAX and MIN ODR from registry
  *                                          Fixed a bug that it didn't have sample for fastest rate request after a lower request
@@ -326,8 +327,8 @@
  *
  **/
 
-// major:06 minor:00 revision:60
+// major:02 minor:62 revision:00
 #define AK0991X_DRV_VER_MAJOR    2
-#define AK0991X_DRV_VER_MINOR    6
-#define AK0991X_DRV_VER_REV      60
+#define AK0991X_DRV_VER_MINOR    62
+#define AK0991X_DRV_VER_REV      0
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
