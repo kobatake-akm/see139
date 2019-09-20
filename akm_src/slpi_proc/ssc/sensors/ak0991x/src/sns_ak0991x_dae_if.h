@@ -49,15 +49,6 @@ typedef struct
   ak0991x_dae_if_state   state;
 } ak0991x_dae_stream;
 
-#ifdef AK0991X_PATCH_FOR_IBI_ON_704
-typedef enum
-{
-  SNS_DAE_INT_OP_MODE_POLLING = 0,
-  SNS_DAE_INT_OP_MODE_IRQ,
-  SNS_DAE_INT_OP_MODE_IBI,
-} sns_dae_int_op_mode;
-#endif
-
 typedef struct ak0991x_dae_if_info
 {
   ak0991x_dae_stream   mag;

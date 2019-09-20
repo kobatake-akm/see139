@@ -22,6 +22,22 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/19/19     026200     AKM              Fix the numbering format of version
+ * 09/19/19                AKM              Modify to set has_water_mark=true and water_mark=1 if FIFO not in use
+ * 09/18/19                AKM              Modify to set MAX and MIN ODR from registry
+ *                                          Fixed a bug that it didn't have sample for fastest rate request after a lower request
+ * 09/12/19                AKM              Fix to send correct attribute for send_config_event
+ * 09/05/19     020060.6   AKM              Fix to send correct attribute strings of operation mode
+ *                                          Fixed a bug that caused an UNRELIABLE event
+ *                                          Fixed a bug that power rail timer was not deleted
+ * 08/16/19     020060.5   Qualcomm         dont publish has_snc_ts_anchor for non s4s
+ *                                          do not call flush_hw if wm=1
+ * 08/14/19     020060.3   AKM              Modified DAE driver always num_samples=1 even no samples.
+ * 08/01/19     020060.2   AKM              Use FIFO for AK09917 polling+nonFIFO mode
+ * 07/22/19     020060.1   Qualcomm         Reject bad request and restore old request if any
+ * 07/22/19     020060     AKM              Merged Qualcomm's 020060 modification.
+ * 07/22/19                                 Merged Qualcomm's S4S codes and added the definition for compile.
+ * 07/16/19                AKM              Do not flush hw if no fifo is used.
  * 07/16/19     020059     AKM              Modified for WaitForEvents error on MovingRates test of CTS.
  * 06/24/19     020058.2   Qualcomm         Merged Qualcomm's 020059 modification.
  *                                          Flush done event should be sent after flush completes
@@ -36,6 +52,7 @@
  * 05/23/19                AKM              Use only dae_event_time for TS on polling with <= 50Hz ODR.
  *                                          Modified Config not changed judge.
  * 05/17/19                AKM              Removed sw reset for DAE when ODR changed. Adjusted polling_offset.
+*  05/15/19     020057     Qualcomm         Fix for avoiding timer reg event read by heart beat timer 
  * 05/16/19     020056     AKM              modified for data_age_limit_ticks to use if-else
  * 05/14/19                Qualcomm         Sometimes, num_samples exceeding max fifo size and causing
                                             stack corruption(Stability issue)
@@ -310,8 +327,8 @@
  *
  **/
 
-// major:02 minor:00 revision:59
+// major:02 minor:62 revision:00
 #define AK0991X_DRV_VER_MAJOR    2
-#define AK0991X_DRV_VER_MINOR    0
-#define AK0991X_DRV_VER_REV      59
+#define AK0991X_DRV_VER_MINOR    62
+#define AK0991X_DRV_VER_REV      0
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

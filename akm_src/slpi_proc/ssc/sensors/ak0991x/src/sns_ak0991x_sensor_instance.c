@@ -98,6 +98,11 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               sizeof(state->mag_info.device_select),
               &sensor_state->device_select,
               sizeof(sensor_state->device_select));
+  sns_memscpy(&state->mag_info.max_odr,
+              sizeof(state->mag_info.max_odr),
+              &sensor_state->max_odr,
+              sizeof(sensor_state->max_odr));
+
   state->mag_info.cur_cfg.fifo_wmk = 1;
   // Init for s4s
   ak0991x_s4s_inst_init(this, sstate);
@@ -601,7 +606,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     rv = ak0991x_mag_match_odr(desired_sample_rate,
                                &mag_chosen_sample_rate,
                                &mag_chosen_sample_rate_reg_value,
-                               state->mag_info.device_select);
+                               state->mag_info.device_select,
+                               (float)state->mag_info.max_odr);
 
     // update requested config
     state->mag_info.flush_only = payload->is_flush_only;
@@ -632,31 +638,44 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       ak0991x_send_cal_event(this, false);    // send previous cal event
     }
 
+    state->only_dae_wmk_is_changed = false;
+
     // check if config not changed.
     if( !state->processing_new_config &&
         state->mag_info.last_sent_cfg.fifo_wmk == req_cfg.fifo_wmk &&
-        state->mag_info.last_sent_cfg.odr == req_cfg.odr &&
-        ((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this)))
+        state->mag_info.last_sent_cfg.odr == req_cfg.odr)
     {
-      // No change needed -- return success
-      AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d", 
-      state->total_samples,
-      state->mag_info.cur_cfg.num,
-      (uint32_t)state->mag_info.cur_cfg.odr,
-      (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-      (uint32_t)state->mag_info.cur_cfg.dae_wmk);
-
-      // self test done and resumed. No need to send config event.
-      if( state->in_self_test )
+      if((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this))
       {
-        AK0991X_INST_PRINT(LOW, this, "selftest done!" );
-      }
+        // No change needed -- return success
+        AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d", 
+        state->total_samples,
+        state->mag_info.cur_cfg.num,
+        (uint32_t)state->mag_info.cur_cfg.odr,
+        (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+        (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-      // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-                                                        state->com_port_info.port_handle,
-                                                        false);
-      return SNS_RC_SUCCESS;
+        // self test done and resumed. No need to send config event.
+        if( state->in_self_test )
+        {
+          AK0991X_INST_PRINT(LOW, this, "selftest done!" );
+        }
+
+        // Turn COM port OFF
+        state->scp_service->api->sns_scp_update_bus_power(
+                                                          state->com_port_info.port_handle,
+                                                          false);
+        return SNS_RC_SUCCESS;
+      }
+      AK0991X_INST_PRINT(LOW, this, "Same ODR and Same WM but DAE_WMK is different.");
+      if(state->dae_if.mag.state == STREAM_STARTING)
+      {
+        AK0991X_INST_PRINT(LOW, this, "DAE state is START_STREAMING. Must do reconfig_hw.");
+      }
+      else
+      {
+        state->only_dae_wmk_is_changed = true;
+      }
     }
 
     // new config received. start processing for new config.
@@ -777,19 +796,21 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
         else
         {
-          if(state->flush_requested_in_dae)
+          if(!state->flush_requested_in_dae)
           {
-            AK0991X_INST_PRINT(LOW, this, "Previous flush request.");
-            ak0991x_send_fifo_flush_done(this);
-          }
-          state->flush_requested_in_dae = true;
-          if( state->mag_info.use_fifo )
-          {
-            ak0991x_dae_if_flush_hw(this);
-          }
-          else
-          {
-            ak0991x_dae_if_flush_samples(this);
+            state->flush_requested_in_dae = true;
+            if(state->mag_info.use_fifo && state->mag_info.cur_cfg.fifo_wmk > 1)
+            {
+              ak0991x_dae_if_flush_hw(this);
+            }
+            else if(state->mag_info.cur_cfg.dae_wmk > 1)
+            {
+              ak0991x_dae_if_flush_samples(this);
+            }
+            else
+            {
+              ak0991x_send_fifo_flush_done(this);
+            }
           }
         }
       }
@@ -910,9 +931,3 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   return SNS_RC_SUCCESS;
 }
 
-void ak0991x_inst_publish_error(sns_sensor_instance *const this, sns_rc rc)
-{
-  sns_service_manager *manager = this->cb->get_service_manager(this);
-  sns_event_service *event_service = (sns_event_service*)manager->get_service(manager, SNS_EVENT_SERVICE);
-  event_service->api->publish_error(event_service, this, rc);
-}
