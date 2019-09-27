@@ -200,6 +200,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->flush_requested_in_dae = false;
   state->wait_for_last_flush = false;
   state->last_flush_poll_check_count = 0;
+  state->do_flush_after_clock_error_procedure = false;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -780,8 +781,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       if(state->in_clock_error_procedure)
       {
-        AK0991X_INST_PRINT(LOW, this, "Flush requested in DAE during Clock Error Procedure. Skip");
-        ak0991x_send_fifo_flush_done(this);
+        AK0991X_INST_PRINT(LOW, this, "Flush requested in DAE during Clock Error Procedure.");
+        state->do_flush_after_clock_error_procedure = true;
       }
       else
       {
@@ -791,8 +792,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         // During configuration. Wait for send config...
         if( state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num )
         {
-          AK0991X_INST_PRINT(LOW, this, "Wait for send config event...");
-          ak0991x_send_fifo_flush_done(this);
+          AK0991X_INST_PRINT(LOW, this, "Flush requested in DAE during change config. Wait for send config event...");
+          state->flush_requested_in_dae = true;
         }
         else
         {

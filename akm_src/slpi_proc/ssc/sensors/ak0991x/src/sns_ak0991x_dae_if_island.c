@@ -920,6 +920,7 @@ static void process_response(
       dae_stream->flushing_data = false;
       state->this_is_the_last_flush = false;
       state->wait_for_last_flush = false;
+      state->do_flush_after_clock_error_procedure = false;
 
       if( !state->in_self_test && 
           state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
@@ -961,7 +962,30 @@ static void process_response(
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
         {
-          ak0991x_dae_if_start_streaming(this);
+          if(state->do_flush_after_clock_error_procedure)
+          {
+            AK0991X_INST_PRINT(LOW, this,"Flush after clock error procedure.");
+            if(!state->flush_requested_in_dae)
+            {
+              state->flush_requested_in_dae = true;
+              if(state->mag_info.use_fifo && state->mag_info.cur_cfg.fifo_wmk > 1)
+              {
+                ak0991x_dae_if_flush_hw(this);
+              }
+              else if(state->mag_info.cur_cfg.dae_wmk > 1)
+              {
+                ak0991x_dae_if_flush_samples(this);
+              }
+              else
+              {
+                ak0991x_send_fifo_flush_done(this);
+              }
+            }
+          }
+          else
+          {
+            ak0991x_dae_if_start_streaming(this);
+          }
         }
       }
       break;
