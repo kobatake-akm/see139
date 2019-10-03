@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/03/19                AKM              Do flush if recieved flush request during a config
  * 09/27/19                AKM              Do flush if recieved flush request during a clock error procedure
  * 09/19/19     026200     AKM              Fix the numbering format of version
  * 09/19/19                AKM              Modify to set has_water_mark=true and water_mark=1 if FIFO not in use
