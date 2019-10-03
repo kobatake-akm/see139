@@ -871,6 +871,26 @@ static void process_response(
           // No reset call.
           ak0991x_reconfig_hw(this, false);
           state->config_step = AK0991X_CONFIG_IDLE;
+          if(state->do_flush_after_change_config)
+          {
+            AK0991X_INST_PRINT(LOW, this,"Flush after change config.");
+            if(!state->flush_requested_in_dae)
+            {
+              state->flush_requested_in_dae = true;
+              if(state->mag_info.use_fifo && state->mag_info.cur_cfg.fifo_wmk > 1)
+              {
+                ak0991x_dae_if_flush_hw(this);
+              }
+              else if(state->mag_info.cur_cfg.dae_wmk > 1)
+              {
+                ak0991x_dae_if_flush_samples(this);
+              }
+              else
+              {
+                ak0991x_send_fifo_flush_done(this);
+              }
+            }
+          }
         }
         else
         {
@@ -921,6 +941,7 @@ static void process_response(
       state->this_is_the_last_flush = false;
       state->wait_for_last_flush = false;
       state->do_flush_after_clock_error_procedure = false;
+      state->do_flush_after_change_config = false;
 
       if( !state->in_self_test && 
           state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
