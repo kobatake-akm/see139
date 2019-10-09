@@ -941,7 +941,6 @@ static void process_response(
       dae_stream->flushing_data = false;
       state->this_is_the_last_flush = false;
       state->wait_for_last_flush = false;
-      state->do_flush_after_clock_error_procedure = false;
 
       if( !state->in_self_test && 
           state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
@@ -985,6 +984,7 @@ static void process_response(
         {
           if(state->do_flush_after_clock_error_procedure)
           {
+            state->do_flush_after_clock_error_procedure = false;
             AK0991X_INST_PRINT(LOW, this,"Flush after clock error procedure.");
             if(!state->flush_requested_in_dae)
             {
