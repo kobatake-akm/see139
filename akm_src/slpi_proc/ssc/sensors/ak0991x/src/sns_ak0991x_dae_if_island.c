@@ -873,6 +873,7 @@ static void process_response(
           state->config_step = AK0991X_CONFIG_IDLE;
           if(state->do_flush_after_change_config)
           {
+            state->do_flush_after_change_config = false;
             AK0991X_INST_PRINT(LOW, this,"Flush after change config.");
             if(!state->flush_requested_in_dae)
             {
@@ -941,7 +942,6 @@ static void process_response(
       state->this_is_the_last_flush = false;
       state->wait_for_last_flush = false;
       state->do_flush_after_clock_error_procedure = false;
-      state->do_flush_after_change_config = false;
 
       if( !state->in_self_test && 
           state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
