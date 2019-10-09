@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/09/19                AKM              Fixed a bug that didn't flush after changing config
+ *                                          Fixed a bug that didn't flush after clock error procedure
  * 10/03/19                AKM              Do flush if recieved flush request during a config
  * 09/27/19                AKM              Do flush if recieved flush request during a clock error procedure
  * 09/19/19     026200     AKM              Fix the numbering format of version
