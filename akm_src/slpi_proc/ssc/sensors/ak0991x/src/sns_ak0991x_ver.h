@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/09/19     026203     AKM              Fixed a bug that didn't flush after changing config
  * 10/03/19     026202     AKM              Do flush if recieved flush request during a config
  * 09/27/19     026201     AKM              Do flush if recieved flush request during a clock error procedure
  * 09/19/19     026200     AKM              Fix the numbering format of version
@@ -329,8 +330,8 @@
  *
  **/
 
-// major:02 minor:62 revision:02
+// major:02 minor:62 revision:03
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      2
+#define AK0991X_DRV_VER_REV      3
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
