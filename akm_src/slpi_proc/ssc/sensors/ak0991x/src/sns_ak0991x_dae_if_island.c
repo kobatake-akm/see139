@@ -961,6 +961,20 @@ static void process_response(
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
         {
+          if( !state->in_self_test && 
+              state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
+              state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
+          {
+            AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+                state->mag_info.cur_cfg.num,
+                (uint32_t)state->mag_info.cur_cfg.odr,
+                (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+                (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+
+            ak0991x_send_config_event(this, true);  // send previous config event
+            ak0991x_send_cal_event(this, false);    // send previous cal event
+          }
+
           ak0991x_dae_if_start_streaming(this);
         }
       }
