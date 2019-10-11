@@ -421,14 +421,21 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                    state->mag_info.last_sent_cfg.num == 0 || 
                    state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ))  // wait for in order to send config in DAE
               {
-                AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in REG_EVENT: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-                  state->mag_info.cur_cfg.num,
-                  (uint32_t)state->mag_info.cur_cfg.odr,
-                  (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-                  (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+                if(state->this_is_the_last_flush)
+                {
+                  AK0991X_INST_PRINT(LOW, this, "Wait for the send_config_event until a flush is done.");
+                }
+                else
+                {
+                  AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in REG_EVENT: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+                    state->mag_info.cur_cfg.num,
+                    (uint32_t)state->mag_info.cur_cfg.odr,
+                    (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+                    (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-                ak0991x_send_config_event(this, true); // send new config event
-                ak0991x_send_cal_event(this, (state->mag_info.cur_cfg.num == 1));    // send new cal event
+                  ak0991x_send_config_event(this, true); // send new config event
+                  ak0991x_send_cal_event(this, (state->mag_info.cur_cfg.num == 1));    // send new cal event
+                }
               }
               
               state->has_sync_ts_anchor = false;
