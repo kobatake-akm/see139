@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/11/19                AKM              Fixed JIRA2458 incorrect info on 2nd physical_config_event when two request are made.
  * 10/11/19                AKM              Fixed a bug that physical_config_event is sent before buffered data is flushed to clients
  * 10/09/19     026203     AKM              Fixed a bug that didn't flush after changing config
  * 10/03/19     026202     AKM              Do flush if recieved flush request during a config
