@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/11/19                AKM              Fixed JIRA2458 incorrect info on 2nd physical_config_event when two request are made.
  * 09/19/19     026200     AKM              Fix the numbering format of version
  * 09/19/19                AKM              Modify to set has_water_mark=true and water_mark=1 if FIFO not in use
  * 09/18/19                AKM              Modify to set MAX and MIN ODR from registry
