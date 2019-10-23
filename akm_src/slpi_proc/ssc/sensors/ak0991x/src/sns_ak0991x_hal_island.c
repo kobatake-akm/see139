@@ -775,6 +775,12 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   com_port->in_i3c_mode = false;
 
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
+  if(com_port->com_config.bus_type != SNS_BUS_I3C_SDR &&
+     com_port->com_config.bus_type != SNS_BUS_I3C_HDR_DDR )
+  {
+    return rv;
+  }
+
   if(num_attempts <= 0)
   {
     if(this != NULL)
@@ -3145,7 +3151,7 @@ static sns_rc ak0991x_send_timer_request(sns_sensor_instance *const this)
       service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
   sns_request             timer_req;
   size_t                  req_len = 0;
-  uint8_t                 buffer[20];
+  uint8_t                 buffer[100];
   sns_rc rv = SNS_RC_SUCCESS;
 
   sns_timer_sensor_config payload = sns_timer_sensor_config_init_default;

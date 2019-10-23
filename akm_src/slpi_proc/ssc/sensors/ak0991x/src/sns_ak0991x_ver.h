@@ -22,11 +22,15 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/18/19                Qualcomm         Fixed JIRA-2547 - Increased buffer length for encoding timer request
+ * 10/14/19     026205     Qualcomm         Fixed a bug that tries to enter I3C mode even though bus is I2C
+ *                                          Removed chipset specific Bus and IRQ configuration 
  * 10/11/19     026204     AKM              Fixed JIRA2458 incorrect info on 2nd physical_config_event when two request are made.
  * 10/11/19                AKM              Fixed a bug that physical_config_event is sent before buffered data is flushed to clients
  * 10/09/19     026203     AKM              Fixed a bug that didn't flush after changing config
  * 10/03/19     026202     AKM              Do flush if recieved flush request during a config
- * 09/27/19     026201     AKM              Do flush if recieved flush request during a clock error procedure
+ * 09/27/19     026201     Qualcomm/AKM     Remove instance correctly upon rejecting invalid request
+ *                                          Do flush if recieved flush request during a clock error procedure
  * 09/19/19     026200     AKM              Fix the numbering format of version
  * 09/19/19                AKM              Modify to set has_water_mark=true and water_mark=1 if FIFO not in use
  * 09/18/19                AKM              Modify to set MAX and MIN ODR from registry
@@ -332,8 +336,8 @@
  *
  **/
 
-// major:02 minor:62 revision:04
+// major:02 minor:62 revision:05
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      4
+#define AK0991X_DRV_VER_REV      5
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
