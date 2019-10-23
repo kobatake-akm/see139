@@ -775,6 +775,12 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
   com_port->in_i3c_mode = false;
 
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
+  if(com_port->com_config.bus_type != SNS_BUS_I3C_SDR &&
+     com_port->com_config.bus_type != SNS_BUS_I3C_HDR_DDR )
+  {
+    return rv;
+  }
+
   if(num_attempts <= 0)
   {
     if(this != NULL)

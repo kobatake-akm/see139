@@ -32,6 +32,10 @@
 #include "sns_device_mode.pb.h"
 #endif //AK0991X_ENABLE_DEVICE_MODE_SENSOR
 
+#ifndef AK0991X_ENABLE_REGISTRY_ACCESS
+#include "sns_interface_defs.h"
+#endif //AK0991X_ENABLE_REGISTRY_ACCESS
+
 #define MAG_SUID1 \
   {  \
     .sensor_uid =  \
@@ -61,50 +65,16 @@
 #define AK0991X_REG_CONFIG_STR          ".mag.config_2"
 
 #ifndef AK0991X_ENABLE_REGISTRY_ACCESS
-/** TODO Using SDM855 Platform config as defaults. This is for
- *  test purpose only. All platform specific information will
- *  be available to the Sensor driver via Registry. */
-#ifdef AK0991X_BOARD_HDK845
-#define BUS_TYPE                   SNS_BUS_I2C
-#define RAIL_1                     "/pmic/client/sensor_vddio"
-#define RAIL_2                     "/pmic/client/sensor_vdd"
-#define IRQ_NUM                    119
-#define NUM_OF_RAILS               1
-#define BUS_FREQ_MIN               400
-#define BUS_FREQ_MAX               400
-#define SLAVE_ADDRESS              0x0C
-#define I3C_ADDR                   20    //Dynamic address
-#define I2C_BUS_INSTANCE           0x01  //HDK845:0x01, DragonBoard820:0x03
-#else
-#define RAIL_1                     "/pmic/client/sensor_vddio"
-#define RAIL_2                     "/pmic/client/sensor_vdd"
-#define NUM_OF_RAILS               1
-#define BUS_FREQ_MIN               400
-#define BUS_FREQ_MAX               12500
-#define SLAVE_ADDRESS              0x0C
-#ifdef SSC_TARGET_SM8250
-#define I3C_ADDR                   30    //Dynamic address
-#else
-#define I3C_ADDR                   20    //Dynamic address
-#endif
-#define I2C_BUS_INSTANCE           0x01
-#ifdef SSC_TARGET_SM8250
-#define BUS_TYPE                   SNS_BUS_I3C_SDR
-#define IRQ_NUM                    113
-#elif SSC_TARGET_SM6150
-#define BUS_TYPE                   SNS_BUS_I2C
-#define IRQ_NUM                    83
-#elif SSC_TARGET_SM7150
-#define BUS_TYPE                   SNS_BUS_I3C_SDR
-#define IRQ_NUM                    88
-#elif SSC_TARGET_SAIPAN
-#define BUS_TYPE                   SNS_BUS_I3C_SDR
-#define IRQ_NUM                    110
-#else
-#define BUS_TYPE                   SNS_BUS_I3C_SDR
-#define IRQ_NUM                    134
-#endif // SSC_TARGET_SM6150
-#endif // AK0991X_BOARD_HDK845
+#define BUS_TYPE          _AK0991X_BUS_TYPE
+#define RAIL_1            _AK0991X_RAIL_1
+#define RAIL_2            _AK0991X_RAIL_2
+#define IRQ_NUM           _AK0991X_IRQ_NUM
+#define NUM_OF_RAILS      _AK0991X_NUM_RAILS
+#define BUS_FREQ_MIN      _AK0991X_BUS_FREQ_MIN
+#define BUS_FREQ_MAX      _AK0991X_BUS_FREQ_MAX
+#define SLAVE_ADDRESS     _AK0991X_I2C_ADDR
+#define I3C_ADDR          _AK0991X_I3C_ADDR
+#define I2C_BUS_INSTANCE  _AK0991X_BUS_INSTANCE
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
 /** Forward Declaration of Magnetic Sensor API */
@@ -235,13 +205,13 @@ typedef struct ak0991x_state
   // sensor configuration
   uint8_t nsf;
   uint8_t sdr;
+  uint8_t min_odr;
+  uint8_t max_odr;
   bool use_fifo;
   bool supports_sync_stream;
   uint8_t resolution_idx;
   int64_t hardware_id;
   ak0991x_int_op_mode int_mode;
-  uint8_t min_odr;
-  uint8_t max_odr;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   uint32_t registration_idx;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
