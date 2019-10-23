@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/23/19                AKM              Fixed JIRA2467 Changed a calculation method of chosen_report_rate
  * 10/18/19                Qualcomm         Fixed JIRA-2547 - Increased buffer length for encoding timer request
  * 10/14/19     026205     Qualcomm         Fixed a bug that tries to enter I3C mode even though bus is I2C
  *                                          Removed chipset specific Bus and IRQ configuration 
