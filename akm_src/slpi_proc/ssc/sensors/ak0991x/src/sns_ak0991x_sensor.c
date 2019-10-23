@@ -405,16 +405,16 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
                          &is_max_batch,
                          &m_sensor_client_present);
 
-  if(chosen_report_rate == chosen_sample_rate)
-  {
-    ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
-    ak0991x_mag_match_odr(chosen_sample_rate,
-                          &chosen_sample_rate,
-                          &mag_chosen_sample_rate_reg_value,
-                          state->device_select,
-                          (float)state->max_odr);
-    chosen_report_rate = chosen_sample_rate;
-  }
+  //if(chosen_report_rate == chosen_sample_rate)
+  //{
+  //  ak0991x_mag_odr mag_chosen_sample_rate_reg_value;
+  //  ak0991x_mag_match_odr(chosen_sample_rate,
+  //                        &chosen_sample_rate,
+  //                        &mag_chosen_sample_rate_reg_value,
+  //                        state->device_select,
+  //                        (float)state->max_odr);
+  //  chosen_report_rate = chosen_sample_rate;
+  //}
 
   AK0991X_PRINT(LOW, this, "RR=%u/100 SR=%u/100 fl_per=%u, fl_only=%u, max_batch=%u",
                   (uint32_t)(chosen_report_rate*100), (uint32_t)(chosen_sample_rate*100),
