@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/23/19     026206     AKM              Fixed JIRA2467 Changed a calculation method of chosen_report_rate
  * 10/18/19                Qualcomm         Fixed JIRA-2547 - Increased buffer length for encoding timer request
  * 10/14/19     026205     Qualcomm         Fixed a bug that tries to enter I3C mode even though bus is I2C
  *                                          Removed chipset specific Bus and IRQ configuration 
@@ -336,8 +337,8 @@
  *
  **/
 
-// major:02 minor:62 revision:05
+// major:02 minor:62 revision:06
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      5
+#define AK0991X_DRV_VER_REV      6
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
