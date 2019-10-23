@@ -98,6 +98,11 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
               sizeof(state->mag_info.device_select),
               &sensor_state->device_select,
               sizeof(sensor_state->device_select));
+  sns_memscpy(&state->mag_info.max_odr,
+              sizeof(state->mag_info.max_odr),
+              &sensor_state->max_odr,
+              sizeof(sensor_state->max_odr));
+
   state->mag_info.cur_cfg.fifo_wmk = 1;
   // Init for s4s
   ak0991x_s4s_inst_init(this, sstate);
@@ -195,6 +200,8 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->flush_requested_in_dae = false;
   state->wait_for_last_flush = false;
   state->last_flush_poll_check_count = 0;
+  state->do_flush_after_clock_error_procedure = false;
+  state->do_flush_after_change_config = false;
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
@@ -601,7 +608,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     rv = ak0991x_mag_match_odr(desired_sample_rate,
                                &mag_chosen_sample_rate,
                                &mag_chosen_sample_rate_reg_value,
-                               state->mag_info.device_select);
+                               state->mag_info.device_select,
+                               (float)state->mag_info.max_odr);
 
     // update requested config
     state->mag_info.flush_only = payload->is_flush_only;
@@ -662,7 +670,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         return SNS_RC_SUCCESS;
       }
       AK0991X_INST_PRINT(LOW, this, "Same ODR and Same WM but DAE_WMK is different.");
-      state->only_dae_wmk_is_changed = true;
+      if(state->dae_if.mag.state == STREAM_STARTING)
+      {
+        AK0991X_INST_PRINT(LOW, this, "DAE state is START_STREAMING. Must do reconfig_hw.");
+      }
+      else
+      {
+        state->only_dae_wmk_is_changed = true;
+      }
     }
 
     // new config received. start processing for new config.
@@ -767,8 +782,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     {
       if(state->in_clock_error_procedure)
       {
-        AK0991X_INST_PRINT(LOW, this, "Flush requested in DAE during Clock Error Procedure. Skip");
-        ak0991x_send_fifo_flush_done(this);
+        AK0991X_INST_PRINT(LOW, this, "Flush requested in DAE during Clock Error Procedure.");
+        state->do_flush_after_clock_error_procedure = true;
       }
       else
       {
@@ -776,10 +791,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
             (uint32_t)state->system_time, state->flush_requested_in_dae);
 
         // During configuration. Wait for send config...
-        if( state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num )
+        if(state->config_step != AK0991X_CONFIG_IDLE)
         {
-          AK0991X_INST_PRINT(LOW, this, "Wait for send config event...");
-          ak0991x_send_fifo_flush_done(this);
+          AK0991X_INST_PRINT(LOW, this, "Flush requested in DAE during change config. Wait for send config event...");
+          state->do_flush_after_change_config = true;
         }
         else
         {

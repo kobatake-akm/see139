@@ -22,6 +22,19 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/11/19     026204     AKM              Fixed JIRA2458 incorrect info on 2nd physical_config_event when two request are made.
+ * 10/11/19                AKM              Fixed a bug that physical_config_event is sent before buffered data is flushed to clients
+ * 10/09/19     026203     AKM              Fixed a bug that didn't flush after changing config
+ * 10/03/19     026202     AKM              Do flush if recieved flush request during a config
+ * 09/27/19     026201     AKM              Do flush if recieved flush request during a clock error procedure
+ * 09/19/19     026200     AKM              Fix the numbering format of version
+ * 09/19/19                AKM              Modify to set has_water_mark=true and water_mark=1 if FIFO not in use
+ * 09/18/19                AKM              Modify to set MAX and MIN ODR from registry
+ *                                          Fixed a bug that it didn't have sample for fastest rate request after a lower request
+ * 09/12/19                AKM              Fix to send correct attribute for send_config_event
+ * 09/05/19     020060.6   AKM              Fix to send correct attribute strings of operation mode
+ *                                          Fixed a bug that caused an UNRELIABLE event
+ *                                          Fixed a bug that power rail timer was not deleted
  * 08/16/19     020060.5   Qualcomm         dont publish has_snc_ts_anchor for non s4s
  *                                          do not call flush_hw if wm=1
  * 08/14/19     020060.3   AKM              Modified DAE driver always num_samples=1 even no samples.
@@ -319,8 +332,8 @@
  *
  **/
 
-// major:05 minor:00 revision:60
+// major:02 minor:62 revision:04
 #define AK0991X_DRV_VER_MAJOR    2
-#define AK0991X_DRV_VER_MINOR    5
-#define AK0991X_DRV_VER_REV      60
+#define AK0991X_DRV_VER_MINOR    62
+#define AK0991X_DRV_VER_REV      4
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

@@ -166,6 +166,7 @@ typedef struct ak0991x_mag_info
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
+  uint8_t        max_odr;
   uint16_t       max_fifo_size;
   bool           use_fifo;
   bool           flush_only;
@@ -247,6 +248,8 @@ typedef struct ak0991x_instance_state
   bool processing_new_config;
   bool remove_request;
   bool only_dae_wmk_is_changed;
+  bool do_flush_after_clock_error_procedure;
+  bool do_flush_after_change_config;
   sns_std_sensor_sample_status accuracy;
   uint32_t last_flush_poll_check_count;
   uint32_t total_samples; /* throughout the life of this instance */
