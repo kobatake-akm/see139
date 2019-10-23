@@ -3151,7 +3151,7 @@ static sns_rc ak0991x_send_timer_request(sns_sensor_instance *const this)
       service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
   sns_request             timer_req;
   size_t                  req_len = 0;
-  uint8_t                 buffer[20];
+  uint8_t                 buffer[100];
   sns_rc rv = SNS_RC_SUCCESS;
 
   sns_timer_sensor_config payload = sns_timer_sensor_config_init_default;

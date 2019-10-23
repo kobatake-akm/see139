@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/18/19                Qualcomm         Fixed JIRA-2547 - Increased buffer length for encoding timer request
  * 10/14/19     026205     Qualcomm         Fixed a bug that tries to enter I3C mode even though bus is I2C
  *                                          Removed chipset specific Bus and IRQ configuration 
  * 10/11/19     026204     AKM              Fixed JIRA2458 incorrect info on 2nd physical_config_event when two request are made.

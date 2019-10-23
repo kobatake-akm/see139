@@ -195,7 +195,7 @@ void ak0991x_s4s_register_timer(sns_sensor_instance *const this)
   sns_request             timer_req;
   sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
   size_t                  req_len;
-  uint8_t                 buffer[20] = {0};
+  uint8_t                 buffer[100] = {0};
   req_payload.is_periodic = true;
   req_payload.has_priority = true;
   sns_time                t_ph_period = sns_convert_ns_to_ticks(
