@@ -871,6 +871,27 @@ static void process_response(
           // No reset call.
           ak0991x_reconfig_hw(this, false);
           state->config_step = AK0991X_CONFIG_IDLE;
+          if(state->do_flush_after_change_config)
+          {
+            state->do_flush_after_change_config = false;
+            AK0991X_INST_PRINT(LOW, this,"Flush after change config.");
+            if(!state->flush_requested_in_dae)
+            {
+              state->flush_requested_in_dae = true;
+              if(state->mag_info.use_fifo && state->mag_info.cur_cfg.fifo_wmk > 1)
+              {
+                ak0991x_dae_if_flush_hw(this);
+              }
+              else if(state->mag_info.cur_cfg.dae_wmk > 1)
+              {
+                ak0991x_dae_if_flush_samples(this);
+              }
+              else
+              {
+                ak0991x_send_fifo_flush_done(this);
+              }
+            }
+          }
         }
         else
         {
@@ -931,7 +952,7 @@ static void process_response(
             (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
             (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-        ak0991x_send_config_event(this, true);  // send previous config event
+        ak0991x_send_config_event(this, true);  // send new config event
         ak0991x_send_cal_event(this, false);    // send previous cal event
       }
 
@@ -961,7 +982,44 @@ static void process_response(
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
         {
-          ak0991x_dae_if_start_streaming(this);
+          if(state->do_flush_after_clock_error_procedure)
+          {
+            state->do_flush_after_clock_error_procedure = false;
+            AK0991X_INST_PRINT(LOW, this,"Flush after clock error procedure.");
+            if(!state->flush_requested_in_dae)
+            {
+              state->flush_requested_in_dae = true;
+              if(state->mag_info.use_fifo && state->mag_info.cur_cfg.fifo_wmk > 1)
+              {
+                ak0991x_dae_if_flush_hw(this);
+              }
+              else if(state->mag_info.cur_cfg.dae_wmk > 1)
+              {
+                ak0991x_dae_if_flush_samples(this);
+              }
+              else
+              {
+                ak0991x_send_fifo_flush_done(this);
+              }
+            }
+          }
+          else
+          {
+            if( !state->in_self_test && 
+                state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
+                state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
+            {
+              AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+                  state->mag_info.cur_cfg.num,
+                  (uint32_t)state->mag_info.cur_cfg.odr,
+                  (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+                  (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+
+              ak0991x_send_config_event(this, true);  // send new config event
+              ak0991x_send_cal_event(this, false);    // send previous cal event
+            }
+            ak0991x_dae_if_start_streaming(this);
+          }
         }
       }
       break;

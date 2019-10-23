@@ -1949,8 +1949,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                 {
                   SNS_PRINTF(HIGH, this, "restoring existing req");
                   instance->cb->add_client_request(instance, exist_request);
-                  instance = NULL; // no instance is handling this invalid request
                 }
+                instance = NULL; // no instance is handling this invalid request
               }
               else
               {
