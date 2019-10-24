@@ -32,47 +32,58 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_std_attr_value_data values[] = {SNS_ATTR};
     values[0].has_sint = true;
     values[0].sint = SNS_STD_SENSOR_STREAM_TYPE_STREAMING;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_STREAM_TYPE, values, ARR_SIZE(values), false);
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_STREAM_TYPE,
+        values, ARR_SIZE(values), false);
   }
   {
     sns_std_attr_value_data values[] = {SNS_ATTR};
     static char const proto1[] = "sns_mag.proto";
     values[0].str.funcs.encode = pb_encode_string_cb;
-    values[0].str.arg = &((pb_buffer_arg){ .buf = proto1, .buf_len = sizeof(proto1) });
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_API, values, ARR_SIZE(values), false);
+    values[0].str.arg = &((pb_buffer_arg)
+        { .buf = proto1, .buf_len = sizeof(proto1) });
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_API,
+        values, ARR_SIZE(values), false);
   }
   {
     static char const name[] = "ak0991x";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
-    value.str.arg = &((pb_buffer_arg){ .buf = name, .buf_len = sizeof(name) });
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = name, .buf_len = sizeof(name) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_NAME, &value, 1, false);
   }
   {
     static char const type[] = "mag";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
-    value.str.arg = &((pb_buffer_arg){ .buf = type, .buf_len = sizeof(type) });
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = type, .buf_len = sizeof(type) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_TYPE, &value, 1, false);
   }
   {
     static char const vendor[] = "akm";
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.str.funcs.encode = pb_encode_string_cb;
-    value.str.arg = &((pb_buffer_arg){ .buf = vendor, .buf_len = sizeof(vendor) });
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_VENDOR, &value, 1, false);
+    value.str.arg = &((pb_buffer_arg)
+        { .buf = vendor, .buf_len = sizeof(vendor) });
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_VENDOR, &value, 1, false);
   }
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_boolean = true;
     value.boolean = false;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_DYNAMIC, &value, 1, false);
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_DYNAMIC, &value, 1, false);
   }
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
     value.sint = AK0991X_DRIVER_VERSION;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_VERSION, &value, 1, false);
   }
   {
     float data[3] = {0};
@@ -80,13 +91,15 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_sint = true;
     value.sint = state->encoded_event_len;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, false);
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_EVENT_SIZE, &value, 1, false);
   }
   {
     sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
     value.has_boolean = true;
     value.boolean = true;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, false);
+    sns_publish_attribute(
+        this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR, &value, 1, false);
   }
   {
     sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
@@ -94,7 +107,8 @@ static void ak0991x_publish_default_attributes(sns_sensor *const this)
     values[0].sint = SNS_PHYSICAL_SENSOR_TEST_TYPE_COM;
     values[1].has_sint = true;
     values[1].sint = SNS_PHYSICAL_SENSOR_TEST_TYPE_HW;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR_TESTS, values, ARR_SIZE(values), true);
+    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_PHYSICAL_SENSOR_TESTS,
+        values, ARR_SIZE(values), true);
   }
 }
 

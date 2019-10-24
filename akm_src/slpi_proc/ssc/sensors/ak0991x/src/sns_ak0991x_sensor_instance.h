@@ -166,7 +166,6 @@ typedef struct ak0991x_mag_info
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
-  uint8_t        max_odr;
   uint16_t       max_fifo_size;
   bool           use_fifo;
   bool           flush_only;
@@ -174,6 +173,7 @@ typedef struct ak0991x_mag_info
   bool           use_sync_stream;
   uint8_t        nsf;
   uint8_t        sdr;
+  uint8_t        max_odr;
   sns_sensor_uid suid;
 
   int16_t previous_lsbdata[TRIAXIS_NUM];
