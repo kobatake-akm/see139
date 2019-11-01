@@ -670,14 +670,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         return SNS_RC_SUCCESS;
       }
       AK0991X_INST_PRINT(LOW, this, "Same ODR and Same WM but DAE_WMK is different.");
-      if(state->dae_if.mag.state == STREAM_STARTING)
-      {
-        AK0991X_INST_PRINT(LOW, this, "DAE state is START_STREAMING. Must do reconfig_hw.");
-      }
-      else
-      {
-        state->only_dae_wmk_is_changed = true;
-      }
+      state->only_dae_wmk_is_changed = true;
+    }
+    
+    // If dae_if.mag.state is STREAM_STARTING and config_step is UPDATING_HW, re-evaluate a configuration.
+    if(state->dae_if.mag.state == STREAM_STARTING && state->config_step == AK0991X_CONFIG_UPDATING_HW)
+    {
+      AK0991X_INST_PRINT(LOW, this, "DAE state is STREAM_STARTING. Re-evaluate a configuration.");
+      state->config_step = AK0991X_CONFIG_IDLE;
+      state->only_dae_wmk_is_changed = false;
     }
 
     // new config received. start processing for new config.
