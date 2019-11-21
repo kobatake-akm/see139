@@ -946,14 +946,26 @@ static void process_response(
           state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
           state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
       {
-        AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-            state->mag_info.cur_cfg.num,
-            (uint32_t)state->mag_info.cur_cfg.odr,
-            (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-            (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+        // check if handled same config.
+        if(state->mag_info.cur_cfg.odr == state->mag_info.last_sent_cfg.odr &&
+           state->mag_info.cur_cfg.fifo_wmk == state->mag_info.last_sent_cfg.fifo_wmk &&
+           state->mag_info.cur_cfg.dae_wmk == state->mag_info.last_sent_cfg.dae_wmk)
+        {
+          AK0991X_INST_PRINT(HIGH, this, "Same config. send previous config.");
+          ak0991x_send_config_event(this, false);  // send new config event
+          ak0991x_send_cal_event(this, false);    // send previous cal event
+        }
+        else
+        {
+          AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+              state->mag_info.cur_cfg.num,
+              (uint32_t)state->mag_info.cur_cfg.odr,
+              (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+              (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
+          ak0991x_send_config_event(this, true);  // send new config event
+          ak0991x_send_cal_event(this, false);    // send previous cal event
+        }
       }
 
       break;
