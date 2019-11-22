@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/14/19     026208     AKM              Fixed for new QAWA(1.0.78.0) failure about timestamp of physical_config_events
  * 11/01/19     026207     AKM              Fixed JIRA2458 Re-evaluate a configuration when two request are made
  * 10/23/19     026206     AKM              Fixed JIRA2467 Changed a calculation method of chosen_report_rate
  * 10/18/19                Qualcomm         Fixed JIRA-2547 - Increased buffer length for encoding timer request
@@ -338,8 +339,8 @@
  *
  **/
 
-// major:02 minor:62 revision:07
+// major:02 minor:62 revision:08
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      7
+#define AK0991X_DRV_VER_REV      8
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

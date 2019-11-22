@@ -425,6 +425,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                 {
                   AK0991X_INST_PRINT(LOW, this, "Wait for the send_config_event until a flush is done.");
                 }
+                else if(state->mag_info.cur_cfg.odr == state->mag_info.last_sent_cfg.odr &&
+                        state->mag_info.cur_cfg.fifo_wmk == state->mag_info.last_sent_cfg.fifo_wmk &&
+                        state->mag_info.cur_cfg.dae_wmk == state->mag_info.last_sent_cfg.dae_wmk)
+                {
+                  AK0991X_INST_PRINT(HIGH, this, "Same config. skip.");
+                }
                 else
                 {
                   AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in REG_EVENT: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
