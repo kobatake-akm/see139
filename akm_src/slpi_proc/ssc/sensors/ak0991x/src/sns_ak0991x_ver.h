@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017-2019 Qualcomm Technologies, Inc.
+ * Copyright (c) 2017-2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/14/20     026210     Qualcomm         Fix for limiting number of samples to max fifo size
  * 11/14/19     026208     AKM              Fixed for new QAWA(1.0.78.0) failure about timestamp of physical_config_events
  * 11/01/19     026207     AKM              Fixed JIRA2458 Re-evaluate a configuration when two request are made
  * 10/23/19     026206     AKM              Fixed JIRA2467 Changed a calculation method of chosen_report_rate
@@ -339,8 +340,8 @@
  *
  **/
 
-// major:02 minor:62 revision:08
+// major:02 minor:62 revision:10
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      8
+#define AK0991X_DRV_VER_REV      10
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

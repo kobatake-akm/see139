@@ -5,7 +5,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -2306,7 +2306,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t st1_buf, st2_buf;
+  uint8_t st1_buf = 0, st2_buf = 0;
 
   ak0991x_read_st1(state, &st1_buf);  // read ST1
   /* Read ST2 for AK09917D RevA/B bug */
@@ -2662,6 +2662,11 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     {
       num_samples = (state->fifo_num_samples > num_samples)?
                      state->fifo_num_samples : num_samples;
+      if(num_samples > AK0991X_MAX_PHYSICAL_FIFO_SIZE)
+      {
+        SNS_INST_PRINTF(ERROR, instance,"Number of samples should not be greater than max physical fifo available");
+        num_samples = AK0991X_MAX_PHYSICAL_FIFO_SIZE;
+      }
     }
 
     ak0991x_read_hxl_st2(state,
