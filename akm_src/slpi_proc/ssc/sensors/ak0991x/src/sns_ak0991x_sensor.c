@@ -303,7 +303,7 @@ static void ak0991x_get_mag_config(
 
           if(max_batch)
           {
-            report_rate = (1.0f / UINT32_MAX);
+            report_rate = (1.0f / (float)UINT32_MAX);
             flush_period_ticks = UINT64_MAX;
           }
           else
