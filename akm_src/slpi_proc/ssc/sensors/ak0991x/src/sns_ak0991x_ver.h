@@ -22,7 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 01/14/20     026210     Qualcomm         Fix for limiting number of samples to max fifo size
+ * 02/12/20     026210     Qualcomm         Fixed implicit-int-float-conversion error found with hexagon8.4 compiler
+ * 01/14/20                Qualcomm         Fix for limiting number of samples to max fifo size
  * 11/14/19     026208     AKM              Fixed for new QAWA(1.0.78.0) failure about timestamp of physical_config_events
  * 11/01/19     026207     AKM              Fixed JIRA2458 Re-evaluate a configuration when two request are made
  * 10/23/19     026206     AKM              Fixed JIRA2467 Changed a calculation method of chosen_report_rate
