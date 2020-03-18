@@ -48,6 +48,10 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
     .mag_odr_reg_value = AK0991X_MAG_ODR1,
   },
   {
+    .odr = AK0991X_ODR_5,
+    .mag_odr_reg_value = AK0991X_MAG_ODR5,
+  },
+  {
     .odr = AK0991X_ODR_10,
     .mag_odr_reg_value = AK0991X_MAG_ODR10,
   },
@@ -67,7 +71,7 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
     .odr = AK0991X_ODR_200,
     .mag_odr_reg_value = AK0991X_MAG_ODR200,
   }
-};
+};//add by zengjian for add odr 5hz for the ak09919
 
 static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                      void *user_arg)

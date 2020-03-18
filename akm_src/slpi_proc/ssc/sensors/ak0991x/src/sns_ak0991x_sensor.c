@@ -71,6 +71,12 @@ float ak09918_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09918_ope_mode_table[] = {AK0991X_NORMAL};
 
+/* add by zengjian for ak09919 start */
+float ak09919_odr_table[] =
+{AK0991X_ODR_5,AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+static char *ak09919_ope_mode_table[] = {AK0991X_NORMAL, AK0991X_LOW_NOISE};
+/* add by zengjian for ak09919 end */ //to be evaluated normal mode
+
 
 typedef struct ak0991x_dev_info
 {
@@ -185,6 +191,17 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .supports_dri         = false,
     .supports_sync_stream = false,
   },
+  [AK09919] = {
+    .odr                  = ak09919_odr_table,
+    .resolutions          = AK09919_RESOLUTION,
+    .max_fifo_depth       = AK09919_FIFO_SIZE,
+    .active_current       = AK09919_HI_PWR,
+    .sleep_current        = AK09919_LO_PWR,
+    .ranges               = {AK09919_MIN_RANGE, AK09919_MAX_RANGE},
+    .operating_modes      = ak09919_ope_mode_table,
+    .supports_dri         = false,
+    .supports_sync_stream = false,
+  },/*add by zengjian for ak09919 */ //modify by zengjian for support_dri true-> false
 };
 
 /**
@@ -700,6 +717,12 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
     {
       cfg->nsf = reg_item->sint;
     }
+	else if(0 == strncmp((char*)item_name->buf,
+                    "its",
+                    item_name->buf_len))
+    {
+      cfg->its = reg_item->sint ;
+    } /*add by zengjian for ak09919 low noise mode*/
     else if(0 == strncmp((char*)item_name->buf,
                     "use_fifo",
                     item_name->buf_len))
@@ -858,7 +881,9 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "use_fifo:%d", state->use_fifo);
           state->nsf = state->registry_reg_cfg.nsf;
           state->sdr = state->registry_reg_cfg.sdr;
-          AK0991X_PRINT(LOW, this, "nsf:%d ,sdr:%d", state->nsf, state->sdr);
+		  state->its = state->registry_reg_cfg.its;//add by zengjian for ak09919 low noise drive to be evaluated
+          //AK0991X_PRINT(LOW, this, "nsf:%d ,sdr:%d", state->nsf, state->sdr);
+		  AK0991X_PRINT(LOW, this, "nsf:%d ,sdr:%d ,its:%d", state->nsf, state->sdr, state->its);//add by zengjian for ak09919 low noise drive to be evaluated
         }
       }
       else if (pf_config)
@@ -1104,6 +1129,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   state->use_fifo = false;
   state->nsf = 0;
   state->sdr = 0;
+  state->its = 0;//add by zengjian for ak09919 for low noise drive
 
   state->com_port_info.com_config.bus_instance = I2C_BUS_INSTANCE;
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
@@ -1318,7 +1344,8 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
   {
     uint32_t value_len = 0;
     float *odr_table = NULL;
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR}; // 1Hz, 10Hz, 20Hz, 50Hz, 100Hz
+    //sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR}; // 1Hz, 10Hz, 20Hz, 50Hz, 100Hz
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR}; // 1Hz, 5Hz, 10Hz, 20Hz, 50Hz, 100Hz  //add by zengjian for ak09919 5Hz
 
     if((state->device_select == AK09915C) || (state->device_select == AK09915D))
     {
@@ -1330,6 +1357,11 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
       value_len = ARR_SIZE(ak09917_odr_table);
       odr_table = ak09917_odr_table;
     }
+	else if(state->device_select == AK09919)
+    {
+      value_len = ARR_SIZE(ak09919_odr_table);
+      odr_table = ak09919_odr_table;
+    } //add by zengjian for ak09919
     else // Other parts use same ODR as ak09911
     {
       value_len = ARR_SIZE(ak09911_odr_table);
@@ -1573,7 +1605,8 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             }
             else
             {
-              state->who_am_i = buffer[1] << 8 | buffer[0];
+			  AK0991X_PRINT(LOW, this, "Read WHO-AM-I succeed: buffer[0] = %d, buffer[1] = %d, buffer[2] = %d,buffer[3] = %d",buffer[0],buffer[1],buffer[2],buffer[3]);//add by zengjian for ak09919 debug
+			  state->who_am_i = buffer[1] << 8 | buffer[0];
               AK0991X_PRINT(LOW, this, "Read WHO-AM-I %d",state->who_am_i);
 
               //Check AKM device ID
@@ -1611,6 +1644,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 case AK09918_WHOAMI_DEV_ID:
                   state->device_select = AK09918;
                   break;
+				case AK09919_WHOAMI_DEV_ID:
+                  state->device_select = AK09919;
+                  break;//add by zengjian for ak09919
                 default:
                   SNS_PRINTF(ERROR, this, "Unsupported Sensor");
                   rv = SNS_RC_INVALID_STATE;
@@ -2190,6 +2226,12 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_sample_rate = AK0991X_ODR_1;
     *chosen_reg_value = AK0991X_MAG_ODR1;
   }
+  else if ((desired_sample_rate <= AK0991X_ODR_5) &&
+		   (device_select == AK09919))
+  {
+	*chosen_sample_rate = AK0991X_ODR_5;
+	*chosen_reg_value = AK0991X_MAG_ODR5;
+  } //add by zengjian for ak09919 for the odr 5hz
   else if (desired_sample_rate <= AK0991X_ODR_10)
   {
     *chosen_sample_rate = AK0991X_ODR_10;

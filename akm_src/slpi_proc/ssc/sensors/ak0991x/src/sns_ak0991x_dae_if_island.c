@@ -115,10 +115,11 @@ static void build_static_config_request(
     config_req->has_s4s_config       = false;
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
     break;
+  case AK09919:
   default:
     config_req->has_s4s_config       = false;
     break;
-  }
+  }//add by zengjian for ak09919
 
   config_req->s4s_config.st_reg_addr = AKM_AK0991X_REG_SYT;
   config_req->s4s_config.st_reg_data = 0;
@@ -231,8 +232,10 @@ static bool send_mag_config(sns_sensor_instance *this)
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING ||
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
-    wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
-                                    mag_info->cur_cfg.fifo_wmk : mag_info->max_fifo_size);
+    /*wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ?
+                                    mag_info->cur_cfg.fifo_wmk : mag_info->max_fifo_size);*/
+	wm = !mag_info->use_fifo ? 1 : (((mag_info->device_select == AK09917) || (mag_info->device_select == AK09919)) ?
+                                    mag_info->cur_cfg.fifo_wmk : mag_info->max_fifo_size);//modified by zengjian for ak09919
 
     if(state->mag_info.flush_only || state->mag_info.max_batch)
     {
@@ -433,12 +436,13 @@ static void process_fifo_samples(
 
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
   uint16_t fifo_wmk = (state->mag_info.use_fifo) ? (uint8_t)(buf[0] & 0x1F) + 1 : 1;  // read value from WM[4:0]
-
   state->is_orphan = false;
   sampling_intvl = (ak0991x_get_sample_interval(odr) *
                     state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
   state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+  AK0991X_INST_PRINT(HIGH, this, "odr = %d, fifo_wmk = 0x%x, num_samples = %d, in_clock_error_procedure = %d",odr,fifo_wmk,state->num_samples,state->in_clock_error_procedure);//add by zengjian for ak09919 debug QAWA MAG-110
+  AK0991X_INST_PRINT(HIGH, this, "state->mag_info.cur_cfg.odr = %d, state->mag_info.cur_cfg.fifo_wmk = 0x%x, is_orphan=%d",state->mag_info.cur_cfg.odr,state->mag_info.cur_cfg.fifo_wmk,state->is_orphan);//add by zengjian for ak09919 debug QAWA MAG-110
 
   // calculate num_samples
   if(!state->in_clock_error_procedure)
@@ -447,19 +451,23 @@ static void process_fifo_samples(
 //        (state->dae_event_time < state->config_set_time); // use time
         ( odr != state->mag_info.cur_cfg.odr ) ||
         ( fifo_wmk != state->mag_info.cur_cfg.fifo_wmk );
+	AK0991X_INST_PRINT(HIGH, this, "step1:state->mag_info.cur_cfg.odr = %d, state->mag_info.cur_cfg.fifo_wmk = 0x%x, is_orphan=%d",state->mag_info.cur_cfg.odr,state->mag_info.cur_cfg.fifo_wmk,state->is_orphan);//add by zengjian for ak09919 debug QAWA MAG-110
 
     // calc num_samples
     {
       if(state->mag_info.use_fifo)
       {
         // num_samples update when FIFO enabled.
-        if(state->mag_info.device_select == AK09917)
+        //if(state->mag_info.device_select == AK09917)
+		if((state->mag_info.device_select == AK09917) || (state->mag_info.device_select == AK09919))/*add by zengjian for ak09919 */
         {
           state->num_samples = buf[2] >> 2;
+		  AK0991X_INST_PRINT(HIGH, this, "step2:state->num_samples = %d",state->num_samples);//add by zengjian for ak09919 debug QAWA MAG-110
         }
         else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
         {
           state->num_samples = fifo_wmk; // read value from WM[4:0]
+          AK0991X_INST_PRINT(HIGH, this, "step3:state->num_samples = %d",state->num_samples);//add by zengjian for ak09919 debug QAWA MAG-110
         }
       }
       else
@@ -471,6 +479,7 @@ static void process_fifo_samples(
           {
             // only timer event. skip all flush requests.
             state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
+			AK0991X_INST_PRINT(HIGH, this, "step4:state->num_samples = %d",state->num_samples);//add by zengjian for ak09919 debug QAWA MAG-110
           }
           else
           {
@@ -478,16 +487,19 @@ static void process_fifo_samples(
             {
               // only timer event. skip all flush requests.
               state->num_samples = (state->irq_info.detect_irq_event) ? 1 : 0;
+			  AK0991X_INST_PRINT(HIGH, this, "step5:state->num_samples = %d",state->num_samples);//add by zengjian for ak09919 debug QAWA MAG-110
             }
             else  // last flush data
             {
               state->num_samples = (state->system_time > state->pre_timestamp_for_orphan + sampling_intvl/2) ? 1 : 0;
+			  AK0991X_INST_PRINT(HIGH, this, "step6:state->num_samples = %d,state->system_time = %u,state->pre_timestamp_for_orphan = %u,sampling_intvl = %u",state->num_samples,(uint32_t)state->system_time,(uint32_t)state->pre_timestamp_for_orphan,(uint32_t)sampling_intvl);//add by zengjian for ak09919 debug QAWA MAG-110
             }
           }
 
           if( state->num_samples > 0 && state->fifo_flush_in_progress )
           {
             state->flush_sample_count++;
+			AK0991X_INST_PRINT(HIGH, this, "step7:state->fifo_flush_in_progress = %d,state->flush_sample_count = %d",state->fifo_flush_in_progress,state->flush_sample_count);//add by zengjian for ak09919 debug QAWA MAG-110
           }
           else
           {
