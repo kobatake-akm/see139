@@ -115,6 +115,7 @@ static void build_static_config_request(
     config_req->has_s4s_config       = false;
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
     break;
+  case AK09919:
   default:
     config_req->has_s4s_config       = false;
     break;
@@ -231,7 +232,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING ||
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
-    wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
+    wm = !mag_info->use_fifo ? 1 : (((mag_info->device_select == AK09917) || (mag_info->device_select == AK09919)) ?
                                     mag_info->cur_cfg.fifo_wmk : mag_info->max_fifo_size);
 
     if(state->mag_info.flush_only || state->mag_info.max_batch)
@@ -453,7 +454,7 @@ static void process_fifo_samples(
       if(state->mag_info.use_fifo)
       {
         // num_samples update when FIFO enabled.
-        if(state->mag_info.device_select == AK09917)
+        if((state->mag_info.device_select == AK09917) || (state->mag_info.device_select == AK09919))
         {
           state->num_samples = buf[2] >> 2;
         }
@@ -529,6 +530,13 @@ static void process_fifo_samples(
         state->num_samples, fifo_len);
         state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
     }
+  }
+ if((state->mag_info.device_select == AK09919) && (state->num_samples == 0) && (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) && !state->mag_info.use_sync_stream)
+  {
+    state->num_samples = 1;
+    fifo_len = AK0991X_NUM_DATA_HXL_TO_ST2;
+    mag_data_buf =  dummy_buf;
+    AK0991X_INST_PRINT(MED, this, "num_samples=0 But forced to set 1, add dummy data");
   }
 
   if( !state->is_orphan )

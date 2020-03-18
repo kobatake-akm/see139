@@ -71,6 +71,9 @@ float ak09918_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09918_ope_mode_table[] = {AK0991X_NORMAL};
 
+float ak09919_odr_table[] =
+{AK0991X_ODR_5,AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+static char *ak09919_ope_mode_table[] = {AK0991X_NORMAL, AK0991X_LOW_NOISE};
 
 typedef struct ak0991x_dev_info
 {
@@ -182,6 +185,17 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09918_LO_PWR,
     .ranges               = {AK09918_MIN_RANGE, AK09918_MAX_RANGE},
     .operating_modes      = ak09918_ope_mode_table,
+    .supports_dri         = false,
+    .supports_sync_stream = false,
+  },
+  [AK09919] = {
+    .odr                  = ak09919_odr_table,
+    .resolutions          = AK09919_RESOLUTION,
+    .max_fifo_depth       = AK09919_FIFO_SIZE,
+    .active_current       = AK09919_HI_PWR,
+    .sleep_current        = AK09919_LO_PWR,
+    .ranges               = {AK09919_MIN_RANGE, AK09919_MAX_RANGE},
+    .operating_modes      = ak09919_ope_mode_table,
     .supports_dri         = false,
     .supports_sync_stream = false,
   },
@@ -303,7 +317,7 @@ static void ak0991x_get_mag_config(
 
           if(max_batch)
           {
-            report_rate = (1.0f / UINT32_MAX);
+            report_rate = (1.0f / (float)UINT32_MAX);
             flush_period_ticks = UINT64_MAX;
           }
           else
@@ -701,6 +715,12 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
       cfg->nsf = reg_item->sint;
     }
     else if(0 == strncmp((char*)item_name->buf,
+                    "its",
+                    item_name->buf_len))
+    {
+      cfg->its = reg_item->sint ;
+    }
+    else if(0 == strncmp((char*)item_name->buf,
                     "use_fifo",
                     item_name->buf_len))
     {
@@ -858,7 +878,8 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "use_fifo:%d", state->use_fifo);
           state->nsf = state->registry_reg_cfg.nsf;
           state->sdr = state->registry_reg_cfg.sdr;
-          AK0991X_PRINT(LOW, this, "nsf:%d ,sdr:%d", state->nsf, state->sdr);
+          state->its = state->registry_reg_cfg.its;
+          AK0991X_PRINT(LOW, this, "nsf:%d ,sdr:%d ,its:%d", state->nsf, state->sdr, state->its);
         }
       }
       else if (pf_config)
@@ -1104,6 +1125,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   state->use_fifo = false;
   state->nsf = 0;
   state->sdr = 0;
+  state->its = 0;
 
   state->com_port_info.com_config.bus_instance = I2C_BUS_INSTANCE;
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
@@ -1318,7 +1340,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
   {
     uint32_t value_len = 0;
     float *odr_table = NULL;
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR}; // 1Hz, 10Hz, 20Hz, 50Hz, 100Hz
+    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR}; // 1Hz, 5Hz, 10Hz, 20Hz, 50Hz, 100Hz
 
     if((state->device_select == AK09915C) || (state->device_select == AK09915D))
     {
@@ -1329,6 +1351,11 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
     {
       value_len = ARR_SIZE(ak09917_odr_table);
       odr_table = ak09917_odr_table;
+    }
+    else if(state->device_select == AK09919)
+    {
+      value_len = ARR_SIZE(ak09919_odr_table);
+      odr_table = ak09919_odr_table;
     }
     else // Other parts use same ODR as ak09911
     {
@@ -1610,6 +1637,9 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                   break;
                 case AK09918_WHOAMI_DEV_ID:
                   state->device_select = AK09918;
+                  break;
+                case AK09919_WHOAMI_DEV_ID:
+                  state->device_select = AK09919;
                   break;
                 default:
                   SNS_PRINTF(ERROR, this, "Unsupported Sensor");
@@ -2189,6 +2219,12 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   {
     *chosen_sample_rate = AK0991X_ODR_1;
     *chosen_reg_value = AK0991X_MAG_ODR1;
+  }
+  else if ((desired_sample_rate <= AK0991X_ODR_5) &&
+           (device_select == AK09919))
+  {
+    *chosen_sample_rate = AK0991X_ODR_5;
+    *chosen_reg_value = AK0991X_MAG_ODR5;
   }
   else if (desired_sample_rate <= AK0991X_ODR_10)
   {

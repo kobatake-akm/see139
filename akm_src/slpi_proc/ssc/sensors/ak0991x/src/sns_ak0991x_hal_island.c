@@ -873,9 +873,15 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
         | reg_wmk;                   // WM[4:0] bits
     }
   }
+  if (device_select == AK09919)
+  {
 
+      buffer[0] = 0x0
+        | (state->mag_info.its << 5) // ITS bit
+        | reg_wmk;                   // WM[4:0] bits
+  }
   // Configure control register 2
-  if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
+  if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917) || (device_select == AK09919))
   {
     uint8_t enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
     if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream)
@@ -906,7 +912,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
           | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
 
       /* Enable FIFO for AK09917D RevA/B bug */
-      if(device_select == AK09917)
+      if((device_select == AK09917)||(device_select == AK09919))
       {
         buffer[1] |= AK0991X_FIFO_BIT;
       }
@@ -1263,7 +1269,7 @@ static void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8
 
   for(int i=0; i<AK0991X_NUM_AXES; i++)
   {
-    if (state->mag_info.device_select == AK09917)
+    if ((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
     {
       out[i] = (int16_t)((((int16_t)buffer[i*2] << 8) & 0xFF00) | (int16_t)buffer[i*2 + 1]);
     }
@@ -1525,7 +1531,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   buffer[0] = 0x00;
   buffer[1] = AK0991X_MAG_ODR50;
   /* Enable FIFO for AK09917D RevA/B bug */
-  if (state->mag_info.device_select == AK09917)
+  if ((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
   {
     buffer[1] |= AK0991X_FIFO_BIT;
   }
@@ -1537,6 +1543,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
                    2,
                    &xfer_bytes,
                    false);
+
 
   if (rv != SNS_RC_SUCCESS
     ||
@@ -1634,25 +1641,62 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /** Step 4
    *   Read and check data
    **/
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                state->com_port_info.port_handle,
-                                AKM_AK0991X_REG_ST1,
-                                buffer,
-                                AK0991X_NUM_DATA_ST1_TO_ST2,
-                                &xfer_bytes);
-
-  if (rv != SNS_RC_SUCCESS
-      ||
-      xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+  if (state->mag_info.device_select == AK09919)
   {
-    *err = ((TLIMIT_NO_READ_DATA) << 16);
-    goto TEST_SEQUENCE_FAILED;
+    rv = ak0991x_com_read_wrapper(state->scp_service,
+                                  state->com_port_info.port_handle,
+                                  AKM_AK0991X_REG_ST1,
+                                  buffer,
+                                  AK0991X_NUM_DATA_HXL_TO_ST2,
+                                  &xfer_bytes);
+
+    rv = ak0991x_com_read_wrapper(state->scp_service,
+                                  state->com_port_info.port_handle,
+                                  AKM_AK0991X_REG_HXL,
+                                  buffer,
+                                  AK0991X_NUM_DATA_HXL_TO_ST2,
+                                  &xfer_bytes);
+
+    if (rv != SNS_RC_SUCCESS
+        ||
+        xfer_bytes != AK0991X_NUM_DATA_HXL_TO_ST2)
+    {
+      *err = ((TLIMIT_NO_READ_DATA) << 16);
+      goto TEST_SEQUENCE_FAILED;
+    }
+
+    ak0991x_get_adjusted_mag_data(this, &buffer[0], &data[0]);
   }
+  else
+  {
+    rv = ak0991x_com_read_wrapper(state->scp_service,
+                                  state->com_port_info.port_handle,
+                                  AKM_AK0991X_REG_ST1,
+                                  buffer,
+                                  AK0991X_NUM_DATA_ST1_TO_ST2,
+                                  &xfer_bytes);
 
-  ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
+    if (rv != SNS_RC_SUCCESS
+        ||
+        xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+    {
+      *err = ((TLIMIT_NO_READ_DATA) << 16);
+      goto TEST_SEQUENCE_FAILED;
+    }
 
+	ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
+  }
   // check read value
-  if (state->mag_info.device_select == AK09918)
+  if (state->mag_info.device_select == AK09919)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09919, TLIMIT_HI_SLF_RVHX_AK09919,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09919, TLIMIT_HI_SLF_RVHY_AK09919,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09919, TLIMIT_HI_SLF_RVHZ_AK09919,
+            err);
+  }
+  else if (state->mag_info.device_select == AK09918)
   {
     AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09918, TLIMIT_HI_SLF_RVHX_AK09918,
             err);
@@ -1721,8 +1765,16 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
-          TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
+  if (state->mag_info.device_select == AK09919)
+  {
+    AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[7] & TLIMIT_ST2_MASK),
+            TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
+  }
+  else
+  {
+    AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
+            TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
+  }
 
 TEST_SEQUENCE_FAILED:
 
@@ -1866,7 +1918,7 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
   // Check magnetic sensor overflow (and invalid data for FIFO)
   if(state->mag_info.use_fifo ||
      // Since FIFO is forced to enable on Polling mode for preventing duplicate samples
-     ((state->mag_info.device_select == AK09917) &&
+     (((state->mag_info.device_select == AK09919)||(state->mag_info.device_select == AK09917)) &&
      (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
      !state->mag_info.use_sync_stream))
   {
@@ -1994,6 +2046,11 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     {
       num_bytes_to_report -= over_sample * 8;
     }
+
+    if(state->mag_info.device_select == AK09919)
+    {
+      first_timestamp -= sample_interval_ticks * ((uint32_t)(num_bytes_to_report/AK0991X_NUM_DATA_HXL_TO_ST2) - 1);
+    }
   }
 
   for(i = 0; i < num_bytes_to_report; i += AK0991X_NUM_DATA_HXL_TO_ST2)
@@ -2048,7 +2105,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #endif
 
     // Since FIFO is forced to enable on Polling mode for preventing duplicate samples. Break.
-    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream )
+    if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream && !((state->mag_info.device_select == AK09919) && state->mag_info.use_fifo))
     {
       break;
     }
@@ -2306,11 +2363,11 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t st1_buf, st2_buf;
+  uint8_t st1_buf = 0, st2_buf = 0;//qualcomm modify
 
   ak0991x_read_st1(state, &st1_buf);  // read ST1
   /* Read ST2 for AK09917D RevA/B bug */
-  if( state->mag_info.device_select == AK09917 && 
+  if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)) &&
       !state->mag_info.use_fifo)
   {
     if( !(!state->mag_info.use_sync_stream &&
@@ -2319,13 +2376,12 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
       ak0991x_read_st2(state, &st2_buf);
     }
   }
-
   state->data_over_run = (st1_buf & AK0991X_DOR_BIT) ? true : false;  // check data over run
   state->data_is_ready = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) ? ((st1_buf & AK0991X_DRDY_BIT) ? true : false) : true; // check DRDY when DRI mode
 
   if( state->mag_info.use_fifo )
   {
-    if(state->mag_info.device_select == AK09917)
+    if((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
     {
       if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
       {
@@ -2407,7 +2463,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   else
   {
     //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
-    if((state->mag_info.device_select == AK09917) &&
+    if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)) &&
        (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
        !state->mag_info.use_sync_stream)
     {
@@ -2602,7 +2658,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   // FIFO mode
   if(state->mag_info.use_fifo)
   {
-    if(state->mag_info.device_select == AK09917)    // AK09917
+    if((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)) //AK09917 AK09919
     {
       if( state->num_samples > 2 &&
           !state->this_is_the_last_flush &&
@@ -2656,12 +2712,17 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     uint16_t num_samples = 1;
 
     //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
-    if((state->mag_info.device_select == AK09917) &&
+    if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)) &&
        (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
        !state->mag_info.use_sync_stream)
     {
       num_samples = (state->fifo_num_samples > num_samples)?
                      state->fifo_num_samples : num_samples;
+      if(num_samples > AK0991X_MAX_PHYSICAL_FIFO_SIZE)
+      {
+        SNS_INST_PRINTF(ERROR, instance,"Number of samples should not be greater than max physical fifo available");
+        num_samples = AK0991X_MAX_PHYSICAL_FIFO_SIZE;
+      } //qualcomm modify
     }
 
     ak0991x_read_hxl_st2(state,
@@ -3039,6 +3100,30 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
     phy_sensor_config.range[1] = AK09918_MAX_RANGE;
     phy_sensor_config.has_dri_enabled = false;
     break;
+  case AK09919:
+
+    if (state->mag_info.sdr == 1)
+    {
+      operating_mode = AK0991X_LOW_NOISE;
+      op_mode_str_len = ARR_SIZE(AK0991X_LOW_NOISE);
+    }
+    else
+    {
+      operating_mode = AK0991X_NORMAL;
+      op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
+    }
+
+    phy_sensor_config.has_water_mark = true;
+    phy_sensor_config.water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
+    phy_sensor_config.has_active_current = true;
+    phy_sensor_config.active_current = AK09919_HI_PWR;
+    phy_sensor_config.has_resolution = true;
+    phy_sensor_config.resolution = AK09919_RESOLUTION;
+    phy_sensor_config.range_count = 2;
+    phy_sensor_config.range[0] = AK09919_MIN_RANGE;
+    phy_sensor_config.range[1] = AK09919_MAX_RANGE;
+    phy_sensor_config.has_dri_enabled = false;
+    break;
   default:
     return SNS_RC_FAILED;
   }
@@ -3348,6 +3433,9 @@ sns_rc ak0991x_get_meas_time( akm_device_type device_select,
   sns_time usec_time_for_measure;
   switch(device_select)
   {
+  case AK09919:
+    usec_time_for_measure = AK09919_TIME_FOR_MEASURE_US;
+    break;
   case AK09918:
     usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
     break;

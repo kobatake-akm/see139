@@ -130,6 +130,10 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->has_stream_is_synchronous = false;
     phy_sensor_config->stream_is_synchronous = false;
     break;
+  case AK09919:
+    phy_sensor_config->has_stream_is_synchronous = false;
+    phy_sensor_config->stream_is_synchronous = false;
+    break;
   default:
     break;
   }
@@ -158,6 +162,9 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
   case AK09916C:
   case AK09916D:
   case AK09918:
+    state->mag_info.use_sync_stream = false;
+    break;
+  case AK09919:
     state->mag_info.use_sync_stream = false;
     break;
   case AK09915C:

@@ -175,6 +175,15 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     break;
+  case AK09919:
+    state->mag_info.resolution = AK09919_RESOLUTION;
+    state->mag_info.use_fifo = sensor_state->use_fifo;
+    state->mag_info.max_fifo_size = AK09919_FIFO_SIZE;
+    state->mag_info.int_mode = sensor_state->int_mode;
+    state->mag_info.its = sensor_state->its;
+    state->mag_info.sdr = sensor_state->sdr;
+    AK0991X_INST_PRINT(HIGH, this, "AK09919 its=0x%, sdr=0x%", (int)sensor_state->its,(int)sensor_state->sdr);
+    break;
   default:
     return SNS_RC_FAILED;
   }
@@ -439,6 +448,27 @@ static uint16_t ak0991x_calc_fifo_wmk(
           desired_wmk = desired_wmk / SNS_MAX(divider,1);
         }
         break;
+      case AK09919:
+        if( desired_report_rate != 0.0f )
+        {
+          desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate;
+        }
+
+        if (state->mag_info.max_batch)
+        {
+          desired_wmk = state->mag_info.max_fifo_size;
+        }
+        else if ( desired_wmk >= (UINT16_MAX - state->mag_info.max_fifo_size) )
+        {
+          desired_wmk = state->mag_info.max_fifo_size;
+        }
+        else if ( desired_wmk > state->mag_info.max_fifo_size )
+        {
+          uint32_t divider = 1;
+          divider = (state->mag_info.max_fifo_size + desired_wmk) / state->mag_info.max_fifo_size;
+          desired_wmk = desired_wmk / SNS_MAX(divider,1);
+        }
+		break;
 
       default:
         desired_wmk = 1;
