@@ -7,7 +7,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -303,7 +303,7 @@ static void ak0991x_get_mag_config(
 
           if(max_batch)
           {
-            report_rate = (1.0f / UINT32_MAX);
+            report_rate = (1.0f / (float)UINT32_MAX);
             flush_period_ticks = UINT64_MAX;
           }
           else
@@ -1290,51 +1290,51 @@ ak0991x_sensor_publish_available(sns_sensor *const this)
 static void ak0991x_publish_hw_attributes(sns_sensor *const this,
                                 akm_device_type device_select)
 {
-  ak0991x_state *state = (ak0991x_state *)this->state->state;
+ ak0991x_state *state = (ak0991x_state *)this->state->state;
 
-  {
-    sns_std_attr_value_data values[] = {SNS_ATTR};
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR};
 
-    sns_std_attr_value_data range1[] = {SNS_ATTR, SNS_ATTR};
-    range1[0].has_flt = true;
-    range1[0].flt = ak0991x_dev_info_array[device_select].ranges.min;
-    range1[1].has_flt = true;
-    range1[1].flt = ak0991x_dev_info_array[device_select].ranges.max;
-    values[0].has_subtype = true;
-    values[0].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
-    values[0].subtype.values.arg =
-      &((pb_buffer_arg){ .buf = range1, .buf_len = ARR_SIZE(range1) });
+   sns_std_attr_value_data range1[] = {SNS_ATTR, SNS_ATTR};
+   range1[0].has_flt = true;
+   range1[0].flt = ak0991x_dev_info_array[device_select].ranges.min;
+   range1[1].has_flt = true;
+   range1[1].flt = ak0991x_dev_info_array[device_select].ranges.max;
+   values[0].has_subtype = true;
+   values[0].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
+   values[0].subtype.values.arg =
+     &((pb_buffer_arg){ .buf = range1, .buf_len = ARR_SIZE(range1) });
 
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RANGES,
-        values, ARR_SIZE(values), false);
-  }
-  {
-    sns_std_attr_value_data values[] = {SNS_ATTR};
-    values[0].has_sint = true;
-    values[0].sint = ak0991x_dev_info_array[device_select].active_current;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_ACTIVE_CURRENT,
-        values, ARR_SIZE(values), false);
-  }
-  {
-    uint32_t value_len = 0;
-    float *odr_table = NULL;
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR}; // 1Hz, 10Hz, 20Hz, 50Hz, 100Hz
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RANGES,
+       values, ARR_SIZE(values), false);
+ }
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR};
+   values[0].has_sint = true;
+   values[0].sint = ak0991x_dev_info_array[device_select].active_current;
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_ACTIVE_CURRENT,
+       values, ARR_SIZE(values), false);
+ }
+ {
+   uint32_t value_len = 0;
+   float *odr_table = NULL;
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR, SNS_ATTR}; // 1Hz, 10Hz, 20Hz, 50Hz, 100Hz
 
-    if((state->device_select == AK09915C) || (state->device_select == AK09915D))
-    {
-      value_len = ARR_SIZE(ak09915_odr_table);
-      odr_table = ak09915_odr_table;
-    }
-    else if(state->device_select == AK09917)
-    {
-      value_len = ARR_SIZE(ak09917_odr_table);
-      odr_table = ak09917_odr_table;
-    }
-    else // Other parts use same ODR as ak09911
-    {
-      value_len = ARR_SIZE(ak09911_odr_table);
-      odr_table = ak09911_odr_table;
-    }
+   if((state->device_select == AK09915C) || (state->device_select == AK09915D))
+   {
+     value_len = ARR_SIZE(ak09915_odr_table);
+     odr_table = ak09915_odr_table;
+   }
+   else if(state->device_select == AK09917)
+   {
+     value_len = ARR_SIZE(ak09917_odr_table);
+     odr_table = ak09917_odr_table;
+   }
+   else // Other parts use same ODR as ak09911
+   {
+     value_len = ARR_SIZE(ak09911_odr_table);
+     odr_table = ak09911_odr_table;
+   }
 
     if ((float)state->max_odr <= AK0991X_ODR_50)
     {
@@ -1342,94 +1342,94 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
        value_len--;
     }
 
-    if(odr_table != NULL)
-    {
-      for(uint32_t i=0; i<value_len; i++)
-      {
-        values[i].has_flt = true;
-        values[i].flt = odr_table[i];
-      }
-    }
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
-        values, value_len, false);
-  }
-  {
-    sns_std_attr_value_data values[] = {SNS_ATTR};
-    values[0].has_flt = true;
-    values[0].flt = ak0991x_dev_info_array[device_select].resolutions;
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RESOLUTIONS,
-        values, ARR_SIZE(values), false);
-  }
-  {
-    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
-    int i;
-    int j;
-    for(i = 0; i < 2 && i < ARR_SIZE(ak0991x_dev_info_array[device_select].operating_modes);
-        i++)
-    {
-      char const *op_mode = ak0991x_dev_info_array[device_select].operating_modes[i];
-      j = 0;
-      // count length of op_mode(string)
-      while( (op_mode[j] != '\0') && (j < AK0991X_MAX_LEN_OF_ATTRIBUTES_STR)) j++;
+   if(odr_table != NULL)
+   {
+     for(uint32_t i=0; i<value_len; i++)
+     {
+       values[i].has_flt = true;
+       values[i].flt = odr_table[i];
+     }
+   }
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RATES,
+       values, value_len, false);
+ }
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR};
+   values[0].has_flt = true;
+   values[0].flt = ak0991x_dev_info_array[device_select].resolutions;
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_RESOLUTIONS,
+       values, ARR_SIZE(values), false);
+ }
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
+   int i;
+   int j;
+   for(i = 0; i < 2 && i < ARR_SIZE(ak0991x_dev_info_array[device_select].operating_modes);
+       i++)
+   {
+     char const *op_mode = ak0991x_dev_info_array[device_select].operating_modes[i];
+     j = 0;
+     // count length of op_mode(string)
+     while( (op_mode[j] != '\0') && (j < AK0991X_MAX_LEN_OF_ATTRIBUTES_STR)) j++;
 
-      values[i].str.funcs.encode = pb_encode_string_cb;
-      values[i].str.arg = &((pb_buffer_arg)
-          { .buf = op_mode, .buf_len = j+1 }); // +1 for null string
-    }
-    sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES,
-        values, i, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_boolean = true;
-    value.boolean = false;
-    value.boolean = (state->int_mode ? ak0991x_dev_info_array[device_select].supports_dri : false);
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_boolean = true;
-    value.boolean = false;
-    value.boolean = (state->supports_sync_stream ? ak0991x_dev_info_array[device_select].supports_sync_stream : false);
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
-    value.sint = state->use_fifo ? ak0991x_dev_info_array[device_select].max_fifo_depth : 0;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_FIFO_SIZE, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_sint = true;
-    value.sint = ak0991x_dev_info_array[device_select].sleep_current;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_SLEEP_CURRENT, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
-    value.has_flt = true;
-    value.flt = ak0991x_dev_info_array[device_select].resolutions;
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_SELECTED_RESOLUTION, &value, 1, false);
-  }
-  {
-    sns_std_attr_value_data values[] = {SNS_ATTR};
-    sns_std_attr_value_data range1[] = {SNS_ATTR, SNS_ATTR};
-    range1[0].has_flt = true;
-    range1[0].flt = ak0991x_dev_info_array[device_select].ranges.min;
-    range1[1].has_flt = true;
-    range1[1].flt = ak0991x_dev_info_array[device_select].ranges.max;
-    values[0].has_subtype = true;
-    values[0].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
-    values[0].subtype.values.arg =
-      &((pb_buffer_arg){ .buf = range1, .buf_len = ARR_SIZE(range1) });
-    sns_publish_attribute(
-        this, SNS_STD_SENSOR_ATTRID_SELECTED_RANGE, &values[0], ARR_SIZE(values), true);
-  }
+     values[i].str.funcs.encode = pb_encode_string_cb;
+     values[i].str.arg = &((pb_buffer_arg)
+         { .buf = op_mode, .buf_len = j+1 }); // +1 for null string
+   }
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES,
+       values, i, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_boolean = true;
+   value.boolean = false;
+   value.boolean = (state->int_mode ? ak0991x_dev_info_array[device_select].supports_dri : false);
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_boolean = true;
+   value.boolean = false;
+   value.boolean = (state->supports_sync_stream ? ak0991x_dev_info_array[device_select].supports_sync_stream : false);
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_sint = true;
+   value.sint = state->use_fifo ? ak0991x_dev_info_array[device_select].max_fifo_depth : 0;
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_FIFO_SIZE, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_sint = true;
+   value.sint = ak0991x_dev_info_array[device_select].sleep_current;
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_SLEEP_CURRENT, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
+   value.has_flt = true;
+   value.flt = ak0991x_dev_info_array[device_select].resolutions;
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_SELECTED_RESOLUTION, &value, 1, false);
+ }
+ {
+   sns_std_attr_value_data values[] = {SNS_ATTR};
+   sns_std_attr_value_data range1[] = {SNS_ATTR, SNS_ATTR};
+   range1[0].has_flt = true;
+   range1[0].flt = ak0991x_dev_info_array[device_select].ranges.min;
+   range1[1].has_flt = true;
+   range1[1].flt = ak0991x_dev_info_array[device_select].ranges.max;
+   values[0].has_subtype = true;
+   values[0].subtype.values.funcs.encode = sns_pb_encode_attr_cb;
+   values[0].subtype.values.arg =
+     &((pb_buffer_arg){ .buf = range1, .buf_len = ARR_SIZE(range1) });
+   sns_publish_attribute(
+       this, SNS_STD_SENSOR_ATTRID_SELECTED_RANGE, &values[0], ARR_SIZE(values), true);
+ }
 }
 
 /**

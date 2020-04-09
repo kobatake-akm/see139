@@ -6,7 +6,7 @@
  * Copyright (c) 2016-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  *
- * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018,2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -69,6 +69,7 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
   }
 };
 
+#ifndef AK0991X_ENABLE_DAE
 static void ak0991x_process_com_port_vector(sns_port_vector *vector,
                                      void *user_arg)
 {
@@ -90,6 +91,7 @@ static void ak0991x_process_com_port_vector(sns_port_vector *vector,
     }
   }
 }
+#endif // !AK0991X_ENABLE_DAE
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
 static bool sns_device_mode_event_decode_cb(pb_istream_t *stream, const pb_field_t *field,
@@ -197,6 +199,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
   ak0991x_dae_if_process_events(this);
 
+#ifndef AK0991X_ENABLE_DAE
   // Handle interrupts
   sns_interrupt_event irq_event = sns_interrupt_event_init_zero;
   if (NULL != state->interrupt_data_stream)
@@ -323,6 +326,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
           state->async_com_port_data_stream);
     }
   }
+#endif // !AK0991X_ENABLE_DAE
 
   // Handle timer event
   if (NULL != state->timer_data_stream)
@@ -424,6 +428,12 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                 if(state->this_is_the_last_flush)
                 {
                   AK0991X_INST_PRINT(LOW, this, "Wait for the send_config_event until a flush is done.");
+                }
+                else if(state->mag_info.cur_cfg.odr == state->mag_info.last_sent_cfg.odr &&
+                        state->mag_info.cur_cfg.fifo_wmk == state->mag_info.last_sent_cfg.fifo_wmk &&
+                        state->mag_info.cur_cfg.dae_wmk == state->mag_info.last_sent_cfg.dae_wmk)
+                {
+                  AK0991X_INST_PRINT(HIGH, this, "Same config. skip.");
                 }
                 else
                 {

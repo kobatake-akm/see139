@@ -68,7 +68,7 @@ log_sensor_state_raw_info log_mag_state_raw_info;
  * SNS_RC_SUCCESS if encoding was succesful
  * SNS_RC_FAILED otherwise
  */
-sns_rc ak0991x_encode_log_sensor_state_raw(
+static sns_rc ak0991x_encode_log_sensor_state_raw(
   void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
   size_t *bytes_written)
 {
@@ -142,7 +142,7 @@ sns_rc ak0991x_encode_log_sensor_state_raw(
  *    be allocated. If not provided by setting to 0, will
  *    default to using maximum supported log packet size
  */
-void ak0991x_log_sensor_state_raw_alloc(
+static void ak0991x_log_sensor_state_raw_alloc(
   log_sensor_state_raw_info *log_raw_info,
   uint32_t log_size)
 {
@@ -249,7 +249,7 @@ void ak0991x_log_sensor_state_raw_submit(
  * SNS_RC_SUCCESS if encoding was succesful
  * SNS_RC_FAILED otherwise
  */
-sns_rc ak0991x_log_sensor_state_raw_add(
+static sns_rc ak0991x_log_sensor_state_raw_add(
   log_sensor_state_raw_info *log_raw_info,
   float *raw_data,
   sns_time timestamp,
@@ -320,12 +320,12 @@ sns_rc ak0991x_log_sensor_state_raw_add(
  *
  * @return sns_rc
  */
-static sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_service * scp_service,
-                                       sns_sync_com_port_handle *port_handle,
-                                       uint32_t reg_addr,
-                                       uint8_t *buffer,
-                                       uint32_t bytes,
-                                       uint32_t *xfer_bytes)
+sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_service * scp_service,
+                                sns_sync_com_port_handle *port_handle,
+                                uint32_t reg_addr,
+                                uint8_t *buffer,
+                                uint32_t bytes,
+                                uint32_t *xfer_bytes)
 {
   sns_port_vector port_vec;
   port_vec.buffer = buffer;
@@ -858,6 +858,11 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   akm_device_type device_select = state->mag_info.device_select;
   uint16_t reg_wmk = state->mag_info.cur_cfg.fifo_wmk - 1; // register FIFO value 0 means WM=1
 
+  if(((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917)) &&
+     state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream)
+  {
+    reg_wmk = 0x1F; // signals DAE driver
+  }
   // Configure control register 1
   if ((device_select == AK09912) || (device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
   {
@@ -880,7 +885,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     uint8_t enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
     if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream)
     {
-      enable_fifo = 1; // FIFO always ON when Polling to prevent dupulicate samples
+      enable_fifo = 1; // FIFO always ON when Polling to prevent duplicate samples
     }
     buffer[1] = 0x0
       | (enable_fifo << 7) // FIFO bit
@@ -990,9 +995,8 @@ static sns_time ak0991x_set_heart_beat_timeout_period_for_polling(
 void ak0991x_reset_averaged_interval(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
-  sns_time meas_usec;
-  ak0991x_get_meas_time(state->mag_info.device_select, state->mag_info.sdr, &meas_usec);
-  state->half_measurement_time = ((sns_convert_ns_to_ticks(meas_usec * 1000) * state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
+  state->half_measurement_time = ((sns_convert_ns_to_ticks(((uint64_t)state->mag_info.meas_time) * 1000) *
+                                   state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION)>>1;
   if( state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF &&
       state->internal_clock_error != 0)
   {
@@ -1136,10 +1140,10 @@ sns_rc ak0991x_get_who_am_i(sns_sync_com_port_service *scp_service,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-static sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
-                               sns_sync_com_port_service * scp_service,
-                               sns_sync_com_port_handle *port_handle,
-                               uint8_t *asa)
+sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
+                        sns_sync_com_port_service * scp_service,
+                        sns_sync_com_port_handle *port_handle,
+                        uint8_t *asa)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint8_t  buffer[1];
@@ -1214,39 +1218,6 @@ static sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
   return rv;
 }
 
-/**
- * check threshold.
- *
- * @param[i] testno                   test number
- * @param[i] testdata                 test data
- * @param[i] lolimit                  low limit
- * @param[i] hilimit                  high limit
- * @param[o] err                      error code
- *
- * @return sns_rc
- * SNS_RC_FAILED - COM port failure
- * SNS_RC_SUCCESS
- */
-sns_rc ak0991x_test_threshold(uint16_t testno,
-                              int16_t testdata,
-                              int16_t lolimit,
-                              int16_t hilimit,
-                              uint32_t *err)
-{
-  if ((lolimit <= testdata) && (testdata <= hilimit))
-  {
-    return SNS_RC_SUCCESS;
-  }
-  else
-  {
-    *err = (uint32_t)((((uint32_t)testno) << 16) | ((uint16_t)testdata));
-    return SNS_RC_FAILED;
-  }
-}
-
-#define AKM_FST(no, data, lo, hi, err) \
-  if (ak0991x_test_threshold((no), (data), (lo), (hi), (err)) \
-      != SNS_RC_SUCCESS) { goto TEST_SEQUENCE_FAILED; }
 
 /**
  * Convert buffered data to mag data.
@@ -1256,7 +1227,7 @@ sns_rc ak0991x_test_threshold(uint16_t testno,
  * @param[o] out               output 16bit mag data
  *
  */
-static void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8_t *const buffer, int16_t *out)
+void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8_t *const buffer, int16_t *out)
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
@@ -1286,8 +1257,8 @@ static void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
-                               uint8_t *buffer)
+sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
+                        uint8_t *buffer)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
@@ -1308,6 +1279,7 @@ static sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
 }
 
 
+#ifndef AK0991X_ENABLE_DAE
 /**
  * Read ST2(18h) register data.
  *
@@ -1338,7 +1310,7 @@ static sns_rc ak0991x_read_st2(ak0991x_instance_state *state,
 
   return rv;
 }
-
+#endif // !AK0991X_ENABLE_DAE
 /**
  * Read ST1(10h) to ST2(18h) register data.
  *
@@ -1349,8 +1321,8 @@ static sns_rc ak0991x_read_st2(ak0991x_instance_state *state,
  * SNS_RC_FAILED - COM port failure
  * SNS_RC_SUCCESS
  */
-static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
-                                   uint8_t *buffer)
+sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
+                            uint8_t *buffer)
 {
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
@@ -1383,6 +1355,7 @@ static sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
   return rv;
 }
 
+#ifndef AK0991X_ENABLE_DAE
 /**
  * Read HXL(11h) to ST2(18h) register data.
  *
@@ -1415,332 +1388,7 @@ static sns_rc ak0991x_read_hxl_st2(ak0991x_instance_state *state,
 
   return rv;
 }
-
-/**
- * Wait DRDY bit is ready
- * @param[i] this              reference to the instance
- * @param[i] timeout_ms        Waiting time for drdy
- *
- * @return sns_rc
- * SNS_RC_FAILED
- * SNS_RC_SUCCESS
- */
-static sns_rc ak0991x_wait_drdy_poll(sns_sensor_instance *const this,
-                                     int32_t timeout_ms)
-{
-  sns_rc  rv;
-  int16_t i;
-  uint8_t st1_buf;
-  ak0991x_instance_state *state =
-    (ak0991x_instance_state *)this->state->state;
-
-  for (i = 0; i < timeout_ms; i++)
-  {
-    /* check DRDY */
-    rv = ak0991x_read_st1(state, &st1_buf);  // read ST1
-    if (rv != SNS_RC_SUCCESS)
-    {
-      return rv;
-    }
-
-    state->data_is_ready = (st1_buf & AK0991X_DRDY_BIT) ? true : false; // check DRDY bit
-    if (state->data_is_ready)
-    {
-      /* OK, DRDY bit is high */
-      return SNS_RC_SUCCESS;
-    }
-
-    /* DRDY bit is still LOW, wait for a while and read again */
-    sns_busy_wait(sns_convert_ns_to_ticks(1 * 1000 * 1000)); // Wait 1ms
-  }
-
-  return SNS_RC_FAILED;
-}
-
-/**
- * Run a hardware self-test
- * @param[i]            reference to the instance
- * @param[o]            error code
- *
- * @return sns_rc
- * SNS_RC_FAILED
- * SNS_RC_SUCCESS
- */
-sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
-                            uint32_t *err)
-{
-  sns_rc   rv = SNS_RC_SUCCESS;
-  uint32_t xfer_bytes;
-  sns_time usec_time_for_measure;
-  uint8_t  asa[AK0991X_NUM_SENSITIVITY];
-  uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
-  int16_t  data[3];
-  uint8_t  sdr = 0;
-  int      i;
-  
-  ak0991x_instance_state *state =
-    (ak0991x_instance_state *)this->state->state;
-
-  // Initialize error code
-  *err = 0;
-
-  // Reset device
-  rv = ak0991x_device_sw_reset(this,
-                               state->scp_service,
-                               &state->com_port_info);
-
-  if (rv != SNS_RC_SUCCESS)
-  {
-    *err = ((TLIMIT_NO_RESET) << 16);
-    goto TEST_SEQUENCE_FAILED;
-  }
-
-  /** Step 1
-   *   If the device has FUSE ROM, test the sensitivity value
-   **/
-  if ((state->mag_info.device_select == AK09911) || (state->mag_info.device_select == AK09912))
-  {
-    rv = ak0991x_read_asa(this,
-                          state->scp_service,
-                          state->com_port_info.port_handle,
-                          asa);
-
-
-    if (rv != SNS_RC_SUCCESS)
-    {
-      *err = ((TLIMIT_NO_READ_ASA) << 16);
-      goto TEST_SEQUENCE_FAILED;
-    }
-
-    AKM_FST(TLIMIT_NO_ASAX, asa[0], TLIMIT_LO_ASAX, TLIMIT_HI_ASAX, err);
-    AKM_FST(TLIMIT_NO_ASAY, asa[1], TLIMIT_LO_ASAY, TLIMIT_HI_ASAY, err);
-    AKM_FST(TLIMIT_NO_ASAZ, asa[2], TLIMIT_LO_ASAZ, TLIMIT_HI_ASAZ, err);
-  }
-
-  /** Step 2
-   *   Continuous mode check
-   **/
-
-  /* Set to CNT measurement mode3 (50Hz) */
-  buffer[0] = 0x00;
-  buffer[1] = AK0991X_MAG_ODR50;
-  /* Enable FIFO for AK09917D RevA/B bug */
-  if (state->mag_info.device_select == AK09917)
-  {
-    buffer[1] |= AK0991X_FIFO_BIT;
-  }
-  rv = ak0991x_com_write_wrapper(this,
-                   state->scp_service,
-                   state->com_port_info.port_handle,
-                   AKM_AK0991X_REG_CNTL1,
-                   buffer,
-                   2,
-                   &xfer_bytes,
-                   false);
-
-  if (rv != SNS_RC_SUCCESS
-    ||
-    xfer_bytes != 2)
-  {
-    *err = ((TLIMIT_NO_CNT_CNTL2) << 16);
-    goto TEST_SEQUENCE_FAILED;
-  }
-
-  for (i = 0; i < TLIMIT_NO_CNT_ITR; i++)
-  {
-    /* current test program sets to MODE3, i.e. 50Hz=20msec interval
-     * so, wait for double length of measurement time.
-     */
-    rv = ak0991x_wait_drdy_poll(this, 40);
-    if (rv != SNS_RC_SUCCESS)
-    {
-      *err = ((TLIMIT_NO_CNT_WAIT) << 16);
-      goto TEST_SEQUENCE_FAILED;
-    }
-
-    /* Get measurement from device (1st). */
-    rv = ak0991x_read_st1_st2(state, buffer);
-
-    if (rv != SNS_RC_SUCCESS)
-    {
-      *err = ((TLIMIT_NO_CNT_READ) << 16);
-      goto TEST_SEQUENCE_FAILED;
-    }
-
-    /* Check DRDY bit (1st) */
-    state->data_is_ready = (buffer[0] & AK0991X_DRDY_BIT) ? true : false;
-    AKM_FST(TLIMIT_NO_CNT_1ST, state->data_is_ready, TLIMIT_LO_CNT_1ST, TLIMIT_HI_CNT_1ST, err);
-
-    /* Get measurement from device (2nd). */
-    rv = ak0991x_read_st1_st2(state, buffer);
-
-    if (rv != SNS_RC_SUCCESS)
-    {
-      *err = ((TLIMIT_NO_CNT_READ) << 16);
-      goto TEST_SEQUENCE_FAILED;
-    }
-
-    /* Check DRDY bit (2nd) */
-    state->data_is_ready = (buffer[0] & AK0991X_DRDY_BIT) ? true : false;
-    AKM_FST(TLIMIT_NO_CNT_2ND, state->data_is_ready, TLIMIT_LO_CNT_2ND, TLIMIT_HI_CNT_2ND, err);
-  }
-
-  // Reset device
-  rv = ak0991x_device_sw_reset(this,
-                               state->scp_service,
-                               &state->com_port_info);
-
-  if (rv != SNS_RC_SUCCESS)
-  {
-    *err = ((TLIMIT_NO_RESET) << 16);
-    goto TEST_SEQUENCE_FAILED;
-  }
-
-  /* Wait over 100us */
-  sns_busy_wait(sns_convert_ns_to_ticks(100 * 1000));
-
-  /** Step 3
-   *   Start self test
-   **/
-  buffer[0] = AK0991X_MAG_SELFTEST;
-  rv = ak0991x_com_write_wrapper(this,
-                                 state->scp_service,
-                                 state->com_port_info.port_handle,
-                                 AKM_AK0991X_REG_CNTL2,
-                                 buffer,
-                                 1,
-                                 &xfer_bytes,
-                                 false);
-
-  if (rv != SNS_RC_SUCCESS
-      ||
-      xfer_bytes != 1)
-  {
-    *err = ((TLIMIT_NO_SET_SELFTEST) << 16);
-    goto TEST_SEQUENCE_FAILED;
-  }
-
-  rv = ak0991x_get_meas_time(state->mag_info.device_select, sdr, &usec_time_for_measure);
-
-  if(rv != SNS_RC_SUCCESS)
-  {
-    *err = (TLIMIT_NO_INVALID_ID << 16);
-    goto TEST_SEQUENCE_FAILED;
-  }
-
-  // To ensure that measurement is finished, wait for double as typical
-  sns_busy_wait(sns_convert_ns_to_ticks(usec_time_for_measure * 1000 * 2));
-
-  /** Step 4
-   *   Read and check data
-   **/
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                state->com_port_info.port_handle,
-                                AKM_AK0991X_REG_ST1,
-                                buffer,
-                                AK0991X_NUM_DATA_ST1_TO_ST2,
-                                &xfer_bytes);
-
-  if (rv != SNS_RC_SUCCESS
-      ||
-      xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
-  {
-    *err = ((TLIMIT_NO_READ_DATA) << 16);
-    goto TEST_SEQUENCE_FAILED;
-  }
-
-  ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
-
-  // check read value
-  if (state->mag_info.device_select == AK09918)
-  {
-    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09918, TLIMIT_HI_SLF_RVHX_AK09918,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09918, TLIMIT_HI_SLF_RVHY_AK09918,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09918, TLIMIT_HI_SLF_RVHZ_AK09918,
-            err);
-  }
-  else if (state->mag_info.device_select == AK09917)
-  {
-    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09917, TLIMIT_HI_SLF_RVHX_AK09917,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09917, TLIMIT_HI_SLF_RVHY_AK09917,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09917, TLIMIT_HI_SLF_RVHZ_AK09917,
-            err);
-  }
-  else if ((state->mag_info.device_select == AK09916C) || (state->mag_info.device_select == AK09916D))
-  {
-    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09916, TLIMIT_HI_SLF_RVHX_AK09916,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09916, TLIMIT_HI_SLF_RVHY_AK09916,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09916, TLIMIT_HI_SLF_RVHZ_AK09916,
-            err);
-  }
-  else if ((state->mag_info.device_select == AK09915C) || (state->mag_info.device_select == AK09915D))
-  {
-    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09915, TLIMIT_HI_SLF_RVHX_AK09915,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09915, TLIMIT_HI_SLF_RVHY_AK09915,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09915, TLIMIT_HI_SLF_RVHZ_AK09915,
-            err);
-  }
-  else if (state->mag_info.device_select == AK09913)
-  {
-    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09913, TLIMIT_HI_SLF_RVHX_AK09913,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09913, TLIMIT_HI_SLF_RVHY_AK09913,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09913, TLIMIT_HI_SLF_RVHZ_AK09913,
-            err);
-  }
-  else if (state->mag_info.device_select == AK09912)
-  {
-    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09912, TLIMIT_HI_SLF_RVHX_AK09912,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09912, TLIMIT_HI_SLF_RVHY_AK09912,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09912, TLIMIT_HI_SLF_RVHZ_AK09912,
-            err);
-  }
-  else if (state->mag_info.device_select == AK09911)
-  {
-    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09911, TLIMIT_HI_SLF_RVHX_AK09911,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09911, TLIMIT_HI_SLF_RVHY_AK09911,
-            err);
-    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09911, TLIMIT_HI_SLF_RVHZ_AK09911,
-            err);
-  }
-  else
-  {
-    *err = (TLIMIT_NO_INVALID_ID << 16);
-    goto TEST_SEQUENCE_FAILED;
-  }
-
-  AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
-          TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
-
-TEST_SEQUENCE_FAILED:
-
-  if (*err == 0)
-  {
-    return SNS_RC_SUCCESS;
-  }
-  else
-  {
-    AK0991X_INST_PRINT(HIGH, this, "hw self-test failed!! err code = %x",*err);
-    // Reset device
-    ak0991x_device_sw_reset(this,
-                            state->scp_service,
-                            &state->com_port_info);
-
-    return SNS_RC_FAILED;
-  }
-}
+#endif // !AK0991X_ENABLE_DAE
 
 /**
  * see sns_ak0991x_hal.h
@@ -2305,6 +1953,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
 }
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
+#ifndef AK0991X_ENABLE_DAE
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint8_t st1_buf = 0, st2_buf = 0;
 
@@ -2421,8 +2070,12 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   {
     AK0991X_INST_PRINT(LOW, instance, "DOR detected");
   }
+#else
+  UNUSED_VAR(instance);
+#endif // !AK0991X_ENABLE_DAE
 }
 
+#ifndef AK0991X_ENABLE_DAE
 static void ak0991x_ascp_request(sns_sensor_instance *const instance)
 {
   uint8_t  buffer[AK0991X_MAX_FIFO_SIZE];
@@ -2511,6 +2164,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
   }
   return rc;
 }
+#endif //!AK0991X_ENABLE_DAE
 
 void ak0991x_clock_error_calc_procedure(
   sns_sensor_instance *const instance,
@@ -2593,6 +2247,7 @@ void ak0991x_clock_error_calc_procedure(
   state->irq_info.detect_irq_event = false;
 }
 
+#ifndef AK0991X_ENABLE_DAE
 static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
@@ -2706,9 +2361,11 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     ak0991x_register_heart_beat_timer(instance);
   }
 }
+#endif // !AK0991X_ENABLE_DAE
 
 void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
 {
+#ifndef AK0991X_ENABLE_DAE
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   uint8_t num_count = 0;
 
@@ -2789,6 +2446,9 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
     // read data. when AK09917 && FIFO mode && WM>2, use ASCP
     ak0991x_read_fifo_buffer(instance);
   }
+#else
+  UNUSED_VAR(instance);
+#endif
 }
 
 void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_cal)
@@ -2877,9 +2537,8 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
 {
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)instance->state->state;
+  sns_std_sensor_physical_config_event *cfg_ev = &state->mag_info.config_event;
 
-  sns_std_sensor_physical_config_event phy_sensor_config =
-    sns_std_sensor_physical_config_event_init_default;
   char *operating_mode;
   uint8_t op_mode_str_len;
   pb_buffer_arg op_mode_args;
@@ -2889,73 +2548,16 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   switch (state->mag_info.device_select)
   {
   case AK09911:
-    operating_mode = AK0991X_NORMAL;
-    op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09911_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09911_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09911_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09911_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = false;
-    break;
   case AK09912:
-    operating_mode = AK0991X_NORMAL;
-    op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09912_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09912_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09912_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09912_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = true;
-    break;
   case AK09913:
+  case AK09916C:
+  case AK09916D:
+  case AK09918:
     operating_mode = AK0991X_NORMAL;
     op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09913_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09913_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09913_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09913_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = false;
     break;
   case AK09915C:
-
-    if (state->mag_info.sdr == 1)
-    {
-      operating_mode = AK0991X_LOW_NOISE;
-      op_mode_str_len = ARR_SIZE(AK0991X_LOW_NOISE);
-    }
-    else
-    {
-      operating_mode = AK0991X_LOW_POWER;
-      op_mode_str_len = ARR_SIZE(AK0991X_LOW_POWER);
-    }
-
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09915_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09915_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09915_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09915_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = true;
-    break;
   case AK09915D:
-
     if (state->mag_info.sdr == 1)
     {
       operating_mode = AK0991X_LOW_NOISE;
@@ -2966,48 +2568,9 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
       operating_mode = AK0991X_LOW_POWER;
       op_mode_str_len = ARR_SIZE(AK0991X_LOW_POWER);
     }
-
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09915_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09915_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09915_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09915_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = true;
-    break;
-  case AK09916C:
-    operating_mode = AK0991X_NORMAL;
-    op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09916_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09916_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09916_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09916_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = false;
-    break;
-  case AK09916D:
-    operating_mode = AK0991X_NORMAL;
-    op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09916_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09916_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09916_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09916_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = true;
+    cfg_ev->water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
     break;
   case AK09917:
-
     if (state->mag_info.sdr == 0)
     {
       operating_mode = AK0991X_LOW_NOISE;
@@ -3018,50 +2581,26 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
       operating_mode = AK0991X_LOW_POWER;
       op_mode_str_len = ARR_SIZE(AK0991X_LOW_POWER);
     }
-
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09917_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09917_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09917_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09917_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = true;
-    break;
-  case AK09918:
-    operating_mode = AK0991X_NORMAL;
-    op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
-    phy_sensor_config.has_water_mark = true;
-    phy_sensor_config.water_mark = 1;//1 if FIFO not in use.
-    phy_sensor_config.has_active_current = true;
-    phy_sensor_config.active_current = AK09918_HI_PWR;
-    phy_sensor_config.has_resolution = true;
-    phy_sensor_config.resolution = AK09918_RESOLUTION;
-    phy_sensor_config.range_count = 2;
-    phy_sensor_config.range[0] = AK09918_MIN_RANGE;
-    phy_sensor_config.range[1] = AK09918_MAX_RANGE;
-    phy_sensor_config.has_dri_enabled = false;
-    break;
+    cfg_ev->water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
+	break;
   default:
     return SNS_RC_FAILED;
   }
 
   //Set config event for s4s
-  ak0991x_s4s_send_config_event(instance, &phy_sensor_config);
+  ak0991x_s4s_send_config_event(instance, cfg_ev);
 
   op_mode_args.buf = operating_mode;
   op_mode_args.buf_len = op_mode_str_len;
-  phy_sensor_config.operation_mode.funcs.encode = &pb_encode_string_cb;
-  phy_sensor_config.operation_mode.arg = &op_mode_args;
-  phy_sensor_config.has_sample_rate    = true;
-  phy_sensor_config.sample_rate        = ak0991x_get_mag_odr(cfg.odr);
-  phy_sensor_config.has_DAE_watermark  = ak0991x_dae_if_available(instance);
-  phy_sensor_config.DAE_watermark      = SNS_MAX(cfg.dae_wmk, 1);
-  phy_sensor_config.dri_enabled        = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
-  phy_sensor_config.has_sync_ts_anchor = state->has_sync_ts_anchor;
-  phy_sensor_config.sync_ts_anchor     = state->sync_ts_anchor;
+  cfg_ev->operation_mode.funcs.encode = &pb_encode_string_cb;
+  cfg_ev->operation_mode.arg = &op_mode_args;
+  cfg_ev->has_sample_rate    = true;
+  cfg_ev->sample_rate        = ak0991x_get_mag_odr(cfg.odr);
+  cfg_ev->has_DAE_watermark  = ak0991x_dae_if_available(instance);
+  cfg_ev->DAE_watermark      = SNS_MAX(cfg.dae_wmk, 1);
+  cfg_ev->dri_enabled        = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
+  cfg_ev->has_sync_ts_anchor = state->has_sync_ts_anchor;
+  cfg_ev->sync_ts_anchor     = state->sync_ts_anchor;
 
   if( is_new_config )
   {
@@ -3071,14 +2610,14 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   AK0991X_INST_PRINT(HIGH, instance,
                      "tx PHYSICAL_CONFIG_EVENT Time %u : rate %u wm %u dae_wm %u is_new_config %d",
                      (uint32_t)state->config_set_time,
-                     (uint32_t)(phy_sensor_config.sample_rate),
-                     phy_sensor_config.water_mark,
-                     phy_sensor_config.DAE_watermark,
+                     (uint32_t)(cfg_ev->sample_rate),
+                     cfg_ev->water_mark,
+                     cfg_ev->DAE_watermark,
                      is_new_config);
 
   pb_send_event(instance,
                 sns_std_sensor_physical_config_event_fields,
-                &phy_sensor_config,
+                cfg_ev,
                 state->config_set_time,
                 SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_PHYSICAL_CONFIG_EVENT,
                 &state->mag_info.suid);
@@ -3096,6 +2635,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
 
 void ak0991x_register_interrupt(sns_sensor_instance *this)
 {
+#ifndef AK0991X_ENABLE_DAE
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   sns_data_stream* data_stream;
 
@@ -3146,6 +2686,9 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
     SNS_INST_PRINTF(ERROR, this, "Interrupt reg failed stream=%x", 
                     state->interrupt_data_stream);
   }
+#else
+  UNUSED_VAR(this);
+#endif // !AK0991X_ENABLE_DAE
 }
 
 static sns_rc ak0991x_send_timer_request(sns_sensor_instance *const this)
@@ -3346,69 +2889,6 @@ void ak0991x_register_timer(sns_sensor_instance *const this)
   }
 }
 
-sns_rc ak0991x_get_meas_time( akm_device_type device_select,
-                              uint8_t sdr,
-                              sns_time* meas_ts )
-{
-  sns_time usec_time_for_measure;
-  switch(device_select)
-  {
-  case AK09918:
-    usec_time_for_measure = AK09918_TIME_FOR_MEASURE_US;
-    break;
-  case AK09917:
-    if (sdr == 0)
-    {
-      usec_time_for_measure = AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
-    }
-    else
-    {
-      usec_time_for_measure = AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
-    }
-    break;
-  case AK09916C:
-    usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
-    break;
-  case AK09916D:
-    usec_time_for_measure = AK09916_TIME_FOR_MEASURE_US;
-    break;
-  case AK09915C:
-    if (sdr == 1)
-    {
-      usec_time_for_measure = AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
-    }
-    else
-    {
-      usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
-    }
-    break;
-  case AK09915D:
-    if (sdr == 1)
-    {
-      usec_time_for_measure = AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US;
-    }
-    else
-    {
-      usec_time_for_measure = AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
-    }
-    break;
-  case AK09913:
-    usec_time_for_measure = AK09913_TIME_FOR_MEASURE_US;
-    break;
-  case AK09912:
-    usec_time_for_measure = AK09912_TIME_FOR_MEASURE_US;
-    break;
-  case AK09911:
-    usec_time_for_measure = AK09911_TIME_FOR_MEASURE_US;
-    break;
-  default:
-    return SNS_RC_FAILED;
-  }
-  UNUSED_VAR(sdr);
-  *meas_ts = usec_time_for_measure;
-  return SNS_RC_SUCCESS;
-}
-
 sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
@@ -3587,107 +3067,4 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
  return rv;
 }
 
-
-/**
- * Runs a communication test - verifies WHO_AM_I, publishes self
- * test event.
- *
- * @param[i] instance    Instance reference
- * @param[i] uid         Sensor UID
- *
- * @return none
- */
-static void ak0991x_send_com_test_event(sns_sensor_instance *instance,
-                                        sns_sensor_uid *uid, bool test_result,
-                                        sns_physical_sensor_test_type test_type)
-{
-  uint8_t data[1] = {0};
-  pb_buffer_arg buff_arg = (pb_buffer_arg)
-      { .buf = &data, .buf_len = sizeof(data) };
-  sns_physical_sensor_test_event test_event =
-    sns_physical_sensor_test_event_init_default;
-
-  test_event.test_passed = test_result;
-  test_event.test_type = test_type;
-  test_event.test_data.funcs.encode = &pb_encode_string_cb;
-  test_event.test_data.arg = &buff_arg;
-
-  pb_send_event(instance,
-                sns_physical_sensor_test_event_fields,
-                &test_event,
-                sns_get_system_time(),
-                SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_EVENT,
-                uid);
-}
-
-/** See sns_ak0991x_hal.h */
-void ak0991x_run_self_test(sns_sensor_instance *instance)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state*)instance->state->state;
-  sns_rc rv = SNS_RC_SUCCESS;
-
-  AK0991X_INST_PRINT(HIGH, instance, "run_self_test:: present=%u type=%u",
-                     state->mag_info.test_info.test_client_present,
-                     state->mag_info.test_info.test_type);
-
-  if(state->mag_info.test_info.test_client_present)
-  {
-    if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_COM)
-    {
-      uint8_t buffer[AK0991X_NUM_READ_DEV_ID] = {0};
-      bool who_am_i_success = false;
-
-      ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
-
-      rv = ak0991x_get_who_am_i(state->scp_service,
-                                state->com_port_info.port_handle,
-                                &buffer[0]);
-
-      if(rv == SNS_RC_SUCCESS
-         &&
-         buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
-      {
-        who_am_i_success = true;
-        AK0991X_INST_PRINT(LOW, instance, "COM self-test success!!");
-      }
-      else
-      {
-        AK0991X_INST_PRINT(ERROR, instance, "COM self-test failed!!");
-      }
-      ak0991x_send_com_test_event(instance, &state->mag_info.suid, who_am_i_success,
-                                  SNS_PHYSICAL_SENSOR_TEST_TYPE_COM);
-    }
-    else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_FACTORY)
-    {
-      // Handle factory test. The driver may choose to reject any new
-      // streaming/self-test requests when factory test in progress.
-    }
-    else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_HW)
-    {
-      bool hw_success = false;
-      uint32_t err;
-
-      ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
-
-      AK0991X_INST_PRINT(LOW, instance, "hw self-test start!");
-      rv = ak0991x_hw_self_test(instance, &err);
-
-      if(rv == SNS_RC_SUCCESS
-         &&
-         err == 0)
-      {
-        hw_success = true;
-        AK0991X_INST_PRINT(LOW, instance, "hw self-test success!!");
-      }
-      ak0991x_send_com_test_event(instance, &state->mag_info.suid, hw_success,
-                                  SNS_PHYSICAL_SENSOR_TEST_TYPE_HW);
-    }
-    else if(state->mag_info.test_info.test_type == SNS_PHYSICAL_SENSOR_TEST_TYPE_SW)
-    {
-      AK0991X_INST_PRINT(LOW, instance, "Not supported. type=%d",(uint8_t)state->mag_info.test_info.test_type);
-      rv = SNS_RC_NOT_SUPPORTED;
-    }
-    state->mag_info.test_info.test_client_present = false;
-  }
-}
 
