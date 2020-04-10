@@ -45,8 +45,7 @@
 extern sns_sensor_instance_api ak0991x_sensor_instance_api;
 
 /** Number of entries in reg_map table. */
-//#define AK0991X_REG_MAP_TABLE_SIZE  (7)
-#define AK0991X_REG_MAP_TABLE_SIZE  (8) //add by zengjian for ak09919 add odr 5hz
+#define AK0991X_REG_MAP_TABLE_SIZE  (8)
 
 /** AK0991X max number of settings */
 #define AK0991X_MAX_NUM_REP_MODE    3
@@ -80,8 +79,7 @@ typedef enum
   AK09918,
   AK09919,
   SUPPORTED_DEVICES
-} akm_device_type;//add by zengjian for ak09919
-
+} akm_device_type;
 /** Supported AKM INT Modes */
 typedef enum
 {
@@ -103,7 +101,7 @@ typedef enum
   AK0991X_MAG_ODR100 = 0x08,       /* 100 Hz output data rate */
   AK0991X_MAG_ODR200 = 0x0A,       /* 200 Hz output data rate */
   AK0991X_MAG_ODR1 = 0x0C,         /* 1 Hz output data rate */
-  AK0991X_MAG_ODR5 = 0x0E,         /* 5 Hz output data rate */ //add by zengjian for ak09919 5hz odr
+  AK0991X_MAG_ODR5 = 0x0E,         /* 5 Hz output data rate */
   AK0991X_MAG_SELFTEST = 0x10,     /* selftest */
   AK0991X_MAG_FUSEROM = 0x1F,      /* FUSE ROM access mode */
 } ak0991x_mag_odr;
@@ -177,7 +175,7 @@ typedef struct ak0991x_mag_info
   uint8_t        nsf;
   uint8_t        sdr;
   uint8_t        max_odr;
-  uint8_t		 its; //add by zengjian for ak09919 ITS0/1/2  for low noise drive setting
+  uint8_t		 its;
   sns_sensor_uid suid;
 
   int16_t previous_lsbdata[TRIAXIS_NUM];

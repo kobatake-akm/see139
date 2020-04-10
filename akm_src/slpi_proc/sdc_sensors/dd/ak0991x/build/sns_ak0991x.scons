@@ -1,0 +1,20 @@
+#===============================================================================
+#
+# AK0991X sensor implementation
+#
+# GENERAL DESCRIPTION
+#    build script
+#
+# Copyright (c) 2016-2018 by Qualcomm Technologies, Inc.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+# All Rights Reserved.
+#
+# Copyright (c) 2016-2018 by Asahi Kasei Microdevices
+# Confidential and Proprietary - Asahi Kasei Microdevices
+#
+#
+#===============================================================================
+Import('env')
+import inspect
+
+env.AddDeviceDriver(env, ["ak0991x_hal_table","ak0991x_hal_table2"])

@@ -183,7 +183,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.its = sensor_state->its;
     state->mag_info.sdr = sensor_state->sdr;
 	AK0991X_INST_PRINT(HIGH, this, "AK09919 its=0x%, sdr=0x%", (int)sensor_state->its,(int)sensor_state->sdr);
-    break;//add by zengjian for ak09919
+    break;
   default:
     return SNS_RC_FAILED;
   }
@@ -468,8 +468,7 @@ static uint16_t ak0991x_calc_fifo_wmk(
 		  divider = (state->mag_info.max_fifo_size + desired_wmk) / state->mag_info.max_fifo_size;
 		  desired_wmk = desired_wmk / SNS_MAX(divider,1);
 		}
-		break;//add by zengjian for ak09919-- to be evaluated!
-
+		break;
       default:
         desired_wmk = 1;
         break;
