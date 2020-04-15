@@ -6,7 +6,7 @@
  * Copyright (c) 2016-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  *
- * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018,2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -38,6 +38,79 @@
 #include "sns_diag.pb.h"
 #include "sns_sync_com_port_service.h"
 #include "sns_sensor_util.h"
+
+static void ak0991x_init_config_event(sns_sensor_instance *const this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
+  sns_std_sensor_physical_config_event *cfg_ev = &state->mag_info.config_event;
+
+  cfg_ev->has_water_mark = true;
+  cfg_ev->water_mark = 1;//1 if FIFO not in use.
+  cfg_ev->has_active_current = true;
+  cfg_ev->has_resolution = true;
+  cfg_ev->range_count = 2;
+  cfg_ev->has_dri_enabled = false;
+
+  switch (state->mag_info.device_select)
+  {
+  case AK09911:
+    cfg_ev->active_current = AK09911_HI_PWR;
+    cfg_ev->resolution = AK09911_RESOLUTION;
+    cfg_ev->range[0] = AK09911_MIN_RANGE;
+    cfg_ev->range[1] = AK09911_MAX_RANGE;
+    break;
+  case AK09912:
+    cfg_ev->active_current = AK09912_HI_PWR;
+    cfg_ev->resolution = AK09912_RESOLUTION;
+    cfg_ev->range[0] = AK09912_MIN_RANGE;
+    cfg_ev->range[1] = AK09912_MAX_RANGE;
+    break;
+  case AK09913:
+    cfg_ev->active_current = AK09913_HI_PWR;
+    cfg_ev->resolution = AK09913_RESOLUTION;
+    cfg_ev->range[0] = AK09913_MIN_RANGE;
+    cfg_ev->range[1] = AK09913_MAX_RANGE;
+    break;
+  case AK09915C:
+    cfg_ev->active_current = AK09915_HI_PWR;
+    cfg_ev->resolution = AK09915_RESOLUTION;
+    cfg_ev->range[0] = AK09915_MIN_RANGE;
+    cfg_ev->range[1] = AK09915_MAX_RANGE;
+    break;
+  case AK09915D:
+    cfg_ev->active_current = AK09915_HI_PWR;
+    cfg_ev->resolution = AK09915_RESOLUTION;
+    cfg_ev->range[0] = AK09915_MIN_RANGE;
+    cfg_ev->range[1] = AK09915_MAX_RANGE;
+    break;
+  case AK09916C:
+    cfg_ev->active_current = AK09916_HI_PWR;
+    cfg_ev->resolution = AK09916_RESOLUTION;
+    cfg_ev->range[0] = AK09916_MIN_RANGE;
+    cfg_ev->range[1] = AK09916_MAX_RANGE;
+    break;
+  case AK09916D:
+    cfg_ev->active_current = AK09916_HI_PWR;
+    cfg_ev->resolution = AK09916_RESOLUTION;
+    cfg_ev->range[0] = AK09916_MIN_RANGE;
+    cfg_ev->range[1] = AK09916_MAX_RANGE;
+    break;
+  case AK09917:
+    cfg_ev->active_current = AK09917_HI_PWR;
+    cfg_ev->resolution = AK09917_RESOLUTION;
+    cfg_ev->range[0] = AK09917_MIN_RANGE;
+    cfg_ev->range[1] = AK09917_MAX_RANGE;
+    break;
+  case AK09918:
+    cfg_ev->active_current = AK09918_HI_PWR;
+    cfg_ev->resolution = AK09918_RESOLUTION;
+    cfg_ev->range[0] = AK09918_MIN_RANGE;
+    cfg_ev->range[1] = AK09918_MAX_RANGE;
+    break;
+  default:
+    break;
+  }
+}
 
 /** See sns_sensor_instance_api::init */
 sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
@@ -116,6 +189,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.meas_time = AK09911_TIME_FOR_MEASURE_US;
     break;
   case AK09912:
     state->mag_info.resolution = AK09912_RESOLUTION;
@@ -124,6 +198,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = 0;
+    state->mag_info.meas_time = AK09912_TIME_FOR_MEASURE_US;
     break;
   case AK09913:
     state->mag_info.resolution = AK09913_RESOLUTION;
@@ -132,6 +207,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.meas_time = AK09913_TIME_FOR_MEASURE_US;
     break;
   case AK09915C:
   case AK09915D:
@@ -141,6 +217,10 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.meas_time = 
+      (state->mag_info.sdr == 1) ?
+      AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US : 
+      AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     break;
   case AK09916C:
     state->mag_info.resolution = AK09916_RESOLUTION;
@@ -149,6 +229,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.meas_time = AK09916_TIME_FOR_MEASURE_US;
     break;
   case AK09916D:
     state->mag_info.resolution = AK09916_RESOLUTION;
@@ -157,6 +238,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.meas_time = AK09916_TIME_FOR_MEASURE_US;
     break;
   case AK09917:
     state->mag_info.resolution = AK09917_RESOLUTION;
@@ -165,6 +247,10 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.meas_time = 
+      (state->mag_info.sdr == 0) ?
+      AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US : 
+      AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     AK0991X_INST_PRINT(HIGH, this, "AK09917 RSV1=0x%02X", (int)sensor_state->reg_rsv1_value);
     break;
   case AK09918:
@@ -174,6 +260,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.meas_time = AK09918_TIME_FOR_MEASURE_US;
     break;
   default:
     return SNS_RC_FAILED;
@@ -205,6 +292,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   state->encoded_mag_event_len = pb_get_encoded_size_sensor_stream_event(data, AK0991X_NUM_AXES);
 
+#ifndef AK0991X_ENABLE_DAE
   {
     sns_rc rv;
     sns_sensor_uid irq_suid;
@@ -234,6 +322,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
       return rv;
     }
   }
+#endif // !AK0991X_ENABLE_DAE
 
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
   {
@@ -306,6 +395,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   state->irq_info.detect_irq_event = false;
   state->irq_info.is_ready = false;
 
+#ifndef AK0991X_ENABLE_DAE
   /** Configure the Async Com Port */
   uint8_t                   pb_encode_buffer[100];
   uint32_t                  enc_len;
@@ -331,6 +421,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   };
   state->async_com_port_data_stream->api->send_request(
     state->async_com_port_data_stream, &async_com_port_request);
+#endif // !AK0991X_ENABLE_DAE
 
  /** Copy down axis conversion settings */
   sns_memscpy(state->axis_map,  sizeof(sensor_state->axis_map),
@@ -358,6 +449,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   ak0991x_dae_if_init(this, stream_mgr, &dae_suid, sensor_state);
 #endif // AK0991X_ENABLE_DAE
 
+  ak0991x_init_config_event(this);
   return SNS_RC_SUCCESS;
 }
 
@@ -670,14 +762,15 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         return SNS_RC_SUCCESS;
       }
       AK0991X_INST_PRINT(LOW, this, "Same ODR and Same WM but DAE_WMK is different.");
-      if(state->dae_if.mag.state == STREAM_STARTING)
-      {
-        AK0991X_INST_PRINT(LOW, this, "DAE state is START_STREAMING. Must do reconfig_hw.");
-      }
-      else
-      {
         state->only_dae_wmk_is_changed = true;
       }
+    
+    // If dae_if.mag.state is STREAM_STARTING and config_step is UPDATING_HW, re-evaluate a configuration.
+    if(state->dae_if.mag.state == STREAM_STARTING && state->config_step == AK0991X_CONFIG_UPDATING_HW)
+    {
+      AK0991X_INST_PRINT(LOW, this, "DAE state is STREAM_STARTING. Re-evaluate a configuration.");
+      state->config_step = AK0991X_CONFIG_IDLE;
+      state->only_dae_wmk_is_changed = false;
     }
 
     // new config received. start processing for new config.
@@ -817,6 +910,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
       }
     }
+#ifndef AK0991X_ENABLE_DAE
     else
     {
       AK0991X_INST_PRINT(LOW, this, "Flush requested at %u", (uint32_t)state->system_time);
@@ -841,6 +935,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
       }
     }
+#endif
   }
   else if (client_request->message_id == SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG)
   {
