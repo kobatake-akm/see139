@@ -232,7 +232,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING ||
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
-  	wm = !mag_info->use_fifo ? 1 : (((mag_info->device_select == AK09917) || (mag_info->device_select == AK09919)) ?
+    wm = !mag_info->use_fifo ? 1 : (((mag_info->device_select == AK09917) || (mag_info->device_select == AK09919)) ?
                                     mag_info->cur_cfg.fifo_wmk : mag_info->max_fifo_size);
 
     if(state->mag_info.flush_only || state->mag_info.max_batch)
@@ -415,7 +415,8 @@ static void process_fifo_samples(
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
   uint8_t dummy_buf[] = {0U,0U,0U,0U,0U,0U,0U,AK0991X_INV_FIFO_DATA}; // set INV bit 
-  uint8_t *mag_data_buf = buf + state->dae_if.mag.status_bytes_per_fifo;  
+  uint8_t *mag_data_buf = buf + state->dae_if.mag.status_bytes_per_fifo;
+
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
   // buf[0] : CNTL1
@@ -433,11 +434,12 @@ static void process_fifo_samples(
 
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
   uint16_t fifo_wmk = (state->mag_info.use_fifo) ? (uint8_t)(buf[0] & 0x1F) + 1 : 1;  // read value from WM[4:0]
+
   state->is_orphan = false;
   sampling_intvl = (ak0991x_get_sample_interval(odr) *
                     state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
-  state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0; 
+  state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
 
   // calculate num_samples
   if(!state->in_clock_error_procedure)
@@ -451,10 +453,10 @@ static void process_fifo_samples(
     {
       if(state->mag_info.use_fifo)
       {
-        // num_samples update when FIFO enabled.        
-		if((state->mag_info.device_select == AK09917) || (state->mag_info.device_select == AK09919))
-        {		
-		  state->num_samples = buf[2] >> 2; 	  
+        // num_samples update when FIFO enabled.
+        if((state->mag_info.device_select == AK09917) || (state->mag_info.device_select == AK09919))
+        {
+          state->num_samples = buf[2] >> 2;
         }
         else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
         {
@@ -528,6 +530,13 @@ static void process_fifo_samples(
         state->num_samples, fifo_len);
         state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
     }
+  }
+ if((state->mag_info.device_select == AK09919) && (state->num_samples == 0) && (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) && !state->mag_info.use_sync_stream)
+  {
+    state->num_samples = 1;
+    fifo_len = AK0991X_NUM_DATA_HXL_TO_ST2;
+    mag_data_buf =  dummy_buf;
+    AK0991X_INST_PRINT(MED, this, "num_samples=0 But forced to set 1, add dummy data");
   }
 
   if( !state->is_orphan )

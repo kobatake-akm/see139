@@ -86,6 +86,7 @@
 #define AK09917_WHOAMI_DEV_ID                       (0xD)  /** Who Am I device ID */
 #define AK09918_WHOAMI_DEV_ID                       (0xC)  /** Who Am I device ID */
 #define AK09919_WHOAMI_DEV_ID                       (0xE)  /** Who Am I device ID */
+
 /** DEVICE SUB ID to distinguish AK09915C and AK09915D */
 #define AK09915_SUB_ID_IDX                          0x3 /** RSV2 (03h) */
 #define AK09915C_SUB_ID                             0x0
@@ -150,7 +151,7 @@
 #define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  3600 //us (TYP)
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  7200 //us (TYP)
 #define AK09918_TIME_FOR_MEASURE_US                 7200 //us (TYP)
-#define AK09919_TIME_FOR_MEASURE_US  				7200 //us (TYP)
+#define AK09919_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms

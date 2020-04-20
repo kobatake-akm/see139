@@ -80,6 +80,7 @@ typedef enum
   AK09919,
   SUPPORTED_DEVICES
 } akm_device_type;
+
 /** Supported AKM INT Modes */
 typedef enum
 {
@@ -175,7 +176,7 @@ typedef struct ak0991x_mag_info
   uint8_t        nsf;
   uint8_t        sdr;
   uint8_t        max_odr;
-  uint8_t		 its;
+  uint8_t        its;
   sns_sensor_uid suid;
 
   int16_t previous_lsbdata[TRIAXIS_NUM];

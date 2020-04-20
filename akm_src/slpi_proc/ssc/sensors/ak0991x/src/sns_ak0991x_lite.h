@@ -22,7 +22,7 @@
 // Target board HDK845
 //#define AK0991X_BOARD_HDK845
 
-#define AK0991X_ENABLE_TS_DEBUG           // Enable timestamp debug messages  
+#define AK0991X_ENABLE_TS_DEBUG           // Enable timestamp debug messages
 #define AK0991X_ENABLE_DEBUG_MSG          // Enable debug messages
 #ifdef SNS_ENABLE_DAE
 #define AK0991X_ENABLE_DAE                // Enable DAE

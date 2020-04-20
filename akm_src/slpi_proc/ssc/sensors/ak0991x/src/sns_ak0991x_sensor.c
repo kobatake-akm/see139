@@ -70,6 +70,7 @@ static char *ak09917_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 float ak09918_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09918_ope_mode_table[] = {AK0991X_NORMAL};
+
 float ak09919_odr_table[] =
 {AK0991X_ODR_5,AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09919_ope_mode_table[] = {AK0991X_NORMAL, AK0991X_LOW_NOISE};
@@ -316,7 +317,7 @@ static void ak0991x_get_mag_config(
 
           if(max_batch)
           {
-            report_rate = (1.0f / UINT32_MAX);
+            report_rate = (1.0f / (float)UINT32_MAX);
             flush_period_ticks = UINT64_MAX;
           }
           else
@@ -713,7 +714,7 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
     {
       cfg->nsf = reg_item->sint;
     }
-	else if(0 == strncmp((char*)item_name->buf,
+    else if(0 == strncmp((char*)item_name->buf,
                     "its",
                     item_name->buf_len))
     {
@@ -877,8 +878,8 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           AK0991X_PRINT(LOW, this, "use_fifo:%d", state->use_fifo);
           state->nsf = state->registry_reg_cfg.nsf;
           state->sdr = state->registry_reg_cfg.sdr;
-		  state->its = state->registry_reg_cfg.its;
-		  AK0991X_PRINT(LOW, this, "nsf:%d ,sdr:%d ,its:%d", state->nsf, state->sdr, state->its);
+          state->its = state->registry_reg_cfg.its;
+          AK0991X_PRINT(LOW, this, "nsf:%d ,sdr:%d ,its:%d", state->nsf, state->sdr, state->its);
         }
       }
       else if (pf_config)
@@ -1351,7 +1352,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
       value_len = ARR_SIZE(ak09917_odr_table);
       odr_table = ak09917_odr_table;
     }
-	else if(state->device_select == AK09919)
+    else if(state->device_select == AK09919)
     {
       value_len = ARR_SIZE(ak09919_odr_table);
       odr_table = ak09919_odr_table;
@@ -1637,7 +1638,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 case AK09918_WHOAMI_DEV_ID:
                   state->device_select = AK09918;
                   break;
-				case AK09919_WHOAMI_DEV_ID:
+                case AK09919_WHOAMI_DEV_ID:
                   state->device_select = AK09919;
                   break;
                 default:
@@ -2220,10 +2221,10 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR1;
   }
   else if ((desired_sample_rate <= AK0991X_ODR_5) &&
-		   (device_select == AK09919))
+           (device_select == AK09919))
   {
-	*chosen_sample_rate = AK0991X_ODR_5;
-	*chosen_reg_value = AK0991X_MAG_ODR5;
+    *chosen_sample_rate = AK0991X_ODR_5;
+    *chosen_reg_value = AK0991X_MAG_ODR5;
   }
   else if (desired_sample_rate <= AK0991X_ODR_10)
   {

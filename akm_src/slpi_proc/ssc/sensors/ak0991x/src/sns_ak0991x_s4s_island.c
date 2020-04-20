@@ -131,9 +131,9 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->stream_is_synchronous = false;
     break;
   case AK09919:
-	phy_sensor_config->has_stream_is_synchronous = false;
-	phy_sensor_config->stream_is_synchronous = false;
-	break;
+    phy_sensor_config->has_stream_is_synchronous = false;
+    phy_sensor_config->stream_is_synchronous = false;
+    break;
   default:
     break;
   }
