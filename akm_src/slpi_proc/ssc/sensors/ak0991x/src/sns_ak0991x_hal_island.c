@@ -1768,7 +1768,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   if (state->mag_info.device_select == AK09919)
   {
     AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[7] & TLIMIT_ST2_MASK),
-            LIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
+            TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
   }
   else
   {
