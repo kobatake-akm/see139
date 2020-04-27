@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -419,6 +419,56 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this);
  */
 sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this);
 
+
+sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
+						sns_sync_com_port_service * scp_service,
+						sns_sync_com_port_handle *port_handle,
+						uint8_t *asa);
+
+/**
+ * Read ST1(10h) to ST2(18h) register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[o] buffer                   register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
+							uint8_t *buffer);
+
+/**
+ * Read wrapper for Synch Com Port Service.
+ *
+ * @param[i] port_handle      port handle
+ * @param[i] reg_addr         register address
+ * @param[i] buffer           read buffer
+ * @param[i] bytes            bytes to read
+ * @param[o] xfer_bytes       bytes read
+ *
+ * @return sns_rc
+ */
+sns_rc ak0991x_com_read_wrapper(sns_sync_com_port_service * scp_service,
+								sns_sync_com_port_handle *port_handle,
+								uint32_t reg_addr,
+								uint8_t *buffer,
+								uint32_t bytes,
+								uint32_t *xfer_bytes);
+
+/**
+ * Read ST1(10h) register data.
+ *
+ * @param[i] state                    Instance state
+ * @param[o] buffer                   st1 register data
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
+						uint8_t *buffer);
+
 /**
  * Gets Who-Am-I register for the sensor.
  *
@@ -531,58 +581,6 @@ void ak0991x_log_sensor_state_raw_submit(
   bool batch_complete);
 
 /**
- * Add raw uncalibrated sensor data to Sensor State Raw log
- * packet
- *
- * @param[i] log_raw_info Pointer to logging information
- *                        pertaining to the sensor
- * @param[i] raw_data     Uncalibrated sensor data to be logged
- * @param[i] timestamp    Timestamp of the sensor data
- * @param[i] status       Status of the sensor data
- *
- * * @return sns_rc,
- * SNS_RC_SUCCESS if encoding was succesful
- * SNS_RC_FAILED otherwise
- */
-sns_rc ak0991x_log_sensor_state_raw_add(
-  log_sensor_state_raw_info *log_raw_info,
-  float *raw_data,
-  sns_time timestamp,
-  sns_std_sensor_sample_status status);
-
-/**
- * Allocate Sensor State Raw Log Packet 
- *
- * @param[i] diag       Pointer to diag service 
- * @param[i] log_size   Optional size of log packet to 
- *    be allocated. If not provided by setting to 0, will
- *    default to using maximum supported log packet size
- */
-void ak0991x_log_sensor_state_raw_alloc(
-  log_sensor_state_raw_info *log_raw_info,
-  uint32_t log_size);
-
-/**
- * Encode log sensor state raw packet
- *
- * @param[i] log Pointer to log packet information
- * @param[i] log_size Size of log packet information
- * @param[i] encoded_log_size Maximum permitted encoded size of
- *                            the log
- * @param[o] encoded_log Pointer to location where encoded
- *                       log should be generated
- * @param[o] bytes_written Pointer to actual bytes written
- *                       during encode
- *
- * @return sns_rc
- * SNS_RC_SUCCESS if encoding was succesful
- * SNS_RC_FAILED otherwise
- */
-sns_rc ak0991x_encode_log_sensor_state_raw(
-  void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
-  size_t *bytes_written);
-
-/**
  * Enable interrupt if not already enabled
  *
  */
@@ -613,19 +611,6 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this);
 void ak0991x_register_timer(sns_sensor_instance *this);
 
 /**
- * Get time for measurement
- *
- * @param[i] device_select  Device type
- * @param[i] sdr            Drive mode setting
- * @param[o] measure_us     Measurement time in usec
- *
- * @return sns_rc
- * SNS_RC_SUCCESS if encoding was succesful
- * SNS_RC_FAILED otherwise
- */
-sns_rc ak0991x_get_meas_time(akm_device_type device_select, uint8_t sdr, sns_time* measure_us );
-
-/**
  * Configures sensor with new/recomputed settings
  *
  * @param instance   Instance reference
@@ -635,19 +620,6 @@ sns_rc ak0991x_get_meas_time(akm_device_type device_select, uint8_t sdr, sns_tim
  * SNS_RC_SUCCESS
  */
 sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset);
-
-/**
- * Run a hardware self-tests.
- *
- * @param[i] instance     reference to the instance
- * @param[o] err          error code
- *
- * @return sns_rc
- * SNS_RC_FAILED
- * SNS_RC_SUCCESS
- */
-sns_rc ak0991x_hw_self_test(sns_sensor_instance *instance,
-                            uint32_t *err);
 
 /**
  * Executes requested self-tests.
@@ -700,3 +672,14 @@ void ak0991x_send_cal_event(sns_sensor_instance * const instance, bool is_new_co
  * @return none
  */
 void ak0991x_reset_cal_data(sns_sensor_instance *const instance);
+
+/**
+ * Convert buffered data to mag data.
+ *
+ * @param[i] this              reference to the instance
+ * @param[i] buffer            mag register data
+ * @param[o] out               output 16bit mag data
+ *
+ */
+void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8_t *const buffer, int16_t *out);
+
