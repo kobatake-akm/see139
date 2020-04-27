@@ -49,7 +49,7 @@ static void ak0991x_init_config_event(sns_sensor_instance *const this)
   cfg_ev->has_active_current = true;
   cfg_ev->has_resolution = true;
   cfg_ev->range_count = 2;
-  cfg_ev->has_dri_enabled = false;
+  cfg_ev->has_dri_enabled = true;
 
   switch (state->mag_info.device_select)
   {
