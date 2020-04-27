@@ -860,9 +860,9 @@ static void process_response(
             (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
             (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
+          ak0991x_send_config_event(this, true);  // send new config event
+          ak0991x_send_cal_event(this, false);    // send previous cal event
+        }
       }
 
       break;

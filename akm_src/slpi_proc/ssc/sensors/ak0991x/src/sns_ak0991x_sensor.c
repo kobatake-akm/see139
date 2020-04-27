@@ -81,6 +81,7 @@ typedef struct ak0991x_dev_info
   uint32_t   sleep_current;
   range_attr ranges;
   char       **operating_modes;
+  int        operating_modes_num;
   bool       supports_dri;
   bool       supports_sync_stream;
 } ak0991x_dev_info;
@@ -94,6 +95,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09911_LO_PWR,
     .ranges               = {AK09911_MIN_RANGE, AK09911_MAX_RANGE},
     .operating_modes      = ak09911_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09911_ope_mode_table),
     .supports_dri         = false,
     .supports_sync_stream = false,
   },
@@ -105,6 +107,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09912_LO_PWR,
     .ranges               = {AK09912_MIN_RANGE, AK09912_MAX_RANGE},
     .operating_modes      = ak09912_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09912_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = false,
   },
@@ -116,6 +119,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09913_LO_PWR,
     .ranges               = {AK09913_MIN_RANGE, AK09913_MAX_RANGE},
     .operating_modes      = ak09913_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09913_ope_mode_table),
     .supports_dri         = false,
     .supports_sync_stream = false,
   },
@@ -127,6 +131,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09915_LO_PWR,
     .ranges               = {AK09915_MIN_RANGE, AK09915_MAX_RANGE},
     .operating_modes      = ak09915_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09915_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = false,
   },
@@ -138,6 +143,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09915_LO_PWR,
     .ranges               = {AK09915_MIN_RANGE, AK09915_MAX_RANGE},
     .operating_modes      = ak09915_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09915_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = true,
   },
@@ -160,6 +166,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09916_LO_PWR,
     .ranges               = {AK09916_MIN_RANGE, AK09916_MAX_RANGE},
     .operating_modes      = ak09916_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09916_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = false,
   },
@@ -171,6 +178,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09917_LO_PWR,
     .ranges               = {AK09917_MIN_RANGE, AK09917_MAX_RANGE},
     .operating_modes      = ak09917_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09917_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = true,
   },
@@ -182,6 +190,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09918_LO_PWR,
     .ranges               = {AK09918_MIN_RANGE, AK09918_MAX_RANGE},
     .operating_modes      = ak09918_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09918_ope_mode_table),
     .supports_dri         = false,
     .supports_sync_stream = false,
   },
@@ -1361,23 +1370,38 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
        values, ARR_SIZE(values), false);
  }
  {
-   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
-   int i;
-   int j;
-   for(i = 0; i < 2 && i < ARR_SIZE(ak0991x_dev_info_array[device_select].operating_modes);
-       i++)
-   {
-     char const *op_mode = ak0991x_dev_info_array[device_select].operating_modes[i];
-     j = 0;
-     // count length of op_mode(string)
-     while( (op_mode[j] != '\0') && (j < AK0991X_MAX_LEN_OF_ATTRIBUTES_STR)) j++;
+  //  sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
+  //  int i;
+  //  int j;
+  //  for(i = 0; i < 2 && i < ARR_SIZE(ak0991x_dev_info_array[device_select].operating_modes);
+  //      i++)
+  //  {
+  //    char const *op_mode = ak0991x_dev_info_array[device_select].operating_modes[i];
+  //    j = 0;
+  //    // count length of op_mode(string)
+  //    while( (op_mode[j] != '\0') && (j < AK0991X_MAX_LEN_OF_ATTRIBUTES_STR)) j++;
 
-     values[i].str.funcs.encode = pb_encode_string_cb;
-     values[i].str.arg = &((pb_buffer_arg)
-         { .buf = op_mode, .buf_len = j+1 }); // +1 for null string
+  //    values[i].str.funcs.encode = pb_encode_string_cb;
+  //    values[i].str.arg = &((pb_buffer_arg)
+  //        { .buf = op_mode, .buf_len = j+1 }); // +1 for null string
+  //  }
+  //  sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES,
+  //      values, i, false);
+   sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
+   int array_size = ak0991x_dev_info_array[device_select].operating_modes_num;
+   AK0991X_PRINT(MED, this, "size of operating_modes array:%d", array_size);
+
+   char const *op0 = ak0991x_dev_info_array[device_select].operating_modes[0];
+   values[0].str.funcs.encode = pb_encode_string_cb;
+   values[0].str.arg = &((pb_buffer_arg){ .buf = op0, .buf_len = (strlen(op0) + 1) });
+
+   if(1 < array_size)
+   {
+    char const *op1 = ak0991x_dev_info_array[device_select].operating_modes[1];
+    values[1].str.funcs.encode = pb_encode_string_cb;
+    values[1].str.arg = &((pb_buffer_arg){ .buf = op1, .buf_len = (strlen(op1) + 1) });
    }
-   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES,
-       values, i, false);
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES, values, array_size, false);
  }
  {
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
