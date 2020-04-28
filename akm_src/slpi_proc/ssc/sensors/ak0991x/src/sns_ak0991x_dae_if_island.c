@@ -416,7 +416,7 @@ static void process_fifo_samples(
   uint32_t sampling_intvl;
   uint8_t dummy_buf[] = {0U,0U,0U,0U,0U,0U,0U,AK0991X_INV_FIFO_DATA}; // set INV bit 
   uint8_t *mag_data_buf = buf + state->dae_if.mag.status_bytes_per_fifo;
-
+  uint16_t DRDY_status; //add by zengjian for debug
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
   // buf[0] : CNTL1
@@ -440,6 +440,8 @@ static void process_fifo_samples(
                     state->internal_clock_error) >> AK0991X_CALC_BIT_RESOLUTION;
 
   state->num_samples = (buf[2] & AK0991X_DRDY_BIT) ? 1 : 0;
+  DRDY_status = state->num_samples;
+  AK0991X_INST_PRINT(HIGH, this, "zj: DRDY = %d,odr= %d, fifo_wm = %d, fifo_len = %d, sampling_intvl = %u, state->config_step=%d",DRDY_status,odr,fifo_wmk,fifo_len,(uint32_t)sampling_intvl,state->config_step);
 
   // calculate num_samples
   if(!state->in_clock_error_procedure)
@@ -457,6 +459,7 @@ static void process_fifo_samples(
         if((state->mag_info.device_select == AK09917) || (state->mag_info.device_select == AK09919))
         {
           state->num_samples = buf[2] >> 2;
+          AK0991X_INST_PRINT(HIGH, this, "zj: num_samples = %d, buf[2] = %d",state->num_samples,buf[2]);
         }
         else if(state->mag_info.device_select == AK09915C || state->mag_info.device_select == AK09915D)
         {
@@ -531,7 +534,7 @@ static void process_fifo_samples(
         state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
     }
   }
- if((state->mag_info.device_select == AK09919) && (state->num_samples == 0) && (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) && !state->mag_info.use_sync_stream)
+ if(((state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) && (state->mag_info.use_fifo)) && (state->num_samples == 0) && !state->mag_info.use_sync_stream)
   {
     state->num_samples = 1;
     fifo_len = AK0991X_NUM_DATA_HXL_TO_ST2;
@@ -560,29 +563,38 @@ static void process_fifo_samples(
         }
         else
         {
-          state->interrupt_timestamp = state->dae_event_time;
+          if(state->mag_info.use_fifo) // for polling + fifo condition
+          {
+            AK0991X_INST_PRINT(MED, this, "zj flush_hw 1 polling mode: state->system_time =%u, calculated_timestamp_from_previous =%u,state->dae_event_time =%u",(uint32_t)state->system_time,(uint32_t)(state->pre_timestamp + sampling_intvl * state->num_samples),(uint32_t)state->dae_event_time);
+            ak0991x_validate_timestamp_for_polling(this);
+            AK0991X_INST_PRINT(MED, this, "zj orphan=false polling mode:: state->first_data_ts_of_batch=%u",(uint32_t)state->first_data_ts_of_batch);
+		  }
+          else
+          {
+            state->interrupt_timestamp = state->dae_event_time;
 
 #ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
-          // use ideal interval for more than 50Hz ODR because of the timer jitter
-          if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
-              !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
-          {
-            state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
-          }
+            // use ideal interval for more than 50Hz ODR because of the timer jitter
+            if( !state->this_is_first_data && (sampling_intvl < 384000 ) &&
+                !(state->this_is_the_last_flush && state->fifo_flush_in_progress) )
+            {
+              state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
+            }
 #endif
 
-          if( state->this_is_the_last_flush && state->fifo_flush_in_progress )
-          {
-            AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u p_off=%u",
-                state->total_samples,
-                (uint32_t)state->pre_timestamp_for_orphan,
-                (uint32_t)state->interrupt_timestamp,
-                (uint32_t)state->system_time,
-                (uint32_t)state->polling_timer_start_time);
-          }
+            if( state->this_is_the_last_flush && state->fifo_flush_in_progress )
+            {
+              AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u p_off=%u",
+                  state->total_samples,
+                  (uint32_t)state->pre_timestamp_for_orphan,
+                  (uint32_t)state->interrupt_timestamp,
+                  (uint32_t)state->system_time,
+                  (uint32_t)state->polling_timer_start_time);
+            }
 
-          state->first_data_ts_of_batch = state->interrupt_timestamp;
-          state->averaged_interval = sampling_intvl;
+            state->first_data_ts_of_batch = state->interrupt_timestamp;
+            state->averaged_interval = sampling_intvl;
+          }
         }
 
 #ifdef AK0991X_ENABLE_TS_DEBUG
@@ -597,11 +609,20 @@ static void process_fifo_samples(
       else  // orphan
       {
         // when the pre_timestamp_for_orphan is too old or newer than the dae_event_time, use dae_event_time instead.
+        AK0991X_INST_PRINT(MED, this, "zj orphan=true:: state->irq_info.detect_irq_event=%d, state->dae_event_time=%u, state->num_samples=%d, state->mag_info.cur_cfg.fifo_wmk=%d, sampling_intvl=%u, state->pre_timestamp_for_orphan=%u,delta=%u",
+			state->irq_info.detect_irq_event,
+			(uint32_t)state->dae_event_time,
+			state->num_samples,
+			state->mag_info.cur_cfg.fifo_wmk,
+			(uint32_t)sampling_intvl,
+			(uint32_t)state->pre_timestamp_for_orphan,
+			(uint32_t)((state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) - state->dae_event_time));
         if(state->irq_info.detect_irq_event && // dri or timer event
            (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sampling_intvl/5 ||
-            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) )
+            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) && (state->num_samples <= state->mag_info.cur_cfg.fifo_wmk))
         {
           state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+          AK0991X_INST_PRINT(MED, this, "zj orphan=true:: state->first_data_ts_of_batch=%u",(uint32_t)state->first_data_ts_of_batch);
         }
         else if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)  // dri
         {
@@ -617,7 +638,49 @@ static void process_fifo_samples(
         }
         else  // polling
         {
-          state->first_data_ts_of_batch = state->dae_event_time;
+          if((state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event) && state->mag_info.use_fifo)
+          {
+            if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
+            {
+              if((state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))
+              {
+                state->first_data_ts_of_batch =  state->pre_timestamp_for_orphan + sampling_intvl;
+                AK0991X_INST_PRINT(MED, this, "zj orphan=true step1: state->first_data_ts_of_batch=%u",(uint32_t)state->first_data_ts_of_batch);
+              }
+              else
+              {
+                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+                AK0991X_INST_PRINT(MED, this, "zj orphan=true step2: state->first_data_ts_of_batch=%u",(uint32_t)state->first_data_ts_of_batch);
+              }
+            }
+            else
+            {
+              if((state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))
+              {
+                state->first_data_ts_of_batch =  state->pre_timestamp_for_orphan + sampling_intvl;
+                AK0991X_INST_PRINT(MED, this, "zj orphan=true step3: state->first_data_ts_of_batch=%u",(uint32_t)state->first_data_ts_of_batch);
+              }
+              else
+              {
+                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->mag_info.cur_cfg.fifo_wmk - 1);
+                AK0991X_INST_PRINT(MED, this, "zj orphan=true step4: state->first_data_ts_of_batch=%u",(uint32_t)state->first_data_ts_of_batch);
+              }
+            }
+          }
+          else
+          {
+            if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
+            {
+              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+              AK0991X_INST_PRINT(MED, this, "zj orphan=true polling mode:: state->first_data_ts_of_batch=%u",(uint32_t)state->first_data_ts_of_batch);
+            }
+            else
+            {
+              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->mag_info.cur_cfg.fifo_wmk - 1);
+              AK0991X_INST_PRINT(MED, this, "zj orphan=true num_sample exceed fifo_wm polling mode:: state->first_data_ts_of_batch=%u",(uint32_t)state->first_data_ts_of_batch);
+            }
+          }
+
 #ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
           // use ideal interval for more than 50Hz ODR because of the timer jitter
           if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
