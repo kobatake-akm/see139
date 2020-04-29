@@ -126,7 +126,7 @@ extern sns_sensor_api ak0991x_mag_sensor_api;
 
 /* Power consumption limits */
 #define AK09919_LO_PWR             1    /* unit of uA */
-#define AK09919_HI_PWR             1500  /* unit of uA @ 100Hz */
+#define AK09919_HI_PWR             1100 /* unit of uA @ 100Hz */
 #define AK09918_LO_PWR             1    /* unit of uA */
 #define AK09918_HI_PWR             1100 /* unit of uA @ 100Hz */
 #define AK09917_LO_PWR             1    /* unit of uA */
@@ -173,7 +173,6 @@ typedef struct ak0991x_registry_phy_sensor_cfg
   bool    use_fifo;
   uint8_t nsf;
   uint8_t sdr;
-  uint8_t its;
 } ak0991x_registry_phy_sensor_cfg;
 #endif //AK0991X_ENABLE_REGISTRY_ACCESS
 
@@ -210,7 +209,6 @@ typedef struct ak0991x_state
   float sstvt_adj[AK0991X_NUM_SENSITIVITY];
 
   // sensor configuration
-  uint8_t its;
   uint8_t nsf;
   uint8_t sdr;
   uint8_t min_odr;

@@ -32,7 +32,13 @@ if 'AK0991X_ENABLE_DUAL_SENSOR' in env:
   ak0991x_sensor_cnt = 2
 else:
   ak0991x_sensor_cnt = 1
-   
+
+if 'SNS_DISABLE_DAE' not in env:
+  env.Append( CPPDEFINES = ['AK0991X_ENABLE_DAE'])
+
+if 'SNS_ENABLE_S4S' in env:
+  env.Append( CPPDEFINES = ['AK0991X_ENABLE_S4S'])
+
 if 'USES_SSC_STATIC_LIB_BUILDER' in env:
   if ('SSC_TARGET_HEXAGON' in env['CPPDEFINES']): 
     env.AddSSCSU(inspect.getfile(inspect.currentframe()),

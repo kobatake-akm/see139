@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2018 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018,2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -161,22 +161,23 @@ typedef struct ak0991x_config_event_info
 
 typedef struct ak0991x_mag_info
 {
+  sns_time          flush_period;
   ak0991x_config_event_info cur_cfg;
   ak0991x_config_event_info last_sent_cfg;
-  sns_time          flush_period;
-  ak0991x_int_op_mode int_mode; // 0: polling.  1:DRI.   2:IBI.
+  sns_std_sensor_physical_config_event config_event;
   ak0991x_mag_sstvt sstvt_adj[3];
   ak0991x_mag_sstvt resolution;
   akm_device_type   device_select;
   uint16_t       max_fifo_size;
+  uint16_t       meas_time;
+  ak0991x_int_op_mode int_mode; // 0: polling.  1:DRI.   2:IBI.
   bool           use_fifo;
   bool           flush_only;
   bool           max_batch;
   bool           use_sync_stream;
-  uint8_t        nsf;
+  uint8_t        nsf;  // In case of AK09919, use as ITS bit
   uint8_t        sdr;
   uint8_t        max_odr;
-  uint8_t        its;
   sns_sensor_uid suid;
 
   int16_t previous_lsbdata[TRIAXIS_NUM];
