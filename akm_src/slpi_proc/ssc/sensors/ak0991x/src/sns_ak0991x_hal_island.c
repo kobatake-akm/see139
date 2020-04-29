@@ -2029,7 +2029,6 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   num_bytes_to_report = num_bytes;
 
   int8_t over_sample;
-  AK0991X_INST_PRINT(MED, instance, "step1:num_bytes = %u ,state->fifo_flush_in_progress= %d ,state->mag_info.cur_cfg.fifo_wmk =%d", num_bytes,state->fifo_flush_in_progress,state->mag_info.cur_cfg.fifo_wmk);//add by zengjian for debug mag-116
 
   //skip the data to adjust timing for Polling+FIFO
   if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && state->mag_info.use_fifo)
@@ -2037,18 +2036,15 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     if(state->fifo_flush_in_progress)
     {
       over_sample = state->flush_sample_count - state->mag_info.cur_cfg.fifo_wmk;
-      AK0991X_INST_PRINT(MED, instance, "step2:state->flush_sample_count = %u ,over_sample2 = %d ", state->flush_sample_count,over_sample);//add by zengjian for debug mag-116
     }
     else
     {
       over_sample = state->num_samples - state->mag_info.cur_cfg.fifo_wmk;
-      AK0991X_INST_PRINT(MED, instance, "step3:state->num_samples = %u ,over_sample3 = %d ", state->num_samples,over_sample);//add by zengjian for debug mag-116
     }
 
     if(over_sample > 0)
     {
       num_bytes_to_report -= over_sample * 8;
-      AK0991X_INST_PRINT(MED, instance, "step4:num_bytes_to_report = %u ,over_sample4 = %d ", num_bytes_to_report,over_sample);//add by zengjian for debug mag-116
     }
   }
 
@@ -2303,23 +2299,17 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
   {
     calculated_timestamp_from_previous = state->pre_timestamp + state->averaged_interval * state->num_samples;
-    AK0991X_INST_PRINT(MED, instance, "zj orphan=false 1 validate_timestamp polling mode: calculated_timestamp_from_previous =%u, state->pre_timestamp =%u",(uint32_t)calculated_timestamp_from_previous,(uint32_t)state->pre_timestamp);
   }
   else
   {
     calculated_timestamp_from_previous = state->pre_timestamp + state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk;
-    AK0991X_INST_PRINT(MED, instance, "zj orphan=false 2 validate_timestamp num_sample exceed fifo_wm polling mode:: calculated_timestamp_from_previous=%u, state->pre_timestamp =%u",(uint32_t)calculated_timestamp_from_previous,(uint32_t)state->pre_timestamp);
   }
-  AK0991X_INST_PRINT(MED, instance, "zj orphan=false 3 validate_timestamp polling mode:  state->system_time =%u, state->dae_event_time=%u",(uint32_t)state->system_time,(uint32_t)state->dae_event_time);
 
   // check negative timestamp
   if( state->system_time < calculated_timestamp_from_previous )
   {
     calculated_timestamp_from_previous = state->system_time;
-    AK0991X_INST_PRINT(MED, instance, "zj orphan=false 4 validate_timestamp negative timestamp");
   }
-
-  AK0991X_INST_PRINT(MED, instance, "zj orphan=false 5 validate_timestamp polling mode:  state->fifo_flush_in_progress =%d, state->this_is_the_last_flush =%d, state->irq_info.detect_irq_event =%d",state->fifo_flush_in_progress,state->this_is_the_last_flush,state->irq_info.detect_irq_event);
 
   if( state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
   {
@@ -2328,12 +2318,10 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
       if(calculated_timestamp_from_previous > state->dae_event_time)
       {
         state->interrupt_timestamp = state->dae_event_time;
-        AK0991X_INST_PRINT(MED, instance, "zj orphan=false 6 validate_timestamp DAE event time < calulated_timestamp_from_previous");
       }
       else
       {
         state->interrupt_timestamp = calculated_timestamp_from_previous;
-        AK0991X_INST_PRINT(MED, instance, "zj orphan=false 7 validate_timestamp DAE event time > calulated_timestamp_from_previous");
       }
     }
     else
@@ -2344,7 +2332,6 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   }
   else
   {
-    AK0991X_INST_PRINT(MED, instance, "zj orphan=false 8 validate_timestamp polling mode:  state->this_is_first_data = %d, state->is_previous_irq = %d, offset value = %u",state->this_is_first_data,state->is_previous_irq,(uint32_t)(calculated_timestamp_from_previous + state->averaged_interval/50));
     if(ak0991x_dae_if_available(instance))
     {
 #ifdef AK0991X_ENABLE_TIMER_FILTER
@@ -2361,7 +2348,6 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
       else
       {
         state->interrupt_timestamp = state->dae_event_time;
-        AK0991X_INST_PRINT(MED, instance, "zj orphan=false 9 validate_timestamp using DAE event time on normal mode");
       }
 #else
       state->interrupt_timestamp = state->dae_event_time;
@@ -2377,18 +2363,16 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
-    AK0991X_INST_PRINT(MED, instance, "zj orphan=false 10 validate_timestamp polling mode: state->first_data_ts_of_batch = %u",(uint32_t)state->first_data_ts_of_batch);
   }
   else
   {
     state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->mag_info.cur_cfg.fifo_wmk - 1);
-    AK0991X_INST_PRINT(MED, instance, "zj orphan=false 11 validate_timestamp polling mode: state->first_data_ts_of_batch = %u",(uint32_t)state->first_data_ts_of_batch);
   }
 }
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
-  uint8_t st1_buf = 0, st2_buf = 0;//qualcomm modify
+  uint8_t st1_buf = 0, st2_buf = 0;
 
   ak0991x_read_st1(state, &st1_buf);  // read ST1
   /* Read ST2 for AK09917D RevA/B bug */
@@ -2747,7 +2731,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
       {
         SNS_INST_PRINTF(ERROR, instance,"Number of samples should not be greater than max physical fifo available");
         num_samples = AK0991X_MAX_PHYSICAL_FIFO_SIZE;
-      } //qualcomm modify
+      }
     }
 
     ak0991x_read_hxl_st2(state,
