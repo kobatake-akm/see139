@@ -79,7 +79,7 @@ ak0991x_get_data( sns_dd_handle_s*    dd_handle,
   {
     if((reg_ctl.fifo_mode & 0x80) != 0)
     {
-	  if ((device_select == AK09917_WHOAMI_DEV_ID) || (device_select == AK09919_WHOAMI_DEV_ID))
+      if ((device_select == AK09917_WHOAMI_DEV_ID) || (device_select == AK09919_WHOAMI_DEV_ID))
       {
         // AK09917D has FNUM bits
         // correspond to how many samples are currently in the FIFO buffer
