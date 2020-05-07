@@ -458,8 +458,28 @@ static void process_fifo_samples(
         {
           if(state->mag_info.use_fifo) // for Polling + FIFO
           {
-            ak0991x_validate_timestamp_for_polling(this);
-		  }
+            if((state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event) && (state->config_step == AK0991X_CONFIG_IDLE))//for the flush_request
+            {
+              if(state->system_time < (state->pre_timestamp + state->averaged_interval * state->num_samples))
+              {
+                state->num_samples = state->num_samples-((((state->pre_timestamp + state->averaged_interval * state->num_samples)-state->system_time)/state->averaged_interval) + 1);//datas ignore
+                fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2; //modify fifo len
+                state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
+                if(0 == state->num_samples)
+                {
+                   ak0991x_send_fifo_flush_done(this);// avoid flush req mismatch the flush event when num=0
+                }
+              }
+              else
+              {
+                state->first_data_ts_of_batch = state->pre_timestamp + state->averaged_interval;
+              }
+            }
+            else
+            {
+              ak0991x_validate_timestamp_for_polling(this);
+            }
+          }
           else
           {
             state->interrupt_timestamp = state->dae_event_time;
