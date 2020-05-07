@@ -269,23 +269,51 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   /** Step 4
    *   Read and check data
    **/
-  rv = ak0991x_com_read_wrapper(state->scp_service,
-                                state->com_port_info.port_handle,
-                                AKM_AK0991X_REG_ST1,
-                                buffer,
-                                AK0991X_NUM_DATA_ST1_TO_ST2,
-                                &xfer_bytes);
-
-  if (rv != SNS_RC_SUCCESS
-      ||
-      xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+  if(state->mag_info.device_select == AK09919)
   {
-    *err = ((TLIMIT_NO_READ_DATA) << 16);
-    goto TEST_SEQUENCE_FAILED;
+    rv = ak0991x_com_read_wrapper(state->scp_service,
+                                  state->com_port_info.port_handle,
+                                  AKM_AK0991X_REG_ST1,
+                                  buffer,
+                                  AK0991X_NUM_DATA_HXL_TO_ST2,
+                                  &xfer_bytes);
+
+    rv = ak0991x_com_read_wrapper(state->scp_service,
+                                  state->com_port_info.port_handle,
+                                  AKM_AK0991X_REG_HXL,
+                                  buffer,
+                                  AK0991X_NUM_DATA_HXL_TO_ST2,
+                                  &xfer_bytes);
+
+    if (rv != SNS_RC_SUCCESS
+        ||
+        xfer_bytes != AK0991X_NUM_DATA_HXL_TO_ST2)
+    {
+      *err = ((TLIMIT_NO_READ_DATA) << 16);
+      goto TEST_SEQUENCE_FAILED;
+    }
+
+    ak0991x_get_adjusted_mag_data(this, &buffer[0], &data[0]);
   }
+  else
+  {
+    rv = ak0991x_com_read_wrapper(state->scp_service,
+                                  state->com_port_info.port_handle,
+                                  AKM_AK0991X_REG_ST1,
+                                  buffer,
+                                  AK0991X_NUM_DATA_ST1_TO_ST2,
+                                  &xfer_bytes);
 
-  ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
+    if (rv != SNS_RC_SUCCESS
+        ||
+        xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+    {
+      *err = ((TLIMIT_NO_READ_DATA) << 16);
+      goto TEST_SEQUENCE_FAILED;
+    }
 
+    ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
+  }
   // check read value
   if (state->mag_info.device_select == AK09919)
   {
@@ -365,8 +393,16 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
     goto TEST_SEQUENCE_FAILED;
   }
 
-  AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
-          TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
+  if(state->mag_info.device_select == AK09919)
+  {
+    AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[7] & TLIMIT_ST2_MASK),
+            TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
+  }
+  else
+  {
+    AKM_FST(TLIMIT_NO_SLF_ST2, (buffer[8] & TLIMIT_ST2_MASK),
+            TLIMIT_LO_SLF_ST2, TLIMIT_HI_SLF_ST2, err);
+  }
 
 TEST_SEQUENCE_FAILED:
 
