@@ -1370,23 +1370,6 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
        values, ARR_SIZE(values), false);
  }
  {
-  //  sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
-  //  int i;
-  //  int j;
-  //  for(i = 0; i < 2 && i < ARR_SIZE(ak0991x_dev_info_array[device_select].operating_modes);
-  //      i++)
-  //  {
-  //    char const *op_mode = ak0991x_dev_info_array[device_select].operating_modes[i];
-  //    j = 0;
-  //    // count length of op_mode(string)
-  //    while( (op_mode[j] != '\0') && (j < AK0991X_MAX_LEN_OF_ATTRIBUTES_STR)) j++;
-
-  //    values[i].str.funcs.encode = pb_encode_string_cb;
-  //    values[i].str.arg = &((pb_buffer_arg)
-  //        { .buf = op_mode, .buf_len = j+1 }); // +1 for null string
-  //  }
-  //  sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES,
-  //      values, i, false);
    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
    int array_size = ak0991x_dev_info_array[device_select].operating_modes_num;
    AK0991X_PRINT(MED, this, "size of operating_modes array:%d", array_size);
