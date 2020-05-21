@@ -301,6 +301,7 @@ typedef struct ak0991x_instance_state
   sns_data_stream       *interrupt_data_stream;
   sns_data_stream       *async_com_port_data_stream;
   sns_data_stream       *s4s_timer_data_stream;
+  sns_data_stream       *heart_beat_timer_data_stream;
 
   size_t encoded_mag_event_len;
 

@@ -371,6 +371,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /** Initialize Timer info to be used by the Instance */
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "timer", &state->timer_suid);
   state->timer_data_stream = NULL;
+  state->heart_beat_timer_data_stream = NULL;
 
   /** Initialize COM port to be used by the Instance */
   state->com_port_info = sensor_state->com_port_info;
@@ -478,6 +479,8 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   ak0991x_dae_if_deinit(this);
 
   sns_sensor_util_remove_sensor_instance_stream(this,&state->timer_data_stream);
+  sns_sensor_util_remove_sensor_instance_stream(this,&state->heart_beat_timer_data_stream);
+
   //Deinit for S4S
   ak0991x_s4s_inst_deinit(this);
   sns_sensor_util_remove_sensor_instance_stream(this,&state->interrupt_data_stream);
@@ -968,6 +971,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         if(state->timer_data_stream != NULL )
         {
           sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
+        }
+        if(state->heart_beat_timer_data_stream != NULL)
+        {
+          sns_sensor_util_remove_sensor_instance_stream(this, &state->heart_beat_timer_data_stream);
         }
       }
       else  // DAE enabled
