@@ -546,27 +546,8 @@ static void process_fifo_samples(
       }
     }
 
-    if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // for DRI mode
-    {
-      ak0991x_register_heart_beat_timer(this);
-    }
-    else  // for Polling mode
-    {
-      // No heart_beat_timer_event when orphan.
-      // Just update heart_beat_timestamp in order to ignore performing unnecessary heart beat detection
-      if( state->is_orphan )
-      {
-        state->heart_beat_timestamp = state->system_time;
-        state->heart_beat_sample_count = 0;
-        state->heart_beat_attempt_count = 0;
-//        AK0991X_INST_PRINT(HIGH, this, "Reset HB timestamp %u", (uint32_t)state->heart_beat_timestamp);
-      }
-      else
-      {
-        // check heart beat fire time
-//        ak0991x_heart_beat_timer_event(this);
-      }
-    }
+    // Set new timeout for heart beat
+    ak0991x_register_heart_beat_timer(this);
   }
 }
 
