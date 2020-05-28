@@ -610,14 +610,12 @@ static void process_fifo_samples(
             }
             else
             {
-              if((state->dae_event_time >= state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))
-              {
-                state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
-              }
-              else
-              {
-                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->mag_info.cur_cfg.fifo_wmk - 1);
-              }
+              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->mag_info.cur_cfg.fifo_wmk - 1);
+            }
+
+            if((state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF) && (1 == state->mag_info.cur_cfg.dae_wmk) && (0 == state->total_samples))
+            {
+              state->first_data_ts_of_batch =  state->dae_event_time + (state->num_samples - state->mag_info.cur_cfg.fifo_wmk)*sampling_intvl;
             }
           }
           else
