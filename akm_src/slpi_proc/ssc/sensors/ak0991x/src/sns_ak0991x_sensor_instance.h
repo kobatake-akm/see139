@@ -232,6 +232,7 @@ typedef struct ak0991x_instance_state
   uint8_t heart_beat_attempt_count;
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
+  uint16_t reg_fifo_wmk;
   bool this_is_first_data;
   bool data_over_run;
   bool data_is_ready;

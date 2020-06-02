@@ -330,6 +330,7 @@ static void process_fifo_samples(
 
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
   uint16_t fifo_wmk = (state->mag_info.use_fifo) ? (uint8_t)(buf[0] & 0x1F) + 1 : 1;  // read value from WM[4:0]
+  state->reg_fifo_wmk = fifo_wmk;
 
   state->is_orphan = false;
   sampling_intvl = (ak0991x_get_sample_interval(odr) *
@@ -547,7 +548,7 @@ static void process_fifo_samples(
         // when the pre_timestamp_for_orphan is too old or newer than the dae_event_time, use dae_event_time instead.
         if(state->irq_info.detect_irq_event && // dri or timer event
            (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sampling_intvl/5 ||
-            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) && (state->num_samples <= state->mag_info.cur_cfg.fifo_wmk))
+            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) && (state->num_samples <= fifo_wmk))
         {
           state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
         }
@@ -576,7 +577,7 @@ static void process_fifo_samples(
               state->flush_sample_count = 0;
             }
 
-            if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
+            if(state->num_samples <= fifo_wmk)
             {
               if((state->dae_event_time >= state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))
               {
@@ -610,23 +611,18 @@ static void process_fifo_samples(
             }
             else
             {
-              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->mag_info.cur_cfg.fifo_wmk - 1);
-            }
-
-            if((state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF) && (1 == state->mag_info.cur_cfg.dae_wmk) && (0 == state->total_samples))
-            {
-              state->first_data_ts_of_batch =  state->dae_event_time + (state->num_samples - state->mag_info.cur_cfg.fifo_wmk)*sampling_intvl;
+              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (fifo_wmk - 1);
             }
           }
           else
           {
-            if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
+            if(state->num_samples <= fifo_wmk)
             {
               state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
             }
             else
             {
-              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->mag_info.cur_cfg.fifo_wmk - 1);
+              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (fifo_wmk - 1);
             }
           }
 

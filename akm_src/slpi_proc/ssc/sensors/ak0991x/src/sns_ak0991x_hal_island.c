@@ -1643,7 +1643,14 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     }
     else
     {
-      over_sample = state->num_samples - state->mag_info.cur_cfg.fifo_wmk;
+      if(state->is_orphan)
+      {
+        over_sample = state->num_samples - state->reg_fifo_wmk;
+      }
+      else
+      {
+        over_sample = state->num_samples - state->mag_info.cur_cfg.fifo_wmk;
+      }
     }
 
     if(over_sample > 0)
