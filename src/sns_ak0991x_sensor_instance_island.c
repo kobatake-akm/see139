@@ -216,7 +216,9 @@ static sns_rc ak0991x_handle_heart_beat_timer_data_stream(sns_sensor_instance *c
       }
       else
       {
-        SNS_INST_PRINTF(ERROR, this, "Failed decoding heart beat timer event");
+        // Ignore
+        // Referred to lsm6dst_handle_timer() of sns_lsm6dst_sensor_instance_island.c
+        ;
       }
       if(NULL != state->heart_beat_timer_data_stream)
       {

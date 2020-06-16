@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/16/20     026215     AKM              Separate heart beat timer stream
+ * 04/09/20     026213     Qualcomm         Return error event for invalid requests
  * 04/09/20     026213     Qualcomm         Return error event for invalid requests
  * 04/06/20     026212     Qualcomm         Fixed handling cal reset request to be marked with special pointer
  * 04/01/20     026211     Qualcomm         Refactored to reduce island memory usage
@@ -345,8 +347,8 @@
  *
  **/
 
-// major:02 minor:62 revision:10
+// major:02 minor:62 revision:15
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      13
+#define AK0991X_DRV_VER_REV      15
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
