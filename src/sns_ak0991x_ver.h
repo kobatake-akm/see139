@@ -23,6 +23,7 @@
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
  * 06/16/20     026215     AKM              Separate heart beat timer stream
+ * 05/07/20     026214     Qualcomm         Return speical pointer upon handling flush request
  * 04/09/20     026213     Qualcomm         Return error event for invalid requests
  * 04/09/20     026213     Qualcomm         Return error event for invalid requests
  * 04/06/20     026212     Qualcomm         Fixed handling cal reset request to be marked with special pointer
