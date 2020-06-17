@@ -1005,7 +1005,9 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this)
 
 sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 {
+#ifdef AK0991X_ENABLE_DEBUG_MSG
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+#endif
   sns_rc rv;
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");

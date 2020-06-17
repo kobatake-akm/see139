@@ -393,8 +393,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         sns_timer_sensor_event timer_event;
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
+#ifdef AK0991X_ENABLE_DEBUG_MSG
           sns_time now = sns_get_system_time();
-
+#endif
           // for regular polling mode
           if (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
               state->reg_event_done &&
