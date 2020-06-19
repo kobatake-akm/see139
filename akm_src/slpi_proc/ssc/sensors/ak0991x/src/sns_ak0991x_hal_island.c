@@ -1035,7 +1035,14 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this)
   }
   else
   {
-    state->pre_timestamp = state->system_time;
+    if(ak0991x_dae_if_available(this) && state->mag_info.use_fifo)
+    {
+      state->pre_timestamp = state->pre_timestamp_for_orphan;
+    }
+    else
+    {
+      state->pre_timestamp = state->system_time;
+    }
   }
   state->irq_event_time = state->pre_timestamp;
   state->previous_irq_time = state->pre_timestamp;

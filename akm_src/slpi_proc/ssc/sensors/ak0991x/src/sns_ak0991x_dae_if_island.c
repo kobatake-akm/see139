@@ -312,6 +312,8 @@ static void process_fifo_samples(
   uint32_t sampling_intvl;
   uint8_t dummy_buf[] = {0U,0U,0U,0U,0U,0U,0U,AK0991X_INV_FIFO_DATA}; // set INV bit 
   uint8_t *mag_data_buf = buf + state->dae_if.mag.status_bytes_per_fifo;
+  sns_time calculated_timestamp_from_previous;
+  uint8_t ref_num_samples;
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -428,13 +430,6 @@ static void process_fifo_samples(
         state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
     }
   }
-  if(((state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) && (state->mag_info.use_fifo)) && (state->num_samples == 0) && !state->mag_info.use_sync_stream)
-  {
-    state->num_samples = 1;
-    fifo_len = AK0991X_NUM_DATA_HXL_TO_ST2;
-    mag_data_buf =  dummy_buf;
-    AK0991X_INST_PRINT(MED, this, "num_samples=0 But forced to set 1, add dummy data");
-  }
 
   if( !state->is_orphan )
   {
@@ -459,50 +454,91 @@ static void process_fifo_samples(
         {
           if(state->mag_info.use_fifo) // for Polling + FIFO
           {
-            if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)//for the flush_request
+            if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
             {
-              if(state->system_time < (state->pre_timestamp + sampling_intvl * state->num_samples))
-              {
-                if(state->num_samples - 1 >= (((state->pre_timestamp + sampling_intvl * state->num_samples) - state->system_time)/sampling_intvl))
-                {
-                  if((((state->pre_timestamp + sampling_intvl * state->num_samples) - state->system_time) % sampling_intvl) == 0)
-                  {
-                    state->num_samples = state->num_samples - (((state->pre_timestamp + sampling_intvl * state->num_samples) - state->system_time)/sampling_intvl);//datas ignore
-                  }
-                  else
-                  {
-                    state->num_samples = state->num_samples - ((((state->pre_timestamp + sampling_intvl * state->num_samples) - state->system_time)/sampling_intvl) + 1);//datas ignore
-                  }
-                  fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;//corrected fifo length match with ignored dates
-                  state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+              calculated_timestamp_from_previous = state->pre_timestamp + sampling_intvl * state->num_samples;
+              ref_num_samples = state->num_samples;
+            }
+            else
+            {
+              calculated_timestamp_from_previous = state->pre_timestamp + sampling_intvl * state->mag_info.cur_cfg.fifo_wmk;
+              ref_num_samples = state->mag_info.cur_cfg.fifo_wmk;
+            }
 
-                  if(0 == state->num_samples)
-                  {
-                    ak0991x_send_fifo_flush_done(this);// avoid flush req mismatch the flush event when num=0
-                  }
-                }
-                else
-                {
-                  ak0991x_validate_timestamp_for_polling(this);
-                }
+            if(state->system_time >= calculated_timestamp_from_previous)
+            {
+              if((state->dae_event_time <= calculated_timestamp_from_previous) && (state->dae_event_time > (calculated_timestamp_from_previous - sampling_intvl)))
+              {
+                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (ref_num_samples - 1);
               }
               else
               {
                 state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
               }
 
-              if(state->fifo_flush_in_progress)
+              if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
               {
-                state->flush_sample_count = state->num_samples;
-              }
-              else
-              {
-                state->flush_sample_count = 0;
+                state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
               }
             }
             else
             {
-              ak0991x_validate_timestamp_for_polling(this);
+              if(ref_num_samples - 1 >= ((calculated_timestamp_from_previous - state->system_time)/sampling_intvl))
+              {
+                if(((calculated_timestamp_from_previous - state->system_time) % sampling_intvl) == 0)
+                {
+                  state->num_samples = ref_num_samples - ((calculated_timestamp_from_previous - state->system_time)/sampling_intvl);
+                }
+                else
+                {
+                  state->num_samples = ref_num_samples - (((calculated_timestamp_from_previous- state->system_time)/sampling_intvl) + 1);
+                }
+
+                fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                if(0 != state->num_samples)
+                {
+                  if((state->dae_event_time - (state->pre_timestamp + sampling_intvl * state->num_samples) < 4*sampling_intvl/5) && (state->dae_event_time > state->pre_timestamp+ sampling_intvl * (state->num_samples-1)))
+                  {
+                    state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+                  }
+                  else
+                  {
+                    state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+                  }
+
+                  if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                  {
+                    state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+                  }
+                }
+                else
+                {
+                  state->first_data_ts_of_batch = state->pre_timestamp;
+                  if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                  {
+                    ak0991x_send_fifo_flush_done(this);// avoid flush req mismatch the flush event when num=0
+                  }
+                }
+              }
+              else
+              {
+                state->num_samples = 0;
+                fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                state->first_data_ts_of_batch = state->pre_timestamp;
+                if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                {
+                  ak0991x_send_fifo_flush_done(this);// avoid flush req mismatch the flush event when num=0
+                }
+              }
+            }
+
+            if(state->fifo_flush_in_progress)
+            {
+              state->flush_sample_count = state->num_samples;
+            }
+            else
+            {
+              state->flush_sample_count = 0;
             }
             state->averaged_interval = sampling_intvl;
           }
@@ -548,7 +584,7 @@ static void process_fifo_samples(
         // when the pre_timestamp_for_orphan is too old or newer than the dae_event_time, use dae_event_time instead.
         if(state->irq_info.detect_irq_event && // dri or timer event
            (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sampling_intvl/5 ||
-            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) && (state->num_samples <= fifo_wmk))
+            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)  && ((state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) || !state->mag_info.use_fifo))
         {
           state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
         }
@@ -566,8 +602,85 @@ static void process_fifo_samples(
         }
         else  // polling
         {
-          if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+          if(state->mag_info.use_fifo)
           {
+            if(state->num_samples <= fifo_wmk)
+            {
+              calculated_timestamp_from_previous = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
+              ref_num_samples = state->num_samples;
+            }
+            else
+            {
+              calculated_timestamp_from_previous = state->pre_timestamp_for_orphan + sampling_intvl * fifo_wmk;
+              ref_num_samples = fifo_wmk;
+            }
+            if(state->system_time >= calculated_timestamp_from_previous)
+            {
+              if((state->dae_event_time <= calculated_timestamp_from_previous) && (state->dae_event_time > (calculated_timestamp_from_previous - sampling_intvl)))
+              {
+                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (ref_num_samples - 1);
+              }
+              else
+              {
+                state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+              }
+
+              if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+              {
+                state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+              }
+            }
+            else
+            {
+              if(ref_num_samples - 1 >= ((calculated_timestamp_from_previous - state->system_time)/sampling_intvl))
+              {
+                if(((calculated_timestamp_from_previous - state->system_time) % sampling_intvl) == 0)
+                {
+                  state->num_samples = ref_num_samples - ((calculated_timestamp_from_previous - state->system_time)/sampling_intvl);
+                }
+                else
+                {
+                  state->num_samples = ref_num_samples - (((calculated_timestamp_from_previous- state->system_time)/sampling_intvl) + 1);
+                }
+
+                fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                if(0 != state->num_samples)
+                {
+                  if((state->dae_event_time - (state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) < 4*sampling_intvl/5) && (state->dae_event_time > state->pre_timestamp_for_orphan+ sampling_intvl * (state->num_samples-1)))
+                  {
+                    state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+                  }
+                  else
+                  {
+                    state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+                  }
+
+                  if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                  {
+                    state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+                  }
+                }
+                else
+                {
+                  state->first_data_ts_of_batch = state->pre_timestamp_for_orphan;
+                  if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                  {
+                    ak0991x_send_fifo_flush_done(this);// avoid flush req mismatch the flush event when num=0
+                  }
+                }
+              }
+              else
+              {
+                state->num_samples = 0;
+                fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                state->first_data_ts_of_batch = state->pre_timestamp_for_orphan;
+                if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                {
+                  ak0991x_send_fifo_flush_done(this);// avoid flush req mismatch the flush event when num=0
+                }
+              }
+            }
+
             if(state->fifo_flush_in_progress)
             {
               state->flush_sample_count = state->num_samples;
@@ -576,54 +689,10 @@ static void process_fifo_samples(
             {
               state->flush_sample_count = 0;
             }
-
-            if(state->num_samples <= fifo_wmk)
-            {
-              if((state->dae_event_time >= state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples))
-              {
-                if(!state->fifo_flush_in_progress)
-                {
-                  state->first_data_ts_of_batch =  state->pre_timestamp_for_orphan + sampling_intvl;
-                }
-                else
-                {
-                  if( odr != state->mag_info.cur_cfg.odr )
-                  {
-                    state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
-                  }
-                  else
-                  {
-                    state->first_data_ts_of_batch = state->system_time - sampling_intvl * (state->num_samples - 1);//reduce delta gap value
-                  }
-                }
-              }
-              else
-              {
-                if( odr != state->mag_info.cur_cfg.odr )
-                {
-                  state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
-                }
-                else
-                {
-                  state->first_data_ts_of_batch = state->system_time - sampling_intvl * (state->num_samples - 1);
-                }
-              }
-            }
-            else
-            {
-              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (fifo_wmk - 1);
-            }
           }
           else
           {
-            if(state->num_samples <= fifo_wmk)
-            {
-              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
-            }
-            else
-            {
-              state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (fifo_wmk - 1);
-            }
+            state->first_data_ts_of_batch = state->dae_event_time;
           }
 
 #ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
