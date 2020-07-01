@@ -1799,7 +1799,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif // AK0991X_ENABLE_DUAL_SENSOR
-  bool flush_req_handled = false;
+  // bool flush_req_handled = false;
 
   AK0991X_PRINT(HIGH, this, "### set_client_request - msg_id=%d/%d remove=%u",
                 exist_request ? exist_request->message_id : -1,
@@ -1907,7 +1907,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         {
           ak0991x_send_flush_config(this, instance);
         }
-        flush_req_handled = true;
+        // flush_req_handled = true;
       }
       else // other than flush request
       {
@@ -2077,10 +2077,10 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   {
     instance = &sns_instance_no_error;
   }
-  else if(flush_req_handled)
-  {
-    instance = &sns_instance_no_error;
-  }
+  // else if(flush_req_handled)
+  // {
+  //   instance = &sns_instance_no_error;
+  // }
 
   return instance;
 }
