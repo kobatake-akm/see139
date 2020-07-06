@@ -2077,6 +2077,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   {
     instance = &sns_instance_no_error;
   }
+  /* TODO: The following code is added in the version 2.62.14.
+   *       But after that, we found this code cause system crush in some cases.
+   *       We hope updated SCEP package will resolve this error in future.
+   *       When the time comes, comment in this code (current: scep.8.0.4) 
+   */
   // else if(flush_req_handled)
   // {
   //   instance = &sns_instance_no_error;
