@@ -273,12 +273,19 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
-                                AK0991X_NUM_DATA_ST1_TO_ST2,
+                                1,
+                                &xfer_bytes);
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_HXL,
+                                &buffer[1],
+                                AK0991X_NUM_DATA_HXL_TO_ST2,
                                 &xfer_bytes);
 
   if (rv != SNS_RC_SUCCESS
       ||
-      xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+      xfer_bytes != AK0991X_NUM_DATA_HXL_TO_ST2)
   {
     *err = ((TLIMIT_NO_READ_DATA) << 16);
     goto TEST_SEQUENCE_FAILED;
