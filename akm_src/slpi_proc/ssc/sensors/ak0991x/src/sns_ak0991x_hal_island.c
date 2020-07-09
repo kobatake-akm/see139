@@ -1907,14 +1907,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_time calculated_timestamp_from_previous;
 
-  if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
-  {
-    calculated_timestamp_from_previous = state->pre_timestamp + state->averaged_interval * state->num_samples;
-  }
-  else
-  {
-    calculated_timestamp_from_previous = state->pre_timestamp + state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk;
-  }
+  calculated_timestamp_from_previous = state->pre_timestamp + state->averaged_interval * state->num_samples;
 
   // check negative timestamp
   if( state->system_time < calculated_timestamp_from_previous )
@@ -1971,14 +1964,7 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
     }
   }
 
-  if(state->num_samples <= state->mag_info.cur_cfg.fifo_wmk)
-  {
-    state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
-  }
-  else
-  {
-    state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->mag_info.cur_cfg.fifo_wmk - 1);
-  }
+  state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
 }
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
