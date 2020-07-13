@@ -439,7 +439,6 @@ static void process_fifo_samples(
     AK0991X_INST_PRINT(MED, this, "num_samples=0 But forced to set 1, add dummy data");
   }
 
-
   if( !state->is_orphan )
   {
     state->mag_info.data_count_for_dri += state->num_samples;
@@ -478,7 +477,21 @@ static void process_fifo_samples(
 
               if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
               {
-                state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+                if((1 == state->this_is_first_data) && (-1 == state->mag_info.cur_cfg.dae_wmk) && (state->num_samples >= state->mag_info.cur_cfg.fifo_wmk))
+                {
+                  if((state->dae_event_time - sampling_intvl * (ref_num_samples - 1)) >= (state->pre_timestamp_for_orphan + 1.8*sampling_intvl))
+                  {
+                    state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * ref_num_samples;
+                  }
+                  else
+                  {
+                    state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (ref_num_samples - 1);
+                  }
+                }
+                else
+                {
+                  state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+                }
               }
             }
             else
