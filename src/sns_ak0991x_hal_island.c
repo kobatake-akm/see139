@@ -2963,7 +2963,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   return rv;
 }
 
-static void ak0991x_inst_exit_island(sns_sensor_instance *this)
+void ak0991x_inst_exit_island(sns_sensor_instance *this)
 {
   sns_service_manager *smgr = this->cb->get_service_manager(this);
   sns_island_service  *island_svc  =

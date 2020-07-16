@@ -1988,16 +1988,24 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               }
             }
             else if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
-               new_request->message_id)
+                    new_request->message_id)
             {
+              AK0991X_PRINT(LOW, this, "new_self_test_request = true");
               if(ak0991x_extract_self_test_info(this, instance, new_request))
               {
-                AK0991X_PRINT(LOW, this, "new_self_test_request = true");
+                if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF ||
+                    state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH )
+                {
+                  AK0991X_PRINT(HIGH, this, "self test request received but power rail state is %u",
+                                state->power_rail_pend_state);
+                  state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+                  state->remove_timer_stream = true;
+                }
                 inst_state->in_self_test = true;
-                   AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
+                AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
                 ak0991x_set_self_test_inst_config(this, instance);
+                ak0991x_reval_instance_config(this, instance);
               }
-              ak0991x_reval_instance_config(this, instance);
             }
             else
             {

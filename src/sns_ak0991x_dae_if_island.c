@@ -743,6 +743,7 @@ static void process_response(
         dae_stream->state = PRE_INIT;
         if(state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
         {
+          ak0991x_inst_exit_island(this);
           ak0991x_continue_client_config(this, true);
         }
       }
@@ -1037,6 +1038,7 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
         if(dae_stream->state == INIT_PENDING && 
            state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
         {
+          ak0991x_inst_exit_island(this);
           ak0991x_continue_client_config(this, true);
         }
       }
@@ -1218,6 +1220,7 @@ void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 
   if(!state->dae_if.mag.stream_usable)
   {
+    ak0991x_inst_exit_island(this);
     ak0991x_dae_if_deinit(this);
   }
 }

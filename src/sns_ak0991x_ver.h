@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 07/09/20     026216     Qualcomm         Must handle PWR rail Timer for Self Test Request
+ * 05/22/20     026215     Qualcomm         Must exit island before deiniting DAE interface
  * 05/07/20     026214     Qualcomm         Return speical pointer upon handling flush request
  * 04/09/20     026213     Qualcomm         Return error event for invalid requests
  * 04/06/20     026212     Qualcomm         Fixed handling cal reset request to be marked with special pointer
@@ -349,5 +351,5 @@
 // major:02 minor:62 revision:10
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      14
+#define AK0991X_DRV_VER_REV      16
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
