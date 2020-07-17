@@ -1,3 +1,6 @@
+# Ignore DAE directory currently
+/dae
+
 # Object files
 *.o
 *.ko

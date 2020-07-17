@@ -228,7 +228,6 @@ typedef struct ak0991x_instance_state
   /** sampling info. */
   uint8_t num_samples;
   uint8_t fifo_num_samples;
-  uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
@@ -270,7 +269,6 @@ typedef struct ak0991x_instance_state
   sns_time averaged_interval;
   sns_time system_time;
   sns_time heart_beat_timestamp;
-  sns_time heart_beat_timeout_period;
   sns_time nominal_intvl;
   sns_time half_measurement_time;
   sns_time hb_timer_fire_time;
@@ -281,6 +279,7 @@ typedef struct ak0991x_instance_state
   sns_time polling_timer_start_time;
   sns_time sync_ts_anchor;
   sns_timer_sensor_config req_payload;
+  sns_timer_sensor_config heart_beat_req_payload;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
@@ -304,6 +303,7 @@ typedef struct ak0991x_instance_state
   sns_data_stream       *interrupt_data_stream;
   sns_data_stream       *async_com_port_data_stream;
   sns_data_stream       *s4s_timer_data_stream;
+  sns_data_stream       *heart_beat_timer_data_stream;
 
   size_t encoded_mag_event_len;
 

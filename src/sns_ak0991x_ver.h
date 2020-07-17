@@ -22,7 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 04/30/20     026214     AKM              Support for AK09919
+ * 07/16/20     026217     AKM              Support AK09919 in DAE+Polling+FIFO mode
+ * 07/01/20     026216     AKM              Commented out the v026214
+ * 06/16/20     026215     AKM              Separate heart beat timer stream
+ * 05/07/20     026214     Qualcomm         Return speical pointer upon handling flush request
  * 04/09/20     026213     Qualcomm         Return error event for invalid requests
  * 04/06/20     026212     Qualcomm         Fixed handling cal reset request to be marked with special pointer
  * 04/01/20     026211     Qualcomm         Refactored to reduce island memory usage
@@ -346,8 +349,8 @@
  *
  **/
 
-// major:02 minor:62 revision:10
+// major:02 minor:62 revision:17
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      14
+#define AK0991X_DRV_VER_REV      17
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

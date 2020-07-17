@@ -1823,6 +1823,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif // AK0991X_ENABLE_DUAL_SENSOR
+  // bool flush_req_handled = false;
 
   AK0991X_PRINT(HIGH, this, "### set_client_request - msg_id=%d/%d remove=%u",
                 exist_request ? exist_request->message_id : -1,
@@ -1930,6 +1931,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         {
           ak0991x_send_flush_config(this, instance);
         }
+        // flush_req_handled = true;
       }
       else // other than flush request
       {
@@ -1994,7 +1996,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                                 (float)state->max_odr);
               if(rv != SNS_RC_SUCCESS || decoded_payload.sample_rate <= 0.0f)
               {
-
                 sns_std_error_event error_event;
                 error_event.error = SNS_STD_ERROR_INVALID_VALUE;
                 pb_send_event(instance,
@@ -2100,6 +2101,15 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   {
     instance = &sns_instance_no_error;
   }
+  /* TODO: The following code is added in the version 2.62.14.
+   *       But after that, we found this code cause system crush in some cases.
+   *       We hope updated SCEP package will resolve this error in future.
+   *       When the time comes, comment in this code (current: scep.8.0.4)
+   */
+  // else if(flush_req_handled)
+  // {
+  //   instance = &sns_instance_no_error;
+  // }
 
   return instance;
 }

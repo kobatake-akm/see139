@@ -626,6 +626,12 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this);
 void ak0991x_register_timer(sns_sensor_instance *this);
 
 /**
+ * Enable timer if not already enabled
+ *
+ */
+void ak0991x_register_timer_for_heart_beat(sns_sensor_instance *this);
+
+/**
  * Configures sensor with new/recomputed settings
  *
  * @param instance   Instance reference

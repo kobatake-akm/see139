@@ -431,6 +431,18 @@ void ak0991x_clear_old_events(sns_sensor_instance *const instance)
       event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
     }
   }
+
+  // Handle heart beat timer event
+  if (NULL != state->heart_beat_timer_data_stream)
+  {
+    event = state->heart_beat_timer_data_stream->api->peek_input(state->heart_beat_timer_data_stream);
+
+    while (NULL != event && SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
+    {
+      AK0991X_INST_PRINT(LOW, instance, "Old heart beat timer event detected. Cleared.");
+      event = state->heart_beat_timer_data_stream->api->get_next_input(state->heart_beat_timer_data_stream);
+    }
+  }
 }
 
 /**
@@ -960,47 +972,6 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 
 static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this);
 
-
-
-static sns_time ak0991x_set_heart_beat_timeout_period_for_polling(
-    sns_sensor_instance *const this)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
-  sns_time sample_period;
-  sns_time timeout_period;
-
-  sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
-
-  if (state->mag_info.use_fifo)
-  {
-    timeout_period = sample_period * (state->mag_info.cur_cfg.fifo_wmk);
-  }
-  else
-  {
-    timeout_period = sample_period;
-  }
-
-  // Set heart_beat_timeout_period for heart beat in Polling/FIFO+Polling
-  // as 5 samples time for Polling plus 1 sample time for jitter
-  // or 2 FIFO buffers time for FIFO+Polling plus 2 sample time for jitter
-
-  // Set heart_beat_timeout_period for heart beat in S4S/FIFO+S4S
-  // as 5 samples time for S4S plus 1 sample time for jitter
-  // or 2 FIFO buffers time for FIFO+S4S plus 2 sample time for jitter
-
-  state->heart_beat_timeout_period =
-    (state->mag_info.use_fifo)? timeout_period * 2 + sample_period * 2
-    : sample_period * 5 + sample_period;
-
-  AK0991X_INST_PRINT(LOW, this, "calculated heart_beat_timeout_period = %u %u %u",
-      (uint32_t)state->heart_beat_timeout_period,
-      (uint32_t)timeout_period,
-      (uint32_t)sample_period);
-
-  return timeout_period;
-}
-
-
 /**
  * see sns_ak0991x_hal.h
  */
@@ -1025,7 +996,6 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this)
   state->mag_info.data_count_for_dri = 0;
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->heart_beat_sample_count = 0;
   state->system_time = sns_get_system_time();
   state->heart_beat_timestamp = state->system_time;
 
@@ -1047,7 +1017,9 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this)
 
 sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 {
+#ifdef AK0991X_ENABLE_DEBUG_MSG
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+#endif
   sns_rc rv;
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");
@@ -1076,18 +1048,20 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
                      (uint32_t)sns_get_system_time(), (uint32_t)state->pre_timestamp,
                      (uint32_t)state->averaged_interval, (uint32_t)state->half_measurement_time);
 
-  // QC - is it not possible to miss any of the interrupts during dummy measurement?
-  if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
-  {
-    ak0991x_register_heart_beat_timer(this);
-  }
-  else
-  {
-    if( ak0991x_dae_if_available(this) && !state->mag_info.flush_only && !state->mag_info.max_batch)
-    {
-      ak0991x_set_heart_beat_timeout_period_for_polling(this);
-    }
-  }
+  ak0991x_register_heart_beat_timer(this);
+
+  // // QC - is it not possible to miss any of the interrupts during dummy measurement?
+  // if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+  // {
+  //   ak0991x_register_heart_beat_timer(this);
+  // }
+  // else
+  // {
+  //   if( ak0991x_dae_if_available(this) && !state->mag_info.flush_only && !state->mag_info.max_batch)
+  //   {
+  //     ak0991x_set_heart_beat_timeout_period_for_polling(this);
+  //   }
+  // }
   return SNS_RC_SUCCESS;
 }
 
@@ -1100,12 +1074,12 @@ sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
   sns_rc rv;
 
   // Disable Mag Streaming
-  AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
-
-  if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+  if(state != NULL)
   {
-    ak0991x_unregister_heart_beat_timer(this);
+    AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
   }
+
+  ak0991x_unregister_heart_beat_timer(this);
 
   rv = ak0991x_set_mag_config(this, true);
 
@@ -2370,8 +2344,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
     state->heart_beat_attempt_count = 0;
   }
-  if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING &&
-      !state->this_is_the_last_flush &&
+  if( !state->this_is_the_last_flush &&
       state->system_time + (state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk) > state->hb_timer_fire_time )
   {
     ak0991x_register_heart_beat_timer(instance);
@@ -2835,7 +2808,19 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
       req_payload.start_time = state->system_time - sample_period + delay;  // add delay for RELIABLE data sample
       req_payload.start_config.early_start_delta = 0;
       req_payload.start_config.late_start_delta = sample_period;
-      req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
+
+      sns_time sample_period;
+      sns_time timeout_period;
+      sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
+      if (state->mag_info.use_fifo)
+      {
+        timeout_period = sample_period * (state->mag_info.cur_cfg.fifo_wmk);
+      }
+      else
+      {
+        timeout_period = sample_period;
+      }
+      req_payload.timeout_period = timeout_period;
       req_payload.has_is_dry_run = true;
       req_payload.is_dry_run = ak0991x_dae_if_available(this);
       AK0991X_INST_PRINT(LOW, this, "polling timer now= %u start= %u, delta= %u, pre_timestamp= %u",
@@ -2860,10 +2845,10 @@ void ak0991x_unregister_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if(state->timer_data_stream != NULL && state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING )
+  if(state->heart_beat_timer_data_stream != NULL)
   {
-    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
-    AK0991X_INST_PRINT(LOW, this, "Unregister HB timer");
+    sns_sensor_util_remove_sensor_instance_stream(this, &state->heart_beat_timer_data_stream);
+    AK0991X_INST_PRINT(LOW, this, "Unregister new HB timer");
   }
 }
 
@@ -2874,14 +2859,14 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
   state->heart_beat_attempt_count = 0;
 
   // clear remained HB events
-  if (NULL != state->timer_data_stream)
+  if (NULL != state->heart_beat_timer_data_stream)
   {
     sns_sensor_event *event =
-      state->timer_data_stream->api->peek_input(state->timer_data_stream);
+      state->heart_beat_timer_data_stream->api->peek_input(state->heart_beat_timer_data_stream);
 
     while (NULL != event)
     {
-      event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
+      event = state->heart_beat_timer_data_stream->api->get_next_input(state->heart_beat_timer_data_stream);
     }
   }
 
@@ -2892,7 +2877,7 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
   }
   else
   {
-    ak0991x_register_timer(this); // register HB timer for DRI mode
+    ak0991x_register_timer_for_heart_beat(this); // register HB timer for DRI mode
   }
 }
 
@@ -2991,98 +2976,216 @@ static void ak0991x_inst_exit_island(sns_sensor_instance *this)
 
 sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
 {
- ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
- sns_rc rv = SNS_RC_SUCCESS;
+  ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
+  sns_rc rv = SNS_RC_SUCCESS;
 
- if(state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF)
- {
-   AK0991X_INST_PRINT(HIGH, this, "heart beat timer event is skipped since ODR=0.");
-   return rv;
- }
+  if(state->mag_info.cur_cfg.odr == AK0991X_MAG_ODR_OFF)
+  {
+    AK0991X_INST_PRINT(HIGH, this, "heart beat timer event is skipped since ODR=0.");
+    return rv;
+  }
 
- if (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
- {
-   SNS_INST_PRINTF(ERROR, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
-                        state->heart_beat_attempt_count,
-                        (uint32_t)state->req_payload.start_time,
-                        (uint32_t)state->req_payload.timeout_period,
-                        (uint32_t)state->hb_timer_fire_time,
-                        (uint32_t)state->system_time);
-   // Streaming is unable to resume after 4 attempts
-   if (state->heart_beat_attempt_count >= 4)
-   {
-     ak0991x_inst_exit_island(this);
-     SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
-     rv = SNS_RC_INVALID_STATE;
-   }
-   // Perform a reset operation in an attempt to revive the sensor
-   else
-   {
-     state->heart_beat_attempt_count++;
-     if(ak0991x_dae_if_available(this))
-     {
-       ak0991x_dae_if_flush_hw(this);
-     }
-     else
-     {
-       ak0991x_read_mag_samples(this);
-       if(state->heart_beat_attempt_count >= 3)
-       {
-         ak0991x_inst_exit_island(this);
-         ak0991x_reconfig_hw(this, true);
-         // Indicate streaming error
-         rv = SNS_RC_NOT_AVAILABLE;
-       }
-     }
-   }
- }
- else // polling
- {
-   uint8_t heart_beat_thresthold =
-     ( state->mag_info.use_fifo )? 1 : 4;
-   if (state->heart_beat_sample_count < heart_beat_thresthold)
-   {
-     state->heart_beat_sample_count++;
-   }
-   else
-   {
-     AK0991X_INST_PRINT(LOW, this, "heart_beat_gap=%u, heart_beat_timeout=%u",
-       (uint32_t)(state->interrupt_timestamp - state->heart_beat_timestamp),
-       (uint32_t)state->heart_beat_timeout_period);
-     // Detect streaming has stopped
-     if (state->interrupt_timestamp > state->heart_beat_timestamp + state->heart_beat_timeout_period)
-     {
-       AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped. int_timestamp:%u hb_timestamp:%u hb_period:%u",
-           (uint32_t)state->interrupt_timestamp,
-           (uint32_t)state->heart_beat_timestamp,
-           (uint32_t)state->heart_beat_timeout_period);
-       // Streaming is unable to resume after 3 attempts
-       if (state->heart_beat_attempt_count >= 3)
-       {
-         ak0991x_inst_exit_island(this);
-         SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
-         rv = SNS_RC_INVALID_STATE;
-       }
-       // Perform a reset operation in an attempt to revive the sensor
-       else
-       {
-         ak0991x_inst_exit_island(this);
-         ak0991x_reconfig_hw(this, true);
-         // Indicate streaming error
-         rv = SNS_RC_NOT_AVAILABLE;
-         state->heart_beat_attempt_count++;
-       }
-     }
-     else
-     {
-       state->heart_beat_timestamp = state->interrupt_timestamp;
-       state->heart_beat_sample_count = 0;
-       state->heart_beat_attempt_count = 0;
-     }
-   }
- }
+  SNS_INST_PRINTF(ERROR, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
+                      state->heart_beat_attempt_count,
+                      (uint32_t)state->heart_beat_req_payload.start_time,
+                      (uint32_t)state->heart_beat_req_payload.timeout_period,
+                      (uint32_t)state->hb_timer_fire_time,
+                      (uint32_t)state->system_time);
+  // Streaming is unable to resume after 4 attempts
+  if (state->heart_beat_attempt_count >= 4)
+  {
+    ak0991x_inst_exit_island(this);
+    SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
+    rv = SNS_RC_INVALID_STATE;
+  }
+  // Perform a reset operation in an attempt to revive the sensor
+  else
+  {
+    state->heart_beat_attempt_count++;
+    if(ak0991x_dae_if_available(this))
+    {
+      ak0991x_dae_if_flush_hw(this);
+    }
+    else
+    {
+      ak0991x_read_mag_samples(this);
+      if(state->heart_beat_attempt_count >= 3)
+      {
+        ak0991x_inst_exit_island(this);
+        ak0991x_reconfig_hw(this, true);
+        // Indicate streaming error
+        rv = SNS_RC_NOT_AVAILABLE;
+      }
+    }
+  }
 
- return rv;
+  return rv;
 }
 
+static sns_rc ak0991x_set_timer_request_payload_for_heart_beat(sns_sensor_instance *const this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
+  sns_rc rv = SNS_RC_SUCCESS;
 
+  if(state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
+  {
+    sns_time sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
+    state->system_time = sns_get_system_time();
+
+    if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+    {
+      // for DRI
+      req_payload.has_priority = true;
+      req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
+      req_payload.is_periodic = false;
+      req_payload.start_time = state->system_time;
+
+      // Set timeout_period for heart beat in DRI/FIFO+DRI
+      // as 5 samples time for DRI
+      // or 5 FIFO buffers time for FIFO+DRI
+      if (state->mag_info.use_fifo)
+      {
+        if(state->in_clock_error_procedure)
+        {
+          // 100Hz dummy measurement fixed.
+          req_payload.timeout_period = sns_convert_ns_to_ticks(10 * 1000 * 1000) * 5 * 11 / 10;
+        }
+        else
+        {
+          if(!ak0991x_dae_if_available(this))
+          {
+            sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
+            req_payload.timeout_period = sample_period * 5 * state->mag_info.cur_cfg.fifo_wmk;
+            if(req_payload.timeout_period > max_timeout)
+            {
+              req_payload.timeout_period = max_timeout; // to avoid large data gap
+            }
+          }
+          else  // DAE enabled
+          {
+            req_payload.timeout_period = (sample_period * 5 * state->mag_info.cur_cfg.dae_wmk) * 11 / 10;
+          }
+        }
+      }
+      else
+      {
+        req_payload.timeout_period = sample_period * 5;
+      }
+    }
+    else
+    {
+      // TODO:
+      // for polling
+      req_payload.has_priority = true;
+      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      req_payload.is_periodic = false;
+      req_payload.start_time = state->system_time;
+
+      // Set timeout_period for heart beat in DRI/FIFO+DRI
+      // as 5 samples time for DRI
+      // or 5 FIFO buffers time for FIFO+DRI
+      if (state->mag_info.use_fifo)
+      {
+        if(!ak0991x_dae_if_available(this))
+        {
+          sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
+          req_payload.timeout_period = sample_period * 5 * state->mag_info.cur_cfg.fifo_wmk;
+          if(req_payload.timeout_period > max_timeout)
+          {
+            req_payload.timeout_period = max_timeout; // to avoid large data gap
+          }
+        }
+        else  // DAE enabled
+        {
+          req_payload.timeout_period = (sample_period * 5 * state->mag_info.cur_cfg.dae_wmk) * 11 / 10;
+        }
+      }
+      else
+      {
+        if(!ak0991x_dae_if_available(this))
+        {
+          req_payload.timeout_period = sample_period * 5 * 11 / 10;
+        }
+        else  // DAE enabled
+        {
+          req_payload.timeout_period = (sample_period * 5 * state->mag_info.cur_cfg.dae_wmk) * 11 / 10;
+        }
+      }
+    }
+
+    state->hb_timer_fire_time = req_payload.start_time + req_payload.timeout_period;
+    AK0991X_INST_PRINT(LOW, this, "Register new HB timer. Fire time= %u", (uint32_t)state->hb_timer_fire_time);
+
+    // reset request payload
+    state->heart_beat_req_payload = req_payload;
+  }
+  else
+  {
+    AK0991X_INST_PRINT(LOW, this, "Timer request payload failed.");
+    rv = SNS_RC_FAILED;
+  }
+  return rv;
+}
+
+static sns_rc ak0991x_send_timer_request_for_heart_beat(sns_sensor_instance *const this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service *stream_mgr = (sns_stream_service *)
+      service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+  sns_request             timer_req;
+  size_t                  req_len = 0;
+  uint8_t                 buffer[100];
+  sns_rc rv = SNS_RC_SUCCESS;
+
+  sns_timer_sensor_config payload = sns_timer_sensor_config_init_default;
+
+  if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
+  {
+    payload = state->heart_beat_req_payload;
+  }
+
+  if (NULL == state->heart_beat_timer_data_stream)
+  {
+    stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                   this,
+                                                   state->timer_suid,
+                                                   &state->heart_beat_timer_data_stream
+                                                   );
+    AK0991X_INST_PRINT(LOW, this, "create new heart beat timer data stream");
+  }
+
+  if (NULL != state->heart_beat_timer_data_stream)
+  {
+    req_len = pb_encode_request(buffer,
+                                sizeof(buffer),
+                                &payload,
+                                sns_timer_sensor_config_fields,
+                                NULL);
+    if (req_len > 0)
+    {
+      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
+      timer_req.request_len = req_len;
+      timer_req.request = buffer;
+      /** Send encoded request to Timer Sensor */
+      rv = state->heart_beat_timer_data_stream->api->send_request(state->heart_beat_timer_data_stream, &timer_req);
+    }
+  }
+  if (req_len == 0)
+  {
+    rv = SNS_RC_FAILED;
+  }
+  return rv;
+}
+
+void ak0991x_register_timer_for_heart_beat(sns_sensor_instance *const this)
+{
+  if( SNS_RC_SUCCESS == ak0991x_set_timer_request_payload_for_heart_beat(this) )
+  {
+    if( SNS_RC_SUCCESS != ak0991x_send_timer_request_for_heart_beat(this) )
+    {
+      SNS_INST_PRINTF(ERROR, this, "Failed send timer request");
+    }
+  }
+}
