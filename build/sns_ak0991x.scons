@@ -40,11 +40,9 @@ if 'USES_SSC_STATIC_LIB_BUILDER' in env:
 
   env.AddSSCSU(inspect.getfile(inspect.currentframe()),
                register_func_name = "sns_register_ak0991x",
-               binary_lib =False,
                cflags = ['-Wno-sign-compare'],
                add_island_files = ak0991x_island_enable,
-               registration_cnt = ak0991x_sensor_cnt,
-               diag_ssid = "MSG_SSID_SNS_SENSOR_EXT")
+               registration_cnt = ak0991x_sensor_cnt)
 
 #------------------------------------------------------------------------------
 # Scan subdirectories to find more /build folders

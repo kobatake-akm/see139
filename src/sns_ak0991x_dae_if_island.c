@@ -555,23 +555,23 @@ static void process_fifo_samples(
             state->interrupt_timestamp = state->dae_event_time;
 
 #ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
-          // use ideal interval for more than 50Hz ODR because of the timer jitter
-          if( !state->this_is_first_data && (sampling_intvl < 384000 ) &&
-              !(state->this_is_the_last_flush && state->fifo_flush_in_progress) )
-          {
-            state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
-          }
+            // use ideal interval for more than 50Hz ODR because of the timer jitter
+            if( !state->this_is_first_data && (sampling_intvl < 384000 ) &&
+                !(state->this_is_the_last_flush && state->fifo_flush_in_progress) )
+            {
+              state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
+            }
 #endif
 
-          if( state->this_is_the_last_flush && state->fifo_flush_in_progress )
-          {
-            AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u p_off=%u",
-                state->total_samples,
-                (uint32_t)state->pre_timestamp_for_orphan,
-                (uint32_t)state->interrupt_timestamp,
-                (uint32_t)state->system_time,
-                (uint32_t)state->polling_timer_start_time);
-          }
+            if( state->this_is_the_last_flush && state->fifo_flush_in_progress )
+            {
+              AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u p_off=%u",
+                  state->total_samples,
+                  (uint32_t)state->pre_timestamp_for_orphan,
+                  (uint32_t)state->interrupt_timestamp,
+                  (uint32_t)state->system_time,
+                  (uint32_t)state->polling_timer_start_time);
+            }
 
             state->first_data_ts_of_batch = state->interrupt_timestamp;
             state->averaged_interval = sampling_intvl;
@@ -592,7 +592,8 @@ static void process_fifo_samples(
         // when the pre_timestamp_for_orphan is too old or newer than the dae_event_time, use dae_event_time instead.
         if(state->irq_info.detect_irq_event && // dri or timer event
            (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sampling_intvl/5 ||
-            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)  && ((state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) || !state->mag_info.use_fifo))
+            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)  &&
+           ((state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) || !state->mag_info.use_fifo))
         {
           state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
         }
@@ -1018,9 +1019,9 @@ static void process_response(
             (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
             (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
+          ak0991x_send_config_event(this, true);  // send new config event
+          ak0991x_send_cal_event(this, false);    // send previous cal event
+        }
       }
 
       break;

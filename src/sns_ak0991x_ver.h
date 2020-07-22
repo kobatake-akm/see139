@@ -27,6 +27,7 @@
  * 06/16/20     026215     AKM              Separate heart beat timer stream
  * 05/07/20     026214     Qualcomm         Return speical pointer upon handling flush request
  * 04/09/20     026213     Qualcomm         Return error event for invalid requests
+ * 04/09/20     026213     Qualcomm         Return error event for invalid requests
  * 04/06/20     026212     Qualcomm         Fixed handling cal reset request to be marked with special pointer
  * 04/01/20     026211     Qualcomm         Refactored to reduce island memory usage
  * 02/12/20     026210     Qualcomm         Fixed implicit-int-float-conversion error found with hexagon8.4 compiler
