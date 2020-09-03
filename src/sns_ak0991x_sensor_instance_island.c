@@ -118,10 +118,10 @@ static void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
 
   for(int i = 0; i < cnt; ++i)
   {
-    if(state->device_mode[i].mode == SNS_DEVICE_MODE_UNKNOWN && 
+    if(state->device_mode[i].mode == SNS_DEVICE_MODE_UNKNOWN &&
        state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE)
     {
-      // -1 denotes unknown device mode 
+      // -1 denotes unknown device mode
       cal_id = AK0991X_UNKNOWN_DEVICE_MODE;
       break;
     }
@@ -270,7 +270,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
       if(NULL != event)
       {
-        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue... %u DRDY= %d", 
+        AK0991X_INST_PRINT(ERROR, this, "Still have int event in the queue... %u DRDY= %d",
                            (uint32_t)sns_get_system_time(), state->data_is_ready);
       }
     }
@@ -421,9 +421,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
               state->sync_ts_anchor = state->pre_timestamp + state->req_payload.timeout_period - state->half_measurement_time;
 
               // very first time after inst init, and when new request received before sending config event(cur-last>1) to prevent WaitForEvents
-              if( !state->in_self_test && 
-                  (!ak0991x_dae_if_available(this) || 
-                   state->mag_info.last_sent_cfg.num == 0 || 
+              if( !state->in_self_test &&
+                  (!ak0991x_dae_if_available(this) ||
+                   state->mag_info.last_sent_cfg.num == 0 ||
                    state->mag_info.cur_cfg.num - state->mag_info.last_sent_cfg.num > 1 ))  // wait for in order to send config in DAE
               {
                 if(state->this_is_the_last_flush)
@@ -448,9 +448,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
                   ak0991x_send_cal_event(this, (state->mag_info.cur_cfg.num == 1));    // send new cal event
                 }
               }
-              
+
               state->has_sync_ts_anchor = false;
- 
+
               if(ak0991x_dae_if_available(this) && (state->config_step != AK0991X_CONFIG_IDLE))
               {
                 state->reg_event_for_dae_poll_sync = true;

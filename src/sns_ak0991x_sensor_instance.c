@@ -48,7 +48,7 @@ static void ak0991x_init_config_event(sns_sensor_instance *const this)
   cfg_ev->water_mark = 1;//1 if FIFO not in use.
   cfg_ev->has_active_current = true;
   cfg_ev->has_resolution = true;
-  cfg_ev->range_count = 2; 
+  cfg_ev->range_count = 2;
   cfg_ev->has_dri_enabled = true;
   cfg_ev->dri_enabled = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
 
@@ -218,9 +218,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-    state->mag_info.meas_time = 
+    state->mag_info.meas_time =
       (state->mag_info.sdr == 1) ?
-      AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US : 
+      AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US :
       AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     break;
   case AK09916C:
@@ -248,9 +248,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-    state->mag_info.meas_time = 
+    state->mag_info.meas_time =
       (state->mag_info.sdr == 0) ?
-      AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US : 
+      AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US :
       AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     AK0991X_INST_PRINT(HIGH, this, "AK09917 RSV1=0x%02X", (int)sensor_state->reg_rsv1_value);
     break;
@@ -331,7 +331,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     sns_sensor_uid device_mode_suid;
     sns_suid_lookup_get(&sensor_state->suid_lookup_data, "device_mode", &device_mode_suid);
     rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                        this, 
+                                                        this,
                                                         device_mode_suid,
                                                         &state->device_mode_stream);
     if(rv != SNS_RC_SUCCESS)
@@ -678,7 +678,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       (sns_ak0991x_mag_req *)client_request->request;
     desired_sample_rate = payload->sample_rate;
     desired_report_rate = payload->report_rate;
-    
+
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
     if(NULL != state->device_mode_stream )
     {
@@ -719,7 +719,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         (uint32_t)state->mag_info.flush_period,
         state->mag_info.flush_only?1:0,
         state->mag_info.max_batch?1:0 );
-    
+
     // Send out previous config
     if ( desired_sample_rate > 0 &&
          state->mag_info.last_sent_cfg.num > 0 &&
@@ -743,7 +743,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       if((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this))
       {
         // No change needed -- return success
-        AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d", 
+        AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
         state->total_samples,
         state->mag_info.cur_cfg.num,
         (uint32_t)state->mag_info.cur_cfg.odr,
@@ -765,7 +765,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "Same ODR and Same WM but DAE_WMK is different.");
         state->only_dae_wmk_is_changed = true;
       }
-    
+
     // If dae_if.mag.state is STREAM_STARTING and config_step is UPDATING_HW, re-evaluate a configuration.
     if(state->dae_if.mag.state == STREAM_STARTING && state->config_step == AK0991X_CONFIG_UPDATING_HW)
     {
@@ -776,7 +776,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     // new config received. start processing for new config.
     state->processing_new_config = true;
- 
+
     // set current config values in state parameter
     state->mag_info.cur_cfg.num++;
     state->mag_info.cur_cfg.odr       = req_cfg.odr;
@@ -790,7 +790,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
     // after inst init.
-    if( state->mag_info.last_sent_cfg.num == 0 && 
+    if( state->mag_info.last_sent_cfg.num == 0 &&
         state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
     {
       // reset timestamp

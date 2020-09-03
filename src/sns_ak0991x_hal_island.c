@@ -523,7 +523,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     if( rv != SNS_RC_SUCCESS ) {
       if(NULL != instance)
       {
-        SNS_INST_PRINTF(ERROR, instance, "Set max read length failed! rv=%d hndl=0x%x", 
+        SNS_INST_PRINTF(ERROR, instance, "Set max read length failed! rv=%d hndl=0x%x",
                         rv, com_port->port_handle);
       }
       com_port->in_i3c_mode = false;
@@ -650,7 +650,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get PID failed!");
     }
   }
-    
+
   sns_memset(buffer, 0, sizeof(buffer));
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
@@ -686,7 +686,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get DCR failed!");
     }
   }
-    
+
   sns_memset(buffer, 0, sizeof(buffer));
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
@@ -704,7 +704,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get status failed!");
     }
   }
-    
+
 #  endif /*  AK0991X_ENABLE_DEBUG_MSG */
 #else /* AK0991X_ENABLE_I3C_SUPPORT */
   UNUSED_VAR(instance);
@@ -771,7 +771,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       }
     }
   }
-  
+
   com_port->in_i3c_mode = false;
 
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
@@ -807,7 +807,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
         SNS_INST_PRINTF(HIGH, this, "sw_rst: enter i3c failed all attempts");
       }
     }
-  } 
+  }
 #endif
   return rv;
 }
@@ -1060,7 +1060,7 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
-  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u half %u", 
+  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u half %u",
                      (uint32_t)sns_get_system_time(), (uint32_t)state->pre_timestamp,
                      (uint32_t)state->averaged_interval, (uint32_t)state->half_measurement_time);
 
@@ -1719,7 +1719,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
   if(state->accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH)
   {
-    if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) 
+    if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress)
     {
       ak0991x_send_fifo_flush_done(instance);
     }
@@ -1959,7 +1959,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 
   ak0991x_read_st1(state, &st1_buf);  // read ST1
   /* Read ST2 for AK09917D RevA/B bug */
-  if( state->mag_info.device_select == AK09917 && 
+  if( state->mag_info.device_select == AK09917 &&
       !state->mag_info.use_fifo)
   {
     if( !(!state->mag_info.use_sync_stream &&
@@ -2010,7 +2010,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
             int16_t calculated_samples;
             calculated_samples = state->mag_info.cur_cfg.fifo_wmk - state->flush_sample_count;
             state->num_samples = st1_buf >> 2;
-            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d num_samples %d", 
+            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d num_samples %d",
                                calculated_samples,state->num_samples);
 
             if(calculated_samples > 0)
@@ -2150,7 +2150,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     else
     {
       const sns_time few_ms = sns_convert_ns_to_ticks(5 * 1000 * 1000);
-      sns_time estimated_irq_time = 
+      sns_time estimated_irq_time =
         state->pre_timestamp + state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk;
 
       // irq expected to fire within a few ms?
@@ -2391,12 +2391,12 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
         }
         else
         {
-          if( state->num_samples == 0 && 
-              state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && 
+          if( state->num_samples == 0 &&
+              state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
               !state->mag_info.use_sync_stream )
           {
             AK0991X_INST_PRINT(LOW, instance, "num_samples=0 But forced to set 1.");
-            state->num_samples = 1;            
+            state->num_samples = 1;
           }
         }
       }
@@ -2471,10 +2471,10 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_cal
   {
     AK0991X_INST_PRINT(HIGH, instance, "send Unknown cal id");
   }
-  pb_buffer_arg buff_arg_bias = { 
+  pb_buffer_arg buff_arg_bias = {
     .buf     = &state->cal.params[cal_event.cal_id].bias,
     .buf_len = ARR_SIZE(state->cal.params[cal_event.cal_id].bias) };
-  pb_buffer_arg buff_arg_comp_matrix = { 
+  pb_buffer_arg buff_arg_comp_matrix = {
     .buf     = &state->cal.params[cal_event.cal_id].corr_mat.data,
     .buf_len = ARR_SIZE(state->cal.params[cal_event.cal_id].corr_mat.data) };
 
@@ -2684,7 +2684,7 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
   }
   if(!state->irq_info.is_registered)
   {
-    SNS_INST_PRINTF(ERROR, this, "Interrupt reg failed stream=%x", 
+    SNS_INST_PRINTF(ERROR, this, "Interrupt reg failed stream=%x",
                     state->interrupt_data_stream);
   }
 #else
@@ -2803,7 +2803,7 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
       // Wait measurement time + margin(2msec)
       sns_time delay = (2 * state->half_measurement_time) + sns_convert_ns_to_ticks(2 * 1000 * 1000);
 
-      // DAE streaming is already started. But sensor is not started yet on DAE. 
+      // DAE streaming is already started. But sensor is not started yet on DAE.
       // Required additional delay for the first sample to ignore UNRELIABLE data received.
       if( ak0991x_dae_if_available(this) &&
           (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
@@ -2905,7 +2905,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   {
     SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
   }
-  
+
   if(reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);

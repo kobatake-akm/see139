@@ -347,7 +347,7 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
  * Enters I3C mode.
  *
  * If the configured bus type is I3C, this will switch the AK0991x
- * hardware from I2C to I3C mode and configure I3C settings such as 
+ * hardware from I2C to I3C mode and configure I3C settings such as
  * maximum read length.
  * This function will do nothing for non-I3C bus types.
  *
@@ -571,11 +571,11 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
 /**
  * Submit the Sensor State Raw Log Packet
  *
- * @param[i] log_raw_info   Pointer to logging information 
+ * @param[i] log_raw_info   Pointer to logging information
  *       pertaining to the sensor
- * @param[i] batch_complete true if submit request is for end 
+ * @param[i] batch_complete true if submit request is for end
  *       of batch
- *  */ 
+ *  */
 void ak0991x_log_sensor_state_raw_submit(
   log_sensor_state_raw_info *log_raw_info,
   bool batch_complete);
