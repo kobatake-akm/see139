@@ -48,8 +48,9 @@ static void ak0991x_init_config_event(sns_sensor_instance *const this)
   cfg_ev->water_mark = 1;//1 if FIFO not in use.
   cfg_ev->has_active_current = true;
   cfg_ev->has_resolution = true;
-  cfg_ev->range_count = 2;
-  cfg_ev->has_dri_enabled = false;
+  cfg_ev->range_count = 2; 
+  cfg_ev->has_dri_enabled = true;
+  cfg_ev->dri_enabled = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
 
   switch (state->mag_info.device_select)
   {

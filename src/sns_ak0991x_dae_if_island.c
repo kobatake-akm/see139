@@ -855,15 +855,15 @@ static void process_response(
         }
         else
         {
-        AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-            state->mag_info.cur_cfg.num,
-            (uint32_t)state->mag_info.cur_cfg.odr,
-            (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-            (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+          AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+              state->mag_info.cur_cfg.num,
+              (uint32_t)state->mag_info.cur_cfg.odr,
+              (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+              (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
-        ak0991x_send_config_event(this, true);  // send new config event
-        ak0991x_send_cal_event(this, false);    // send previous cal event
-      }
+          ak0991x_send_config_event(this, true);  // send new config event
+          ak0991x_send_cal_event(this, false);    // send previous cal event
+        }
       }
 
       break;
@@ -883,11 +883,20 @@ static void process_response(
       {
         if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM)
         {
-          state->this_is_the_last_flush = true;
-          if(ak0991x_dae_if_flush_hw(this))
+          if(state->mag_info.use_fifo && state->mag_info.cur_cfg.fifo_wmk > 1)
           {
-            state->config_step = AK0991X_CONFIG_FLUSHING_HW;
-            AK0991X_INST_PRINT(LOW, this,"Last flush before changing ODR.");
+            state->this_is_the_last_flush = true;
+            if(ak0991x_dae_if_flush_hw(this))
+            {
+              state->config_step = AK0991X_CONFIG_FLUSHING_HW;
+              AK0991X_INST_PRINT(LOW, this,"Last flush before changing ODR.");
+            }
+          }
+          else
+          {
+            ak0991x_dae_if_start_streaming(this);
+            state->config_step = AK0991X_CONFIG_UPDATING_HW;
+            ak0991x_dae_if_flush_samples(this);
           }
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)

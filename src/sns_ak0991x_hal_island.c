@@ -2598,6 +2598,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   cfg_ev->sample_rate        = ak0991x_get_mag_odr(cfg.odr);
   cfg_ev->has_DAE_watermark  = ak0991x_dae_if_available(instance);
   cfg_ev->DAE_watermark      = SNS_MAX(cfg.dae_wmk, 1);
+  cfg_ev->has_dri_enabled    = true;
   cfg_ev->dri_enabled        = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
   cfg_ev->has_sync_ts_anchor = state->has_sync_ts_anchor;
   cfg_ev->sync_ts_anchor     = state->sync_ts_anchor;
