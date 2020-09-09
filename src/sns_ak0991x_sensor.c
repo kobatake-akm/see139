@@ -206,7 +206,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .ranges               = {AK09919_MIN_RANGE, AK09919_MAX_RANGE},
     .operating_modes      = ak09919_ope_mode_table,
     .operating_modes_num  = ARR_SIZE(ak09919_ope_mode_table),
-    .supports_dri         = false,
+    .supports_dri         = ture,/* IBI is a kind of DRI function. See sns_std_sensor.proto */
     .supports_sync_stream = false,
   },
 };
@@ -1410,7 +1410,6 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  {
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
    value.has_boolean = true;
-   value.boolean = false;
    value.boolean = (state->int_mode ? ak0991x_dev_info_array[device_select].supports_dri : false);
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
@@ -1418,7 +1417,6 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  {
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
    value.has_boolean = true;
-   value.boolean = false;
    value.boolean = (state->supports_sync_stream ? ak0991x_dev_info_array[device_select].supports_sync_stream : false);
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);

@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/09/20     026219     AKM              Corrected AK09919 IBI mode configuration
+ * 08/11/20     026218     AKM              Modified for AK09919 IBI no data problem
  * 07/16/20     026217     AKM              Support AK09919 in DAE+Polling+FIFO mode
  * 07/01/20     026216     AKM              Commented out the v026214
  * 06/16/20     026215     AKM              Separate heart beat timer stream
@@ -349,8 +351,8 @@
  *
  **/
 
-// major:02 minor:62 revision:17
+// major:02 minor:62 revision:19
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      17
+#define AK0991X_DRV_VER_REV      19
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

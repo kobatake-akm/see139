@@ -476,7 +476,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     {
       AK0991X_INST_PRINT(MED, instance, "already in i3c mode");
     }
-    return SNS_RC_SUCCESS;
+    //return SNS_RC_SUCCESS;
   }
 
   i2c_com_config.slave_control = com_port->i2c_address;
