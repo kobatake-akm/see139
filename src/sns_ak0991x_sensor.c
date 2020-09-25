@@ -206,7 +206,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .ranges               = {AK09919_MIN_RANGE, AK09919_MAX_RANGE},
     .operating_modes      = ak09919_ope_mode_table,
     .operating_modes_num  = ARR_SIZE(ak09919_ope_mode_table),
-    .supports_dri         = ture,/* IBI is a kind of DRI function. See sns_std_sensor.proto */
+    .supports_dri         = true,/* IBI is a kind of DRI function. See sns_std_sensor.proto */
     .supports_sync_stream = false,
   },
 };
