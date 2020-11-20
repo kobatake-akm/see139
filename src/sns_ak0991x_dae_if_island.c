@@ -525,16 +525,9 @@ static void process_fifo_samples(
                 }
                 else
                 {
-                  if(state->fifo_flush_in_progress || state->dae_if.mag.flushing_data || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
-                  {
-                    ak0991x_send_fifo_flush_done(this);
-                  }
-                  else
-                  {
-                    state->num_samples = 1;
-                    fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
-                    state->first_data_ts_of_batch = state->system_time;
-                  }
+                  state->num_samples = 1;
+                  fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                  state->first_data_ts_of_batch = state->system_time;
                 }
               }
               else
