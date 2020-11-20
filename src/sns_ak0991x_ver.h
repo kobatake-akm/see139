@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/13/20     026220     AKM              Add dummy data when flush requst in num_sample =0 condition(For MAG-023 in DAE+IBI+FIFO)
  * 09/09/20     026219     AKM              Corrected AK09919 IBI mode configuration
  * 09/01/20     026218     Qualcomm         Enable DRI field in physical config msg
  * 08/12/20                AKM              Modified for AK09919 IBI no data problem
@@ -355,8 +356,8 @@
  *
  **/
 
-// major:02 minor:62 revision:19
+// major:02 minor:62 revision:20
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      19
+#define AK0991X_DRV_VER_REV      20
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
