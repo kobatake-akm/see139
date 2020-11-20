@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 10/14/20     026221     AKM              Corrected fifo_watermark and dae_watermark calculated condition(For MAG-081 in DAE+IBI+FIFO)
  * 10/13/20     026220     AKM              Add dummy data when flush requst in num_sample =0 condition(For MAG-023 in DAE+IBI+FIFO)
  * 09/09/20     026219     AKM              Corrected AK09919 IBI mode configuration
  * 09/01/20     026218     Qualcomm         Enable DRI field in physical config msg
@@ -356,8 +357,8 @@
  *
  **/
 
-// major:02 minor:62 revision:20
+// major:02 minor:62 revision:21
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      20
+#define AK0991X_DRV_VER_REV      21
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
