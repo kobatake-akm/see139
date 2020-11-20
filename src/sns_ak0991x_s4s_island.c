@@ -239,7 +239,7 @@ static sns_time convert_bus_ts( sns_time bus_ts )
   sns_time now = sns_get_system_time();
   bus_ts = 0xFFFFFFFFULL & bus_ts;
   ts = (now & (UINT64_MAX << 32 << 7)) | (bus_ts<<7);
-  
+
   if(ts > now)
   {
     // rollover -- subtract 1<<32<<7;

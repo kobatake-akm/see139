@@ -110,7 +110,7 @@ static sns_rc ak0991x_wait_drdy_poll(sns_sensor_instance *const this,
  * SNS_RC_FAILED
  * SNS_RC_SUCCESS
  */
-static 
+static
 sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
                             uint32_t *err)
 {
@@ -120,7 +120,7 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   uint8_t  buffer[AK0991X_NUM_DATA_ST1_TO_ST2];
   int16_t  data[3];
   int      i;
-  
+
   ak0991x_instance_state *state =
     (ak0991x_instance_state *)this->state->state;
 

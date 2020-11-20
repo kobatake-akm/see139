@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -216,7 +216,7 @@ typedef struct ak0991x_state
   bool use_fifo;
   bool supports_sync_stream;
   uint8_t resolution_idx;
-  int64_t hardware_id;
+  uint8_t hardware_id;
   ak0991x_int_op_mode int_mode;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   uint32_t registration_idx;

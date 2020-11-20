@@ -755,7 +755,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
   int hw_id = 0;
   int i = 0;
   int j = 0;
-  
+
   pb_istream_t stream = pb_istream_from_buffer((void*)event->event,
       event->event_len);
 
@@ -767,7 +767,7 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
     pb_buffer_arg group_name = {0,0};
     read_event.name.arg = &group_name;
     read_event.name.funcs.decode = pb_decode_string_cb;
- 
+
     if(!pb_decode(&stream, sns_registry_read_event_fields, &read_event))
     {
       SNS_PRINTF(ERROR, this, "Error decoding registry event");
@@ -1557,7 +1557,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   sns_rc           rv = SNS_RC_SUCCESS;
   sns_sensor_event *event;
   SNS_PRINTF(HIGH, this, "timer_events");
-  
+
   if(NULL != state->timer_stream)
   {
     event = state->timer_stream->api->peek_input(state->timer_stream);
@@ -1573,7 +1573,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
-          SNS_PRINTF(HIGH, this, "process_timer_events: hw_id = %d, state=%u",state->hardware_id, 
+          SNS_PRINTF(HIGH, this, "process_timer_events: hw_id = %d, state=%u",state->hardware_id,
                         state->power_rail_pend_state);
 
           if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_INIT)
@@ -1766,7 +1766,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                 inst_state->last_flush_poll_check_count++;
               }
             }
-            
+
             if(NULL == instance)
             {
               if (state->rail_config.rail_vote != SNS_RAIL_OFF)
@@ -1871,7 +1871,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     //     a. Perform flush on the instance.
     //     b. Return NULL.
 
-    if (NULL == instance && 
+    if (NULL == instance &&
         // first request cannot be a Flush request
         SNS_STD_MSGID_SNS_STD_FLUSH_REQ != new_request->message_id)
     {
@@ -1937,7 +1937,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         // Keep the exist_request and Reject the incoming stream request.
         if (!inst_state->in_self_test)
         {
-          if(SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id) 
+          if(SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id)
           {
              AK0991X_PRINT(LOW,this,"Request for resetting cal data.");
              ak0991x_reset_cal_data(instance);
@@ -1956,8 +1956,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               instance->cb->remove_client_request(instance, exist_request);
             }
 
-            AK0991X_PRINT(LOW, this, "Add the new request to list, message_id=%d rail_state=%d", 
-              (uint32_t)new_request->message_id, 
+            AK0991X_PRINT(LOW, this, "Add the new request to list, message_id=%d rail_state=%d",
+              (uint32_t)new_request->message_id,
               (uint32_t)state->power_rail_pend_state);
             instance->cb->add_client_request(instance, new_request);
 
@@ -1975,7 +1975,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                 state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
                 state->remove_timer_stream = true;
               }
-              
+
               sns_std_request decoded_request;
               sns_std_sensor_config decoded_payload = sns_std_sensor_config_init_default;
               ak0991x_get_decoded_mag_request(this, new_request, &decoded_request,
@@ -1994,6 +1994,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                                 (float)state->max_odr);
               if(rv != SNS_RC_SUCCESS || decoded_payload.sample_rate <= 0.0f)
               {
+
                 sns_std_error_event error_event;
                 error_event.error = SNS_STD_ERROR_INVALID_VALUE;
                 pb_send_event(instance,
@@ -2017,16 +2018,24 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               }
             }
             else if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
-               new_request->message_id)
+                    new_request->message_id)
             {
+              AK0991X_PRINT(LOW, this, "new_self_test_request = true");
               if(ak0991x_extract_self_test_info(this, instance, new_request))
               {
-                AK0991X_PRINT(LOW, this, "new_self_test_request = true");
+                if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF ||
+                    state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH )
+                {
+                  AK0991X_PRINT(HIGH, this, "self test request received but power rail state is %u",
+                                state->power_rail_pend_state);
+                  state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+                  state->remove_timer_stream = true;
+                }
                 inst_state->in_self_test = true;
-                   AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
+                AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
                 ak0991x_set_self_test_inst_config(this, instance);
+                ak0991x_reval_instance_config(this, instance);
               }
-              ak0991x_reval_instance_config(this, instance);
             }
             else
             {
@@ -2196,7 +2205,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                                              this,
                                                              &state->rail_config,
                                                              &timeticks); /* ignored */
-    
+
     SNS_PRINTF(HIGH, this, "start power timer #3:  hw_id = %d, pend_state = %d", state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_INIT);
     ak0991x_start_power_rail_timer(this,
                                    sns_convert_ns_to_ticks(
@@ -2319,7 +2328,7 @@ ak0991x_encode_registry_group_cb(struct pb_ostream_s *stream, struct pb_field_s 
       pb_item.flt = state->cal.params[state->cal.id].bias[i];
       pb_item.has_version = true;
       pb_item.version = state->cal.params[state->cal.id].version;
-      
+
       if(!pb_encode_tag_for_field(stream, field))
         return false;
 

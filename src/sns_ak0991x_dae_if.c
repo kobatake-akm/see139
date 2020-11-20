@@ -226,8 +226,8 @@ void ak0991x_dae_if_process_sensor_events(sns_sensor *this)
 bool ak0991x_dae_if_is_initializing(sns_sensor_instance *this)
 {
   ak0991x_dae_if_info *dae_if = &((ak0991x_instance_state*)this->state->state)->dae_if;
-  return(dae_if->mag.stream != NULL && 
-         dae_if->mag.stream_usable  && 
+  return(dae_if->mag.stream != NULL &&
+         dae_if->mag.stream_usable  &&
          dae_if->mag.state == INIT_PENDING);
 }
 
