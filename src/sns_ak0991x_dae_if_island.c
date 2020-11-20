@@ -1042,7 +1042,7 @@ static void process_response(
       {
         if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM)
         {
-          if(state->mag_info.use_fifo && state->mag_info.cur_cfg.fifo_wmk > 1)
+          if(state->mag_info.use_fifo)
           {
             state->this_is_the_last_flush = true;
             if(ak0991x_dae_if_flush_hw(this))
