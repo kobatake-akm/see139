@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/12/20     026224     AKM              Added desired_sample_rate variable to UNUSER_VER(this) under non-DAE situation
  * 11/07/20     026223     AKM              Fixed dropped Mag sample problem while DAE flushing_data in unnormal system_ts situation(For MAG-123 in DAE+Polling+FIFO)
  * 10/15/20     026222     AKM              Call Flush hw in IBI+FIFO When watermark=1(For MAG-041 in DAE+IBI+FIFO)
  * 10/14/20     026221     AKM              Corrected fifo_watermark and dae_watermark calculated condition(For MAG-081 in DAE+IBI+FIFO)
@@ -359,8 +360,8 @@
  *
  **/
 
-// major:02 minor:62 revision:23
+// major:02 minor:62 revision:24
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      23
+#define AK0991X_DRV_VER_REV      24
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

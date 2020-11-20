@@ -604,6 +604,7 @@ static uint32_t ak0991x_calc_dae_wmk(
   dae_wmk = fifo_wmk; // dae_wmk = fifo_wmk when nonDAE? (MAG-042 on DRI+FIFO+nonDAE still fails)
   UNUSED_VAR(this);
   UNUSED_VAR(desired_report_rate);
+  UNUSED_VAR(desired_sample_rate);
   UNUSED_VAR(mag_chosen_sample_rate);
 #endif
   return dae_wmk;
