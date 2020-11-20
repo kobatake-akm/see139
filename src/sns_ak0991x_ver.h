@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/13/20     026225     AKM              Corrected report data policy and timestamp calculated method When register buffer data sample numbers exceed WM
  * 11/12/20     026224     AKM              Added desired_sample_rate variable to UNUSER_VER(this) under non-DAE situation
  * 11/07/20     026223     AKM              Fixed dropped Mag sample problem while DAE flushing_data in unnormal system_ts situation(For MAG-123 in DAE+Polling+FIFO)
  * 10/15/20     026222     AKM              Call Flush hw in IBI+FIFO When watermark=1(For MAG-041 in DAE+IBI+FIFO)
@@ -360,8 +361,8 @@
  *
  **/
 
-// major:02 minor:62 revision:24
+// major:02 minor:62 revision:25
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      24
+#define AK0991X_DRV_VER_REV      25
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

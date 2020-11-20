@@ -1606,7 +1606,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   size_t num_bytes_to_report;
   num_bytes_to_report = num_bytes;
 
-  int8_t over_sample;
+  int8_t over_sample = 0;
 
   //skip the data to adjust timing for Polling+FIFO
   if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && state->mag_info.use_fifo)
@@ -1626,14 +1626,9 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
         over_sample = state->num_samples - state->mag_info.cur_cfg.fifo_wmk;
       }
     }
-
-    if(over_sample > 0)
-    {
-      num_bytes_to_report -= over_sample * 8;
-    }
   }
 
-  for(i = 0; i < num_bytes_to_report; i += AK0991X_NUM_DATA_HXL_TO_ST2)
+  for(i = over_sample * 8 ; i < num_bytes_to_report ; i += AK0991X_NUM_DATA_HXL_TO_ST2)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     report_time = timestamp - state->half_measurement_time;
@@ -1938,7 +1933,14 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
     }
   }
 
-  state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
+  if(state->num_samples > state->mag_info.cur_cfg.fifo_wmk)
+  {
+    state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->mag_info.cur_cfg.fifo_wmk - 1);
+  }
+  else
+  {
+    state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
+  }
 }
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
@@ -1993,7 +1995,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
           if(state->flush_sample_count == 0) //both previous and current event are Polling
           {
 //            AK0991X_INST_PRINT(LOW, instance, "both pre and cur event is polling");
-            state->num_samples = state->mag_info.cur_cfg.fifo_wmk;
+            state->num_samples = ((st1_buf >> 2) > state->mag_info.cur_cfg.fifo_wmk) ? (st1_buf >> 2) : state->mag_info.cur_cfg.fifo_wmk;
           }
           else //previous event is requested FLUSH and current event is Polling
           {
@@ -2023,7 +2025,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
         }
       }
 
-      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_cfg.fifo_wmk);
+      AK0991X_INST_PRINT(MED, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_cfg.fifo_wmk);
 
       if(state->num_samples == 0)
       {
