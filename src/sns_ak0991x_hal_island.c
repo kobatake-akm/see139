@@ -1626,6 +1626,11 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
         over_sample = state->num_samples - state->mag_info.cur_cfg.fifo_wmk;
       }
     }
+
+    if(over_sample < 0)
+    {
+      over_sample = 0;
+    }
   }
 
   for(i = over_sample * 8 ; i < num_bytes_to_report ; i += AK0991X_NUM_DATA_HXL_TO_ST2)
