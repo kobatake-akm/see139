@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/14/20     026227     AKM              Fixed over_sample negative value problem in Polling+FIFO mode
  * 12/10/20     026226     AKM              Fixed "only_dae_wmk_is_changed" variable state change condition when Multi-request comes in dummy measurement process
  * 11/13/20     026225     AKM              Corrected report data policy and timestamp calculated method When register buffer data sample numbers exceed WM
  * 11/12/20     026224     AKM              Added desired_sample_rate variable to UNUSER_VER(this) under non-DAE situation
@@ -362,8 +363,8 @@
  *
  **/
 
-// major:02 minor:62 revision:26
+// major:02 minor:62 revision:27
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      26
+#define AK0991X_DRV_VER_REV      27
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
