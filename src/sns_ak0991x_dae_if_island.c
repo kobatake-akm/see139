@@ -431,7 +431,7 @@ static void process_fifo_samples(
     }
   }
 
-  if(((state->mag_info.int_mode != AK0991X_INT_OP_MODE_IRQ) && (state->mag_info.use_fifo)) && (0 == state->num_samples) && !state->mag_info.use_sync_stream)
+  if(((state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) && (state->mag_info.use_fifo)) && (0 == state->num_samples) && !state->mag_info.use_sync_stream)
   {
     state->num_samples = 1;
     fifo_len = AK0991X_NUM_DATA_HXL_TO_ST2;
