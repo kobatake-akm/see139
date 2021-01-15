@@ -310,6 +310,67 @@ static sns_rc ak0991x_log_sensor_state_raw_add(
 }
 
 /**
+ * Turn on/off Com Port Service if not yet.
+ *
+ * @param[i] state            sensor instance state
+ * @param[i] turn_on          true to turn on, false to turn off
+ * @return sns_rc
+ */
+sns_rc ak0991x_update_bus_power( ak0991x_instance_state* const state, bool turn_on)
+{
+   sns_rc com_rv = SNS_RC_SUCCESS;
+   if (turn_on != state->bus_pwr_on)
+   {
+     com_rv = state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, turn_on);
+     if (SNS_RC_SUCCESS == com_rv)
+     {
+       state->bus_pwr_on = turn_on;
+     }
+   }
+  return com_rv;
+}
+
+/**
+ * Read wrapper for Synch Com Port Service for instances
+ *
+ * @param[i] this      port handle
+ * @param[i] port_handle      port handle
+ * @param[i] reg_addr         register address
+ * @param[i] buffer           read buffer
+ * @param[i] bytes            bytes to read
+ * @param[o] xfer_bytes       bytes read
+ *
+ * @return sns_rc
+ */
+sns_rc ak0991x_com_read_wrapper_instance( ak0991x_instance_state*const state,
+                                          sns_sync_com_port_service * scp_service,
+                                          sns_sync_com_port_handle *port_handle,
+                                          uint32_t reg_addr,
+                                          uint8_t *buffer,
+                                          uint32_t bytes,
+                                          uint32_t *xfer_bytes)
+{
+  sns_port_vector port_vec;
+  port_vec.buffer = buffer;
+  port_vec.bytes = bytes;
+  port_vec.is_write = false;
+  port_vec.reg_addr = reg_addr;
+
+  sns_rc com_rv = SNS_RC_SUCCESS;
+  com_rv = ak0991x_update_bus_power(state, true);
+
+  if( SNS_RC_SUCCESS == com_rv )
+  {
+     com_rv = ak0991x_com_read_wrapper(scp_service,
+           port_handle,
+           reg_addr,
+           buffer,
+           bytes,
+           xfer_bytes);
+  }
+  return com_rv;
+}
+/**
  * Read wrapper for Synch Com Port Service.
  *
  * @param[i] port_handle      port handle
@@ -367,11 +428,15 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
   port_vec.bytes = bytes;
   port_vec.is_write = true;
   port_vec.reg_addr = reg_addr;
-
+  sns_rc com_rv = SNS_RC_SUCCESS;
+  if(this)
+  {
+     ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+     com_rv = ak0991x_update_bus_power(state, true);
+  }
 #ifdef AK0991X_VERBOSE_DEBUG
   if( this )
   {
-    ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
     sns_diag_service *diag = state->diag_service;
     if( diag )
     {
@@ -383,11 +448,16 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
 #else
   UNUSED_VAR( this );
 #endif
-  return scp_service->api->sns_scp_register_rw(port_handle,
+  if( SNS_RC_SUCCESS == com_rv )
+  {
+     com_rv = scp_service->api->sns_scp_register_rw(port_handle,
                                                &port_vec,
                                                1,
                                                save_write_time,
                                                xfer_bytes);
+
+  }
+  return com_rv;
 }
 
 void ak0991x_clear_old_events(sns_sensor_instance *const instance)
@@ -1182,7 +1252,8 @@ sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
 
 
   // Read Fuse ROM
-  rv = ak0991x_com_read_wrapper(scp_service,
+  rv = ak0991x_com_read_wrapper_instance((ak0991x_instance_state*)this->state->state,
+                                scp_service,
                                 port_handle,
                                 AKM_AK0991X_FUSE_ASAX,
                                 &asa[0],
@@ -1263,7 +1334,8 @@ sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
-  rv = ak0991x_com_read_wrapper(state->scp_service,
+  rv = ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
@@ -1296,7 +1368,8 @@ static sns_rc ak0991x_read_st2(ak0991x_instance_state *state,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
-  rv = ak0991x_com_read_wrapper(state->scp_service,
+  rv = ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST2,
                                 buffer,
@@ -1328,7 +1401,8 @@ sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
   uint32_t xfer_bytes;
 
   // ST1 read
-  rv = ak0991x_com_read_wrapper(state->scp_service,
+  rv = ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
@@ -1340,7 +1414,8 @@ sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
   }
 
   // HXL to ST2
-  rv |= ak0991x_com_read_wrapper(state->scp_service,
+  rv |= ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_HXL,
                                 &buffer[1],
@@ -1374,7 +1449,8 @@ static sns_rc ak0991x_read_hxl_st2(ak0991x_instance_state *state,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
-  rv = ak0991x_com_read_wrapper(state->scp_service,
+  rv = ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_HXL,
                                 buffer,
@@ -2455,8 +2531,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_cal
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_cal_event cal_event = sns_cal_event_init_default;
-
-  if(is_new_cal)
+  if(is_new_cal || state->last_cal_event_sent_time == 0)
   {
     state->last_cal_event_sent_time = sns_get_system_time();
   }

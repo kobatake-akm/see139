@@ -22,6 +22,11 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 12/24/20     026223     Qualcomm         Refactored to avoid multiple bus on-off operations for DAE enabled devices
+ * 11/19/20     026222     Qualcomm         Fixed - Mag sending cal event with TS=0 when 2 requests are made withing a short interval
+ * 09/28/20     026221     Qualcomm         Fix Registry disabled mode function
+ * 09/28/20     026220     Qualcomm         Freeing resources if first request is rejected
+ * 09/23/20     026219     Qualcomm         Fixed power rail timer bugs
  * 09/01/20     026218     Qualcomm         Enable DRI field in physical config msg
  * 08/11/20     026217     Qualcomm         Fixed timestamp jitter due to HW flushing in polling mode
  * 07/09/20     026216     Qualcomm         Must handle PWR rail Timer for Self Test Request
@@ -350,8 +355,8 @@
  *
  **/
 
-// major:02 minor:62 revision:10
+// major:02 minor:62 revision:21
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      18
+#define AK0991X_DRV_VER_REV      23
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
