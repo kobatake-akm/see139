@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 01/08/21     026229     AKM              Added dummy data and corrected dummy data timestamp calculated method in data no-ready status except recieved flush request codition(For MAG-139 in DAE+Polling+FIFO)
  * 12/24/20     026228     AKM              Deleted dummy data when flush request comes in num_sample= 0 condition(For MAG-034 in DAE+IBI+FIFO)
  * 12/14/20     026227     AKM              Fixed over_sample negative value problem in Polling+FIFO mode
  * 12/10/20     026226     AKM              Fixed "only_dae_wmk_is_changed" variable state change condition when Multi-request comes in dummy measurement process
@@ -364,8 +365,8 @@
  *
  **/
 
-// major:02 minor:62 revision:28
+// major:02 minor:62 revision:29
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      28
+#define AK0991X_DRV_VER_REV      29
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
