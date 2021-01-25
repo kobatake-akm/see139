@@ -454,6 +454,15 @@ sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
 							uint8_t *buffer);
 
 /**
+ * Turn on/off Com Port Service if not yet.
+ *
+ * @param[i] state            sensor instance state
+ * @param[i] turn_on          true to turn on, false to turn off
+ * @return sns_rc
+ */
+sns_rc ak0991x_update_bus_power(ak0991x_instance_state*const state, bool turn_on);
+
+/**
  * Read wrapper for Synch Com Port Service.
  *
  * @param[i] port_handle      port handle

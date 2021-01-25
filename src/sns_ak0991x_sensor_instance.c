@@ -148,6 +148,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
+  state->bus_pwr_on = false;
   state->diag_service = (sns_diag_service *)
     service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
   state->scp_service = (sns_sync_com_port_service *)
@@ -484,12 +485,12 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 
   if(NULL != state->com_port_info.port_handle)
   {
-    state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, true);
-    if(SNS_RC_SUCCESS == ak0991x_enter_i3c_mode(this, &state->com_port_info, state->scp_service))
-    {
-      ak0991x_reconfig_hw(this, false);
-    }
-    state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, false);
+     ak0991x_update_bus_power(state, true);
+     if(SNS_RC_SUCCESS == ak0991x_enter_i3c_mode(this, &state->com_port_info, state->scp_service))
+     {
+        ak0991x_reconfig_hw(this, false);
+     }
+     ak0991x_update_bus_power(state, false);
   }
 
   ak0991x_dae_if_deinit(this);
@@ -686,10 +687,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       (uint32_t)state->pre_timestamp,
       state->total_samples);
 
-  // Turn COM port ON
-  state->scp_service->api->sns_scp_update_bus_power(
-    state->com_port_info.port_handle,
-    true);
 
   if (client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
@@ -787,9 +784,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
 
         // Turn COM port OFF
-        state->scp_service->api->sns_scp_update_bus_power(
-                                                          state->com_port_info.port_handle,
-                                                          false);
+        ak0991x_update_bus_power(state, false);
         return SNS_RC_SUCCESS;
       }
       AK0991X_INST_PRINT(LOW, this, "Same ODR and Same WM but DAE_WMK is different.");
@@ -848,9 +843,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement is still running. save request.");
 
       // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-                                                        state->com_port_info.port_handle,
-                                                        false);
+      ak0991x_update_bus_power(state, false);
+
       return SNS_RC_SUCCESS;
     }
 
@@ -860,9 +854,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "Waiting for DAE init result");
 
       // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-                                                        state->com_port_info.port_handle,
-                                                        false);
+      ak0991x_update_bus_power(state, false);
       return SNS_RC_SUCCESS;
     }
 #endif //AK0991X_ENABLE_DAE
@@ -1056,9 +1048,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
 
   // Turn COM port OFF
-  state->scp_service->api->sns_scp_update_bus_power(
-    state->com_port_info.port_handle,
-    false);
+  ak0991x_update_bus_power(state, false);
 
   return SNS_RC_SUCCESS;
 }

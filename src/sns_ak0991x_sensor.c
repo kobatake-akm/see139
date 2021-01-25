@@ -579,28 +579,40 @@ static void ak0991x_start_power_rail_timer(sns_sensor *const this,
 
     sns_suid_lookup_get(&state->suid_lookup_data, "timer", &suid);
     stream_svc->api->create_sensor_stream(stream_svc, this, suid,
-                                                &state->timer_stream);
-    state->remove_timer_stream = false;
+                                          &state->timer_stream);
   }
 
-  req_len = pb_encode_request(buffer, sizeof(buffer), &req_payload,
-                              sns_timer_sensor_config_fields, NULL);
+  if(state->timer_stream != NULL)
+  {
+    req_len = pb_encode_request(buffer, sizeof(buffer), &req_payload,
+                                sns_timer_sensor_config_fields, NULL);
 
-  if (req_len > 0)
-  {
-    sns_request timer_req =
-    {  .message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG,
-       .request = buffer, .request_len = req_len};
-    state->timer_stream->api->send_request(state->timer_stream, &timer_req);
-    state->power_rail_pend_state = pwr_rail_pend_state;
-    SNS_PRINTF(HIGH, this, "power timer is started: hw_id = %u, pend_state = %u",
-        (uint32_t)state->hardware_id,
-        (uint32_t)pwr_rail_pend_state);
+    if (req_len > 0)
+    {
+      sns_request timer_req =
+      {  .message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG,
+         .request = buffer, .request_len = req_len};
+      state->timer_stream->api->send_request(state->timer_stream, &timer_req);
+      state->power_rail_pend_state = pwr_rail_pend_state;
+      SNS_PRINTF(HIGH, this, "power timer is started: hw_id = %u, pend_state = %u",
+          (uint32_t)state->hardware_id,
+          (uint32_t)pwr_rail_pend_state);
+    }
+    else
+    {
+      SNS_PRINTF(ERROR, this, "AK0991x timer req encode error");
+    }
   }
-  else
-  {
-    SNS_PRINTF(ERROR, this, "AK0991x timer req encode error");
-  }
+}
+
+static void ak0991x_cancel_power_rail_timer(sns_sensor *const this)
+{
+  ak0991x_state *state = (ak0991x_state *)this->state->state;
+
+  SNS_PRINTF(HIGH, this, "cancel_power_rail_timer: hw_id = %u, pend_state = %u",
+             state->hardware_id, state->power_rail_pend_state);
+  state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
+  sns_sensor_util_remove_sensor_stream(this, &state->timer_stream);
 }
 
 #ifdef AK0991X_ENABLE_REGISTRY_ACCESS
@@ -1556,7 +1568,6 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
   uint8_t          buffer[AK0991X_NUM_READ_DEV_ID];
   sns_rc           rv = SNS_RC_SUCCESS;
   sns_sensor_event *event;
-  SNS_PRINTF(HIGH, this, "timer_events");
 
   if(NULL != state->timer_stream)
   {
@@ -1578,6 +1589,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
           if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_INIT)
           {
+            state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
             rv = ak0991x_enter_i3c_mode(NULL, &state->com_port_info, state->scp_service);
             if (rv == SNS_RC_SUCCESS)
             {
@@ -1641,14 +1653,16 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
                   state->device_select = AK09919;
                   break;
                 default:
-                  SNS_PRINTF(ERROR, this, "Unsupported Sensor");
+                  SNS_PRINTF(ERROR, this, "Wrong dev ID %02x %02x %02x %02x",
+                             buffer[0], buffer[1], buffer[2], buffer[3]);
                   rv = SNS_RC_INVALID_STATE;
                   break;
                 }
               }
               else
               {
-                SNS_PRINTF(ERROR, this, "Unsupported Sensor");
+                SNS_PRINTF(ERROR, this, "Wrong company ID %02x %02x %02x %02x",
+                           buffer[0], buffer[1], buffer[2], buffer[3]);
                 rv = SNS_RC_INVALID_STATE;
               }
             }
@@ -1684,30 +1698,27 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             state->scp_service->api->
               sns_scp_deregister_com_port(&state->com_port_info.port_handle);
 
-            /**----------------------Turn Power Rail OFF--------------------------*/
-            SNS_PRINTF(HIGH, this, "start power timer #0:  hw_id = %d, pend_state = %d", (uint32_t)state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_OFF);
-            ak0991x_start_power_rail_timer(this,
-                                           sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
-                                           AK0991X_POWER_RAIL_PENDING_OFF);
-
             if (state->hw_is_present)
             {
+              /**----------------------Turn Power Rail OFF--------------------------*/
+              SNS_PRINTF(HIGH, this, "start power timer #0:  hw_id = %d, pend_state = %d", (uint32_t)state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_OFF);
+              ak0991x_start_power_rail_timer(this,
+                                             sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
+                                             AK0991X_POWER_RAIL_PENDING_OFF);
+
               ak0991x_publish_hw_attributes(this, state->device_select);
               ak0991x_sensor_publish_available(this);
-              AK0991X_PRINT(MED, this, "AK0991X HW present. device_select: %u",
-                                       state->device_select);
+              SNS_PRINTF(MED, this, "AK0991X HW present. device_select: %u", state->device_select);
               ak0991x_dae_if_check_support(this);
             }
             else
             {
-              AK0991X_PRINT(MED, this, "AK0991X HW absent");
+              SNS_PRINTF(MED, this, "AK0991X HW absent");
               state->rail_config.rail_vote = SNS_RAIL_OFF;
               SNS_PRINTF(HIGH, this, "vote_power_rail_update: RAIL_OFF, hw_id = %d", state->hardware_id);
               state->pwr_rail_service->api->
               sns_vote_power_rail_update(state->pwr_rail_service, this,
-                            &state->rail_config,     NULL);
-              state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-              state->remove_timer_stream = true;
+                                         &state->rail_config,     NULL);
             }
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ)
@@ -1717,7 +1728,6 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             AK0991X_PRINT(LOW, this, "state = SET_CLIENT_REQ");
 
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-            state->remove_timer_stream = true;
 
             ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
 
@@ -1744,7 +1754,6 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
             sns_vote_power_rail_update(state->pwr_rail_service, this,
                                       &state->rail_config,     NULL);
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-            state->remove_timer_stream = true;
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH)
           {
@@ -1759,6 +1768,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
               {
                 SNS_PRINTF(HIGH, this, "Mag: remove instance, hw_id = %d, inst = %x", state->hardware_id, instance);
                 this->cb->remove_instance(instance);
+                instance = NULL;
               }
               else
               {
@@ -1799,10 +1809,11 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
       }
       event = state->timer_stream->api->get_next_input(state->timer_stream);
     }
-  }
-  else
-  {
-     SNS_PRINTF(HIGH, this, "timer stream is NULL");
+
+    if(state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
+    {
+      sns_sensor_util_remove_sensor_stream(this, &state->timer_stream);
+    }
   }
   return rv;
 }
@@ -1814,6 +1825,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                                 bool remove)
 {
   sns_sensor_instance *instance = sns_sensor_util_get_shared_instance(this);
+  sns_sensor_instance *return_instance = instance;
   ak0991x_state *state = (ak0991x_state *)this->state->state;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   sns_sensor_uid mag_suid = (state->registration_idx == 0)? (sns_sensor_uid)MAG_SUID1 : (sns_sensor_uid)MAG_SUID2;
@@ -1821,7 +1833,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 #else
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif // AK0991X_ENABLE_DUAL_SENSOR
-  // bool flush_req_handled = false;
 
   AK0991X_PRINT(HIGH, this, "### set_client_request - msg_id=%d/%d remove=%u",
                 exist_request ? exist_request->message_id : -1,
@@ -1849,7 +1860,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
     }
   }
-  else if(NULL != new_request)
+  else if(NULL != new_request && state->hw_is_present)
   {
     // 1. If new request then:
     //     a. Power ON rails.
@@ -1901,8 +1912,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       {
         // rail is already ON
         AK0991X_PRINT(MED, this, "rail is already ON");
-        state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-        state->remove_timer_stream = true;
+        ak0991x_cancel_power_rail_timer(this);
         ak0991x_enter_i3c_mode(NULL, &state->com_port_info, state->scp_service);
       }
       AK0991X_PRINT(HIGH, this, "Creating instance");
@@ -1910,6 +1920,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       /** create_instance() calls init() for the Sensor Instance */
       instance = this->cb->create_instance(this,
                                            sizeof(ak0991x_instance_state));
+      return_instance = instance;
       SNS_PRINTF(HIGH, this, "Mag: create instance hw_id = %d, inst = %x", state->hardware_id, instance);
     }
 
@@ -1929,7 +1940,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         {
           ak0991x_send_flush_config(this, instance);
         }
-        // flush_req_handled = true;
+        return_instance = &sns_instance_no_error;
       }
       else // other than flush request
       {
@@ -1946,6 +1957,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
              ak0991x_update_registry(this, instance);
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
              ak0991x_send_cal_event(instance, true);    // send new cal event
+             return_instance = &sns_instance_no_error;
           }
           else
           {
@@ -1963,17 +1975,12 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
 
             if(SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG == new_request->message_id)
             {
-              if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF )
+              if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF ||
+                  state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH )
               {
-                AK0991X_PRINT(HIGH, this, "new request received but power rail state is AK0991X_POWER_RAIL_PENDING_OFF");
-                state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-                state->remove_timer_stream = true;
-              }
-              else if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH )
-              {
-                AK0991X_PRINT(HIGH, this, "new request received but power rail state is AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH");
-                state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-                state->remove_timer_stream = true;
+                AK0991X_PRINT(HIGH, this, "new request received but power rail state is %u",
+                              state->power_rail_pend_state);
+                ak0991x_cancel_power_rail_timer(this);
               }
 
               sns_std_request decoded_request;
@@ -2010,7 +2017,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                   SNS_PRINTF(HIGH, this, "restoring existing req");
                   instance->cb->add_client_request(instance, exist_request);
                 }
-                instance = NULL; // no instance is handling this invalid request
+                return_instance = NULL; // no instance is handling this invalid request
               }
               else
               {
@@ -2028,8 +2035,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                 {
                   AK0991X_PRINT(HIGH, this, "self test request received but power rail state is %u",
                                 state->power_rail_pend_state);
-                  state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-                  state->remove_timer_stream = true;
+                  ak0991x_cancel_power_rail_timer(this);
                 }
                 inst_state->in_self_test = true;
                 AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
@@ -2039,15 +2045,16 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             }
             else
             {
-              SNS_PRINTF(HIGH, this, "Invalid on change request. Reject request.");
-              instance = NULL; // no instance is handling this invalid request
+              SNS_PRINTF(HIGH, this, "Rejecting unsupported request type %u", new_request->message_id);
+              instance->cb->remove_client_request(instance, new_request);
+              return_instance = NULL; // no instance is handling this unsupported request
             }
           }
         }
         else
         {
           AK0991X_PRINT(LOW, this, "self-test is still running. Reject the incoming stream request.");
-          instance = NULL;
+          return_instance = NULL;
         }
       }
     }
@@ -2093,7 +2100,8 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       ak0991x_state *sensor_state = (ak0991x_state *)sensor->state->state;
       SNS_PRINTF(HIGH, this, "checking ps: hw_id = %d, rail_vote = %u", sensor_state->hardware_id, sensor_state->rail_config.rail_vote);
 
-      if (sensor_state->rail_config.rail_vote != SNS_RAIL_OFF)
+      if (sensor_state->rail_config.rail_vote != SNS_RAIL_OFF &&
+          state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
       {
         SNS_PRINTF(HIGH, this, "start power timer #2:  hw_id = %d, pend_state = %d", state->hardware_id, (uint8_t)pending_state);
         ak0991x_start_power_rail_timer(this,
@@ -2103,11 +2111,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
     }
   }
 
-  if(NULL != new_request &&
-     SNS_CAL_MSGID_SNS_CAL_RESET == new_request->message_id)
-  {
-    instance = &sns_instance_no_error;
-  }
   /* TODO: The following code is added in the version 2.62.14.
    *       But after that, we found this code cause system crush in some cases.
    *       We hope updated SCEP package will resolve this error in future.
@@ -2118,7 +2121,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   //   instance = &sns_instance_no_error;
   // }
 
-  return instance;
+  return return_instance;
 }
 
 /** See sns_ak0991x_sensor.h*/
@@ -2127,15 +2130,16 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
   sns_rc           rv = SNS_RC_SUCCESS;
 
-  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
-  sns_stream_service *stream_svc = (sns_stream_service*)
-    service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
-
   AK0991X_PRINT(LOW, this, "ak0991x_sensor_notify_event");
 
   if (!sns_suid_lookup_complete(&state->suid_lookup_data))
   {
     sns_suid_lookup_handle(this, &state->suid_lookup_data);
+#ifndef AK0991X_ENABLE_REGISTRY_ACCESS
+    sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+    sns_stream_service *stream_svc = (sns_stream_service*)
+      service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+
     if (state->timer_stream == NULL)
     {
       sns_sensor_uid timer_suid;
@@ -2144,14 +2148,13 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
       {
         stream_svc->api->create_sensor_stream(stream_svc, this, timer_suid,
                                               &state->timer_stream);
-        state->remove_timer_stream = false;
         if(NULL == state->timer_stream)
         {
           SNS_PRINTF(ERROR, this, "Failed to create timer stream");
         }
       }
     }
-#ifdef AK0991X_ENABLE_REGISTRY_ACCESS
+#else
     sns_sensor_uid reg_suid;
     if (sns_suid_lookup_get(&state->suid_lookup_data, "registry", &reg_suid))
     {
@@ -2195,7 +2198,7 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
   if(rv == SNS_RC_SUCCESS &&
      !state->hw_is_present &&
      NULL != state->pwr_rail_service &&
-     NULL != state->timer_stream &&
+     sns_suid_lookup_complete(&state->suid_lookup_data) &&
      state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
   {
     sns_time timeticks;
@@ -2211,14 +2214,6 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
                                    sns_convert_ns_to_ticks(
                                    AK0991X_OFF_TO_IDLE_MS * 1000000LL),
                                    AK0991X_POWER_RAIL_PENDING_INIT);
-
-  }
-
-  if( rv == SNS_RC_SUCCESS &&
-      state->remove_timer_stream)
-  {
-    sns_sensor_util_remove_sensor_stream(this, &state->timer_stream);
-    AK0991X_PRINT(LOW, this, "timer_stream removed");
   }
 
   return rv;

@@ -197,7 +197,6 @@ typedef struct ak0991x_state
 
   bool hw_is_present;
   bool sensor_client_present;
-  bool remove_timer_stream;
 
   uint32_t debug_log_count;
 
