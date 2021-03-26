@@ -100,7 +100,10 @@ sns_rc ak0991x_com_read_wrapper_instance( ak0991x_instance_state*const state,
   port_vec.reg_addr = reg_addr;
 
   sns_rc com_rv = SNS_RC_SUCCESS;
-  com_rv = ak0991x_update_bus_power(state, true);
+  if(state)
+  {
+     com_rv = ak0991x_update_bus_power(state, true);
+  }
 
   if( SNS_RC_SUCCESS == com_rv )
   {
@@ -961,6 +964,7 @@ sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint8_t  buffer[1];
   uint32_t xfer_bytes;
+  ak0991x_instance_state *instance_state = NULL;
 
   buffer[0] = AK0991X_MAG_FUSEROM;
   // Set Fuse ROM access mode
@@ -993,9 +997,12 @@ sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
     return rv;
   }
 
-
+  if(this)
+  {
+     instance_state = (ak0991x_instance_state*)this->state->state;
+  }
   // Read Fuse ROM
-  rv = ak0991x_com_read_wrapper_instance((ak0991x_instance_state*)this->state->state,
+  rv = ak0991x_com_read_wrapper_instance(instance_state,
                                 scp_service,
                                 port_handle,
                                 AKM_AK0991X_FUSE_ASAX,

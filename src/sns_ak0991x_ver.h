@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/18/21     026226     Qualcomm         Added protection to prevent NULL pointer dereference
  * 03/02/21     026225     Qualcomm         Moved Log APIs to separate file so they can be compiled out when SNS_LOG_DISABLED is defined
  * 02/03/21     026224     Qualcomm         Skip waiting for power rail if it's already on at init time
  * 12/24/20     026223	   Qualcomm         Refactored to avoid multiple bus on-off operations for DAE enabled devices
@@ -360,5 +361,5 @@
 // major:02 minor:62 revision:21
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      25
+#define AK0991X_DRV_VER_REV      26
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
