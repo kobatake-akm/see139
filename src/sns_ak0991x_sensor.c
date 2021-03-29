@@ -1562,10 +1562,149 @@ static void ak0991x_set_self_test_inst_config(sns_sensor *this,
   this->instance_api->set_client_config(instance, &config);
 }
 
+static sns_rc ak0991x_discover_hw(sns_sensor *const this)
+{
+  ak0991x_state *state = (ak0991x_state *)this->state->state;
+  uint8_t buffer[AK0991X_NUM_READ_DEV_ID];
+  sns_rc rv = SNS_RC_SUCCESS;
+
+  rv = ak0991x_enter_i3c_mode(NULL, &state->com_port_info, state->scp_service);
+  if (rv == SNS_RC_SUCCESS)
+  {
+    AK0991X_PRINT(LOW, this, "I3C mode enabled");
+  }
+  else
+  {
+    SNS_PRINTF(ERROR, this, "Failed to enter I3C mode.");
+  }
+
+  /**-------------------Read and Confirm WHO-AM-I------------------------*/
+  rv = ak0991x_get_who_am_i(state->scp_service,
+                            state->com_port_info.port_handle, &buffer[0]);
+
+  if (rv != SNS_RC_SUCCESS)
+  {
+    SNS_PRINTF(ERROR, this, "Read WHO-AM-I error");
+    rv = SNS_RC_INVALID_LIBRARY_STATE;
+  }
+  else
+  {
+    state->who_am_i = buffer[1] << 8 | buffer[0];
+    AK0991X_PRINT(LOW, this, "Read WHO-AM-I %d",state->who_am_i);
+
+    //Check AKM device ID
+    if (buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
+    {
+      switch(buffer[1])
+      {
+      case AK09911_WHOAMI_DEV_ID:
+        state->device_select = AK09911;
+        break;
+      case AK09912_WHOAMI_DEV_ID:
+        state->device_select = AK09912;
+        break;
+      case AK09913_WHOAMI_DEV_ID:
+        state->device_select = AK09913;
+        break;
+      case AK09915_WHOAMI_DEV_ID:
+        if(buffer[3] == AK09915C_SUB_ID){
+          state->device_select = AK09915C;
+        }
+        if(buffer[3] == AK09915D_SUB_ID){
+          state->device_select = AK09915D;
+        }
+        break;
+      case AK09916C_WHOAMI_DEV_ID:
+        state->device_select = AK09916C;
+        break;
+      case AK09916D_WHOAMI_DEV_ID:
+        state->device_select = AK09916D;
+        break;
+      case AK09917_WHOAMI_DEV_ID:
+        state->device_select = AK09917;
+        state->reg_rsv1_value = buffer[2];
+        break;
+      case AK09918_WHOAMI_DEV_ID:
+        state->device_select = AK09918;
+        break;
+      case AK09919_WHOAMI_DEV_ID:
+        state->device_select = AK09919;
+        break;
+      default:
+        SNS_PRINTF(ERROR, this, "Wrong dev ID %02x %02x %02x %02x",
+                   buffer[0], buffer[1], buffer[2], buffer[3]);
+        rv = SNS_RC_INVALID_STATE;
+        break;
+      }
+    }
+    else
+    {
+      SNS_PRINTF(ERROR, this, "Wrong company ID %02x %02x %02x %02x",
+                 buffer[0], buffer[1], buffer[2], buffer[3]);
+      rv = SNS_RC_INVALID_STATE;
+    }
+  }
+  if (rv == SNS_RC_SUCCESS)
+  {
+    // Set sensitivity adjustment data
+    rv = ak0991x_set_sstvt_adj(
+                               state->scp_service,
+                               state->com_port_info.port_handle,
+                               state->device_select,
+                               &state->sstvt_adj[0]);
+  }
+  if (rv == SNS_RC_SUCCESS)
+  {
+    // Reset Sensor
+    rv = ak0991x_device_sw_reset(NULL,
+                                 state->scp_service,
+                                 &state->com_port_info);
+  }
+
+  if (rv == SNS_RC_SUCCESS)
+  {
+    state->hw_is_present = true;
+    AK0991X_PRINT(MED, this, "Find Sensor. state->hw_is_present=%d state->device_select=%d",(int)state->hw_is_present, (int)state->device_select);
+  }
+
+  /**------------------Power Down and Close COM Port--------------------*/
+  state->scp_service->api->
+    sns_scp_update_bus_power(state->com_port_info.port_handle,
+                             false);
+  state->scp_service->api->
+    sns_scp_close(state->com_port_info.port_handle);
+  state->scp_service->api->
+    sns_scp_deregister_com_port(&state->com_port_info.port_handle);
+
+  if (state->hw_is_present)
+  {
+    /**----------------------Turn Power Rail OFF--------------------------*/
+    SNS_PRINTF(HIGH, this, "start power timer #0:  hw_id = %d, pend_state = %d", (uint32_t)state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_OFF);
+    ak0991x_start_power_rail_timer(this,
+                                   sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
+                                   AK0991X_POWER_RAIL_PENDING_OFF);
+
+    ak0991x_publish_hw_attributes(this, state->device_select);
+    ak0991x_sensor_publish_available(this);
+    SNS_PRINTF(MED, this, "AK0991X HW present. device_select: %u", state->device_select);
+    ak0991x_dae_if_check_support(this);
+  }
+  else
+  {
+    SNS_PRINTF(MED, this, "AK0991X HW absent");
+    state->rail_config.rail_vote = SNS_RAIL_OFF;
+    SNS_PRINTF(HIGH, this, "vote_power_rail_update: RAIL_OFF, hw_id = %d", state->hardware_id);
+    state->pwr_rail_service->api->
+    sns_vote_power_rail_update(state->pwr_rail_service, this,
+                               &state->rail_config,     NULL);
+  }
+
+  return rv;
+}
+
 static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 {
   ak0991x_state    *state = (ak0991x_state *)this->state->state;
-  uint8_t          buffer[AK0991X_NUM_READ_DEV_ID];
   sns_rc           rv = SNS_RC_SUCCESS;
   sns_sensor_event *event;
 
@@ -1590,136 +1729,8 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
           if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_INIT)
           {
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
-            rv = ak0991x_enter_i3c_mode(NULL, &state->com_port_info, state->scp_service);
-            if (rv == SNS_RC_SUCCESS)
-            {
-              AK0991X_PRINT(LOW, this, "I3C mode enabled");
-            }
-            else
-            {
-              SNS_PRINTF(ERROR, this, "Failed to enter I3C mode.");
-            }
+            rv = ak0991x_discover_hw(this);
 
-            /**-------------------Read and Confirm WHO-AM-I------------------------*/
-            rv = ak0991x_get_who_am_i(state->scp_service,
-                                      state->com_port_info.port_handle, &buffer[0]);
-
-            if (rv != SNS_RC_SUCCESS)
-            {
-              SNS_PRINTF(ERROR, this, "Read WHO-AM-I error");
-              rv = SNS_RC_INVALID_LIBRARY_STATE;
-            }
-            else
-            {
-              state->who_am_i = buffer[1] << 8 | buffer[0];
-              AK0991X_PRINT(LOW, this, "Read WHO-AM-I %d",state->who_am_i);
-
-              //Check AKM device ID
-              if (buffer[0] == AK0991X_WHOAMI_COMPANY_ID)
-              {
-                switch(buffer[1])
-                {
-                case AK09911_WHOAMI_DEV_ID:
-                  state->device_select = AK09911;
-                  break;
-                case AK09912_WHOAMI_DEV_ID:
-                  state->device_select = AK09912;
-                  break;
-                case AK09913_WHOAMI_DEV_ID:
-                  state->device_select = AK09913;
-                  break;
-                case AK09915_WHOAMI_DEV_ID:
-                  if(buffer[3] == AK09915C_SUB_ID){
-                    state->device_select = AK09915C;
-                  }
-                  if(buffer[3] == AK09915D_SUB_ID){
-                    state->device_select = AK09915D;
-                  }
-                  break;
-                case AK09916C_WHOAMI_DEV_ID:
-                  state->device_select = AK09916C;
-                  break;
-                case AK09916D_WHOAMI_DEV_ID:
-                  state->device_select = AK09916D;
-                  break;
-                case AK09917_WHOAMI_DEV_ID:
-                  state->device_select = AK09917;
-                  state->reg_rsv1_value = buffer[2];
-                  break;
-                case AK09918_WHOAMI_DEV_ID:
-                  state->device_select = AK09918;
-                  break;
-                case AK09919_WHOAMI_DEV_ID:
-                  state->device_select = AK09919;
-                  break;
-                default:
-                  SNS_PRINTF(ERROR, this, "Wrong dev ID %02x %02x %02x %02x",
-                             buffer[0], buffer[1], buffer[2], buffer[3]);
-                  rv = SNS_RC_INVALID_STATE;
-                  break;
-                }
-              }
-              else
-              {
-                SNS_PRINTF(ERROR, this, "Wrong company ID %02x %02x %02x %02x",
-                           buffer[0], buffer[1], buffer[2], buffer[3]);
-                rv = SNS_RC_INVALID_STATE;
-              }
-            }
-            if (rv == SNS_RC_SUCCESS)
-            {
-              // Set sensitivity adjustment data
-              rv = ak0991x_set_sstvt_adj(
-                                         state->scp_service,
-                                         state->com_port_info.port_handle,
-                                         state->device_select,
-                                         &state->sstvt_adj[0]);
-            }
-            if (rv == SNS_RC_SUCCESS)
-            {
-              // Reset Sensor
-              rv = ak0991x_device_sw_reset(NULL,
-                                           state->scp_service,
-                                           &state->com_port_info);
-            }
-
-            if (rv == SNS_RC_SUCCESS)
-            {
-              state->hw_is_present = true;
-              AK0991X_PRINT(MED, this, "Find Sensor. state->hw_is_present=%d state->device_select=%d",(int)state->hw_is_present, (int)state->device_select);
-            }
-
-            /**------------------Power Down and Close COM Port--------------------*/
-            state->scp_service->api->
-              sns_scp_update_bus_power(state->com_port_info.port_handle,
-                                       false);
-            state->scp_service->api->
-              sns_scp_close(state->com_port_info.port_handle);
-            state->scp_service->api->
-              sns_scp_deregister_com_port(&state->com_port_info.port_handle);
-
-            if (state->hw_is_present)
-            {
-              /**----------------------Turn Power Rail OFF--------------------------*/
-              SNS_PRINTF(HIGH, this, "start power timer #0:  hw_id = %d, pend_state = %d", (uint32_t)state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_OFF);
-              ak0991x_start_power_rail_timer(this,
-                                             sns_convert_ns_to_ticks(AK0991X_POWER_RAIL_OFF_TIMEOUT_NS),
-                                             AK0991X_POWER_RAIL_PENDING_OFF);
-
-              ak0991x_publish_hw_attributes(this, state->device_select);
-              ak0991x_sensor_publish_available(this);
-              SNS_PRINTF(MED, this, "AK0991X HW present. device_select: %u", state->device_select);
-              ak0991x_dae_if_check_support(this);
-            }
-            else
-            {
-              SNS_PRINTF(MED, this, "AK0991X HW absent");
-              state->rail_config.rail_vote = SNS_RAIL_OFF;
-              SNS_PRINTF(HIGH, this, "vote_power_rail_update: RAIL_OFF, hw_id = %d", state->hardware_id);
-              state->pwr_rail_service->api->
-              sns_vote_power_rail_update(state->pwr_rail_service, this,
-                                         &state->rail_config,     NULL);
-            }
           }
           else if (state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_SET_CLIENT_REQ)
           {
@@ -2202,18 +2213,28 @@ sns_rc ak0991x_sensor_notify_event(sns_sensor *const this)
      state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_NONE)
   {
     sns_time timeticks;
+    sns_time delta;
     state->rail_config.rail_vote = state->registry_rail_on_state;
     SNS_PRINTF(HIGH, this, "vote_power_rail_update: %d, hw_id = %d #2", state->rail_config.rail_vote, state->hardware_id);
     state->pwr_rail_service->api->sns_vote_power_rail_update(state->pwr_rail_service,
                                                              this,
                                                              &state->rail_config,
-                                                             &timeticks); /* ignored */
+                                                             &timeticks);
 
-    SNS_PRINTF(HIGH, this, "start power timer #3:  hw_id = %d, pend_state = %d", state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_INIT);
-    ak0991x_start_power_rail_timer(this,
-                                   sns_convert_ns_to_ticks(
-                                   AK0991X_OFF_TO_IDLE_MS * 1000000LL),
-                                   AK0991X_POWER_RAIL_PENDING_INIT);
+    delta = sns_get_system_time() - timeticks;
+
+    if(delta < sns_convert_ns_to_ticks(AK0991X_OFF_TO_IDLE_MS * 1000000LL))
+    {
+      SNS_PRINTF(HIGH, this, "start power timer #3:  hw_id = %d, pend_state = %d", state->hardware_id, (uint8_t)AK0991X_POWER_RAIL_PENDING_INIT);
+      ak0991x_start_power_rail_timer(this,
+                                    sns_convert_ns_to_ticks(AK0991X_OFF_TO_IDLE_MS * 1000000LL) - delta,
+                                    AK0991X_POWER_RAIL_PENDING_INIT);
+    }
+    else
+    {
+      SNS_PRINTF(HIGH, this, "start power timer #3: power rail already on");
+      rv = ak0991x_discover_hw(this);
+    }
   }
 
   return rv;

@@ -22,6 +22,10 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 03/20/21     026231     AKM              Merged qualcomm release patch(V026224~V026226)in AKM v026230
+ * 03/18/21                Qualcomm         (V026226)Added protection to prevent NULL pointer dereference
+ * 03/02/21                Qualcomm         (V026225)Moved Log APIs to separate file so they can be compiled out when SNS_LOG_DISABLED is defined
+ * 02/03/21                Qualcomm         (V026224)Skip waiting for power rail if it's already on at init time
  * 01/09/21     026230     AKM              Merged qualcomm release patch(V026219~V026223)in AKM v026229
  * 01/08/21     026229     AKM              Added dummy data and corrected dummy data timestamp calculated method in data no-ready status except recieved flush request codition(For MAG-139 in DAE+Polling+FIFO)
  * 12/24/20     026228     AKM              Deleted dummy data when flush request comes in num_sample= 0 condition(For MAG-034 in DAE+IBI+FIFO)
@@ -371,8 +375,8 @@
  *
  **/
 
-// major:02 minor:62 revision:30
+// major:02 minor:62 revision:31
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      30
+#define AK0991X_DRV_VER_REV      31
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

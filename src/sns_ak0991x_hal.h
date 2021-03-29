@@ -295,31 +295,7 @@
 #define AK0991X_CALC_BIT_ERROR                      40
 #endif
 
-/*******************************
- * Log structure definition
- */
-typedef struct log_sensor_state_raw_info
-{
-  /* Pointer to diag service */
-  sns_diag_service *diag;
-  /* Pointer to sensor instance */
-  sns_sensor_instance *instance;
-  /* Pointer to sensor UID*/
-  struct sns_sensor_uid *sensor_uid;
-  /* Size of a single encoded sample */
-  size_t encoded_sample_size;
-  /* Pointer to log*/
-  void *log;
-  /* Size of allocated space for log*/
-  uint32_t log_size;
-  /* Number of actual bytes written*/
-  uint32_t bytes_written;
-  /* Number of batch samples written*/
-  /* A batch may be composed of several logs*/
-  uint32_t batch_sample_cnt;
-  /* Number of log samples written*/
-  uint32_t log_sample_cnt;
-} log_sensor_state_raw_info;
+
 
 /*******************************
  * Unencoded batch sample
@@ -592,17 +568,6 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance);
  */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_new_config);
 
-/**
- * Submit the Sensor State Raw Log Packet
- *
- * @param[i] log_raw_info   Pointer to logging information
- *       pertaining to the sensor
- * @param[i] batch_complete true if submit request is for end
- *       of batch
- *  */
-void ak0991x_log_sensor_state_raw_submit(
-  log_sensor_state_raw_info *log_raw_info,
-  bool batch_complete);
 
 /**
  * Enable interrupt if not already enabled
