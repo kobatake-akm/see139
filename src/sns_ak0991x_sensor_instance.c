@@ -399,9 +399,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
 
-  state->scp_service->api->sns_scp_update_bus_power(
-    state->com_port_info.port_handle,
-    false);
+  ak0991x_update_bus_power(state, false);
 
   /** Initialize IRQ info to be used by the Instance */
   sns_memscpy(&state->irq_info.irq_config,

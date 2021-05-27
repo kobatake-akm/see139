@@ -246,7 +246,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event    *event;
   sns_rc rv = SNS_RC_SUCCESS;
 
-
+  ak0991x_update_bus_power(state, true);
   ak0991x_dae_if_process_events(this);
 
 #ifndef AK0991X_ENABLE_DAE
