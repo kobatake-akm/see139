@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/02/21     026233     AKM              Reported SNS_STD_ERROR_INVALID_TYPE error event to framework when received invalid request(For mag-082 in DAE+IBI+FIFO)
  * 05/20/21     026232     AKM              Unified encapsulated sns_scp_update_bus_power API and corrected I3C mode communication failed problem by turnning COM Port power on state
  * 03/20/21     026231     AKM              Merged qualcomm release patch(V026224~V026226)in AKM v026230
  * 03/18/21                Qualcomm         (V026226)Added protection to prevent NULL pointer dereference
@@ -376,8 +377,8 @@
  *
  **/
 
-// major:02 minor:62 revision:32
+// major:02 minor:62 revision:33
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      32
+#define AK0991X_DRV_VER_REV      33
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

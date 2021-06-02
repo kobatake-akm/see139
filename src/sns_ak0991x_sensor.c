@@ -2057,6 +2057,14 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             else
             {
               SNS_PRINTF(HIGH, this, "Rejecting unsupported request type %u", new_request->message_id);
+              sns_std_error_event error_event;
+              error_event.error = SNS_STD_ERROR_INVALID_TYPE;
+              pb_send_event(instance,
+                            sns_std_error_event_fields,
+                            &error_event,
+                            sns_get_system_time(),
+                            SNS_STD_MSGID_SNS_STD_ERROR_EVENT,
+                            &mag_suid);
               instance->cb->remove_client_request(instance, new_request);
               return_instance = NULL; // no instance is handling this unsupported request
             }
