@@ -685,7 +685,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       (uint32_t)state->pre_timestamp,
       state->total_samples);
 
-
+  ak0991x_update_bus_power(state, true);
   if (client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
     // In case of DRI,
