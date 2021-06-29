@@ -724,6 +724,17 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
       enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
     }
 
+    #ifdef AK0991X_ENABLE_ALWAYS_ON
+    if((AK0991X_MAG_ODR50 == desired_odr) || (AK0991X_MAG_ODR100 == desired_odr))
+    {
+      state->mag_info.sdr = 1;
+    } // Make sure SDR = 1 (low noise mode) in odr= 50/100 Hz condition under always_on function Enabled
+    else
+    {
+      state->mag_info.sdr = 0; // Force SDR = 0
+    }
+    #endif
+
     buffer[1] = 0x0
       | (enable_fifo << 7) // FIFO bit
       | (state->mag_info.sdr << 6)               // SDR bit
