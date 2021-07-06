@@ -728,7 +728,11 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     if((AK0991X_MAG_ODR50 == desired_odr) || (AK0991X_MAG_ODR100 == desired_odr))
     {
       state->mag_info.sdr = 1;
-    } // Make sure SDR = 1 (low noise mode) in odr= 50/100 Hz condition under always_on function Enabled
+      state->mag_info.nsf = 3;
+      buffer[0] = 0x0
+        | (state->mag_info.nsf << 5) // NSF bit
+        | reg_wmk;
+    } // Make sure SDR = 1 (low noise mode) ITS =3 Level in odr= 50/100 Hz condition under always_on function Enabled
     else
     {
       state->mag_info.sdr = 0; // Force SDR = 0
