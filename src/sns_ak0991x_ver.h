@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017-2020 Qualcomm Technologies, Inc.
+ * Copyright (c) 2017-2021 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -22,14 +22,29 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 06/03/21     026234     AKM              Resolved I3C communication failed problem by turnning COM Port power on state when calling ak0991x_inst_set_client_config (For mag-213/223 in DAE+IBI+FIFO)
+ * 06/02/21     026233     AKM              Reported SNS_STD_ERROR_INVALID_TYPE error event to framework when received invalid request(For mag-082 in DAE+IBI+FIFO)
+ * 05/20/21     026232     AKM              Unified encapsulated sns_scp_update_bus_power API and corrected I3C mode communication failed problem by turnning COM Port power on state
+ * 03/20/21     026231     AKM              Merged qualcomm release patch(V026224~V026226)in AKM v026230
+ * 03/18/21                Qualcomm         (V026226)Added protection to prevent NULL pointer dereference
+ * 03/02/21                Qualcomm         (V026225)Moved Log APIs to separate file so they can be compiled out when SNS_LOG_DISABLED is defined
+ * 02/03/21                Qualcomm         (V026224)Skip waiting for power rail if it's already on at init time
+ * 01/09/21     026230     AKM              Merged qualcomm release patch(V026219~V026223)in AKM v026229
+ * 01/08/21     026229     AKM              Added dummy data and corrected dummy data timestamp calculated method in data no-ready status except recieved flush request codition(For MAG-139 in DAE+Polling+FIFO)
+ * 12/24/20     026228     AKM              Deleted dummy data when flush request comes in num_sample= 0 condition(For MAG-034 in DAE+IBI+FIFO)
+ * 12/24/20                Qualcomm         (V026223)Refactored to avoid multiple bus on-off operations for DAE enabled devices
  * 12/14/20     026227     AKM              Fixed over_sample negative value problem in Polling+FIFO mode
  * 12/10/20     026226     AKM              Fixed "only_dae_wmk_is_changed" variable state change condition when Multi-request comes in dummy measurement process
+ * 11/19/20                Qualcomm         (V026222)Fixed - Mag sending cal event with TS=0 when 2 requests are made withing a short interval
  * 11/13/20     026225     AKM              Corrected report data policy and timestamp calculated method When register buffer data sample numbers exceed WM
  * 11/12/20     026224     AKM              Added desired_sample_rate variable to UNUSER_VER(this) under non-DAE situation
  * 11/07/20     026223     AKM              Fixed dropped Mag sample problem while DAE flushing_data in unnormal system_ts situation(For MAG-123 in DAE+Polling+FIFO)
  * 10/15/20     026222     AKM              Call Flush hw in IBI+FIFO When watermark=1(For MAG-041 in DAE+IBI+FIFO)
  * 10/14/20     026221     AKM              Corrected fifo_watermark and dae_watermark calculated condition(For MAG-081 in DAE+IBI+FIFO)
  * 10/13/20     026220     AKM              Add dummy data when flush requst in num_sample =0 condition(For MAG-023 in DAE+IBI+FIFO)
+ * 09/28/20                Qualcomm         (V026221)Fix Registry disabled mode function
+ * 09/28/20                Qualcomm         (V026220)Freeing resources if first request is rejected
+ * 09/23/20                Qualcomm         (V026219)Fixed power rail timer bugs
  * 09/09/20     026219     AKM              Corrected AK09919 IBI mode configuration
  * 09/01/20     026218     Qualcomm         Enable DRI field in physical config msg
  * 08/12/20                AKM              Modified for AK09919 IBI no data problem
@@ -363,8 +378,8 @@
  *
  **/
 
-// major:02 minor:62 revision:27
+// major:02 minor:62 revision:34
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      27
+#define AK0991X_DRV_VER_REV      34
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

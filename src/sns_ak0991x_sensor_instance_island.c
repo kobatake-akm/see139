@@ -246,11 +246,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event    *event;
   sns_rc rv = SNS_RC_SUCCESS;
 
-  // Turn COM port ON
-  state->scp_service->api->sns_scp_update_bus_power(
-    state->com_port_info.port_handle,
-    true);
-
+  ak0991x_update_bus_power(state, true);
   ak0991x_dae_if_process_events(this);
 
 #ifndef AK0991X_ENABLE_DAE
@@ -531,9 +527,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   ak0991x_handle_heart_beat_timer_data_stream(this);
 
   // Turn COM port OFF
-  state->scp_service->api->sns_scp_update_bus_power(
-    state->com_port_info.port_handle,
-    false);
+  ak0991x_update_bus_power(state, false);
   return rv;
 }
 
