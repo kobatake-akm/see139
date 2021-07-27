@@ -1001,9 +1001,9 @@ static void process_response(
 
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
+        ak0991x_dae_if_flush_samples(this);
         ak0991x_dae_if_start_streaming(this);
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
-        ak0991x_dae_if_flush_samples(this);
       }
       else if(state->heart_beat_attempt_count >= 3)
       {
