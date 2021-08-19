@@ -33,6 +33,7 @@
  * AK09916D data sheet version preliminary_E-00
  * AK09917D data sheet version preliminary_E-00-Q
  * AK09918  data sheet version 016014242_E_00
+ * AK09919  data sheet version 200300034-E-00
  */
 
 // Enable for test code
@@ -85,6 +86,7 @@
 #define AK09916D_WHOAMI_DEV_ID                      (0xB)  /** Who Am I device ID */
 #define AK09917_WHOAMI_DEV_ID                       (0xD)  /** Who Am I device ID */
 #define AK09918_WHOAMI_DEV_ID                       (0xC)  /** Who Am I device ID */
+#define AK09919_WHOAMI_DEV_ID                       (0xE)  /** Who Am I device ID */
 
 /** DEVICE SUB ID to distinguish AK09915C and AK09915D */
 #define AK09915_SUB_ID_IDX                          0x3 /** RSV2 (03h) */
@@ -118,6 +120,7 @@
 #define AK09916_FIFO_SIZE                           1
 #define AK09917_FIFO_SIZE                           25  //to prevent DOR (HW FIFO buffer size = 32)
 #define AK09918_FIFO_SIZE                           1
+#define AK09919_FIFO_SIZE                           12  //to prevent DOR (HW FIFO buffer size = 16)
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2
 #define AK0991X_MAX_PHYSICAL_FIFO_SIZE              32 // Physical mag senosr allows maximum upto 32 samples
@@ -139,6 +142,7 @@
 #define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4100 //us (MAX)
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us (MAX)
 #define AK09918_TIME_FOR_MEASURE_US                 8200 //us (MAX)
+#define AK09919_TIME_FOR_MEASURE_US                 8200 //us (MAX)
 */
 #define AK09911_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 #define AK09912_TIME_FOR_MEASURE_US                 7200 //us (TYP)
@@ -149,6 +153,7 @@
 #define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  3600 //us (TYP)
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  7200 //us (TYP)
 #define AK09918_TIME_FOR_MEASURE_US                 7200 //us (TYP)
+#define AK09919_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
@@ -192,6 +197,16 @@
 #define TLIMIT_LO_SLF_ST2                           0
 #define TLIMIT_HI_SLF_ST2                           0
 #define TLIMIT_ST2_MASK                             (0x08)
+
+/*******************************
+* AK09919 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09919                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09919                  200
+#define TLIMIT_LO_SLF_RVHY_AK09919                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09919                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09919                  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09919                  -150
 
 /*******************************
 * AK09918 dependent value
@@ -583,6 +598,12 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this);
  *
  */
 void ak0991x_register_timer(sns_sensor_instance *this);
+
+/**
+ * Enable timer if not already enabled
+ *
+ */
+void ak0991x_register_timer_for_heart_beat(sns_sensor_instance *this);
 
 /**
  * Configures sensor with new/recomputed settings

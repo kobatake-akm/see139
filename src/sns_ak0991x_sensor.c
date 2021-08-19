@@ -71,6 +71,9 @@ float ak09918_odr_table[] =
 {AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09918_ope_mode_table[] = {AK0991X_NORMAL};
 
+float ak09919_odr_table[] =
+{AK0991X_ODR_5, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+static char *ak09919_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 
 typedef struct ak0991x_dev_info
 {
@@ -81,6 +84,7 @@ typedef struct ak0991x_dev_info
   uint32_t   sleep_current;
   range_attr ranges;
   char       **operating_modes;
+  int        operating_modes_num;
   bool       supports_dri;
   bool       supports_sync_stream;
 } ak0991x_dev_info;
@@ -94,6 +98,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09911_LO_PWR,
     .ranges               = {AK09911_MIN_RANGE, AK09911_MAX_RANGE},
     .operating_modes      = ak09911_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09911_ope_mode_table),
     .supports_dri         = false,
     .supports_sync_stream = false,
   },
@@ -105,6 +110,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09912_LO_PWR,
     .ranges               = {AK09912_MIN_RANGE, AK09912_MAX_RANGE},
     .operating_modes      = ak09912_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09912_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = false,
   },
@@ -116,6 +122,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09913_LO_PWR,
     .ranges               = {AK09913_MIN_RANGE, AK09913_MAX_RANGE},
     .operating_modes      = ak09913_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09913_ope_mode_table),
     .supports_dri         = false,
     .supports_sync_stream = false,
   },
@@ -127,6 +134,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09915_LO_PWR,
     .ranges               = {AK09915_MIN_RANGE, AK09915_MAX_RANGE},
     .operating_modes      = ak09915_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09915_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = false,
   },
@@ -138,6 +146,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09915_LO_PWR,
     .ranges               = {AK09915_MIN_RANGE, AK09915_MAX_RANGE},
     .operating_modes      = ak09915_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09915_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = true,
   },
@@ -160,6 +169,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09916_LO_PWR,
     .ranges               = {AK09916_MIN_RANGE, AK09916_MAX_RANGE},
     .operating_modes      = ak09916_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09916_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = false,
   },
@@ -171,6 +181,7 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09917_LO_PWR,
     .ranges               = {AK09917_MIN_RANGE, AK09917_MAX_RANGE},
     .operating_modes      = ak09917_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09917_ope_mode_table),
     .supports_dri         = true,
     .supports_sync_stream = true,
   },
@@ -182,7 +193,20 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .sleep_current        = AK09918_LO_PWR,
     .ranges               = {AK09918_MIN_RANGE, AK09918_MAX_RANGE},
     .operating_modes      = ak09918_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09918_ope_mode_table),
     .supports_dri         = false,
+    .supports_sync_stream = false,
+  },
+  [AK09919] = {
+    .odr                  = ak09919_odr_table,
+    .resolutions          = AK09919_RESOLUTION,
+    .max_fifo_depth       = AK09919_FIFO_SIZE,
+    .active_current       = AK09919_HI_PWR,
+    .sleep_current        = AK09919_LO_PWR,
+    .ranges               = {AK09919_MIN_RANGE, AK09919_MAX_RANGE},
+    .operating_modes      = ak09919_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09919_ope_mode_table),
+    .supports_dri         = true,/* IBI is a kind of DRI function. See sns_std_sensor.proto */
     .supports_sync_stream = false,
   },
 };
@@ -1342,6 +1366,11 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
      value_len = ARR_SIZE(ak09917_odr_table);
      odr_table = ak09917_odr_table;
    }
+   else if(state->device_select == AK09919)
+   {
+     value_len = ARR_SIZE(ak09919_odr_table);
+     odr_table = ak09919_odr_table;
+   }
    else // Other parts use same ODR as ak09911
    {
      value_len = ARR_SIZE(ak09911_odr_table);
@@ -1373,28 +1402,26 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
        values, ARR_SIZE(values), false);
  }
  {
+   // AK09915/AK09917/AK09919 has 2 modes, so the size of values[] are 2.
    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
-   int i;
-   int j;
-   for(i = 0; i < 2 && i < ARR_SIZE(ak0991x_dev_info_array[device_select].operating_modes);
-       i++)
-   {
-     char const *op_mode = ak0991x_dev_info_array[device_select].operating_modes[i];
-     j = 0;
-     // count length of op_mode(string)
-     while( (op_mode[j] != '\0') && (j < AK0991X_MAX_LEN_OF_ATTRIBUTES_STR)) j++;
+   int array_size = ak0991x_dev_info_array[device_select].operating_modes_num;
+   AK0991X_PRINT(MED, this, "size of operating_modes array:%d", array_size);
 
-     values[i].str.funcs.encode = pb_encode_string_cb;
-     values[i].str.arg = &((pb_buffer_arg)
-         { .buf = op_mode, .buf_len = j+1 }); // +1 for null string
+   char const *op0 = ak0991x_dev_info_array[device_select].operating_modes[0];
+   values[0].str.funcs.encode = pb_encode_string_cb;
+   values[0].str.arg = &((pb_buffer_arg){ .buf = op0, .buf_len = (strlen(op0) + 1) });
+
+   if(1 < array_size)
+   {
+    char const *op1 = ak0991x_dev_info_array[device_select].operating_modes[1];
+    values[1].str.funcs.encode = pb_encode_string_cb;
+    values[1].str.arg = &((pb_buffer_arg){ .buf = op1, .buf_len = (strlen(op1) + 1) });
    }
-   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES,
-       values, i, false);
+   sns_publish_attribute(this, SNS_STD_SENSOR_ATTRID_OP_MODES, values, array_size, false);
  }
  {
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
    value.has_boolean = true;
-   value.boolean = false;
    value.boolean = (state->int_mode ? ak0991x_dev_info_array[device_select].supports_dri : false);
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_DRI, &value, 1, false);
@@ -1402,7 +1429,6 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
  {
    sns_std_attr_value_data value = sns_std_attr_value_data_init_default;
    value.has_boolean = true;
-   value.boolean = false;
    value.boolean = (state->supports_sync_stream ? ak0991x_dev_info_array[device_select].supports_sync_stream : false);
    sns_publish_attribute(
        this, SNS_STD_SENSOR_ATTRID_STREAM_SYNC, &value, 1, false);
@@ -1601,6 +1627,9 @@ static sns_rc ak0991x_discover_hw(sns_sensor *const this)
       case AK09918_WHOAMI_DEV_ID:
         state->device_select = AK09918;
         break;
+      case AK09919_WHOAMI_DEV_ID:
+        state->device_select = AK09919;
+        break;
       default:
         SNS_PRINTF(ERROR, this, "Wrong dev ID %02x %02x %02x %02x",
                    buffer[0], buffer[1], buffer[2], buffer[3]);
@@ -1797,7 +1826,6 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
       sns_sensor_util_remove_sensor_stream(this, &state->timer_stream);
     }
   }
-
   return rv;
 }
 
@@ -1820,7 +1848,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
   AK0991X_PRINT(HIGH, this, "### set_client_request - msg_id=%d/%d remove=%u",
                 exist_request ? exist_request->message_id : -1,
                 new_request ? new_request->message_id : -1, remove);
-
+  
   if (NULL != instance)
   {
     ak0991x_instance_state *inst_state = (ak0991x_instance_state*)instance->state->state;
@@ -2010,9 +2038,10 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             else if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
                     new_request->message_id)
             {
-              AK0991X_PRINT(LOW, this, "new_self_test_request = true");
+              AK0991X_PRINT(LOW, this, "new_self_test_request received: Power rail [%u]",state->power_rail_pend_state);
               if(ak0991x_extract_self_test_info(this, instance, new_request))
               {
+                inst_state->in_self_test = true;
                 if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF ||
                     state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH )
                 {
@@ -2020,16 +2049,33 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                 state->power_rail_pend_state);
                   ak0991x_cancel_power_rail_timer(this);
                 }
-                inst_state->in_self_test = true;
-                AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
-                ak0991x_set_self_test_inst_config(this, instance);
-                ak0991x_reval_instance_config(this, instance);
+                //Perform factory tests only if sensor power rails are ON completely
+                else if(AK0991X_POWER_RAIL_PENDING_NONE == state->power_rail_pend_state)
+                {
+                  AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
+                  ak0991x_set_self_test_inst_config(this, instance);
+                  ak0991x_reval_instance_config(this, instance);
+                }
               }
             }
             else
             {
-              SNS_PRINTF(HIGH, this, "Rejecting unsupported request type %u", new_request->message_id);
+              sns_std_error_event error_event;
+              error_event.error = SNS_STD_ERROR_INVALID_TYPE;
+              pb_send_event(instance,
+                 sns_std_error_event_fields,
+                 &error_event,
+                 sns_get_system_time(),
+                 SNS_STD_MSGID_SNS_STD_ERROR_EVENT,
+                 &mag_suid);
+              SNS_PRINTF(ERROR, this, "Rejecting unsupported request type %u", new_request->message_id);
               instance->cb->remove_client_request(instance, new_request);
+              if( NULL != exist_request )
+              {
+                SNS_PRINTF(HIGH, this, "restoring existing req");
+                instance->cb->add_client_request(instance, exist_request);
+              }
+
               return_instance = NULL; // no instance is handling this unsupported request
             }
           }
@@ -2093,6 +2139,16 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
       }
     }
   }
+
+  /* TODO: The following code is added in the version 2.62.14.
+   *       But after that, we found this code cause system crush in some cases.
+   *       We hope updated SCEP package will resolve this error in future.
+   *       When the time comes, comment in this code (current: scep.8.0.4)
+   */
+  // else if(flush_req_handled)
+  // {
+  //   instance = &sns_instance_no_error;
+  // }
 
   return return_instance;
 }
@@ -2225,6 +2281,12 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
   {
     *chosen_sample_rate = AK0991X_ODR_1;
     *chosen_reg_value = AK0991X_MAG_ODR1;
+  }
+  else if ((desired_sample_rate <= AK0991X_ODR_5) &&
+		       (device_select == AK09919))
+  {
+	  *chosen_sample_rate = AK0991X_ODR_5;
+	  *chosen_reg_value = AK0991X_MAG_ODR5;
   }
   else if (desired_sample_rate <= AK0991X_ODR_10)
   {

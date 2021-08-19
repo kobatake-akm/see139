@@ -22,17 +22,41 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 03/18/21     026226     Qualcomm         Added protection to prevent NULL pointer dereference
- * 03/02/21     026225     Qualcomm         Moved Log APIs to separate file so they can be compiled out when SNS_LOG_DISABLED is defined
- * 02/03/21     026224     Qualcomm         Skip waiting for power rail if it's already on at init time
- * 12/24/20     026223	   Qualcomm         Refactored to avoid multiple bus on-off operations for DAE enabled devices
- * 11/19/20     026222	   Qualcomm         Fixed - Mag sending cal event with TS=0 when 2 requests are made withing a short interval
- * 09/28/20     026221     Qualcomm         Fix Registry disabled mode function
- * 09/28/20     026220     Qualcomm         Freeing resources if first request is rejected
- * 09/23/20     026219     Qualcomm         Fixed power rail timer bugs
+ * 08/12/21     026238     Qualcomm         (V026228)Publish error event for invalid requests (ON_CHANGE).
+ * 08/12/21     026237     Qualcomm         (V026227)Turn on com port power and wait for sensor power rail timer to expire before doing factory tests.
+ * 07/13/21     026236     AKM              Modified "flush_data event" and "set_streaming_config" procedure execution order in Flush_hw process (For mag-50 in DAE+IBI+FIFO)
+ * 06/24/21     026235     AKM              Set low noise mode in Highest noise suppression level when enabled Always_on function in ODR >= 50Hz situation
+ * 06/03/21     026234     AKM              Resolved I3C communication failed problem by turnning COM Port power on state when calling ak0991x_inst_set_client_config (For mag-213/223 in DAE+IBI+FIFO)
+ * 06/02/21     026233     AKM              Reported SNS_STD_ERROR_INVALID_TYPE error event to framework when received invalid request(For mag-082 in DAE+IBI+FIFO)
+ * 05/20/21     026232     AKM              Unified encapsulated sns_scp_update_bus_power API and corrected I3C mode communication failed problem by turnning COM Port power on state
+ * 03/20/21     026231     AKM              Merged qualcomm release patch(V026224~V026226)in AKM v026230
+ * 03/18/21                Qualcomm         (V026226)Added protection to prevent NULL pointer dereference
+ * 03/02/21                Qualcomm         (V026225)Moved Log APIs to separate file so they can be compiled out when SNS_LOG_DISABLED is defined
+ * 02/03/21                Qualcomm         (V026224)Skip waiting for power rail if it's already on at init time
+ * 01/09/21     026230     AKM              Merged qualcomm release patch(V026219~V026223)in AKM v026229
+ * 01/08/21     026229     AKM              Added dummy data and corrected dummy data timestamp calculated method in data no-ready status except recieved flush request codition(For MAG-139 in DAE+Polling+FIFO)
+ * 12/24/20     026228     AKM              Deleted dummy data when flush request comes in num_sample= 0 condition(For MAG-034 in DAE+IBI+FIFO)
+ * 12/24/20                Qualcomm         (V026223)Refactored to avoid multiple bus on-off operations for DAE enabled devices
+ * 12/14/20     026227     AKM              Fixed over_sample negative value problem in Polling+FIFO mode
+ * 12/10/20     026226     AKM              Fixed "only_dae_wmk_is_changed" variable state change condition when Multi-request comes in dummy measurement process
+ * 11/19/20                Qualcomm         (V026222)Fixed - Mag sending cal event with TS=0 when 2 requests are made withing a short interval
+ * 11/13/20     026225     AKM              Corrected report data policy and timestamp calculated method When register buffer data sample numbers exceed WM
+ * 11/12/20     026224     AKM              Added desired_sample_rate variable to UNUSER_VER(this) under non-DAE situation
+ * 11/07/20     026223     AKM              Fixed dropped Mag sample problem while DAE flushing_data in unnormal system_ts situation(For MAG-123 in DAE+Polling+FIFO)
+ * 10/15/20     026222     AKM              Call Flush hw in IBI+FIFO When watermark=1(For MAG-041 in DAE+IBI+FIFO)
+ * 10/14/20     026221     AKM              Corrected fifo_watermark and dae_watermark calculated condition(For MAG-081 in DAE+IBI+FIFO)
+ * 10/13/20     026220     AKM              Add dummy data when flush requst in num_sample =0 condition(For MAG-023 in DAE+IBI+FIFO)
+ * 09/28/20                Qualcomm         (V026221)Fix Registry disabled mode function
+ * 09/28/20                Qualcomm         (V026220)Freeing resources if first request is rejected
+ * 09/23/20                Qualcomm         (V026219)Fixed power rail timer bugs
+ * 09/09/20     026219     AKM              Corrected AK09919 IBI mode configuration
  * 09/01/20     026218     Qualcomm         Enable DRI field in physical config msg
+ * 08/12/20                AKM              Modified for AK09919 IBI no data problem
  * 08/11/20     026217     Qualcomm         Fixed timestamp jitter due to HW flushing in polling mode
+ * 07/16/20                AKM              Support AK09919 in DAE+Polling+FIFO mode
  * 07/09/20     026216     Qualcomm         Must handle PWR rail Timer for Self Test Request
+ * 07/01/20                AKM              Commented out the v026214
+ * 06/16/20     026215     AKM              Separate heart beat timer stream
  * 05/22/20     026215     Qualcomm         Must exit island before deiniting DAE interface
  * 05/07/20     026214     Qualcomm         Return speical pointer upon handling flush request
  * 04/09/20     026213     Qualcomm         Return error event for invalid requests
@@ -358,8 +382,8 @@
  *
  **/
 
-// major:02 minor:62 revision:21
+// major:02 minor:62 revision:36
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      26
+#define AK0991X_DRV_VER_REV      38
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

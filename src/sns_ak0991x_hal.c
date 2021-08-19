@@ -273,12 +273,19 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
-                                AK0991X_NUM_DATA_ST1_TO_ST2,
+                                1,
+                                &xfer_bytes);
+
+  rv = ak0991x_com_read_wrapper(state->scp_service,
+                                state->com_port_info.port_handle,
+                                AKM_AK0991X_REG_HXL,
+                                &buffer[1],
+                                AK0991X_NUM_DATA_HXL_TO_ST2,
                                 &xfer_bytes);
 
   if (rv != SNS_RC_SUCCESS
       ||
-      xfer_bytes != AK0991X_NUM_DATA_ST1_TO_ST2)
+      xfer_bytes != AK0991X_NUM_DATA_HXL_TO_ST2)
   {
     *err = ((TLIMIT_NO_READ_DATA) << 16);
     goto TEST_SEQUENCE_FAILED;
@@ -287,7 +294,16 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
 
   // check read value
-  if (state->mag_info.device_select == AK09918)
+  if (state->mag_info.device_select == AK09919)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09919, TLIMIT_HI_SLF_RVHX_AK09919,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09919, TLIMIT_HI_SLF_RVHY_AK09919,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09919, TLIMIT_HI_SLF_RVHZ_AK09919,
+            err);
+  }
+  else if (state->mag_info.device_select == AK09918)
   {
     AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09918, TLIMIT_HI_SLF_RVHX_AK09918,
             err);
@@ -428,9 +444,13 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
 
       ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
 
-      rv = ak0991x_get_who_am_i(state->scp_service,
-                                state->com_port_info.port_handle,
-                                &buffer[0]);
+      rv = ak0991x_update_bus_power(state, true);
+      if (rv == SNS_RC_SUCCESS)
+      {
+        rv = ak0991x_get_who_am_i(state->scp_service,
+                                  state->com_port_info.port_handle,
+                                  &buffer[0]);
+      }
 
       if(rv == SNS_RC_SUCCESS
          &&

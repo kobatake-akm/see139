@@ -82,14 +82,7 @@ static void build_static_config_request(
   }
   switch (sensor_state->device_select)
   {
-  case AK09911:
-  case AK09912:
-  case AK09913:
-  case AK09916C:
-  case AK09916D:
-  case AK09918:
-    config_req->has_s4s_config       = false;
-    break;
+  /* list only s4s supported devices */
   case AK09915C:
   case AK09915D:
   case AK09917:

@@ -48,6 +48,10 @@ const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE] = {
     .mag_odr_reg_value = AK0991X_MAG_ODR1,
   },
   {
+    .odr = AK0991X_ODR_5,
+    .mag_odr_reg_value = AK0991X_MAG_ODR5,
+  },
+  {
     .odr = AK0991X_ODR_10,
     .mag_odr_reg_value = AK0991X_MAG_ODR10,
   },
@@ -184,6 +188,56 @@ static sns_rc ak0991x_handle_device_mode_stream(sns_sensor_instance *const this)
   return rv;
 }
 
+static sns_rc ak0991x_handle_heart_beat_timer_data_stream(sns_sensor_instance *const this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
+  sns_sensor_event    *event;
+  sns_rc rv = SNS_RC_SUCCESS;
+
+  // Handle timer event for heartbeat
+  if (NULL != state->heart_beat_timer_data_stream)
+  {
+    event = state->heart_beat_timer_data_stream->api->peek_input(state->heart_beat_timer_data_stream);
+    while (NULL != event)
+    {
+      pb_istream_t stream = pb_istream_from_buffer((pb_byte_t *)event->event, event->event_len);
+      sns_timer_sensor_event timer_event;
+      if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
+      {
+        sns_time now = sns_get_system_time();
+        // reset system time for heart beat timer on the DRI mode
+        state->system_time = now;
+
+        // check heart beat fire time
+        if(now > state->hb_timer_fire_time)
+        {
+          rv = ak0991x_heart_beat_timer_event(this);
+        }
+        else
+        {
+//            AK0991X_INST_PRINT(ERROR, this, "Wrong HB timer fired. fire_time %u now %u",(uint32_t)state->hb_timer_fire_time, (uint32_t)now );
+        }
+      }
+      else
+      {
+        // Ignore
+        // Referred to lsm6dst_handle_timer() of sns_lsm6dst_sensor_instance_island.c
+        ;
+      }
+      if(NULL != state->heart_beat_timer_data_stream)
+      {
+        event = state->heart_beat_timer_data_stream->api->get_next_input(state->heart_beat_timer_data_stream);
+        if(event != NULL)
+        {
+          AK0991X_INST_PRINT(LOW, this, "next heart beat timer event?");
+        }
+      }
+    }
+  }
+
+  return rv;
+}
+
 /** See sns_sensor_instance_api::notify_event */
 static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 {
@@ -192,7 +246,7 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   sns_sensor_event    *event;
   sns_rc rv = SNS_RC_SUCCESS;
 
-
+  ak0991x_update_bus_power(state, true);
   ak0991x_dae_if_process_events(this);
 
 #ifndef AK0991X_ENABLE_DAE
@@ -340,8 +394,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
         sns_timer_sensor_event timer_event;
         if (pb_decode(&stream, sns_timer_sensor_event_fields, &timer_event))
         {
+#ifdef AK0991X_ENABLE_DEBUG_MSG
           sns_time now = sns_get_system_time();
-
+#endif
           // for regular polling mode
           if (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
               state->reg_event_done &&
@@ -356,21 +411,6 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
             // mag data read
             ak0991x_read_mag_samples(this);
-          }
-          else
-          {
-            // reset system time for heart beat timer on the DRI mode
-            state->system_time = now;
-          }
-
-          // check heart beat fire time
-          if(now > state->hb_timer_fire_time)
-          {
-            rv = ak0991x_heart_beat_timer_event(this);
-          }
-          else
-          {
-//            AK0991X_INST_PRINT(ERROR, this, "Wrong HB timer fired. fire_time %u now %u",(uint32_t)state->hb_timer_fire_time, (uint32_t)now );
           }
         }
         else
@@ -482,6 +522,9 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
 
   // Handle timer data stream for S4S
   ak0991x_s4s_handle_timer_data_stream(this);
+
+  // Handle timer data stream for heartbeat
+  ak0991x_handle_heart_beat_timer_data_stream(this);
 
   // Turn COM port OFF
   ak0991x_update_bus_power(state, false);

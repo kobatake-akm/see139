@@ -45,7 +45,7 @@
 extern sns_sensor_instance_api ak0991x_sensor_instance_api;
 
 /** Number of entries in reg_map table. */
-#define AK0991X_REG_MAP_TABLE_SIZE  (7)
+#define AK0991X_REG_MAP_TABLE_SIZE  (8)
 
 /** AK0991X max number of settings */
 #define AK0991X_MAX_NUM_REP_MODE    3
@@ -77,6 +77,7 @@ typedef enum
   AK09916D,
   AK09917,
   AK09918,
+  AK09919,
   SUPPORTED_DEVICES
 } akm_device_type;
 
@@ -101,6 +102,7 @@ typedef enum
   AK0991X_MAG_ODR100 = 0x08,       /* 100 Hz output data rate */
   AK0991X_MAG_ODR200 = 0x0A,       /* 200 Hz output data rate */
   AK0991X_MAG_ODR1 = 0x0C,         /* 1 Hz output data rate */
+  AK0991X_MAG_ODR5 = 0x0E,         /* 5 Hz output data rate */
   AK0991X_MAG_SELFTEST = 0x10,     /* selftest */
   AK0991X_MAG_FUSEROM = 0x1F,      /* FUSE ROM access mode */
 } ak0991x_mag_odr;
@@ -173,7 +175,7 @@ typedef struct ak0991x_mag_info
   bool           flush_only;
   bool           max_batch;
   bool           use_sync_stream;
-  uint8_t        nsf;
+  uint8_t        nsf;  // In case of AK09919, use as ITS bit
   uint8_t        sdr;
   uint8_t        max_odr;
   sns_sensor_uid suid;
@@ -226,10 +228,10 @@ typedef struct ak0991x_instance_state
   /** sampling info. */
   uint8_t num_samples;
   uint8_t fifo_num_samples;
-  uint8_t heart_beat_sample_count;
   uint8_t heart_beat_attempt_count;
   uint8_t ascp_xfer_in_progress;
   uint8_t flush_sample_count;
+  uint16_t reg_fifo_wmk;
   bool this_is_first_data;
   bool data_over_run;
   bool data_is_ready;
@@ -268,7 +270,6 @@ typedef struct ak0991x_instance_state
   sns_time averaged_interval;
   sns_time system_time;
   sns_time heart_beat_timestamp;
-  sns_time heart_beat_timeout_period;
   sns_time nominal_intvl;
   sns_time half_measurement_time;
   sns_time hb_timer_fire_time;
@@ -279,6 +280,7 @@ typedef struct ak0991x_instance_state
   sns_time polling_timer_start_time;
   sns_time sync_ts_anchor;
   sns_timer_sensor_config req_payload;
+  sns_timer_sensor_config heart_beat_req_payload;
 
   /** Timer info */
   sns_sensor_uid timer_suid;
@@ -302,6 +304,7 @@ typedef struct ak0991x_instance_state
   sns_data_stream       *interrupt_data_stream;
   sns_data_stream       *async_com_port_data_stream;
   sns_data_stream       *s4s_timer_data_stream;
+  sns_data_stream       *heart_beat_timer_data_stream;
 
   size_t encoded_mag_event_len;
 
