@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 07/13/21     026236     AKM              Modified "flush_data event" and "set_streaming_config" procedure execution order in Flush_hw process (For mag-50 in DAE+IBI+FIFO)
+ * 06/24/21     026235     AKM              Set low noise mode in Highest noise suppression level when enabled Always_on function in ODR >= 50Hz situation
  * 06/03/21     026234     AKM              Resolved I3C communication failed problem by turnning COM Port power on state when calling ak0991x_inst_set_client_config (For mag-213/223 in DAE+IBI+FIFO)
  * 06/02/21     026233     AKM              Reported SNS_STD_ERROR_INVALID_TYPE error event to framework when received invalid request(For mag-082 in DAE+IBI+FIFO)
  * 05/20/21     026232     AKM              Unified encapsulated sns_scp_update_bus_power API and corrected I3C mode communication failed problem by turnning COM Port power on state
@@ -378,8 +380,8 @@
  *
  **/
 
-// major:02 minor:62 revision:34
+// major:02 minor:62 revision:36
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      34
+#define AK0991X_DRV_VER_REV      36
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
