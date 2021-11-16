@@ -2038,9 +2038,11 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
             else if(SNS_PHYSICAL_SENSOR_TEST_MSGID_SNS_PHYSICAL_SENSOR_TEST_CONFIG ==
                     new_request->message_id)
             {
-              AK0991X_PRINT(LOW, this, "new_self_test_request = true");
+              AK0991X_PRINT(LOW, this, "new_self_test_request received: Power rail [%u]",state->power_rail_pend_state);
               if(ak0991x_extract_self_test_info(this, instance, new_request))
               {
+                inst_state->in_self_test = true;
+
                 if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF ||
                     state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH )
                 {
@@ -2048,15 +2050,17 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                                 state->power_rail_pend_state);
                   ak0991x_cancel_power_rail_timer(this);
                 }
-                inst_state->in_self_test = true;
-                AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
-                ak0991x_set_self_test_inst_config(this, instance);
-                ak0991x_reval_instance_config(this, instance);
+                //Perform factory tests only if sensor power rails are ON completely
+                else if(AK0991X_POWER_RAIL_PENDING_NONE == state->power_rail_pend_state)
+                {
+                  AK0991X_PRINT(LOW, this, "ak0991x_set_self_test_inst_config called.");
+                  ak0991x_set_self_test_inst_config(this, instance);
+                  ak0991x_reval_instance_config(this, instance);
+                }
               }
             }
             else
             {
-              SNS_PRINTF(HIGH, this, "Rejecting unsupported request type %u", new_request->message_id);
               sns_std_error_event error_event;
               error_event.error = SNS_STD_ERROR_INVALID_TYPE;
               pb_send_event(instance,
@@ -2065,7 +2069,14 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
                             sns_get_system_time(),
                             SNS_STD_MSGID_SNS_STD_ERROR_EVENT,
                             &mag_suid);
+              SNS_PRINTF(ERROR, this, "Rejecting unsupported request type %u", new_request->message_id);
               instance->cb->remove_client_request(instance, new_request);
+              if( NULL != exist_request )
+              {
+                SNS_PRINTF(HIGH, this, "restoring existing req");
+                instance->cb->add_client_request(instance, exist_request);
+              }
+
               return_instance = NULL; // no instance is handling this unsupported request
             }
           }
