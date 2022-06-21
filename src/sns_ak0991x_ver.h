@@ -22,6 +22,8 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/18/21     026240     Qualcomm         (V026239)Fixed unused variable error, per new compilation standards. 
+ * 09/15/21     026239     Qualcomm         (V026229)Fixed unused variable warnings, per new compilation standards.
  * 08/12/21     026238     Qualcomm         (V026228)Publish error event for invalid requests (ON_CHANGE).
  * 08/12/21     026237     Qualcomm         (V026227)Turn on com port power and wait for sensor power rail timer to expire before doing factory tests.
  * 07/13/21     026236     AKM              Modified "flush_data event" and "set_streaming_config" procedure execution order in Flush_hw process (For mag-50 in DAE+IBI+FIFO)
@@ -385,5 +387,5 @@
 // major:02 minor:62 revision:36
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      38
+#define AK0991X_DRV_VER_REV      40
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

@@ -7,7 +7,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2020 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2021 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -405,7 +405,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   bool is_flush_only = false;
   bool is_max_batch = false;
   bool m_sensor_client_present;
-  uint32_t cal_id = 0;
+  uint32_t cal_id __attribute__((unused)) = 0;
   uint32_t version = 0;
   UNUSED_VAR(instance);
   ak0991x_state *state = (ak0991x_state*)this->state->state;
@@ -623,7 +623,6 @@ static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
   uint8_t buffer[100];
   int32_t encoded_len;
   sns_memset(buffer, 0, sizeof(buffer));
-  sns_rc rc = SNS_RC_SUCCESS;
 
   sns_registry_read_req read_request;
   pb_buffer_arg data = (pb_buffer_arg){ .buf = reg_group_name,
@@ -639,7 +638,7 @@ static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
     sns_request request = (sns_request){
       .request_len = encoded_len, .request = buffer,
       .message_id = SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_REQ };
-    rc = state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
+    state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
   }
 }
 
@@ -2063,17 +2062,17 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               sns_std_error_event error_event;
               error_event.error = SNS_STD_ERROR_INVALID_TYPE;
               pb_send_event(instance,
-                 sns_std_error_event_fields,
-                 &error_event,
-                 sns_get_system_time(),
-                 SNS_STD_MSGID_SNS_STD_ERROR_EVENT,
-                 &mag_suid);
+                            sns_std_error_event_fields,
+                            &error_event,
+                            sns_get_system_time(),
+                            SNS_STD_MSGID_SNS_STD_ERROR_EVENT,
+                            &mag_suid);
               SNS_PRINTF(ERROR, this, "Rejecting unsupported request type %u", new_request->message_id);
               instance->cb->remove_client_request(instance, new_request);
               if( NULL != exist_request )
               {
-                SNS_PRINTF(HIGH, this, "restoring existing req");
-                instance->cb->add_client_request(instance, exist_request);
+                SNS_PRINTF(HIGH, this, "restoring existing req");
+                instance->cb->add_client_request(instance, exist_request);
               }
 
               return_instance = NULL; // no instance is handling this unsupported request
