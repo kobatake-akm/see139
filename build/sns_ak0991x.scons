@@ -34,14 +34,9 @@ if 'USES_SSC_STATIC_LIB_BUILDER' in env:
 
   ak0991x_island_enable = True if 'SNS_ISLAND_INCLUDE_AK0991X' in env else False
 
-  if 'AK0991X_VENDOR_DEBUG' in env:
-    env.Append( CPPDEFINES = ['AK0991X_ENABLE_TS_DEBUG', 'AK0991X_ENABLE_DEBUG_MSG'])
-    ak0991x_island_enable = False
-
   env.AddSSCSU(inspect.getfile(inspect.currentframe()),
                register_func_name = "sns_register_ak0991x",
                cflags = ['-Wno-sign-compare'],
-               flavor = ["src"],
                add_island_files = ak0991x_island_enable,
                registration_cnt = ak0991x_sensor_cnt)
 
