@@ -22,10 +22,14 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
- * 11/18/21     026240     Qualcomm         (V026239)Fixed unused variable error, per new compilation standards. 
- * 09/15/21     026239     Qualcomm         (V026229)Fixed unused variable warnings, per new compilation standards.
- * 08/12/21     026238     Qualcomm         (V026228)Publish error event for invalid requests (ON_CHANGE).
- * 08/12/21     026237     Qualcomm         (V026227)Turn on com port power and wait for sensor power rail timer to expire before doing factory tests.
+ * 07/25/22     026240     AKM              Merged qualcomm release patch(V026239)in AKM v026240
+ * 11/18/21                Qualcomm         (V026239)Fixed unused variable error, per new compilation standards.
+ * 07/25/22     026239     AKM              Merged qualcomm release patch(V026229)in AKM v026239
+ * 09/15/21                Qualcomm         (V026229)Fixed unused variable warnings, per new compilation standards.
+ * 08/20/21     026238     AKM              Merged qualcomm release patch(V02628)in AKM v026238
+ * 08/12/21                Qualcomm         (V026228)Publish error event for invalid requests (ON_CHANGE).
+ * 08/20/21     026237     AKM              Merged qualcomm release patch(V02627)in AKM v026237
+ * 08/12/21                Qualcomm         (V026227)Turn on com port power and wait for sensor power rail timer to expire before doing factory tests.
  * 07/13/21     026236     AKM              Modified "flush_data event" and "set_streaming_config" procedure execution order in Flush_hw process (For mag-50 in DAE+IBI+FIFO)
  * 06/24/21     026235     AKM              Set low noise mode in Highest noise suppression level when enabled Always_on function in ODR >= 50Hz situation
  * 06/03/21     026234     AKM              Resolved I3C communication failed problem by turnning COM Port power on state when calling ak0991x_inst_set_client_config (For mag-213/223 in DAE+IBI+FIFO)
@@ -384,7 +388,7 @@
  *
  **/
 
-// major:02 minor:62 revision:36
+// major:02 minor:62 revision:40
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
 #define AK0991X_DRV_VER_REV      40
