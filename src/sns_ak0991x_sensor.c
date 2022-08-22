@@ -7,7 +7,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2020 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2021 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -405,7 +405,7 @@ static void ak0991x_reval_instance_config(sns_sensor *this,
   bool is_flush_only = false;
   bool is_max_batch = false;
   bool m_sensor_client_present;
-  uint32_t cal_id = 0;
+  uint32_t cal_id __attribute__((unused)) = 0;
   uint32_t version = 0;
   UNUSED_VAR(instance);
   ak0991x_state *state = (ak0991x_state*)this->state->state;
@@ -623,7 +623,6 @@ static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
   uint8_t buffer[100];
   int32_t encoded_len;
   sns_memset(buffer, 0, sizeof(buffer));
-  sns_rc rc = SNS_RC_SUCCESS;
 
   sns_registry_read_req read_request;
   pb_buffer_arg data = (pb_buffer_arg){ .buf = reg_group_name,
@@ -639,7 +638,7 @@ static void ak0991x_sensor_send_registry_request(sns_sensor *const this,
     sns_request request = (sns_request){
       .request_len = encoded_len, .request = buffer,
       .message_id = SNS_REGISTRY_MSGID_SNS_REGISTRY_READ_REQ };
-    rc = state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
+    state->reg_data_stream->api->send_request(state->reg_data_stream, &request);
   }
 }
 
@@ -2042,7 +2041,6 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
               if(ak0991x_extract_self_test_info(this, instance, new_request))
               {
                 inst_state->in_self_test = true;
-
                 if( state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_OFF ||
                     state->power_rail_pend_state == AK0991X_POWER_RAIL_PENDING_WAIT_FOR_FLUSH )
                 {

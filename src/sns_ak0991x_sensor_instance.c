@@ -6,7 +6,7 @@
  * Copyright (c) 2016-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  *
- * Copyright (c) 2016-2018,2020 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018,2020-2021 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -1048,6 +1048,6 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   // Turn COM port OFF
   ak0991x_update_bus_power(state, false);
 
-  return SNS_RC_SUCCESS;
+  return rv;
 }
 

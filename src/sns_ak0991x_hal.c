@@ -445,7 +445,6 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
       ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
 
       rv = ak0991x_update_bus_power(state, true);
-
       if (rv == SNS_RC_SUCCESS)
       {
         rv = ak0991x_get_who_am_i(state->scp_service,
