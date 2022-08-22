@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 08/22/22     026241     AKM              Merged and finished SEEVT / CTS qualcomm release patch(V026239). Remove unneeded line breaks, correct copywrite. cal_id = 0 -> cal_id __attribute__((unused)) = 0. Removed sns_rc rc.
  * 07/25/22     026240     AKM              Merged qualcomm release patch(V026239)in AKM v026240
  * 11/18/21                Qualcomm         (V026239)Fixed unused variable error, per new compilation standards.
  * 07/25/22     026239     AKM              Merged qualcomm release patch(V026229)in AKM v026239
@@ -388,8 +389,8 @@
  *
  **/
 
-// major:02 minor:62 revision:40
+// major:02 minor:62 revision:41
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      40
+#define AK0991X_DRV_VER_REV      41
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )
