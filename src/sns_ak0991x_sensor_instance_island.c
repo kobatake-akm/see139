@@ -103,13 +103,26 @@ static bool sns_device_mode_event_decode_cb(pb_istream_t *stream, const pb_field
 {
   UNUSED_VAR(field);
   ak0991x_instance_state *state = (ak0991x_instance_state *)*arg;
-  if(!pb_decode(stream, sns_device_mode_event_mode_spec_fields, &state->device_mode[state->device_mode_cnt]))
+  sns_device_mode_event_mode_spec decoded_device_mode[_sns_device_mode_ARRAYSIZE] = {0};
+  int decoded_device_mode_cnt = 0;
+
+  if(!pb_decode(stream, sns_device_mode_event_mode_spec_fields, &decoded_device_mode[decoded_device_mode_cnt]))
   {
     return false;
   }
   else
   {
-    state->device_mode_cnt++;
+    decoded_device_mode_cnt++;
+  }
+
+  for(int i = 0; i < decoded_device_mode_cnt; i++)
+  {
+    if(decoded_device_mode[i].mode == SNS_DEVICE_MODE_FLIP_OPEN)
+    {
+      state->device_mode[state->device_mode_cnt].mode = decoded_device_mode[i].mode;
+      state->device_mode[state->device_mode_cnt].state = decoded_device_mode[i].state;
+      state->device_mode_cnt++;
+    }
   }
   return true;
 }
@@ -122,8 +135,13 @@ static void ak0991x_device_mode2cal_id(sns_sensor_instance *const instance)
 
   for(int i = 0; i < cnt; ++i)
   {
+#if defined(SNS_DEVICE_STATE_UNKNOWN)
+    if(state->device_mode[i].mode == SNS_DEVICE_MODE_FLIP_OPEN &&
+       state->device_mode[i].state == SNS_DEVICE_STATE_UNKNOWN)
+#else
     if(state->device_mode[i].mode == SNS_DEVICE_MODE_UNKNOWN &&
        state->device_mode[i].state == SNS_DEVICE_STATE_ACTIVE)
+#endif
     {
       // -1 denotes unknown device mode
       cal_id = AK0991X_UNKNOWN_DEVICE_MODE;
@@ -517,7 +535,10 @@ static sns_rc ak0991x_inst_notify_event(sns_sensor_instance *const this)
   if( ak0991x_handle_device_mode_stream(this) == SNS_RC_SUCCESS)
   {
     // report
-    ak0991x_send_cal_event(this, true);    // send new cal event
+    if(state->mag_info.last_sent_cfg.num != 0)
+    {
+      ak0991x_send_cal_event(this, true);    // send new cal event
+    }
   }
 
   // Handle timer data stream for S4S
