@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2019 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2020 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -85,6 +85,7 @@ extern sns_sensor_api ak0991x_mag_sensor_api;
  */
 #define AK0991X_ODR_0              0.0
 #define AK0991X_ODR_1              1.0
+#define AK0991X_ODR_5              5.0
 #define AK0991X_ODR_10             10.0
 #define AK0991X_ODR_20             20.0
 #define AK0991X_ODR_50             50.0
@@ -94,6 +95,8 @@ extern sns_sensor_api ak0991x_mag_sensor_api;
 /**
  * Magnetometer ranges
  */
+#define AK09919_MIN_RANGE          -4912 /* Minimum -4912uT */
+#define AK09919_MAX_RANGE          4912  /* Maximum  4912uT */
 #define AK09918_MIN_RANGE          -4912 /* Minimum -4912uT */
 #define AK09918_MAX_RANGE          4912  /* Maximum  4912uT */
 #define AK09917_MIN_RANGE          -4912 /* Minimum -4912uT */
@@ -112,6 +115,7 @@ extern sns_sensor_api ak0991x_mag_sensor_api;
 /**
  * Magnetometer resolution
  */
+#define AK09919_RESOLUTION         (0.15f) /* uT/LSB */
 #define AK09918_RESOLUTION         (0.15f) /* uT/LSB */
 #define AK09917_RESOLUTION         (0.15f) /* uT/LSB */
 #define AK09916_RESOLUTION         (0.15f) /* uT/LSB */
@@ -121,6 +125,8 @@ extern sns_sensor_api ak0991x_mag_sensor_api;
 #define AK09911_RESOLUTION         (0.6f)  /* uT/LSB */
 
 /* Power consumption limits */
+#define AK09919_LO_PWR             1    /* unit of uA */
+#define AK09919_HI_PWR             1100 /* unit of uA @ 100Hz */
 #define AK09918_LO_PWR             1    /* unit of uA */
 #define AK09918_HI_PWR             1100 /* unit of uA @ 100Hz */
 #define AK09917_LO_PWR             1    /* unit of uA */
@@ -191,7 +197,6 @@ typedef struct ak0991x_state
 
   bool hw_is_present;
   bool sensor_client_present;
-  bool remove_timer_stream;
 
   uint32_t debug_log_count;
 
@@ -210,7 +215,7 @@ typedef struct ak0991x_state
   bool use_fifo;
   bool supports_sync_stream;
   uint8_t resolution_idx;
-  int64_t hardware_id;
+  uint8_t hardware_id;
   ak0991x_int_op_mode int_mode;
 #ifdef AK0991X_ENABLE_DUAL_SENSOR
   uint32_t registration_idx;

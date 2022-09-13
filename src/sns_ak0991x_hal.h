@@ -33,6 +33,7 @@
  * AK09916D data sheet version preliminary_E-00
  * AK09917D data sheet version preliminary_E-00-Q
  * AK09918  data sheet version 016014242_E_00
+ * AK09919  data sheet version 200300034-E-00
  */
 
 // Enable for test code
@@ -85,6 +86,7 @@
 #define AK09916D_WHOAMI_DEV_ID                      (0xB)  /** Who Am I device ID */
 #define AK09917_WHOAMI_DEV_ID                       (0xD)  /** Who Am I device ID */
 #define AK09918_WHOAMI_DEV_ID                       (0xC)  /** Who Am I device ID */
+#define AK09919_WHOAMI_DEV_ID                       (0xE)  /** Who Am I device ID */
 
 /** DEVICE SUB ID to distinguish AK09915C and AK09915D */
 #define AK09915_SUB_ID_IDX                          0x3 /** RSV2 (03h) */
@@ -118,6 +120,7 @@
 #define AK09916_FIFO_SIZE                           1
 #define AK09917_FIFO_SIZE                           25  //to prevent DOR (HW FIFO buffer size = 32)
 #define AK09918_FIFO_SIZE                           1
+#define AK09919_FIFO_SIZE                           12  //to prevent DOR (HW FIFO buffer size = 16)
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2
 #define AK0991X_MAX_PHYSICAL_FIFO_SIZE              32 // Physical mag senosr allows maximum upto 32 samples
@@ -139,6 +142,7 @@
 #define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  4100 //us (MAX)
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  8200 //us (MAX)
 #define AK09918_TIME_FOR_MEASURE_US                 8200 //us (MAX)
+#define AK09919_TIME_FOR_MEASURE_US                 8200 //us (MAX)
 */
 #define AK09911_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 #define AK09912_TIME_FOR_MEASURE_US                 7200 //us (TYP)
@@ -149,6 +153,7 @@
 #define AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US  3600 //us (TYP)
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  7200 //us (TYP)
 #define AK09918_TIME_FOR_MEASURE_US                 7200 //us (TYP)
+#define AK09919_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
@@ -192,6 +197,16 @@
 #define TLIMIT_LO_SLF_ST2                           0
 #define TLIMIT_HI_SLF_ST2                           0
 #define TLIMIT_ST2_MASK                             (0x08)
+
+/*******************************
+* AK09919 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09919                  -200
+#define TLIMIT_HI_SLF_RVHX_AK09919                  200
+#define TLIMIT_LO_SLF_RVHY_AK09919                  -200
+#define TLIMIT_HI_SLF_RVHY_AK09919                  200
+#define TLIMIT_LO_SLF_RVHZ_AK09919                  -1000
+#define TLIMIT_HI_SLF_RVHZ_AK09919                  -150
 
 /*******************************
 * AK09918 dependent value
@@ -280,31 +295,7 @@
 #define AK0991X_CALC_BIT_ERROR                      40
 #endif
 
-/*******************************
- * Log structure definition
- */
-typedef struct log_sensor_state_raw_info
-{
-  /* Pointer to diag service */
-  sns_diag_service *diag;
-  /* Pointer to sensor instance */
-  sns_sensor_instance *instance;
-  /* Pointer to sensor UID*/
-  struct sns_sensor_uid *sensor_uid;
-  /* Size of a single encoded sample */
-  size_t encoded_sample_size;
-  /* Pointer to log*/
-  void *log;
-  /* Size of allocated space for log*/
-  uint32_t log_size;
-  /* Number of actual bytes written*/
-  uint32_t bytes_written;
-  /* Number of batch samples written*/
-  /* A batch may be composed of several logs*/
-  uint32_t batch_sample_cnt;
-  /* Number of log samples written*/
-  uint32_t log_sample_cnt;
-} log_sensor_state_raw_info;
+
 
 /*******************************
  * Unencoded batch sample
@@ -347,7 +338,7 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
  * Enters I3C mode.
  *
  * If the configured bus type is I3C, this will switch the AK0991x
- * hardware from I2C to I3C mode and configure I3C settings such as 
+ * hardware from I2C to I3C mode and configure I3C settings such as
  * maximum read length.
  * This function will do nothing for non-I3C bus types.
  *
@@ -437,6 +428,15 @@ sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
  */
 sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
 							uint8_t *buffer);
+
+/**
+ * Turn on/off Com Port Service if not yet.
+ *
+ * @param[i] state            sensor instance state
+ * @param[i] turn_on          true to turn on, false to turn off
+ * @return sns_rc
+ */
+sns_rc ak0991x_update_bus_power(ak0991x_instance_state*const state, bool turn_on);
 
 /**
  * Read wrapper for Synch Com Port Service.
@@ -568,17 +568,6 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance);
  */
 sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_new_config);
 
-/**
- * Submit the Sensor State Raw Log Packet
- *
- * @param[i] log_raw_info   Pointer to logging information 
- *       pertaining to the sensor
- * @param[i] batch_complete true if submit request is for end 
- *       of batch
- *  */ 
-void ak0991x_log_sensor_state_raw_submit(
-  log_sensor_state_raw_info *log_raw_info,
-  bool batch_complete);
 
 /**
  * Enable interrupt if not already enabled
@@ -609,6 +598,12 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this);
  *
  */
 void ak0991x_register_timer(sns_sensor_instance *this);
+
+/**
+ * Enable timer if not already enabled
+ *
+ */
+void ak0991x_register_timer_for_heart_beat(sns_sensor_instance *this);
 
 /**
  * Configures sensor with new/recomputed settings
@@ -655,6 +650,8 @@ void ak0991x_validate_timestamp_for_dri(sns_sensor_instance *const instance);
 void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance);
 
 void ak0991x_clear_old_events(sns_sensor_instance *const instance);
+
+void ak0991x_inst_exit_island(sns_sensor_instance *this);
 
 /**
  * Send Calibration event to client

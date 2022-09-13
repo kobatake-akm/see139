@@ -6,7 +6,7 @@
  * Copyright (c) 2016-2019 Asahi Kasei Microdevices
  * All Rights Reserved.
  *
- * Copyright (c) 2016-2018,2020 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2018,2020-2021 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -49,7 +49,8 @@ static void ak0991x_init_config_event(sns_sensor_instance *const this)
   cfg_ev->has_active_current = true;
   cfg_ev->has_resolution = true;
   cfg_ev->range_count = 2;
-  cfg_ev->has_dri_enabled = false;
+  cfg_ev->has_dri_enabled = true;
+  cfg_ev->dri_enabled = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
 
   switch (state->mag_info.device_select)
   {
@@ -107,6 +108,12 @@ static void ak0991x_init_config_event(sns_sensor_instance *const this)
     cfg_ev->range[0] = AK09918_MIN_RANGE;
     cfg_ev->range[1] = AK09918_MAX_RANGE;
     break;
+  case AK09919:
+    cfg_ev->active_current = AK09919_HI_PWR;
+    cfg_ev->resolution = AK09919_RESOLUTION;
+    cfg_ev->range[0] = AK09919_MIN_RANGE;
+    cfg_ev->range[1] = AK09919_MAX_RANGE;
+    break;
   default:
     break;
   }
@@ -141,6 +148,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   sns_sensor_uid mag_suid = (sns_sensor_uid)MAG_SUID1;
 #endif //AK0991X_ENABLE_DUAL_SENSOR
 
+  state->bus_pwr_on = false;
   state->diag_service = (sns_diag_service *)
     service_mgr->get_service(service_mgr, SNS_DIAG_SERVICE);
   state->scp_service = (sns_sync_com_port_service *)
@@ -217,9 +225,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-    state->mag_info.meas_time = 
+    state->mag_info.meas_time =
       (state->mag_info.sdr == 1) ?
-      AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US : 
+      AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US :
       AK09915_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     break;
   case AK09916C:
@@ -247,9 +255,9 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
-    state->mag_info.meas_time = 
+    state->mag_info.meas_time =
       (state->mag_info.sdr == 0) ?
-      AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US : 
+      AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US :
       AK09917_TIME_FOR_LOW_POWER_MODE_MEASURE_US;
     AK0991X_INST_PRINT(HIGH, this, "AK09917 RSV1=0x%02X", (int)sensor_state->reg_rsv1_value);
     break;
@@ -261,6 +269,15 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
     state->mag_info.meas_time = AK09918_TIME_FOR_MEASURE_US;
+    break;
+  case AK09919:
+    state->mag_info.resolution = AK09919_RESOLUTION;
+    state->mag_info.use_fifo = sensor_state->use_fifo;
+    state->mag_info.max_fifo_size = AK09919_FIFO_SIZE;
+    state->mag_info.int_mode = sensor_state->int_mode;
+    state->mag_info.nsf = sensor_state->nsf;
+    state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.meas_time = AK09919_TIME_FOR_MEASURE_US;
     break;
   default:
     return SNS_RC_FAILED;
@@ -330,7 +347,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     sns_sensor_uid device_mode_suid;
     sns_suid_lookup_get(&sensor_state->suid_lookup_data, "device_mode", &device_mode_suid);
     rv = stream_mgr->api->create_sensor_instance_stream(stream_mgr,
-                                                        this, 
+                                                        this,
                                                         device_mode_suid,
                                                         &state->device_mode_stream);
     if(rv != SNS_RC_SUCCESS)
@@ -371,6 +388,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
   /** Initialize Timer info to be used by the Instance */
   sns_suid_lookup_get(&sensor_state->suid_lookup_data, "timer", &state->timer_suid);
   state->timer_data_stream = NULL;
+  state->heart_beat_timer_data_stream = NULL;
 
   /** Initialize COM port to be used by the Instance */
   state->com_port_info = sensor_state->com_port_info;
@@ -381,9 +399,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
 
   state->scp_service->api->sns_scp_open(state->com_port_info.port_handle);
 
-  state->scp_service->api->sns_scp_update_bus_power(
-    state->com_port_info.port_handle,
-    false);
+  ak0991x_update_bus_power(state, false);
 
   /** Initialize IRQ info to be used by the Instance */
   sns_memscpy(&state->irq_info.irq_config,
@@ -467,17 +483,19 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 
   if(NULL != state->com_port_info.port_handle)
   {
-    state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, true);
-    if(SNS_RC_SUCCESS == ak0991x_enter_i3c_mode(this, &state->com_port_info, state->scp_service))
-    {
-      ak0991x_reconfig_hw(this, false);
-    }
-    state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, false);
+     ak0991x_update_bus_power(state, true);
+     if(SNS_RC_SUCCESS == ak0991x_enter_i3c_mode(this, &state->com_port_info, state->scp_service))
+     {
+        ak0991x_reconfig_hw(this, false);
+     }
+     ak0991x_update_bus_power(state, false);
   }
 
   ak0991x_dae_if_deinit(this);
 
   sns_sensor_util_remove_sensor_instance_stream(this,&state->timer_data_stream);
+  sns_sensor_util_remove_sensor_instance_stream(this,&state->heart_beat_timer_data_stream);
+
   //Deinit for S4S
   ak0991x_s4s_inst_deinit(this);
   sns_sensor_util_remove_sensor_instance_stream(this,&state->interrupt_data_stream);
@@ -498,6 +516,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
 static uint16_t ak0991x_calc_fifo_wmk(
     sns_sensor_instance *const this,
     float desired_report_rate,
+    float desired_sample_rate,
     float mag_chosen_sample_rate)
 {
   uint16_t desired_wmk = 1;
@@ -511,9 +530,14 @@ static uint16_t ak0991x_calc_fifo_wmk(
       case AK09915C:
       case AK09915D:
       case AK09917:
+      case AK09919:
         if( desired_report_rate != 0.0f )
         {
           desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate;
+          if(fabs(desired_sample_rate - desired_report_rate) <= 1e-2)
+          {
+            desired_wmk = 1;
+          }
         }
 
         if (state->mag_info.max_batch)
@@ -547,6 +571,7 @@ static uint16_t ak0991x_calc_fifo_wmk(
 static uint32_t ak0991x_calc_dae_wmk(
     sns_sensor_instance *const this,
     float desired_report_rate,
+    float desired_sample_rate,
     float mag_chosen_sample_rate,
     uint16_t fifo_wmk)
 {
@@ -559,6 +584,10 @@ static uint32_t ak0991x_calc_dae_wmk(
   if (desired_report_rate != 0.0f && mag_chosen_sample_rate != 0.0f)
   {
     dae_wmk = SNS_MAX(1, (uint32_t)((mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate)); // prevent dae_wmk=0
+    if(fabs(desired_sample_rate - desired_report_rate) <= 1e-2)
+    {
+      dae_wmk = 1;
+    }
     if(state->mag_info.flush_only || state->mag_info.max_batch)
     {
       dae_wmk = UINT32_MAX;
@@ -574,6 +603,7 @@ static uint32_t ak0991x_calc_dae_wmk(
   dae_wmk = fifo_wmk; // dae_wmk = fifo_wmk when nonDAE? (MAG-042 on DRI+FIFO+nonDAE still fails)
   UNUSED_VAR(this);
   UNUSED_VAR(desired_report_rate);
+  UNUSED_VAR(desired_sample_rate);
   UNUSED_VAR(mag_chosen_sample_rate);
 #endif
   return dae_wmk;
@@ -655,11 +685,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       (uint32_t)state->pre_timestamp,
       state->total_samples);
 
-  // Turn COM port ON
-  state->scp_service->api->sns_scp_update_bus_power(
-    state->com_port_info.port_handle,
-    true);
-
+  ak0991x_update_bus_power(state, true);
   if (client_request->message_id == SNS_STD_SENSOR_MSGID_SNS_STD_SENSOR_CONFIG)
   {
     // In case of DRI,
@@ -677,7 +703,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       (sns_ak0991x_mag_req *)client_request->request;
     desired_sample_rate = payload->sample_rate;
     desired_report_rate = payload->report_rate;
-    
+
 #ifdef AK0991X_ENABLE_DEVICE_MODE_SENSOR
     if(NULL != state->device_mode_stream )
     {
@@ -708,8 +734,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->mag_info.max_batch = payload->is_max_batch;
     state->mag_info.flush_period = payload->flush_period;
     req_cfg.odr      = mag_chosen_sample_rate_reg_value;
-    req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, mag_chosen_sample_rate);
-    req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, mag_chosen_sample_rate, req_cfg.fifo_wmk);
+    req_cfg.fifo_wmk = ak0991x_calc_fifo_wmk(this, desired_report_rate, desired_sample_rate, mag_chosen_sample_rate);
+    req_cfg.dae_wmk  = ak0991x_calc_dae_wmk(this, desired_report_rate, desired_sample_rate, mag_chosen_sample_rate, req_cfg.fifo_wmk);
 
     AK0991X_INST_PRINT(LOW, this, "Calc odr=%d, req_wmk=%d, dae_wmk=%u, flush_period=%u, flushonly=%d, max_batch=%d",
         req_cfg.odr,
@@ -718,7 +744,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         (uint32_t)state->mag_info.flush_period,
         state->mag_info.flush_only?1:0,
         state->mag_info.max_batch?1:0 );
-    
+
     // Send out previous config
     if ( desired_sample_rate > 0 &&
          state->mag_info.last_sent_cfg.num > 0 &&
@@ -735,14 +761,14 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     state->only_dae_wmk_is_changed = false;
 
     // check if config not changed.
-    if( !state->processing_new_config &&
+    if( !state->processing_new_config && !state->in_clock_error_procedure &&
         state->mag_info.last_sent_cfg.fifo_wmk == req_cfg.fifo_wmk &&
         state->mag_info.last_sent_cfg.odr == req_cfg.odr)
     {
       if((state->mag_info.last_sent_cfg.dae_wmk == req_cfg.dae_wmk) || !ak0991x_dae_if_available(this))
       {
         // No change needed -- return success
-        AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d", 
+        AK0991X_INST_PRINT(LOW, this, "Config not changed. total=%d #%d odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
         state->total_samples,
         state->mag_info.cur_cfg.num,
         (uint32_t)state->mag_info.cur_cfg.odr,
@@ -756,15 +782,13 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         }
 
         // Turn COM port OFF
-        state->scp_service->api->sns_scp_update_bus_power(
-                                                          state->com_port_info.port_handle,
-                                                          false);
+        ak0991x_update_bus_power(state, false);
         return SNS_RC_SUCCESS;
       }
       AK0991X_INST_PRINT(LOW, this, "Same ODR and Same WM but DAE_WMK is different.");
         state->only_dae_wmk_is_changed = true;
-      }
-    
+    }
+
     // If dae_if.mag.state is STREAM_STARTING and config_step is UPDATING_HW, re-evaluate a configuration.
     if(state->dae_if.mag.state == STREAM_STARTING && state->config_step == AK0991X_CONFIG_UPDATING_HW)
     {
@@ -775,7 +799,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
 
     // new config received. start processing for new config.
     state->processing_new_config = true;
- 
+
     // set current config values in state parameter
     state->mag_info.cur_cfg.num++;
     state->mag_info.cur_cfg.odr       = req_cfg.odr;
@@ -789,7 +813,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
     (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
     // after inst init.
-    if( state->mag_info.last_sent_cfg.num == 0 && 
+    if( state->mag_info.last_sent_cfg.num == 0 &&
         state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF )
     {
       // reset timestamp
@@ -817,9 +841,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "100Hz dummy measurement is still running. save request.");
 
       // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-                                                        state->com_port_info.port_handle,
-                                                        false);
+      ak0991x_update_bus_power(state, false);
+
       return SNS_RC_SUCCESS;
     }
 
@@ -829,9 +852,7 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
       AK0991X_INST_PRINT(LOW, this, "Waiting for DAE init result");
 
       // Turn COM port OFF
-      state->scp_service->api->sns_scp_update_bus_power(
-                                                        state->com_port_info.port_handle,
-                                                        false);
+      ak0991x_update_bus_power(state, false);
       return SNS_RC_SUCCESS;
     }
 #endif //AK0991X_ENABLE_DAE
@@ -969,6 +990,10 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
         {
           sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
         }
+        if(state->heart_beat_timer_data_stream != NULL)
+        {
+          sns_sensor_util_remove_sensor_instance_stream(this, &state->heart_beat_timer_data_stream);
+        }
       }
       else  // DAE enabled
       {
@@ -1021,10 +1046,8 @@ sns_rc ak0991x_inst_set_client_config(sns_sensor_instance *const this,
   }
 
   // Turn COM port OFF
-  state->scp_service->api->sns_scp_update_bus_power(
-    state->com_port_info.port_handle,
-    false);
+  ak0991x_update_bus_power(state, false);
 
-  return SNS_RC_SUCCESS;
+  return rv;
 }
 

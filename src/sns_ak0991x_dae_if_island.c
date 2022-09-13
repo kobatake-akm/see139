@@ -80,7 +80,7 @@ static void ak0991x_send_mag_s4s_config(sns_sensor_instance *this, bool send_dt_
   s4s_config_req.has_send_dt_event = true;
   s4s_config_req.send_dt_event = send_dt_event;
 
-  
+
   if((s4s_req.request_len =
       pb_encode_request(s4s_encoded_msg,
                         sizeof(s4s_encoded_msg),
@@ -116,7 +116,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   };
 
   AK0991X_INST_PRINT(HIGH, this, "send_mag_config:: stream=0x%x, #clk_err_meas_count=%u/%u, in_clk_err_proc=%u, use_dri=%u",
-                     dae_stream->stream, 
+                     dae_stream->stream,
                      state->mag_info.clock_error_meas_count,
                      AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC,
                      state->in_clock_error_procedure,
@@ -125,7 +125,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING ||
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
-    wm = !mag_info->use_fifo ? 1 : ((mag_info->device_select == AK09917) ? 
+    wm = !mag_info->use_fifo ? 1 : (((mag_info->device_select == AK09917) || (mag_info->device_select == AK09919)) ?
                                     mag_info->cur_cfg.fifo_wmk : mag_info->max_fifo_size);
 
     if(state->mag_info.flush_only || state->mag_info.max_batch)
@@ -173,7 +173,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   }
   config_req.has_accel_info = false;
   config_req.has_expected_get_data_bytes = true;
-  config_req.expected_get_data_bytes = 
+  config_req.expected_get_data_bytes =
       wm * AK0991X_NUM_DATA_HXL_TO_ST2 + dae_stream->status_bytes_per_fifo;
 
   if(mag_info->use_sync_stream)
@@ -310,8 +310,13 @@ static void process_fifo_samples(
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   uint16_t fifo_len = buf_len - state->dae_if.mag.status_bytes_per_fifo;
   uint32_t sampling_intvl;
-  uint8_t dummy_buf[] = {0U,0U,0U,0U,0U,0U,0U,AK0991X_INV_FIFO_DATA}; // set INV bit 
+  uint8_t dummy_buf[] = {0U,0U,0U,0U,0U,0U,0U,AK0991X_INV_FIFO_DATA}; // set INV bit
   uint8_t *mag_data_buf = buf + state->dae_if.mag.status_bytes_per_fifo;
+  sns_time calculated_timestamp_from_previous;
+  uint8_t ref_num_samples;
+  bool dummy_state_0 = false;
+  bool dummy_state = false;
+  sns_time dummy_data_ts_of_batch;
 
   //////////////////////////////
   // data buffer formed in sns_ak0991x_dae.c for non-fifo mode
@@ -330,6 +335,7 @@ static void process_fifo_samples(
 
   ak0991x_mag_odr odr = (ak0991x_mag_odr)(buf[1] & 0x1F);
   uint16_t fifo_wmk = (state->mag_info.use_fifo) ? (uint8_t)(buf[0] & 0x1F) + 1 : 1;  // read value from WM[4:0]
+  state->reg_fifo_wmk = fifo_wmk;
 
   state->is_orphan = false;
   sampling_intvl = (ak0991x_get_sample_interval(odr) *
@@ -340,7 +346,7 @@ static void process_fifo_samples(
   // calculate num_samples
   if(!state->in_clock_error_procedure)
   {
-    state->is_orphan = 
+    state->is_orphan =
 //        (state->dae_event_time < state->config_set_time); // use time
         ( odr != state->mag_info.cur_cfg.odr ) ||
         ( fifo_wmk != state->mag_info.cur_cfg.fifo_wmk );
@@ -350,7 +356,7 @@ static void process_fifo_samples(
       if(state->mag_info.use_fifo)
       {
         // num_samples update when FIFO enabled.
-        if(state->mag_info.device_select == AK09917)
+        if((state->mag_info.device_select == AK09917) || (state->mag_info.device_select == AK09919))
         {
           state->num_samples = buf[2] >> 2;
         }
@@ -411,7 +417,7 @@ static void process_fifo_samples(
   {
     // for polling mode, always FIFO enabled. No sample data from DAE
     if( fifo_len == 0 &&
-        state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && 
+        state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
         !state->mag_info.use_sync_stream )
     {
       AK0991X_INST_PRINT(HIGH, this, "num_samples=0 But forced to set 1, fifo_len=8.");
@@ -426,6 +432,15 @@ static void process_fifo_samples(
         state->num_samples, fifo_len);
         state->num_samples = fifo_len/AK0991X_NUM_DATA_HXL_TO_ST2;
     }
+  }
+
+  if(((state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) && (state->mag_info.use_fifo)) && (0 == state->num_samples) && !state->mag_info.use_sync_stream)
+  {
+    state->num_samples = 1;
+    fifo_len = AK0991X_NUM_DATA_HXL_TO_ST2;
+    mag_data_buf =  dummy_buf;
+    dummy_state_0 = true ;
+    AK0991X_INST_PRINT(MED, this, "num_samples=0 But forced to set 1, add dummy data");
   }
 
   if( !state->is_orphan )
@@ -449,29 +464,123 @@ static void process_fifo_samples(
         }
         else
         {
-          state->interrupt_timestamp = state->dae_event_time;
+          if(state->mag_info.use_fifo) // for Polling + FIFO
+          {
+            ref_num_samples = (state->num_samples <= state->mag_info.cur_cfg.fifo_wmk) ? state->num_samples : state->mag_info.cur_cfg.fifo_wmk;
+            calculated_timestamp_from_previous = state->pre_timestamp + sampling_intvl * ref_num_samples;
+            if(state->system_time >= calculated_timestamp_from_previous)
+            {
+              if((state->dae_event_time < calculated_timestamp_from_previous + 0.8*sampling_intvl) && (state->dae_event_time > (calculated_timestamp_from_previous - sampling_intvl)))
+              {
+                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (ref_num_samples - 1);
+              }
+              else
+              {
+                state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+              }
+
+              if(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+              {
+                state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+              }
+            }
+            else
+            {
+              if(ref_num_samples - 1 >= ((calculated_timestamp_from_previous - state->system_time)/sampling_intvl))
+              {
+                if(((calculated_timestamp_from_previous - state->system_time) % sampling_intvl) == 0)
+                {
+                  state->num_samples = ref_num_samples - ((calculated_timestamp_from_previous - state->system_time)/sampling_intvl);
+                }
+                else
+                {
+                  state->num_samples = ref_num_samples - (((calculated_timestamp_from_previous- state->system_time)/sampling_intvl) + 1);
+                }
+                fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                if(0 != state->num_samples)
+                {
+                  if((state->dae_event_time - (state->pre_timestamp + sampling_intvl * state->num_samples) < 0.8*sampling_intvl) && (state->dae_event_time > state->pre_timestamp+ sampling_intvl * (state->num_samples-1)))
+                  {
+                    state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+                  }
+                  else
+                  {
+                    state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+                  }
+
+                  if(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                  {
+                    state->first_data_ts_of_batch = state->pre_timestamp + sampling_intvl;
+                  }
+                }
+                else
+                {
+                  state->num_samples = 1;
+                  fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                  state->first_data_ts_of_batch = state->system_time;
+                }
+              }
+              else
+              {
+                state->num_samples = 0;
+                fifo_len = 0;
+                if(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                {
+                  ak0991x_send_fifo_flush_done(this);
+                }
+              }
+            }
+
+            if((1 == (state->mag_info.cur_cfg.fifo_wmk - state->num_samples)) && !dummy_state_0 && !state->data_is_ready && (!(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)))
+            {
+              if(state->dae_event_time <= calculated_timestamp_from_previous)
+              {
+                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * ((state->num_samples - ((calculated_timestamp_from_previous - state->dae_event_time)/sampling_intvl))- 1);
+              }
+              else
+              {
+                dummy_state = true;
+                if(((state->dae_event_time - calculated_timestamp_from_previous) % sampling_intvl) != 0)
+                {
+                  state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->mag_info.cur_cfg.fifo_wmk + (state->dae_event_time - calculated_timestamp_from_previous)/sampling_intvl - 1);
+                  dummy_data_ts_of_batch = state->dae_event_time - sampling_intvl * ((state->dae_event_time - calculated_timestamp_from_previous)/sampling_intvl);
+                }
+                else
+                {
+                  state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->mag_info.cur_cfg.fifo_wmk + ((state->dae_event_time - calculated_timestamp_from_previous)/sampling_intvl -1)- 1);
+                  dummy_data_ts_of_batch = state->dae_event_time - sampling_intvl * ((state->dae_event_time - calculated_timestamp_from_previous)/sampling_intvl -1);
+                }
+              }
+            }
+            state->flush_sample_count  = state->fifo_flush_in_progress ? state->num_samples : 0;
+            state->averaged_interval = sampling_intvl;
+          }
+          else
+          {
+            state->interrupt_timestamp = state->dae_event_time;
 
 #ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
-          // use ideal interval for more than 50Hz ODR because of the timer jitter
-          if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
-              !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
-          {
-            state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
-          }
+            // use ideal interval for more than 50Hz ODR because of the timer jitter
+            if( !state->this_is_first_data && (sampling_intvl < 384000 ) &&
+                !(state->this_is_the_last_flush && state->fifo_flush_in_progress) )
+            {
+              state->interrupt_timestamp = state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples;
+            }
 #endif
 
-          if( state->this_is_the_last_flush && state->fifo_flush_in_progress )
-          {
-            AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u p_off=%u",
-                state->total_samples,
-                (uint32_t)state->pre_timestamp_for_orphan,
-                (uint32_t)state->interrupt_timestamp,
-                (uint32_t)state->system_time,
-                (uint32_t)state->polling_timer_start_time);
-          }
+            if( state->this_is_the_last_flush && state->fifo_flush_in_progress )
+            {
+              AK0991X_INST_PRINT(LOW, this, "last flush total= %d pre= %u ts= %u sys= %u p_off=%u",
+                  state->total_samples,
+                  (uint32_t)state->pre_timestamp_for_orphan,
+                  (uint32_t)state->interrupt_timestamp,
+                  (uint32_t)state->system_time,
+                  (uint32_t)state->polling_timer_start_time);
+            }
 
-          state->first_data_ts_of_batch = state->interrupt_timestamp;
-          state->averaged_interval = sampling_intvl;
+            state->first_data_ts_of_batch = state->interrupt_timestamp;
+            state->averaged_interval = sampling_intvl;
+          }
         }
 
 #ifdef AK0991X_ENABLE_TS_DEBUG
@@ -488,7 +597,8 @@ static void process_fifo_samples(
         // when the pre_timestamp_for_orphan is too old or newer than the dae_event_time, use dae_event_time instead.
         if(state->irq_info.detect_irq_event && // dri or timer event
            (state->dae_event_time > state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples + sampling_intvl/5 ||
-            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) )
+            state->dae_event_time < state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples)  &&
+           ((state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) || !state->mag_info.use_fifo))
         {
           state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
         }
@@ -506,11 +616,98 @@ static void process_fifo_samples(
         }
         else  // polling
         {
-          state->first_data_ts_of_batch = state->dae_event_time;
+          if(state->mag_info.use_fifo)
+          {
+            ref_num_samples = (state->num_samples <= fifo_wmk) ? state->num_samples : fifo_wmk;
+            calculated_timestamp_from_previous = state->pre_timestamp_for_orphan + sampling_intvl * ref_num_samples;
+            if(state->system_time >= calculated_timestamp_from_previous)
+            {
+              if((state->dae_event_time < calculated_timestamp_from_previous + 0.8*sampling_intvl) && (state->dae_event_time > (calculated_timestamp_from_previous - sampling_intvl)))
+              {
+                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (ref_num_samples - 1);
+              }
+              else
+              {
+                state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+              }
+
+              if(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+              {
+                state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (ref_num_samples - 1);
+                if(state->this_is_the_last_flush && (!state->data_is_ready || state->fifo_flush_in_progress))
+                {
+                  state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+                }
+              }
+            }
+            else
+            {
+              if(ref_num_samples - 1 >= ((calculated_timestamp_from_previous - state->system_time)/sampling_intvl))
+              {
+                if(((calculated_timestamp_from_previous - state->system_time) % sampling_intvl) == 0)
+                {
+                  state->num_samples = ref_num_samples - ((calculated_timestamp_from_previous - state->system_time)/sampling_intvl);
+                }
+                else
+                {
+                  state->num_samples = ref_num_samples - (((calculated_timestamp_from_previous- state->system_time)/sampling_intvl) + 1);
+                }
+                fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                if(0 != state->num_samples)
+                {
+                  if((state->dae_event_time - (state->pre_timestamp_for_orphan + sampling_intvl * state->num_samples) < 0.8*sampling_intvl) && (state->dae_event_time > state->pre_timestamp_for_orphan+ sampling_intvl * (state->num_samples-1)))
+                  {
+                    state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (state->num_samples - 1);
+                  }
+                  else
+                  {
+                    state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+                  }
+
+                  if(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                  {
+                    if(state->this_is_first_data && state->fifo_flush_in_progress && state->this_is_the_last_flush)
+                    {
+                      state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
+                      fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                    }
+                    else
+                    {
+                      state->first_data_ts_of_batch = state->dae_event_time - sampling_intvl * (ref_num_samples - 1);
+                      state->num_samples = ref_num_samples;
+                      fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                    }
+                  }
+                }
+                else
+                {
+                  state->num_samples = 1;
+                  fifo_len = state->num_samples * AK0991X_NUM_DATA_HXL_TO_ST2;
+                  state->first_data_ts_of_batch = state->system_time;
+                }
+              }
+              else
+              {
+                state->num_samples = 0;
+                fifo_len = 0;
+                if(state->fifo_flush_in_progress || state->this_is_the_last_flush || !state->irq_info.detect_irq_event)
+                {
+                  state->fifo_flush_in_progress = false;
+                  state->flush_requested_in_dae = false;
+                }
+              }
+            }
+            state->flush_sample_count  = state->fifo_flush_in_progress ? state->num_samples : 0;
+          }
+          else
+          {
+            state->first_data_ts_of_batch = state->dae_event_time;
+          }
+
 #ifdef AK0991X_OPEN_SSC_711_PATCH_FOR_JITTER
           // use ideal interval for more than 50Hz ODR because of the timer jitter
-          if( !state->this_is_first_data && (sampling_intvl < 384000 ) && 
-              !(state->this_is_the_last_flush && state->fifo_flush_in_progress) ) 
+          if( !state->this_is_first_data && (sampling_intvl < 384000 ) &&
+              !(state->this_is_the_last_flush && state->fifo_flush_in_progress) )
           {
             state->first_data_ts_of_batch = state->pre_timestamp_for_orphan + sampling_intvl;
           }
@@ -530,6 +727,15 @@ static void process_fifo_samples(
                                       sampling_intvl,
                                       mag_data_buf,
                                       fifo_len);
+      if(dummy_state && (!(state->fifo_flush_in_progress || state->this_is_the_last_flush)))
+      {
+        ak0991x_process_mag_data_buffer(this,
+                                        dummy_data_ts_of_batch,
+                                        sampling_intvl,
+                                        dummy_buf,
+                                        AK0991X_NUM_DATA_HXL_TO_ST2);
+        AK0991X_INST_PRINT(MED, this, "Add one dummy data");
+      }
     }
     else  // in clock error procedure
     {
@@ -546,27 +752,8 @@ static void process_fifo_samples(
       }
     }
 
-    if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING) // for DRI mode
-    {
-      ak0991x_register_heart_beat_timer(this);
-    }
-    else  // for Polling mode
-    {
-      // No heart_beat_timer_event when orphan.
-      // Just update heart_beat_timestamp in order to ignore performing unnecessary heart beat detection
-      if( state->is_orphan )
-      {
-        state->heart_beat_timestamp = state->system_time;
-        state->heart_beat_sample_count = 0;
-        state->heart_beat_attempt_count = 0;
-//        AK0991X_INST_PRINT(HIGH, this, "Reset HB timestamp %u", (uint32_t)state->heart_beat_timestamp);
-      }
-      else
-      {
-        // check heart beat fire time
-//        ak0991x_heart_beat_timer_event(this);
-      }
-    }
+    // Set new timeout for heart beat
+    ak0991x_register_heart_beat_timer(this);
   }
 }
 
@@ -743,6 +930,7 @@ static void process_response(
         dae_stream->state = PRE_INIT;
         if(state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
         {
+          ak0991x_inst_exit_island(this);
           ak0991x_continue_client_config(this, true);
         }
       }
@@ -813,9 +1001,9 @@ static void process_response(
 
       if(state->config_step != AK0991X_CONFIG_IDLE)
       {
+        ak0991x_dae_if_flush_samples(this);
         ak0991x_dae_if_start_streaming(this);
         state->config_step = AK0991X_CONFIG_UPDATING_HW;
-        ak0991x_dae_if_flush_samples(this);
       }
       else if(state->heart_beat_attempt_count >= 3)
       {
@@ -839,8 +1027,8 @@ static void process_response(
       state->this_is_the_last_flush = false;
       state->wait_for_last_flush = false;
 
-      if( !state->in_self_test && 
-          state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
+      if( !state->in_self_test &&
+          state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num &&
           state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
       {
         // check if handled same config.
@@ -854,11 +1042,11 @@ static void process_response(
         }
         else
         {
-        AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
-            state->mag_info.cur_cfg.num,
-            (uint32_t)state->mag_info.cur_cfg.odr,
-            (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
-            (uint32_t)state->mag_info.cur_cfg.dae_wmk);
+          AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
+              state->mag_info.cur_cfg.num,
+              (uint32_t)state->mag_info.cur_cfg.odr,
+              (uint32_t)state->mag_info.cur_cfg.fifo_wmk,
+              (uint32_t)state->mag_info.cur_cfg.dae_wmk);
 
           ak0991x_send_config_event(this, true);  // send new config event
           ak0991x_send_cal_event(this, false);    // send previous cal event
@@ -882,11 +1070,20 @@ static void process_response(
       {
         if(state->config_step == AK0991X_CONFIG_STOPPING_STREAM)
         {
-          state->this_is_the_last_flush = true;
-          if(ak0991x_dae_if_flush_hw(this))
+          if(state->mag_info.use_fifo && (state->mag_info.cur_cfg.fifo_wmk > 1 || !(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING)))
           {
-            state->config_step = AK0991X_CONFIG_FLUSHING_HW;
-            AK0991X_INST_PRINT(LOW, this,"Last flush before changing ODR.");
+            state->this_is_the_last_flush = true;
+            if(ak0991x_dae_if_flush_hw(this))
+            {
+              state->config_step = AK0991X_CONFIG_FLUSHING_HW;
+              AK0991X_INST_PRINT(LOW, this,"Last flush before changing ODR.");
+            }
+          }
+          else
+          {
+            ak0991x_dae_if_start_streaming(this);
+            state->config_step = AK0991X_CONFIG_UPDATING_HW;
+            ak0991x_dae_if_flush_samples(this);
           }
         }
         else if(state->config_step == AK0991X_CONFIG_UPDATING_HW)
@@ -914,8 +1111,8 @@ static void process_response(
           }
           else
           {
-            if( !state->in_self_test && 
-                state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num && 
+            if( !state->in_self_test &&
+                state->mag_info.cur_cfg.num > state->mag_info.last_sent_cfg.num &&
                 state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
             {
               AK0991X_INST_PRINT(HIGH, this, "Send new config #%d in DAE: odr=0x%02X fifo_wmk=%d, dae_wmk=%d",
@@ -1034,9 +1231,10 @@ static void process_events(sns_sensor_instance *this, ak0991x_dae_stream *dae_st
         ak0991x_instance_state *state = (ak0991x_instance_state *)this->state->state;
         dae_stream->stream_usable = false;
         AK0991X_INST_PRINT(LOW, this,"SNS_STD_ERROR_EVENT");
-        if(dae_stream->state == INIT_PENDING && 
+        if(dae_stream->state == INIT_PENDING &&
            state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
         {
+          ak0991x_inst_exit_island(this);
           ak0991x_continue_client_config(this, true);
         }
       }
@@ -1092,7 +1290,7 @@ bool ak0991x_dae_if_pause_s4s_schedule(sns_sensor_instance *this)
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
   ak0991x_dae_if_info    *dae_if = &state->dae_if;
 
-  if(stream_usable(&state->dae_if.mag) && 
+  if(stream_usable(&state->dae_if.mag) &&
      state->mag_info.use_sync_stream &&
      (dae_if->mag.state == STREAMING || dae_if->mag.state == STREAM_STARTING))
   {
@@ -1218,6 +1416,7 @@ void ak0991x_dae_if_process_events(sns_sensor_instance *this)
 
   if(!state->dae_if.mag.stream_usable)
   {
+    ak0991x_inst_exit_island(this);
     ak0991x_dae_if_deinit(this);
   }
 }

@@ -94,18 +94,6 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
 
   switch (state->mag_info.device_select)
   {
-  case AK09911:
-    phy_sensor_config->has_stream_is_synchronous = false;
-    phy_sensor_config->stream_is_synchronous = false;
-    break;
-  case AK09912:
-    phy_sensor_config->has_stream_is_synchronous = false;
-    phy_sensor_config->stream_is_synchronous = false;
-    break;
-  case AK09913:
-    phy_sensor_config->has_stream_is_synchronous = false;
-    phy_sensor_config->stream_is_synchronous = false;
-    break;
   case AK09915C:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
@@ -116,24 +104,16 @@ void ak0991x_s4s_send_config_event(sns_sensor_instance *const this,
     phy_sensor_config->stream_is_synchronous =
         (state->mag_info.s4s_sync_state >= AK0991X_S4S_1ST_SYNCED)? true : false;
     break;
-  case AK09916C:
-    phy_sensor_config->has_stream_is_synchronous = false;
-    phy_sensor_config->stream_is_synchronous = false;
-    break;
-  case AK09916D:
-    phy_sensor_config->has_stream_is_synchronous = false;
-    phy_sensor_config->stream_is_synchronous = false;
-    break;
   case AK09917:
     phy_sensor_config->has_stream_is_synchronous = state->mag_info.use_sync_stream;
     phy_sensor_config->stream_is_synchronous =
         (state->mag_info.s4s_sync_state >= AK0991X_S4S_1ST_SYNCED)? true : false;
     break;
-  case AK09918:
+  default:
+    /* These devices does not have S4S feature */
+    /* AK09911,12,13,16C,16D,18,19 */
     phy_sensor_config->has_stream_is_synchronous = false;
     phy_sensor_config->stream_is_synchronous = false;
-    break;
-  default:
     break;
   }
 }
@@ -155,14 +135,6 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
 
   switch (state->mag_info.device_select)
   {
-  case AK09911:
-  case AK09912:
-  case AK09913:
-  case AK09916C:
-  case AK09916D:
-  case AK09918:
-    state->mag_info.use_sync_stream = false;
-    break;
   case AK09915C:
   case AK09915D:
   case AK09917:
@@ -173,6 +145,8 @@ void ak0991x_s4s_inst_init(sns_sensor_instance *const this,
 #endif // AK0991X_ENABLE_REGISTRY_ACCESS
     break;
   default:
+    /* These devices does not have S4S feature */
+    /* AK09911,12,13,16C,16D,18,19 */
     state->mag_info.use_sync_stream = false;
     break;
   }
@@ -265,7 +239,7 @@ static sns_time convert_bus_ts( sns_time bus_ts )
   sns_time now = sns_get_system_time();
   bus_ts = 0xFFFFFFFFULL & bus_ts;
   ts = (now & (UINT64_MAX << 32 << 7)) | (bus_ts<<7);
-  
+
   if(ts > now)
   {
     // rollover -- subtract 1<<32<<7;

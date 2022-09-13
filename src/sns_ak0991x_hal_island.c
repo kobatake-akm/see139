@@ -5,7 +5,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2016-2020 Qualcomm Technologies, Inc.
+ * Copyright (c) 2016-2020, 2021 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  *
@@ -27,6 +27,7 @@
 #include "sns_ak0991x_sensor.h"
 #include "sns_ak0991x_sensor_instance.h"
 #include "sns_ak0991x_s4s.h"
+#include "sns_ak0991x_log.h"
 
 #include "sns_async_com_port.pb.h"
 #include "sns_timer.pb.h"
@@ -50,265 +51,70 @@
 /** Need to use ODR table. */
 extern const odr_reg_map reg_map_ak0991x[AK0991X_REG_MAP_TABLE_SIZE];
 
-log_sensor_state_raw_info log_mag_state_raw_info;
+/**
+ * Turn on/off Com Port Service if not yet.
+ *
+ * @param[i] state            sensor instance state
+ * @param[i] turn_on          true to turn on, false to turn off
+ * @return sns_rc
+ */
+sns_rc ak0991x_update_bus_power( ak0991x_instance_state* const state, bool turn_on)
+{
+   sns_rc com_rv = SNS_RC_SUCCESS;
+   if (turn_on != state->bus_pwr_on)
+   {
+     com_rv = state->scp_service->api->sns_scp_update_bus_power(state->com_port_info.port_handle, turn_on);
+     if (SNS_RC_SUCCESS == com_rv)
+     {
+       state->bus_pwr_on = turn_on;
+     }
+   }
+  return com_rv;
+}
 
 /**
- * Encode log sensor state raw packet
+ * Read wrapper for Synch Com Port Service for instances
  *
- * @param[i] log Pointer to log packet information
- * @param[i] log_size Size of log packet information
- * @param[i] encoded_log_size Maximum permitted encoded size of
- *                            the logz
- * @param[o] encoded_log Pointer to location where encoded
- *                       log should be generated
- * @param[o] bytes_written Pointer to actual bytes written
- *       during encode
+ * @param[i] this             port handle
+ * @param[i] port_handle      port handle
+ * @param[i] reg_addr         register address
+ * @param[i] buffer           read buffer
+ * @param[i] bytes            bytes to read
+ * @param[o] xfer_bytes       bytes read
  *
  * @return sns_rc
- * SNS_RC_SUCCESS if encoding was succesful
- * SNS_RC_FAILED otherwise
  */
-static sns_rc ak0991x_encode_log_sensor_state_raw(
-  void *log, size_t log_size, size_t encoded_log_size, void *encoded_log,
-  size_t *bytes_written)
+sns_rc ak0991x_com_read_wrapper_instance( ak0991x_instance_state*const state,
+                                          sns_sync_com_port_service * scp_service,
+                                          sns_sync_com_port_handle *port_handle,
+                                          uint32_t reg_addr,
+                                          uint8_t *buffer,
+                                          uint32_t bytes,
+                                          uint32_t *xfer_bytes)
 {
-  sns_rc rc = SNS_RC_SUCCESS;
-  uint32_t i = 0;
-  size_t encoded_sample_size = 0;
-  size_t parsed_log_size = 0;
-  sns_diag_batch_sample batch_sample = sns_diag_batch_sample_init_default;
-  uint8_t arr_index = 0;
-  float temp[AK0991X_NUM_AXES];
-  pb_float_arr_arg arg = {.arr = (float *)temp, .arr_len = AK0991X_NUM_AXES,
-    .arr_index = &arr_index};
+  sns_port_vector port_vec;
+  port_vec.buffer = buffer;
+  port_vec.bytes = bytes;
+  port_vec.is_write = false;
+  port_vec.reg_addr = reg_addr;
 
-  if(NULL == encoded_log || NULL == log || NULL == bytes_written)
+  sns_rc com_rv = SNS_RC_SUCCESS;
+  if(state)
   {
-    return SNS_RC_FAILED;
+     com_rv = ak0991x_update_bus_power(state, true);
   }
 
-  batch_sample.sample.funcs.encode = &pb_encode_float_arr_cb;
-  batch_sample.sample.arg = &arg;
-
-  if(!pb_get_encoded_size(&encoded_sample_size, sns_diag_batch_sample_fields,
-                          &batch_sample))
+  if( SNS_RC_SUCCESS == com_rv )
   {
-    return SNS_RC_FAILED;
+     com_rv = ak0991x_com_read_wrapper(scp_service,
+           port_handle,
+           reg_addr,
+           buffer,
+           bytes,
+           xfer_bytes);
   }
-
-  pb_ostream_t stream = pb_ostream_from_buffer(encoded_log, encoded_log_size);
-  ak0991x_batch_sample *raw_sample = (ak0991x_batch_sample *)log;
-
-  while(parsed_log_size < log_size &&
-        (stream.bytes_written + encoded_sample_size)<= encoded_log_size &&
-        i < (uint32_t)(-1))
-  {
-    arr_index = 0;
-    arg.arr = (float *)raw_sample[i].sample;
-
-    batch_sample.sample_type = raw_sample[i].sample_type;
-    batch_sample.status = raw_sample[i].status;
-    batch_sample.timestamp = raw_sample[i].timestamp;
-
-    if(!pb_encode_tag(&stream, PB_WT_STRING,
-                      sns_diag_sensor_state_raw_sample_tag))
-    {
-      rc = SNS_RC_FAILED;
-      break;
-    }
-    else if(!pb_encode_delimited(&stream, sns_diag_batch_sample_fields,
-                                 &batch_sample))
-    {
-      rc = SNS_RC_FAILED;
-      break;
-    }
-
-    parsed_log_size += sizeof(ak0991x_batch_sample);
-    i++;
-  }
-
-  if (SNS_RC_SUCCESS == rc)
-  {
-    *bytes_written = stream.bytes_written;
-  }
-  return rc;
+  return com_rv;
 }
-
-/**
- * Allocate Sensor State Raw Log Packet
- *
- * @param[i] diag       Pointer to diag service
- * @param[i] log_size   Optional size of log packet to
- *    be allocated. If not provided by setting to 0, will
- *    default to using maximum supported log packet size
- */
-static void ak0991x_log_sensor_state_raw_alloc(
-  log_sensor_state_raw_info *log_raw_info,
-  uint32_t log_size)
-{
-  uint32_t max_log_size = 0;
-
-  if(NULL == log_raw_info || NULL == log_raw_info->diag ||
-     NULL == log_raw_info->instance || NULL == log_raw_info->sensor_uid)
-  {
-    return;
-  }
-
-  // allocate memory for sensor state - raw sensor log packet
-  max_log_size = log_raw_info->diag->api->get_max_log_size(
-       log_raw_info->diag);
-
-  if(0 == log_size)
-  {
-    // log size not specified.
-    // Use max supported log packet size
-    log_raw_info->log_size = max_log_size;
-  }
-  else if(log_size <= max_log_size)
-  {
-    log_raw_info->log_size = log_size;
-  }
-  else
-  {
-    return;
-  }
-
-  log_raw_info->log = log_raw_info->diag->api->alloc_log(
-    log_raw_info->diag,
-    log_raw_info->instance,
-    log_raw_info->sensor_uid,
-    log_raw_info->log_size,
-    SNS_DIAG_SENSOR_STATE_LOG_RAW);
-
-  log_raw_info->log_sample_cnt = 0;
-  log_raw_info->bytes_written = 0;
-}
-
-/**
- * Submit the Sensor State Raw Log Packet
- *
- * @param[i] log_raw_info   Pointer to logging information
- *       pertaining to the sensor
- * @param[i] batch_complete true if submit request is for end
- *       of batch
- *  */
-void ak0991x_log_sensor_state_raw_submit(
-  log_sensor_state_raw_info *log_raw_info,
-  bool batch_complete)
-{
-  ak0991x_batch_sample *sample = NULL;
-
-  if(NULL == log_raw_info || NULL == log_raw_info->diag ||
-     NULL == log_raw_info->instance || NULL == log_raw_info->sensor_uid ||
-     NULL == log_raw_info->log)
-  {
-    return;
-  }
-
-  sample = (ak0991x_batch_sample *)log_raw_info->log;
-
-  if(batch_complete)
-  {
-    // overwriting previously sample_type for last sample
-    if(1 == log_raw_info->batch_sample_cnt)
-    {
-      sample[0].sample_type =
-        SNS_DIAG_BATCH_SAMPLE_TYPE_ONLY;
-    }
-    else if(1 < log_raw_info->batch_sample_cnt)
-    {
-      sample[log_raw_info->log_sample_cnt - 1].sample_type =
-        SNS_DIAG_BATCH_SAMPLE_TYPE_LAST;
-    }
-  }
-
-  log_raw_info->diag->api->submit_log(
-        log_raw_info->diag,
-        log_raw_info->instance,
-        log_raw_info->sensor_uid,
-        log_raw_info->bytes_written,
-        log_raw_info->log,
-        SNS_DIAG_SENSOR_STATE_LOG_RAW,
-        log_raw_info->log_sample_cnt * log_raw_info->encoded_sample_size,
-        ak0991x_encode_log_sensor_state_raw);
-
-  log_raw_info->log = NULL;
-}
-
-/**
- * Add raw uncalibrated sensor data to Sensor State Raw log
- * packet
- *
- * @param[i] log_raw_info Pointer to logging information
- *                        pertaining to the sensor
- * @param[i] raw_data     Uncalibrated sensor data to be logged
- * @param[i] timestamp    Timestamp of the sensor data
- * @param[i] status       Status of the sensor data
- *
- * * @return sns_rc,
- * SNS_RC_SUCCESS if encoding was succesful
- * SNS_RC_FAILED otherwise
- */
-static sns_rc ak0991x_log_sensor_state_raw_add(
-  log_sensor_state_raw_info *log_raw_info,
-  float *raw_data,
-  sns_time timestamp,
-  sns_std_sensor_sample_status status)
-{
-  sns_rc rc = SNS_RC_SUCCESS;
-  if(NULL == log_raw_info || NULL == log_raw_info->diag ||
-     NULL == log_raw_info->instance || NULL == log_raw_info->sensor_uid ||
-     NULL == raw_data || NULL == log_raw_info->log)
-  {
-    return SNS_RC_FAILED;
-  }
-
-  if( (log_raw_info->bytes_written + sizeof(ak0991x_batch_sample)) >
-     log_raw_info->log_size)
-  {
-    // no more space in log packet
-    // submit and allocate a new one
-    ak0991x_log_sensor_state_raw_submit(log_raw_info, false);
-    ak0991x_log_sensor_state_raw_alloc(log_raw_info, 0);
-  }
-
-  if(NULL == log_raw_info->log)
-  {
-    rc = SNS_RC_FAILED;
-  }
-  else
-  {
-    ak0991x_batch_sample *sample =
-        (ak0991x_batch_sample *)log_raw_info->log;
-
-    if(0 == log_raw_info->batch_sample_cnt)
-    {
-      sample[log_raw_info->log_sample_cnt].sample_type =
-        SNS_DIAG_BATCH_SAMPLE_TYPE_FIRST;
-    }
-    else
-    {
-      sample[log_raw_info->log_sample_cnt].sample_type =
-        SNS_DIAG_BATCH_SAMPLE_TYPE_INTERMEDIATE;
-    }
-
-    sample[log_raw_info->log_sample_cnt].timestamp = timestamp;
-
-    sns_memscpy(sample[log_raw_info->log_sample_cnt].sample,
-                sizeof(sample[log_raw_info->log_sample_cnt].sample),
-                raw_data,
-                sizeof(sample[log_raw_info->log_sample_cnt].sample));
-
-    sample[log_raw_info->log_sample_cnt].status = status;
-
-    log_raw_info->bytes_written += sizeof(ak0991x_batch_sample);
-
-    log_raw_info->log_sample_cnt++;
-    log_raw_info->batch_sample_cnt++;
-  }
-  return rc;
-}
-
 /**
  * Read wrapper for Synch Com Port Service.
  *
@@ -367,11 +173,15 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
   port_vec.bytes = bytes;
   port_vec.is_write = true;
   port_vec.reg_addr = reg_addr;
-
+  sns_rc com_rv = SNS_RC_SUCCESS;
+  if(this)
+  {
+     ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+     com_rv = ak0991x_update_bus_power(state, true);
+  }
 #ifdef AK0991X_VERBOSE_DEBUG
   if( this )
   {
-    ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
     sns_diag_service *diag = state->diag_service;
     if( diag )
     {
@@ -383,11 +193,16 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
 #else
   UNUSED_VAR( this );
 #endif
-  return scp_service->api->sns_scp_register_rw(port_handle,
+  if( SNS_RC_SUCCESS == com_rv )
+  {
+     com_rv = scp_service->api->sns_scp_register_rw(port_handle,
                                                &port_vec,
                                                1,
                                                save_write_time,
                                                xfer_bytes);
+
+  }
+  return com_rv;
 }
 
 void ak0991x_clear_old_events(sns_sensor_instance *const instance)
@@ -431,6 +246,18 @@ void ak0991x_clear_old_events(sns_sensor_instance *const instance)
       event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
     }
   }
+
+  // Handle heart beat timer event
+  if (NULL != state->heart_beat_timer_data_stream)
+  {
+    event = state->heart_beat_timer_data_stream->api->peek_input(state->heart_beat_timer_data_stream);
+
+    while (NULL != event && SNS_TIMER_MSGID_SNS_TIMER_SENSOR_EVENT == event->message_id)
+    {
+      AK0991X_INST_PRINT(LOW, instance, "Old heart beat timer event detected. Cleared.");
+      event = state->heart_beat_timer_data_stream->api->get_next_input(state->heart_beat_timer_data_stream);
+    }
+  }
 }
 
 /**
@@ -464,7 +291,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     {
       AK0991X_INST_PRINT(MED, instance, "already in i3c mode");
     }
-    return SNS_RC_SUCCESS;
+    //return SNS_RC_SUCCESS;
   }
 
   i2c_com_config.slave_control = com_port->i2c_address;
@@ -523,7 +350,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     if( rv != SNS_RC_SUCCESS ) {
       if(NULL != instance)
       {
-        SNS_INST_PRINTF(ERROR, instance, "Set max read length failed! rv=%d hndl=0x%x", 
+        SNS_INST_PRINTF(ERROR, instance, "Set max read length failed! rv=%d hndl=0x%x",
                         rv, com_port->port_handle);
       }
       com_port->in_i3c_mode = false;
@@ -650,7 +477,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get PID failed!");
     }
   }
-    
+
   sns_memset(buffer, 0, sizeof(buffer));
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
@@ -686,7 +513,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get DCR failed!");
     }
   }
-    
+
   sns_memset(buffer, 0, sizeof(buffer));
   rv = scp_service->api->
     sns_scp_issue_ccc( com_port->port_handle,
@@ -704,7 +531,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
       AK0991X_INST_PRINT(ERROR, instance, "Get status failed!");
     }
   }
-    
+
 #  endif /*  AK0991X_ENABLE_DEBUG_MSG */
 #else /* AK0991X_ENABLE_I3C_SUPPORT */
   UNUSED_VAR(instance);
@@ -771,7 +598,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
       }
     }
   }
-  
+
   com_port->in_i3c_mode = false;
 
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
@@ -807,7 +634,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
         SNS_INST_PRINTF(HIGH, this, "sw_rst: enter i3c failed all attempts");
       }
     }
-  } 
+  }
 #endif
   return rv;
 }
@@ -864,29 +691,54 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     reg_wmk = 0x1F; // signals DAE driver
   }
   // Configure control register 1
-  if ((device_select == AK09912) || (device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
+  switch(device_select)
   {
-    if (device_select == AK09912)
-    {
+    case AK09912:
       buffer[0] = 0x0
         | (state->mag_info.nsf << 5); // NSF bit
-    }
-    else
-    {
+      break;
+    case AK09915C:
+    case AK09915D:
+    case AK09917:
+    case AK09919:
       buffer[0] = 0x0
         | (state->mag_info.nsf << 5) // NSF bit
         | reg_wmk;                   // WM[4:0] bits
-    }
+      break;
+    default:
+      buffer[0] = 0x0;
+      break;
   }
 
   // Configure control register 2
-  if ((device_select == AK09915C) || (device_select == AK09915D) || (device_select == AK09917))
+  // Meaning of MAX_FIFO_SIZE > 1 is 'this device has fifo'
+  if (state->mag_info.max_fifo_size > 1)
   {
-    uint8_t enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
+    uint8_t enable_fifo;
     if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream)
     {
       enable_fifo = 1; // FIFO always ON when Polling to prevent duplicate samples
     }
+    else
+    {
+      enable_fifo = (force_off)? 0 : (uint8_t)state->mag_info.use_fifo;
+    }
+
+    #ifdef AK0991X_ENABLE_ALWAYS_ON
+    if((AK0991X_MAG_ODR50 == desired_odr) || (AK0991X_MAG_ODR100 == desired_odr))
+    {
+      state->mag_info.sdr = 1;
+      state->mag_info.nsf = 3;
+      buffer[0] = 0x0
+        | (state->mag_info.nsf << 5) // NSF bit
+        | reg_wmk;
+    } // Make sure SDR = 1 (low noise mode) ITS =3 Level in odr= 50/100 Hz condition under always_on function Enabled
+    else
+    {
+      state->mag_info.sdr = 0; // Force SDR = 0
+    }
+    #endif
+
     buffer[1] = 0x0
       | (enable_fifo << 7) // FIFO bit
       | (state->mag_info.sdr << 6)               // SDR bit
@@ -911,6 +763,8 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
           | (uint8_t)AK0991X_MAG_ODR100;             // MODE[4:0] bits
 
       /* Enable FIFO for AK09917D RevA/B bug */
+      /* => when read ST1 bit, DRDY does not reflect current DRDY pin status.
+       *    But by enabling FIFO bit, this bug can be avoided. */
       if(device_select == AK09917)
       {
         buffer[1] |= AK0991X_FIFO_BIT;
@@ -948,47 +802,6 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 
 static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this);
 
-
-
-static sns_time ak0991x_set_heart_beat_timeout_period_for_polling(
-    sns_sensor_instance *const this)
-{
-  ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
-  sns_time sample_period;
-  sns_time timeout_period;
-
-  sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
-
-  if (state->mag_info.use_fifo)
-  {
-    timeout_period = sample_period * (state->mag_info.cur_cfg.fifo_wmk);
-  }
-  else
-  {
-    timeout_period = sample_period;
-  }
-
-  // Set heart_beat_timeout_period for heart beat in Polling/FIFO+Polling
-  // as 5 samples time for Polling plus 1 sample time for jitter
-  // or 2 FIFO buffers time for FIFO+Polling plus 2 sample time for jitter
-
-  // Set heart_beat_timeout_period for heart beat in S4S/FIFO+S4S
-  // as 5 samples time for S4S plus 1 sample time for jitter
-  // or 2 FIFO buffers time for FIFO+S4S plus 2 sample time for jitter
-
-  state->heart_beat_timeout_period =
-    (state->mag_info.use_fifo)? timeout_period * 2 + sample_period * 2
-    : sample_period * 5 + sample_period;
-
-  AK0991X_INST_PRINT(LOW, this, "calculated heart_beat_timeout_period = %u %u %u",
-      (uint32_t)state->heart_beat_timeout_period,
-      (uint32_t)timeout_period,
-      (uint32_t)sample_period);
-
-  return timeout_period;
-}
-
-
 /**
  * see sns_ak0991x_hal.h
  */
@@ -1013,7 +826,6 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this)
   state->mag_info.data_count_for_dri = 0;
   state->s4s_reg_event_done = false;
   state->mag_info.s4s_sync_state = AK0991X_S4S_NOT_SYNCED;
-  state->heart_beat_sample_count = 0;
   state->system_time = sns_get_system_time();
   state->heart_beat_timestamp = state->system_time;
 
@@ -1035,7 +847,9 @@ void ak0991x_reset_mag_parameters(sns_sensor_instance *const this)
 
 sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
 {
+#ifdef AK0991X_ENABLE_DEBUG_MSG
   ak0991x_instance_state *state = (ak0991x_instance_state *)(this->state->state);
+#endif
   sns_rc rv;
 
   AK0991X_INST_PRINT(LOW, this, "ak0991x_start_mag_streaming.");
@@ -1060,22 +874,24 @@ sns_rc ak0991x_start_mag_streaming(sns_sensor_instance *const this )
     return rv;
   }
 
-  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u half %u", 
+  AK0991X_INST_PRINT(HIGH, this, "start_mag_streaming at %u pre_ts %u avg %u half %u",
                      (uint32_t)sns_get_system_time(), (uint32_t)state->pre_timestamp,
                      (uint32_t)state->averaged_interval, (uint32_t)state->half_measurement_time);
 
-  // QC - is it not possible to miss any of the interrupts during dummy measurement?
-  if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
-  {
-    ak0991x_register_heart_beat_timer(this);
-  }
-  else
-  {
-    if( ak0991x_dae_if_available(this) && !state->mag_info.flush_only && !state->mag_info.max_batch)
-    {
-      ak0991x_set_heart_beat_timeout_period_for_polling(this);
-    }
-  }
+  ak0991x_register_heart_beat_timer(this);
+
+  // // QC - is it not possible to miss any of the interrupts during dummy measurement?
+  // if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+  // {
+  //   ak0991x_register_heart_beat_timer(this);
+  // }
+  // else
+  // {
+  //   if( ak0991x_dae_if_available(this) && !state->mag_info.flush_only && !state->mag_info.max_batch)
+  //   {
+  //     ak0991x_set_heart_beat_timeout_period_for_polling(this);
+  //   }
+  // }
   return SNS_RC_SUCCESS;
 }
 
@@ -1088,12 +904,12 @@ sns_rc ak0991x_stop_mag_streaming(sns_sensor_instance *const this)
   sns_rc rv;
 
   // Disable Mag Streaming
-  AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
-
-  if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+  if(state != NULL)
   {
-    ak0991x_unregister_heart_beat_timer(this);
+    AK0991X_INST_PRINT(LOW, this, "ak0991x_stop_mag_streaming");
   }
+
+  ak0991x_unregister_heart_beat_timer(this);
 
   rv = ak0991x_set_mag_config(this, true);
 
@@ -1148,6 +964,7 @@ sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint8_t  buffer[1];
   uint32_t xfer_bytes;
+  ak0991x_instance_state *instance_state = NULL;
 
   buffer[0] = AK0991X_MAG_FUSEROM;
   // Set Fuse ROM access mode
@@ -1180,9 +997,13 @@ sns_rc ak0991x_read_asa(sns_sensor_instance *const this,
     return rv;
   }
 
-
+  if(this)
+  {
+     instance_state = (ak0991x_instance_state*)this->state->state;
+  }
   // Read Fuse ROM
-  rv = ak0991x_com_read_wrapper(scp_service,
+  rv = ak0991x_com_read_wrapper_instance(instance_state,
+                                scp_service,
                                 port_handle,
                                 AKM_AK0991X_FUSE_ASAX,
                                 &asa[0],
@@ -1234,8 +1055,9 @@ void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8_t *con
 
   for(int i=0; i<AK0991X_NUM_AXES; i++)
   {
-    if (state->mag_info.device_select == AK09917)
+    if ((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
     {
+      /* this is I3C compliant order */
       out[i] = (int16_t)((((int16_t)buffer[i*2] << 8) & 0xFF00) | (int16_t)buffer[i*2 + 1]);
     }
     else
@@ -1263,7 +1085,8 @@ sns_rc ak0991x_read_st1(ak0991x_instance_state *state,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
-  rv = ak0991x_com_read_wrapper(state->scp_service,
+  rv = ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
@@ -1296,7 +1119,8 @@ static sns_rc ak0991x_read_st2(ak0991x_instance_state *state,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
-  rv = ak0991x_com_read_wrapper(state->scp_service,
+  rv = ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST2,
                                 buffer,
@@ -1328,7 +1152,8 @@ sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
   uint32_t xfer_bytes;
 
   // ST1 read
-  rv = ak0991x_com_read_wrapper(state->scp_service,
+  rv = ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_ST1,
                                 buffer,
@@ -1340,7 +1165,8 @@ sns_rc ak0991x_read_st1_st2(ak0991x_instance_state *state,
   }
 
   // HXL to ST2
-  rv |= ak0991x_com_read_wrapper(state->scp_service,
+  rv |= ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_HXL,
                                 &buffer[1],
@@ -1374,7 +1200,8 @@ static sns_rc ak0991x_read_hxl_st2(ak0991x_instance_state *state,
   sns_rc   rv = SNS_RC_SUCCESS;
   uint32_t xfer_bytes;
 
-  rv = ak0991x_com_read_wrapper(state->scp_service,
+  rv = ak0991x_com_read_wrapper_instance(state,
+                                state->scp_service,
                                 state->com_port_info.port_handle,
                                 AKM_AK0991X_REG_HXL,
                                 buffer,
@@ -1514,7 +1341,7 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
   // Check magnetic sensor overflow (and invalid data for FIFO)
   if(state->mag_info.use_fifo ||
      // Since FIFO is forced to enable on Polling mode for preventing duplicate samples
-     ((state->mag_info.device_select == AK09917) &&
+     ((state->mag_info.max_fifo_size > 1) &&
      (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
      !state->mag_info.use_sync_stream))
   {
@@ -1528,7 +1355,7 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
     lsbdata[TRIAXIS_X] = state->mag_info.previous_lsbdata[TRIAXIS_X];
     lsbdata[TRIAXIS_Y] = state->mag_info.previous_lsbdata[TRIAXIS_Y];
     lsbdata[TRIAXIS_Z] = state->mag_info.previous_lsbdata[TRIAXIS_Z];
-    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: HOFL_BIT=1 or INV=1 ST2=0x%X", mag_sample[7]);
+    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: ST2=0x%X", mag_sample[7]);
   }
 
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
@@ -1541,13 +1368,8 @@ static sns_std_sensor_sample_status ak0991x_handle_mag_sample(uint8_t mag_sample
     lsbdata[TRIAXIS_Z] = state->mag_info.previous_lsbdata[TRIAXIS_Z];
 
     // no measurement done yet, set UNRELIABLE
-    if( (lsbdata[TRIAXIS_X] == 0) &&
-        (lsbdata[TRIAXIS_Y] == 0) &&
-        (lsbdata[TRIAXIS_Z] == 0) )
-    {
-      AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: raw(0,0,0)");
-      status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
-    }
+    AK0991X_INST_PRINT(MED, instance, "UNRELIABLE: data is (0,0,0)");
+    status = SNS_STD_SENSOR_SAMPLE_STATUS_UNRELIABLE;
   }
 
   ipdata[TRIAXIS_X] = lsbdata[TRIAXIS_X] * state->mag_info.resolution;
@@ -1624,7 +1446,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
   size_t num_bytes_to_report;
   num_bytes_to_report = num_bytes;
 
-  int8_t over_sample;
+  int8_t over_sample = 0;
 
   //skip the data to adjust timing for Polling+FIFO
   if(state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && state->mag_info.use_fifo)
@@ -1635,16 +1457,23 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
     }
     else
     {
-      over_sample = state->num_samples - state->mag_info.cur_cfg.fifo_wmk;
+      if(state->is_orphan)
+      {
+        over_sample = state->num_samples - state->reg_fifo_wmk;
+      }
+      else
+      {
+        over_sample = state->num_samples - state->mag_info.cur_cfg.fifo_wmk;
+      }
     }
 
-    if(over_sample > 0)
+    if(over_sample < 0)
     {
-      num_bytes_to_report -= over_sample * 8;
+      over_sample = 0;
     }
   }
 
-  for(i = 0; i < num_bytes_to_report; i += AK0991X_NUM_DATA_HXL_TO_ST2)
+  for(i = over_sample * 8 ; i < num_bytes_to_report ; i += AK0991X_NUM_DATA_HXL_TO_ST2)
   {
     timestamp = first_timestamp + (num_samples_sets++ * sample_interval_ticks);
     report_time = timestamp - state->half_measurement_time;
@@ -1696,7 +1525,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 #endif
 
     // Since FIFO is forced to enable on Polling mode for preventing duplicate samples. Break.
-    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream )
+    if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && !state->mag_info.use_sync_stream && !state->mag_info.use_fifo)  // Polling + FIFO
     {
       break;
     }
@@ -1719,7 +1548,7 @@ void ak0991x_process_mag_data_buffer(sns_sensor_instance *instance,
 
   if(state->accuracy == SNS_STD_SENSOR_SAMPLE_STATUS_ACCURACY_HIGH)
   {
-    if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress) 
+    if( !ak0991x_dae_if_available(instance) && state->fifo_flush_in_progress)
     {
       ak0991x_send_fifo_flush_done(instance);
     }
@@ -1949,7 +1778,14 @@ void ak0991x_validate_timestamp_for_polling(sns_sensor_instance *const instance)
     }
   }
 
-  state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
+  if(state->num_samples > state->mag_info.cur_cfg.fifo_wmk)
+  {
+    state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->mag_info.cur_cfg.fifo_wmk - 1);
+  }
+  else
+  {
+    state->first_data_ts_of_batch = state->interrupt_timestamp - state->averaged_interval * (state->num_samples - 1);
+  }
 }
 void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 {
@@ -1959,7 +1795,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 
   ak0991x_read_st1(state, &st1_buf);  // read ST1
   /* Read ST2 for AK09917D RevA/B bug */
-  if( state->mag_info.device_select == AK09917 && 
+  if( state->mag_info.device_select == AK09917 &&
       !state->mag_info.use_fifo)
   {
     if( !(!state->mag_info.use_sync_stream &&
@@ -1974,7 +1810,8 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
 
   if( state->mag_info.use_fifo )
   {
-    if(state->mag_info.device_select == AK09917)
+    /* in case of device holds the number of available FIFO data */
+    if((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
     {
       if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
       {
@@ -2003,14 +1840,14 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
           if(state->flush_sample_count == 0) //both previous and current event are Polling
           {
 //            AK0991X_INST_PRINT(LOW, instance, "both pre and cur event is polling");
-            state->num_samples = state->mag_info.cur_cfg.fifo_wmk;
+            state->num_samples = ((st1_buf >> 2) > state->mag_info.cur_cfg.fifo_wmk) ? (st1_buf >> 2) : state->mag_info.cur_cfg.fifo_wmk;
           }
           else //previous event is requested FLUSH and current event is Polling
           {
             int16_t calculated_samples;
             calculated_samples = state->mag_info.cur_cfg.fifo_wmk - state->flush_sample_count;
             state->num_samples = st1_buf >> 2;
-            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d num_samples %d", 
+            AK0991X_INST_PRINT(LOW, instance, "calculated_samples %d num_samples %d",
                                calculated_samples,state->num_samples);
 
             if(calculated_samples > 0)
@@ -2033,7 +1870,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
         }
       }
 
-      AK0991X_INST_PRINT(LOW, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_cfg.fifo_wmk);
+      AK0991X_INST_PRINT(MED, instance, "FNUM %d num_samples %d flush_sample_count %d wm %d", (st1_buf >> 2), state->num_samples, state->flush_sample_count, state->mag_info.cur_cfg.fifo_wmk);
 
       if(state->num_samples == 0)
       {
@@ -2056,7 +1893,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   else
   {
     //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
-    if((state->mag_info.device_select == AK09917) &&
+    if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)) &&
        (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
        !state->mag_info.use_sync_stream)
     {
@@ -2150,7 +1987,7 @@ static sns_rc ak0991x_check_ascp(sns_sensor_instance *const instance)
     else
     {
       const sns_time few_ms = sns_convert_ns_to_ticks(5 * 1000 * 1000);
-      sns_time estimated_irq_time = 
+      sns_time estimated_irq_time =
         state->pre_timestamp + state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk;
 
       // irq expected to fire within a few ms?
@@ -2257,7 +2094,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   // FIFO mode
   if(state->mag_info.use_fifo)
   {
-    if(state->mag_info.device_select == AK09917)    // AK09917
+    if((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
     {
       if( state->num_samples > 2 &&
           !state->this_is_the_last_flush &&
@@ -2311,7 +2148,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     uint16_t num_samples = 1;
 
     //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
-    if((state->mag_info.device_select == AK09917) &&
+    if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)) &&
        (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
        !state->mag_info.use_sync_stream)
     {
@@ -2354,8 +2191,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
 
     state->heart_beat_attempt_count = 0;
   }
-  if( state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING &&
-      !state->this_is_the_last_flush &&
+  if( !state->this_is_the_last_flush &&
       state->system_time + (state->averaged_interval * state->mag_info.cur_cfg.fifo_wmk) > state->hb_timer_fire_time )
   {
     ak0991x_register_heart_beat_timer(instance);
@@ -2391,12 +2227,12 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
         }
         else
         {
-          if( state->num_samples == 0 && 
-              state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING && 
+          if( state->num_samples == 0 &&
+              state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING &&
               !state->mag_info.use_sync_stream )
           {
             AK0991X_INST_PRINT(LOW, instance, "num_samples=0 But forced to set 1.");
-            state->num_samples = 1;            
+            state->num_samples = 1;
           }
         }
       }
@@ -2455,8 +2291,7 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_cal
 {
   ak0991x_instance_state *state = (ak0991x_instance_state *)instance->state->state;
   sns_cal_event cal_event = sns_cal_event_init_default;
-
-  if(is_new_cal)
+  if(is_new_cal || state->last_cal_event_sent_time == 0)
   {
     state->last_cal_event_sent_time = sns_get_system_time();
   }
@@ -2471,10 +2306,10 @@ void ak0991x_send_cal_event(sns_sensor_instance *const instance, bool is_new_cal
   {
     AK0991X_INST_PRINT(HIGH, instance, "send Unknown cal id");
   }
-  pb_buffer_arg buff_arg_bias = { 
+  pb_buffer_arg buff_arg_bias = {
     .buf     = &state->cal.params[cal_event.cal_id].bias,
     .buf_len = ARR_SIZE(state->cal.params[cal_event.cal_id].bias) };
-  pb_buffer_arg buff_arg_comp_matrix = { 
+  pb_buffer_arg buff_arg_comp_matrix = {
     .buf     = &state->cal.params[cal_event.cal_id].corr_mat.data,
     .buf_len = ARR_SIZE(state->cal.params[cal_event.cal_id].corr_mat.data) };
 
@@ -2555,18 +2390,20 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   case AK09918:
     operating_mode = AK0991X_NORMAL;
     op_mode_str_len = ARR_SIZE(AK0991X_NORMAL);
+    cfg_ev->water_mark = 1;
     break;
   case AK09915C:
   case AK09915D:
-    if (state->mag_info.sdr == 1)
-    {
-      operating_mode = AK0991X_LOW_NOISE;
-      op_mode_str_len = ARR_SIZE(AK0991X_LOW_NOISE);
-    }
-    else
+  case AK09919:
+    if (state->mag_info.sdr == 0)
     {
       operating_mode = AK0991X_LOW_POWER;
       op_mode_str_len = ARR_SIZE(AK0991X_LOW_POWER);
+    }
+    else
+    {
+      operating_mode = AK0991X_LOW_NOISE;
+      op_mode_str_len = ARR_SIZE(AK0991X_LOW_NOISE);
     }
     cfg_ev->water_mark = cfg.fifo_wmk;//1 if FIFO not in use.
     break;
@@ -2598,6 +2435,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   cfg_ev->sample_rate        = ak0991x_get_mag_odr(cfg.odr);
   cfg_ev->has_DAE_watermark  = ak0991x_dae_if_available(instance);
   cfg_ev->DAE_watermark      = SNS_MAX(cfg.dae_wmk, 1);
+  cfg_ev->has_dri_enabled    = true;
   cfg_ev->dri_enabled        = (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING);
   cfg_ev->has_sync_ts_anchor = state->has_sync_ts_anchor;
   cfg_ev->sync_ts_anchor     = state->sync_ts_anchor;
@@ -2683,7 +2521,7 @@ void ak0991x_register_interrupt(sns_sensor_instance *this)
   }
   if(!state->irq_info.is_registered)
   {
-    SNS_INST_PRINTF(ERROR, this, "Interrupt reg failed stream=%x", 
+    SNS_INST_PRINTF(ERROR, this, "Interrupt reg failed stream=%x",
                     state->interrupt_data_stream);
   }
 #else
@@ -2802,7 +2640,7 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
       // Wait measurement time + margin(2msec)
       sns_time delay = (2 * state->half_measurement_time) + sns_convert_ns_to_ticks(2 * 1000 * 1000);
 
-      // DAE streaming is already started. But sensor is not started yet on DAE. 
+      // DAE streaming is already started. But sensor is not started yet on DAE.
       // Required additional delay for the first sample to ignore UNRELIABLE data received.
       if( ak0991x_dae_if_available(this) &&
           (state->mag_info.previous_lsbdata[TRIAXIS_X] == 0) &&
@@ -2817,7 +2655,19 @@ static sns_rc ak0991x_set_timer_request_payload(sns_sensor_instance *const this)
       req_payload.start_time = state->system_time - sample_period + delay;  // add delay for RELIABLE data sample
       req_payload.start_config.early_start_delta = 0;
       req_payload.start_config.late_start_delta = sample_period;
-      req_payload.timeout_period = ak0991x_set_heart_beat_timeout_period_for_polling(this);
+
+      sns_time sample_period;
+      sns_time timeout_period;
+      sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
+      if (state->mag_info.use_fifo)
+      {
+        timeout_period = sample_period * (state->mag_info.cur_cfg.fifo_wmk);
+      }
+      else
+      {
+        timeout_period = sample_period;
+      }
+      req_payload.timeout_period = timeout_period;
       req_payload.has_is_dry_run = true;
       req_payload.is_dry_run = ak0991x_dae_if_available(this);
       AK0991X_INST_PRINT(LOW, this, "polling timer now= %u start= %u, delta= %u, pre_timestamp= %u",
@@ -2842,10 +2692,10 @@ void ak0991x_unregister_heart_beat_timer(sns_sensor_instance *const this)
 {
   ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
 
-  if(state->timer_data_stream != NULL && state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING )
+  if(state->heart_beat_timer_data_stream != NULL)
   {
-    sns_sensor_util_remove_sensor_instance_stream(this, &state->timer_data_stream);
-    AK0991X_INST_PRINT(LOW, this, "Unregister HB timer");
+    sns_sensor_util_remove_sensor_instance_stream(this, &state->heart_beat_timer_data_stream);
+    AK0991X_INST_PRINT(LOW, this, "Unregister new HB timer");
   }
 }
 
@@ -2856,14 +2706,14 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
   state->heart_beat_attempt_count = 0;
 
   // clear remained HB events
-  if (NULL != state->timer_data_stream)
+  if (NULL != state->heart_beat_timer_data_stream)
   {
     sns_sensor_event *event =
-      state->timer_data_stream->api->peek_input(state->timer_data_stream);
+      state->heart_beat_timer_data_stream->api->peek_input(state->heart_beat_timer_data_stream);
 
     while (NULL != event)
     {
-      event = state->timer_data_stream->api->get_next_input(state->timer_data_stream);
+      event = state->heart_beat_timer_data_stream->api->get_next_input(state->heart_beat_timer_data_stream);
     }
   }
 
@@ -2874,7 +2724,7 @@ void ak0991x_register_heart_beat_timer(sns_sensor_instance *const this)
   }
   else
   {
-    ak0991x_register_timer(this); // register HB timer for DRI mode
+    ak0991x_register_timer_for_heart_beat(this); // register HB timer for DRI mode
   }
 }
 
@@ -2904,7 +2754,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   {
     SNS_INST_PRINTF(HIGH, this, "reconfig_hw: reset=%u", reset_device);
   }
-  
+
   if(reset_device)
   {
     rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
@@ -2963,7 +2813,7 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
   return rv;
 }
 
-static void ak0991x_inst_exit_island(sns_sensor_instance *this)
+void ak0991x_inst_exit_island(sns_sensor_instance *this)
 {
   sns_service_manager *smgr = this->cb->get_service_manager(this);
   sns_island_service  *island_svc  =
@@ -2982,89 +2832,207 @@ sns_rc ak0991x_heart_beat_timer_event(sns_sensor_instance *const this)
    return rv;
  }
 
- if (state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
- {
-   SNS_INST_PRINTF(ERROR, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
-                        state->heart_beat_attempt_count,
-                        (uint32_t)state->req_payload.start_time,
-                        (uint32_t)state->req_payload.timeout_period,
-                        (uint32_t)state->hb_timer_fire_time,
-                        (uint32_t)state->system_time);
-   // Streaming is unable to resume after 4 attempts
-   if (state->heart_beat_attempt_count >= 4)
-   {
-     ak0991x_inst_exit_island(this);
-     SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
-     rv = SNS_RC_INVALID_STATE;
-   }
-   // Perform a reset operation in an attempt to revive the sensor
-   else
-   {
-     state->heart_beat_attempt_count++;
-     if(ak0991x_dae_if_available(this))
-     {
-       ak0991x_dae_if_flush_hw(this);
-     }
-     else
-     {
-       ak0991x_read_mag_samples(this);
-       if(state->heart_beat_attempt_count >= 3)
-       {
-         ak0991x_inst_exit_island(this);
-         ak0991x_reconfig_hw(this, true);
-         // Indicate streaming error
-         rv = SNS_RC_NOT_AVAILABLE;
-       }
-     }
-   }
- }
- else // polling
- {
-   uint8_t heart_beat_thresthold =
-     ( state->mag_info.use_fifo )? 1 : 4;
-   if (state->heart_beat_sample_count < heart_beat_thresthold)
-   {
-     state->heart_beat_sample_count++;
-   }
-   else
-   {
-     AK0991X_INST_PRINT(LOW, this, "heart_beat_gap=%u, heart_beat_timeout=%u",
-       (uint32_t)(state->interrupt_timestamp - state->heart_beat_timestamp),
-       (uint32_t)state->heart_beat_timeout_period);
-     // Detect streaming has stopped
-     if (state->interrupt_timestamp > state->heart_beat_timestamp + state->heart_beat_timeout_period)
-     {
-       AK0991X_INST_PRINT(HIGH, this, "Detect streaming has stopped. int_timestamp:%u hb_timestamp:%u hb_period:%u",
-           (uint32_t)state->interrupt_timestamp,
-           (uint32_t)state->heart_beat_timestamp,
-           (uint32_t)state->heart_beat_timeout_period);
-       // Streaming is unable to resume after 3 attempts
-       if (state->heart_beat_attempt_count >= 3)
-       {
-         ak0991x_inst_exit_island(this);
-         SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
-         rv = SNS_RC_INVALID_STATE;
-       }
-       // Perform a reset operation in an attempt to revive the sensor
-       else
-       {
-         ak0991x_inst_exit_island(this);
-         ak0991x_reconfig_hw(this, true);
-         // Indicate streaming error
-         rv = SNS_RC_NOT_AVAILABLE;
-         state->heart_beat_attempt_count++;
-       }
-     }
-     else
-     {
-       state->heart_beat_timestamp = state->interrupt_timestamp;
-       state->heart_beat_sample_count = 0;
-       state->heart_beat_attempt_count = 0;
-     }
-   }
- }
+  SNS_INST_PRINTF(ERROR, this, "Detect streaming has stopped #HB= %u start_time= %u period = %u fire_time %u now= %u",
+                      state->heart_beat_attempt_count,
+                      (uint32_t)state->heart_beat_req_payload.start_time,
+                      (uint32_t)state->heart_beat_req_payload.timeout_period,
+                      (uint32_t)state->hb_timer_fire_time,
+                      (uint32_t)state->system_time);
+  // Streaming is unable to resume after 4 attempts
+  if (state->heart_beat_attempt_count >= 4)
+  {
+    ak0991x_inst_exit_island(this);
+    SNS_INST_PRINTF(ERROR, this, "Streaming is unable to resume after 3 attempts");
+    rv = SNS_RC_INVALID_STATE;
+  }
+  // Perform a reset operation in an attempt to revive the sensor
+  else
+  {
+    state->heart_beat_attempt_count++;
+    if(ak0991x_dae_if_available(this))
+    {
+      ak0991x_dae_if_flush_hw(this);
+    }
+    else
+    {
+      ak0991x_read_mag_samples(this);
+      if(state->heart_beat_attempt_count >= 3)
+      {
+        ak0991x_inst_exit_island(this);
+        ak0991x_reconfig_hw(this, true);
+        // Indicate streaming error
+        rv = SNS_RC_NOT_AVAILABLE;
+      }
+    }
+  }
 
- return rv;
+  return rv;
 }
 
+static sns_rc ak0991x_set_timer_request_payload_for_heart_beat(sns_sensor_instance *const this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  sns_timer_sensor_config req_payload = sns_timer_sensor_config_init_default;
+  sns_rc rv = SNS_RC_SUCCESS;
 
+  if(state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
+  {
+    sns_time sample_period = ak0991x_get_sample_interval(state->mag_info.cur_cfg.odr);
+    state->system_time = sns_get_system_time();
+
+    if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
+    {
+      // for DRI
+      req_payload.has_priority = true;
+      req_payload.priority = SNS_TIMER_PRIORITY_OTHER;
+      req_payload.is_periodic = false;
+      req_payload.start_time = state->system_time;
+
+      // Set timeout_period for heart beat in DRI/FIFO+DRI
+      // as 5 samples time for DRI
+      // or 5 FIFO buffers time for FIFO+DRI
+      if (state->mag_info.use_fifo)
+      {
+        if(state->in_clock_error_procedure)
+        {
+          // 100Hz dummy measurement fixed.
+          req_payload.timeout_period = sns_convert_ns_to_ticks(10 * 1000 * 1000) * 5 * 11 / 10;
+        }
+        else
+        {
+          if(!ak0991x_dae_if_available(this))
+          {
+            sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
+            req_payload.timeout_period = sample_period * 5 * state->mag_info.cur_cfg.fifo_wmk;
+            if(req_payload.timeout_period > max_timeout)
+            {
+              req_payload.timeout_period = max_timeout; // to avoid large data gap
+            }
+          }
+          else  // DAE enabled
+          {
+            req_payload.timeout_period = (sample_period * 5 * state->mag_info.cur_cfg.dae_wmk) * 11 / 10;
+          }
+        }
+      }
+      else
+      {
+        req_payload.timeout_period = sample_period * 5;
+      }
+    }
+    else
+    {
+      // TODO:
+      // for polling
+      req_payload.has_priority = true;
+      req_payload.priority = SNS_TIMER_PRIORITY_POLLING;
+      req_payload.is_periodic = false;
+      req_payload.start_time = state->system_time;
+
+      // Set timeout_period for heart beat in DRI/FIFO+DRI
+      // as 5 samples time for DRI
+      // or 5 FIFO buffers time for FIFO+DRI
+      if (state->mag_info.use_fifo)
+      {
+        if(!ak0991x_dae_if_available(this))
+        {
+          sns_time max_timeout = (state->mag_info.max_fifo_size * sample_period) * 11 / 10;
+          req_payload.timeout_period = sample_period * 5 * state->mag_info.cur_cfg.fifo_wmk;
+          if(req_payload.timeout_period > max_timeout)
+          {
+            req_payload.timeout_period = max_timeout; // to avoid large data gap
+          }
+        }
+        else  // DAE enabled
+        {
+          req_payload.timeout_period = (sample_period * 5 * state->mag_info.cur_cfg.dae_wmk) * 11 / 10;
+        }
+      }
+      else
+      {
+        if(!ak0991x_dae_if_available(this))
+        {
+          req_payload.timeout_period = sample_period * 5 * 11 / 10;
+        }
+        else  // DAE enabled
+        {
+          req_payload.timeout_period = (sample_period * 5 * state->mag_info.cur_cfg.dae_wmk) * 11 / 10;
+        }
+      }
+    }
+
+    state->hb_timer_fire_time = req_payload.start_time + req_payload.timeout_period;
+    AK0991X_INST_PRINT(LOW, this, "Register new HB timer. Fire time= %u", (uint32_t)state->hb_timer_fire_time);
+
+    // reset request payload
+    state->heart_beat_req_payload = req_payload;
+  }
+  else
+  {
+    AK0991X_INST_PRINT(LOW, this, "Timer request payload failed.");
+    rv = SNS_RC_FAILED;
+  }
+  return rv;
+}
+
+static sns_rc ak0991x_send_timer_request_for_heart_beat(sns_sensor_instance *const this)
+{
+  ak0991x_instance_state *state = (ak0991x_instance_state*)this->state->state;
+  sns_service_manager *service_mgr = this->cb->get_service_manager(this);
+  sns_stream_service *stream_mgr = (sns_stream_service *)
+      service_mgr->get_service(service_mgr, SNS_STREAM_SERVICE);
+  sns_request             timer_req;
+  size_t                  req_len = 0;
+  uint8_t                 buffer[100];
+  sns_rc rv = SNS_RC_SUCCESS;
+
+  sns_timer_sensor_config payload = sns_timer_sensor_config_init_default;
+
+  if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)
+  {
+    payload = state->heart_beat_req_payload;
+  }
+
+  if (NULL == state->heart_beat_timer_data_stream)
+  {
+    stream_mgr->api->create_sensor_instance_stream(stream_mgr,
+                                                   this,
+                                                   state->timer_suid,
+                                                   &state->heart_beat_timer_data_stream
+                                                   );
+    AK0991X_INST_PRINT(LOW, this, "create new heart beat timer data stream");
+  }
+
+  if (NULL != state->heart_beat_timer_data_stream)
+  {
+    req_len = pb_encode_request(buffer,
+                                sizeof(buffer),
+                                &payload,
+                                sns_timer_sensor_config_fields,
+                                NULL);
+    if (req_len > 0)
+    {
+      timer_req.message_id = SNS_TIMER_MSGID_SNS_TIMER_SENSOR_CONFIG;
+      timer_req.request_len = req_len;
+      timer_req.request = buffer;
+      /** Send encoded request to Timer Sensor */
+      rv = state->heart_beat_timer_data_stream->api->send_request(state->heart_beat_timer_data_stream, &timer_req);
+    }
+  }
+  if (req_len == 0)
+  {
+    rv = SNS_RC_FAILED;
+  }
+  return rv;
+}
+
+void ak0991x_register_timer_for_heart_beat(sns_sensor_instance *const this)
+{
+  if( SNS_RC_SUCCESS == ak0991x_set_timer_request_payload_for_heart_beat(this) )
+  {
+    if( SNS_RC_SUCCESS != ak0991x_send_timer_request_for_heart_beat(this) )
+    {
+      SNS_INST_PRINTF(ERROR, this, "Failed send timer request");
+    }
+  }
+}

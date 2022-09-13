@@ -8,7 +8,7 @@
  * All Rights Reserved.
  * Confidential and Proprietary - Asahi Kasei Microdevices
  *
- * Copyright (c) 2017-2020 Qualcomm Technologies, Inc.
+ * Copyright (c) 2017-2021 Qualcomm Technologies, Inc.
  * All Rights Reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  **/
@@ -22,6 +22,51 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 09/02/22     026242     AKM              Applied changes to device_mode
+ * 08/22/22     026241     AKM              Merged and finished SEEVT / CTS qualcomm release patch(V026239). Remove unneeded line breaks, correct copywrite. cal_id = 0 -> cal_id __attribute__((unused)) = 0. Removed sns_rc rc.
+ * 07/25/22     026240     AKM              Merged qualcomm release patch(V026239)in AKM v026240
+ * 11/18/21                Qualcomm         (V026239)Fixed unused variable error, per new compilation standards.
+ * 07/25/22     026239     AKM              Merged qualcomm release patch(V026229)in AKM v026239
+ * 09/15/21                Qualcomm         (V026229)Fixed unused variable warnings, per new compilation standards.
+ * 08/20/21     026238     AKM              Merged qualcomm release patch(V02628)in AKM v026238
+ * 08/12/21                Qualcomm         (V026228)Publish error event for invalid requests (ON_CHANGE).
+ * 08/20/21     026237     AKM              Merged qualcomm release patch(V02627)in AKM v026237
+ * 08/12/21                Qualcomm         (V026227)Turn on com port power and wait for sensor power rail timer to expire before doing factory tests.
+ * 07/13/21     026236     AKM              Modified "flush_data event" and "set_streaming_config" procedure execution order in Flush_hw process (For mag-50 in DAE+IBI+FIFO)
+ * 06/24/21     026235     AKM              Set low noise mode in Highest noise suppression level when enabled Always_on function in ODR >= 50Hz situation
+ * 06/03/21     026234     AKM              Resolved I3C communication failed problem by turnning COM Port power on state when calling ak0991x_inst_set_client_config (For mag-213/223 in DAE+IBI+FIFO)
+ * 06/02/21     026233     AKM              Reported SNS_STD_ERROR_INVALID_TYPE error event to framework when received invalid request(For mag-082 in DAE+IBI+FIFO)
+ * 05/20/21     026232     AKM              Unified encapsulated sns_scp_update_bus_power API and corrected I3C mode communication failed problem by turnning COM Port power on state
+ * 03/20/21     026231     AKM              Merged qualcomm release patch(V026224~V026226)in AKM v026230
+ * 03/18/21                Qualcomm         (V026226)Added protection to prevent NULL pointer dereference
+ * 03/02/21                Qualcomm         (V026225)Moved Log APIs to separate file so they can be compiled out when SNS_LOG_DISABLED is defined
+ * 02/03/21                Qualcomm         (V026224)Skip waiting for power rail if it's already on at init time
+ * 01/09/21     026230     AKM              Merged qualcomm release patch(V026219~V026223)in AKM v026229
+ * 01/08/21     026229     AKM              Added dummy data and corrected dummy data timestamp calculated method in data no-ready status except recieved flush request codition(For MAG-139 in DAE+Polling+FIFO)
+ * 12/24/20     026228     AKM              Deleted dummy data when flush request comes in num_sample= 0 condition(For MAG-034 in DAE+IBI+FIFO)
+ * 12/24/20                Qualcomm         (V026223)Refactored to avoid multiple bus on-off operations for DAE enabled devices
+ * 12/14/20     026227     AKM              Fixed over_sample negative value problem in Polling+FIFO mode
+ * 12/10/20     026226     AKM              Fixed "only_dae_wmk_is_changed" variable state change condition when Multi-request comes in dummy measurement process
+ * 11/19/20                Qualcomm         (V026222)Fixed - Mag sending cal event with TS=0 when 2 requests are made withing a short interval
+ * 11/13/20     026225     AKM              Corrected report data policy and timestamp calculated method When register buffer data sample numbers exceed WM
+ * 11/12/20     026224     AKM              Added desired_sample_rate variable to UNUSER_VER(this) under non-DAE situation
+ * 11/07/20     026223     AKM              Fixed dropped Mag sample problem while DAE flushing_data in unnormal system_ts situation(For MAG-123 in DAE+Polling+FIFO)
+ * 10/15/20     026222     AKM              Call Flush hw in IBI+FIFO When watermark=1(For MAG-041 in DAE+IBI+FIFO)
+ * 10/14/20     026221     AKM              Corrected fifo_watermark and dae_watermark calculated condition(For MAG-081 in DAE+IBI+FIFO)
+ * 10/13/20     026220     AKM              Add dummy data when flush requst in num_sample =0 condition(For MAG-023 in DAE+IBI+FIFO)
+ * 09/28/20                Qualcomm         (V026221)Fix Registry disabled mode function
+ * 09/28/20                Qualcomm         (V026220)Freeing resources if first request is rejected
+ * 09/23/20                Qualcomm         (V026219)Fixed power rail timer bugs
+ * 09/09/20     026219     AKM              Corrected AK09919 IBI mode configuration
+ * 09/01/20     026218     Qualcomm         Enable DRI field in physical config msg
+ * 08/12/20                AKM              Modified for AK09919 IBI no data problem
+ * 08/11/20     026217     Qualcomm         Fixed timestamp jitter due to HW flushing in polling mode
+ * 07/16/20                AKM              Support AK09919 in DAE+Polling+FIFO mode
+ * 07/09/20     026216     Qualcomm         Must handle PWR rail Timer for Self Test Request
+ * 07/01/20                AKM              Commented out the v026214
+ * 06/16/20     026215     AKM              Separate heart beat timer stream
+ * 05/22/20     026215     Qualcomm         Must exit island before deiniting DAE interface
+ * 05/07/20     026214     Qualcomm         Return speical pointer upon handling flush request
  * 04/09/20     026213     Qualcomm         Return error event for invalid requests
  * 04/06/20     026212     Qualcomm         Fixed handling cal reset request to be marked with special pointer
  * 04/01/20     026211     Qualcomm         Refactored to reduce island memory usage
@@ -33,7 +78,7 @@
  * 10/23/19     026206     AKM              Fixed JIRA2467 Changed a calculation method of chosen_report_rate
  * 10/18/19                Qualcomm         Fixed JIRA-2547 - Increased buffer length for encoding timer request
  * 10/14/19     026205     Qualcomm         Fixed a bug that tries to enter I3C mode even though bus is I2C
- *                                          Removed chipset specific Bus and IRQ configuration 
+ *                                          Removed chipset specific Bus and IRQ configuration
  * 10/11/19     026204     AKM              Fixed JIRA2458 incorrect info on 2nd physical_config_event when two request are made.
  * 10/11/19                AKM              Fixed a bug that physical_config_event is sent before buffered data is flushed to clients
  * 10/09/19     026203     AKM              Fixed a bug that didn't flush after changing config
@@ -63,14 +108,14 @@
  * 06/19/19                Qualcomm/AKM     S4S modification after review
  * 06/13/19     020058.1   AKM              Wait for stopping DAE stream before power rail off
  * 06/07/19     020058     AKM              First tested version with new QAWA(1.0.71.0)
- * 06/04/19                AKM              Modified for last flush num_samples. 
- * 05/31/19                AKM              Modified for S4S+DAE. Test version. 
+ * 06/04/19                AKM              Modified for last flush num_samples.
+ * 05/31/19                AKM              Modified for S4S+DAE. Test version.
  * 05/31/19                AKM              Use the timer with is_dry_run=true to sync DAE polling timing.
- * 05/31/19                Qualcomm/AKM     Fix for avoiding timer reg event read by heart beat timer 
+ * 05/31/19                Qualcomm/AKM     Fix for avoiding timer reg event read by heart beat timer
  * 05/23/19                AKM              Use only dae_event_time for TS on polling with <= 50Hz ODR.
  *                                          Modified Config not changed judge.
  * 05/17/19                AKM              Removed sw reset for DAE when ODR changed. Adjusted polling_offset.
-*  05/15/19     020057     Qualcomm         Fix for avoiding timer reg event read by heart beat timer 
+*  05/15/19     020057     Qualcomm         Fix for avoiding timer reg event read by heart beat timer
  * 05/16/19     020056     AKM              modified for data_age_limit_ticks to use if-else
  * 05/14/19                Qualcomm         Sometimes, num_samples exceeding max fifo size and causing
                                             stack corruption(Stability issue)
@@ -174,7 +219,7 @@
  * 10/12/18     020021     AKM              HB timer perform while 100Hz dummy meas. Pause HB timer while self test.
  * 10/24/18     020023     Qualcomm         Do not add a cal reset request to the instance
  * 10/19/18     020022     Qualcomm         Retry enter i3c mode if fails
- * 10/16/18     020021     Qualcomm         Fixed setting of max batch, for max-batch = True and flush-only = True use case 
+ * 10/16/18     020021     Qualcomm         Fixed setting of max batch, for max-batch = True and flush-only = True use case
  * 10/12/18     020020     Qualcomm/AKM     Fixed setting of flush period for FlushOnly = True use case.
  * 09/26/18     020019     AKM              Merged Qualcomm 010017 and AKM 020018 and modified for WM
  * 09/25/18     020018     AKM              Modified for MAG221 with AK09917D RevA parts.
@@ -186,7 +231,7 @@
  * 09/06/18     020015     Qualcomm         Changed when to enter i3c
  * 09/03/18     020015     AKM              Modified for Dual Sensor on DAE
  * 08/03/18     020014     AKM              Debugged for the Klocwork P1 errors(#03603537)
- * 07/28/18     020013     Qualcomm         Send CFG Event for new request even no change 
+ * 07/28/18     020013     Qualcomm         Send CFG Event for new request even no change
  * 07/24/18     020013     AKM/Qualcomm     Enabled device mode as default and cleaned related code.
  * 07/12/18     020012     AKM/Qualcomm     Fixed compile error when DAE is enabled
  * 07/03/18     020011     AKM              Debugged when the registry access is disabled.
@@ -195,7 +240,7 @@
  * 06/27/18                AKM/Qualcomm     Merged Qualcomm's modification and AKM's 020009
  * 06/24/18     020009     AKM              Removed macros for SEE_LIET mode
  * 06/22/18                AKM              Refactor for the device_mode.
- * 06/20/18     020008     AKM/Qualcomm     Sometimes, mag is taking scp path with number of samples 32. 
+ * 06/20/18     020008     AKM/Qualcomm     Sometimes, mag is taking scp path with number of samples 32.
  *                                          Changed local buffer size according to physical senosor
  *                                          Debugged mul-function when the AK0991X_FORCE_MAX_ODR_50HZ is set.
  *                                          Fixed watermark calculation for max batch
@@ -281,14 +326,14 @@
  * 11/09/17                Qualcomm         Changed to disallow Flush requests without Config requests
  * 11/09/17                Qualcomm         When DAE is unavailable reconfig HW after interrupt is ready
  * 11/07/17     010041     Qualcomm         Remove 1Hz ODR. Don't delete timer stream while processing it.
- * 11/04/17     010040     Qualcomm         Added Calibration event. 
+ * 11/04/17     010040     Qualcomm         Added Calibration event.
  * 11/03/17     010039     AKM              Removed AK09917_REV_A flag. Calculate averaged_interval.
  * 11/03/17                Qualcomm         Fixed flush request handling during power up
- * 10/31/17     010038     AKM              Refactor to use ASCP in flush. Added AK09917_REV_A flag. 
+ * 10/31/17     010038     AKM              Refactor to use ASCP in flush. Added AK09917_REV_A flag.
  * 10/31/17                AKM              Added dual sensor support
  * 10/25/17     010037     AKM              Removed averaging filter for DRI mode
  * 10/23/17     010036     Qualcomm         Sends config event to new clients immediately if already streaming
- * 10/20/17     010035     AKM              Modified for SEE-Lite. 
+ * 10/20/17     010035     AKM              Modified for SEE-Lite.
  * 10/20/17                AKM              Fixed negavite timestamp intervals
  * 10/19/17     010034     Qualcomm/AKM     Debugged timestamp issue. Added 1[sec] delay power rail when off. Removed GPIO check.
  * 10/18/17                AKM(M)           Modified for SEE-Lite except using new SUID handler utility
@@ -345,8 +390,8 @@
  *
  **/
 
-// major:02 minor:62 revision:10
+// major:02 minor:62 revision:42
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      13
+#define AK0991X_DRV_VER_REV      42
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

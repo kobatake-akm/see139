@@ -1,8 +1,5 @@
-## Other folder
-akm_src
-!akm_src/slpi_proc/sdc_sensors/dd/ak0991x
-!akm_src/slpi_proc/ssc/sensors/ak0991x
-!akm_src/slpi_proc/ssc/sensors/dae/pb/sns_dae.*
+# Ignore DAE directory currently
+/dae
 
 # Object files
 *.o
