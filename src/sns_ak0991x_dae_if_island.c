@@ -125,7 +125,7 @@ static bool send_mag_config(sns_sensor_instance *this)
   if( state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING ||
       state->mag_info.clock_error_meas_count >= AK0991X_IRQ_NUM_FOR_OSC_ERROR_CALC)
   {
-    wm = !mag_info->use_fifo ? 1 : (((mag_info->device_select == AK09917) || (mag_info->device_select == AK09919)) ?
+    wm = !mag_info->use_fifo ? 1 : (((mag_info->device_select == AK09917) || (mag_info->device_select == AK09919) || (mag_info->device_select == AK09920)) ?
                                     mag_info->cur_cfg.fifo_wmk : mag_info->max_fifo_size);
 
     if(state->mag_info.flush_only || state->mag_info.max_batch)
@@ -356,7 +356,7 @@ static void process_fifo_samples(
       if(state->mag_info.use_fifo)
       {
         // num_samples update when FIFO enabled.
-        if((state->mag_info.device_select == AK09917) || (state->mag_info.device_select == AK09919))
+        if((state->mag_info.device_select == AK09917) || (state->mag_info.device_select == AK09919) || (state->mag_info.device_select == AK09920))
         {
           state->num_samples = buf[2] >> 2;
         }

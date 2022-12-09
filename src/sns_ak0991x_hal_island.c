@@ -264,8 +264,9 @@ void ak0991x_clear_old_events(sns_sensor_instance *const instance)
  * see sns_ak0991x_hal.h
  */
 sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
+                              sns_sync_com_port_service * scp_service,
                               ak0991x_com_port_info *com_port,
-                              sns_sync_com_port_service * scp_service)
+                              uint8_t vio)
 {
   sns_rc                       rv = SNS_RC_FAILED;
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
@@ -315,6 +316,7 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
     }
     return SNS_RC_FAILED;
   }
+
   /**-------------------Assign I3C dynamic address------------------------*/
   buffer[0] = (com_port->i3c_address & 0xFF)<<1;
   rv = scp_service->api->
@@ -342,7 +344,8 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
   {
     buffer[0] = (uint8_t)((AK0991X_MAX_FIFO_SIZE >> 8) & 0xFF);
     buffer[1] = (uint8_t)(AK0991X_MAX_FIFO_SIZE & 0xFF);
-    buffer[2] = 0;
+    //buffer[2] = 0;
+    buffer[2] = 1;
     rv = scp_service->api->
       sns_scp_issue_ccc( com_port->port_handle,
                          SNS_SYNC_COM_PORT_CCC_SETMRL,
@@ -404,6 +407,35 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
         {
             SNS_INST_PRINTF(ERROR, instance, "Disable IBI FAILED! rv=%d hndl=0x%x",
                         rv, com_port->port_handle);
+        }
+        com_port->in_i3c_mode = false;
+      }
+    }
+  }
+
+  /**-------------------Set VIO[1:0]------------------------*/
+  if(com_port->port_handle != NULL && (vio == 1 || vio == 2))
+  {
+    buffer[0] = vio << 6;
+    rv = ak0991x_com_write_wrapper(NULL,
+                                   scp_service,
+                                   com_port->port_handle,
+                                   AKM_AK0991X_REG_CNTL3,
+                                   buffer,
+                                   1,
+                                   &xfer_bytes,
+                                   false);
+    if(rv == SNS_RC_SUCCESS)
+    {
+      if(NULL != instance)
+      {
+        AK0991X_INST_PRINT(HIGH, instance, "Set CNTL3 to 0x%02x", buffer[0]);
+      }
+      else
+      {
+        if(NULL != instance)
+        {
+          SNS_INST_PRINTF(ERROR, instance, "FAILED to set CNTL3");
         }
         com_port->in_i3c_mode = false;
       }
@@ -544,9 +576,166 @@ sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
 /**
  * see sns_ak0991x_hal.h
  */
+sns_rc ak0991x_debug_i3c_GETMRL(sns_sensor_instance *const instance,
+                              ak0991x_com_port_info *com_port,
+                              sns_sync_com_port_service * scp_service,
+                              uint8_t *buffer,
+                              uint32_t bytes,
+                              uint32_t *xfer_bytes)
+{
+  sns_rc                       rv = SNS_RC_FAILED;
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
+  if(com_port->com_config.bus_type != SNS_BUS_I3C_SDR &&
+     com_port->com_config.bus_type != SNS_BUS_I3C_HDR_DDR )
+  {
+    return SNS_RC_SUCCESS;
+  }
+
+  rv = scp_service->api->
+    sns_scp_issue_ccc( com_port->port_handle,
+                       SNS_SYNC_COM_PORT_CCC_GETMRL,
+                       buffer, bytes, xfer_bytes );
+
+  if( rv == SNS_RC_SUCCESS ) {
+    if(NULL != instance)
+    {
+      AK0991X_INST_PRINT(LOW, instance, "max read length:0x%02x%02x",
+                      buffer[0], buffer[1]);
+    }
+  } else {
+    if(NULL != instance)
+    {
+      AK0991X_INST_PRINT(ERROR, instance, "Get max read length failed!");
+    }
+  }
+#else /* AK0991X_ENABLE_I3C_SUPPORT */
+  UNUSED_VAR(instance);
+  UNUSED_VAR(com_port);
+  UNUSED_VAR(scp_service);
+  UNUSED_VAR(buffer);
+  UNUSED_VAR(bytes);
+  UNUSED_VAR(xfer_bytes);
+#endif /* AK0991X_ENABLE_I3C_SUPPORT */
+  return rv;
+}
+
+/**
+ * see sns_ak0991x_hal.h
+ */
+sns_rc ak0991x_debug_i3c_GETPID(sns_sensor_instance *const instance,
+                              ak0991x_com_port_info *com_port,
+                              sns_sync_com_port_service * scp_service,
+                              uint8_t *buffer,
+                              uint32_t bytes,
+                              uint32_t *xfer_bytes)
+{
+  sns_rc                       rv = SNS_RC_FAILED;
+#ifdef AK0991X_ENABLE_I3C_SUPPORT
+  if(com_port->com_config.bus_type != SNS_BUS_I3C_SDR &&
+     com_port->com_config.bus_type != SNS_BUS_I3C_HDR_DDR )
+  {
+    return SNS_RC_SUCCESS;
+  }
+
+  rv = scp_service->api->
+    sns_scp_issue_ccc( com_port->port_handle,
+                       SNS_SYNC_COM_PORT_CCC_GETPID,
+                       buffer, bytes, xfer_bytes );
+
+  if( rv == SNS_RC_SUCCESS ) {
+    if(NULL != instance)
+    {
+      AK0991X_INST_PRINT(LOW, instance, "GETPID:0x%02x%02x%02x%02x%02x%02x",
+                      buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
+    }
+  } else {
+    if(NULL != instance)
+    {
+      AK0991X_INST_PRINT(ERROR, instance, "GETPID failed!");
+    }
+  }
+#else /* AK0991X_ENABLE_I3C_SUPPORT */
+  UNUSED_VAR(instance);
+  UNUSED_VAR(com_port);
+  UNUSED_VAR(scp_service);
+  UNUSED_VAR(buffer);
+  UNUSED_VAR(bytes);
+  UNUSED_VAR(xfer_bytes);
+#endif /* AK0991X_ENABLE_I3C_SUPPORT */
+  return rv;
+}
+
+/**
+ * see sns_ak0991x_hal.h
+ */
+sns_rc ak0991x_device_set_vio(sns_sensor_instance *const this,
+                               sns_sync_com_port_service * scp_service,
+                               ak0991x_com_port_info *com_port,
+                               uint8_t vio)
+{
+  uint8_t  buffer[1];
+  int8_t   num_attempts = 5;
+  sns_rc   rv = SNS_RC_FAILED;
+  uint32_t xfer_bytes;
+
+  if(this != NULL)
+  {
+    AK0991X_INST_PRINT(LOW, this, "device_set_vio called");
+  }
+
+  if(vio > 2)
+  {
+    AK0991X_INST_PRINT(LOW, this, "Invalid vio:%d, vio is accepted 0, 1 and 2.", vio);
+    return rv;
+  }
+
+  // clear old events
+  if(this != NULL)
+  {
+    ak0991x_clear_old_events(this);
+  }
+
+  while(num_attempts-- > 0 && SNS_RC_SUCCESS != rv)
+  {
+    buffer[0] = (vio<<6);
+    rv = ak0991x_com_write_wrapper(this,
+                                 scp_service,
+                                 com_port->port_handle,
+                                 AKM_AK0991X_REG_CNTL3,
+                                 &buffer[0],
+                                 1,
+                                 &xfer_bytes,
+                                 false);
+    if( (SNS_RC_SUCCESS != rv) || (xfer_bytes != 1))
+    {
+      if (xfer_bytes != 1)
+      {
+        rv = SNS_RC_FAILED;
+      }
+      if(this != NULL)
+      {
+        SNS_INST_PRINTF(ERROR, this, "device_set_vio failed rc=%d, xfer_bytes=%d", rv, xfer_bytes);
+      }
+      sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
+    }
+    else
+    {
+      if(this!= NULL)
+      {
+         AK0991X_INST_PRINT(LOW, this, "device_set_vio sucessful");
+      }
+    }
+  }
+  return rv;
+}
+
+/**
+ * see sns_ak0991x_hal.h
+ */
 sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
-                               ak0991x_com_port_info *com_port)
+                               ak0991x_com_port_info *com_port,
+                               uint8_t vio)
 {
   uint8_t  buffer[1];
   int8_t   num_attempts = 5;
@@ -621,7 +810,7 @@ sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
     num_attempts = 5;
     while(num_attempts-- > 0 && SNS_RC_SUCCESS != rv_enter_i3c)
     {
-      rv_enter_i3c = ak0991x_enter_i3c_mode(this, com_port, scp_service);
+      rv_enter_i3c = ak0991x_enter_i3c_mode(this, scp_service, com_port, vio);
       if(SNS_RC_SUCCESS != rv_enter_i3c)
       {
         sns_busy_wait(sns_convert_ns_to_ticks(100*1000));
@@ -657,7 +846,8 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   sns_sync_com_port_service * scp_service = state->scp_service;
   sns_sync_com_port_handle *port_handle = state->com_port_info.port_handle;
   uint32_t xfer_bytes;
-  uint8_t  buffer[2] = {0};
+  uint8_t  buffer[3] = {0};
+  uint8_t  buffer_cntl3[3] = {0};
   ak0991x_mag_odr desired_odr = state->mag_info.cur_cfg.odr;
   sns_rc ret;
 
@@ -701,6 +891,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     case AK09915D:
     case AK09917:
     case AK09919:
+    case AK09920:
       buffer[0] = 0x0
         | (state->mag_info.nsf << 5) // NSF bit
         | reg_wmk;                   // WM[4:0] bits
@@ -783,14 +974,52 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 
   AK0991X_INST_PRINT(LOW, this, "CNTL1=0x%02X CNTL2=0x%02X", buffer[0], buffer[1]);
 
-  ret = ak0991x_com_write_wrapper(this,
-                                   scp_service,
+  if(device_select == AK09920)
+  {
+    ret = ak0991x_com_read_wrapper(scp_service,
                                    port_handle,
                                    AKM_AK0991X_REG_CNTL1,
-                                   buffer,
-                                   2,
-                                   &xfer_bytes,
-                                   false);
+                                   buffer_cntl3,
+                                   3,
+                                   &xfer_bytes);
+    if(xfer_bytes == 3)
+    {
+      AK0991X_INST_PRINT(LOW, this, "AK09920 read CNTL3=0x%02X", buffer_cntl3[2]);
+    }
+    else
+    {
+      AK0991X_INST_PRINT(LOW, this, "AK09920 read CNTL3 error.");
+    }
+
+    if(state->mag_info.vio == 1 || state->mag_info.vio == 2)
+    {
+      buffer[2] = state->mag_info.vio << 6;
+    }
+    else
+    {
+      buffer[2] = 0x00;
+    }
+    AK0991X_INST_PRINT(LOW, this, "AK09920 CNTL3=0x%02X", buffer[2]);
+    ret = ak0991x_com_write_wrapper(this,
+                                    scp_service,
+                                    port_handle,
+                                    AKM_AK0991X_REG_CNTL1,
+                                    buffer,
+                                    3,
+                                    &xfer_bytes,
+                                    false);
+  }
+  else
+  {
+    ret = ak0991x_com_write_wrapper(this,
+                                    scp_service,
+                                    port_handle,
+                                    AKM_AK0991X_REG_CNTL1,
+                                    buffer,
+                                    2,
+                                    &xfer_bytes,
+                                    false);
+  }
 
   if(!force_off)
   {
@@ -1055,7 +1284,7 @@ void ak0991x_get_adjusted_mag_data(sns_sensor_instance *const this, uint8_t *con
 
   for(int i=0; i<AK0991X_NUM_AXES; i++)
   {
-    if ((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
+    if ((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)||(state->mag_info.device_select == AK09920))
     {
       /* this is I3C compliant order */
       out[i] = (int16_t)((((int16_t)buffer[i*2] << 8) & 0xFF00) | (int16_t)buffer[i*2 + 1]);
@@ -1811,7 +2040,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   if( state->mag_info.use_fifo )
   {
     /* in case of device holds the number of available FIFO data */
-    if((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
+    if((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)||(state->mag_info.device_select == AK09920))
     {
       if(state->mag_info.int_mode != AK0991X_INT_OP_MODE_POLLING)
       {
@@ -1893,7 +2122,7 @@ void ak0991x_get_st1_status(sns_sensor_instance *const instance)
   else
   {
     //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
-    if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)) &&
+    if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)||(state->mag_info.device_select == AK09920)) &&
        (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
        !state->mag_info.use_sync_stream)
     {
@@ -2094,7 +2323,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
   // FIFO mode
   if(state->mag_info.use_fifo)
   {
-    if((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919))
+    if((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)||(state->mag_info.device_select == AK09920))
     {
       if( state->num_samples > 2 &&
           !state->this_is_the_last_flush &&
@@ -2148,7 +2377,7 @@ static void ak0991x_read_fifo_buffer(sns_sensor_instance *const instance)
     uint16_t num_samples = 1;
 
     //Since FIFO is forced to enable on Polling mode for preventing duplicate samples
-    if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)) &&
+    if(((state->mag_info.device_select == AK09917)||(state->mag_info.device_select == AK09919)||(state->mag_info.device_select == AK09920)) &&
        (state->mag_info.int_mode == AK0991X_INT_OP_MODE_POLLING) &&
        !state->mag_info.use_sync_stream)
     {
@@ -2242,6 +2471,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
     {
       if(state->mag_info.use_fifo || state->mag_info.use_sync_stream)
       {
+        AK0991X_INST_PRINT(LOW, instance, "Polling+FIFO:ak0991x_get_st1_status");
         ak0991x_get_st1_status(instance);
 
         // check num_samples when the last fifo flush to prevent negative timestamp
@@ -2257,6 +2487,7 @@ void ak0991x_read_mag_samples(sns_sensor_instance *const instance)
       }
       else // no FIFO
       {
+        AK0991X_INST_PRINT(LOW, instance, "Polling+nonFIFO:ak0991x_get_st1_status");
         ak0991x_get_st1_status(instance);
 
         if( state->this_is_the_last_flush )
@@ -2395,6 +2626,7 @@ sns_rc ak0991x_send_config_event(sns_sensor_instance *const instance, bool is_ne
   case AK09915C:
   case AK09915D:
   case AK09919:
+  case AK09920:
     if (state->mag_info.sdr == 0)
     {
       operating_mode = AK0991X_LOW_POWER;
@@ -2757,12 +2989,12 @@ sns_rc ak0991x_reconfig_hw(sns_sensor_instance *this, bool reset_device)
 
   if(reset_device)
   {
-    rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info);
+    rv = ak0991x_device_sw_reset(this, state->scp_service, &state->com_port_info, state->mag_info.vio);
     AK0991X_INST_PRINT(HIGH, this, "ak0991x_device_sw_reset.");
   }
   else
   {
-    ak0991x_enter_i3c_mode(this, &state->com_port_info, state->scp_service);
+    ak0991x_enter_i3c_mode(this, state->scp_service, &state->com_port_info, state->mag_info.vio);
   }
 
   if (state->mag_info.cur_cfg.odr != AK0991X_MAG_ODR_OFF)

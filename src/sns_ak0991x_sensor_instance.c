@@ -114,6 +114,12 @@ static void ak0991x_init_config_event(sns_sensor_instance *const this)
     cfg_ev->range[0] = AK09919_MIN_RANGE;
     cfg_ev->range[1] = AK09919_MAX_RANGE;
     break;
+  case AK09920:
+    cfg_ev->active_current = AK09920_HI_PWR;
+    cfg_ev->resolution = AK09920_RESOLUTION;
+    cfg_ev->range[0] = AK09920_MIN_RANGE;
+    cfg_ev->range[1] = AK09920_MAX_RANGE;
+    break;
   default:
     break;
   }
@@ -197,6 +203,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time = AK09911_TIME_FOR_MEASURE_US;
     break;
   case AK09912:
@@ -206,6 +213,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = 0;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time = AK09912_TIME_FOR_MEASURE_US;
     break;
   case AK09913:
@@ -215,6 +223,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time = AK09913_TIME_FOR_MEASURE_US;
     break;
   case AK09915C:
@@ -225,6 +234,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time =
       (state->mag_info.sdr == 1) ?
       AK09915_TIME_FOR_LOW_NOISE_MODE_MEASURE_US :
@@ -237,6 +247,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time = AK09916_TIME_FOR_MEASURE_US;
     break;
   case AK09916D:
@@ -246,6 +257,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time = AK09916_TIME_FOR_MEASURE_US;
     break;
   case AK09917:
@@ -255,6 +267,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time =
       (state->mag_info.sdr == 0) ?
       AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US :
@@ -268,6 +281,7 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = AK0991X_INT_OP_MODE_POLLING;
     state->mag_info.nsf = 0;
     state->mag_info.sdr = 0;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time = AK09918_TIME_FOR_MEASURE_US;
     break;
   case AK09919:
@@ -277,7 +291,18 @@ sns_rc ak0991x_inst_init(sns_sensor_instance *const this,
     state->mag_info.int_mode = sensor_state->int_mode;
     state->mag_info.nsf = sensor_state->nsf;
     state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.vio = 0;
     state->mag_info.meas_time = AK09919_TIME_FOR_MEASURE_US;
+    break;
+  case AK09920:
+    state->mag_info.resolution = AK09920_RESOLUTION;
+    state->mag_info.use_fifo = sensor_state->use_fifo;
+    state->mag_info.max_fifo_size = AK09920_FIFO_SIZE;
+    state->mag_info.int_mode = sensor_state->int_mode;
+    state->mag_info.nsf = sensor_state->nsf;
+    state->mag_info.sdr = sensor_state->sdr;
+    state->mag_info.vio = sensor_state->vio;
+    state->mag_info.meas_time = AK09920_TIME_FOR_MEASURE_US;
     break;
   default:
     return SNS_RC_FAILED;
@@ -484,7 +509,7 @@ sns_rc ak0991x_inst_deinit(sns_sensor_instance *const this)
   if(NULL != state->com_port_info.port_handle)
   {
      ak0991x_update_bus_power(state, true);
-     if(SNS_RC_SUCCESS == ak0991x_enter_i3c_mode(this, &state->com_port_info, state->scp_service))
+     if(SNS_RC_SUCCESS == ak0991x_enter_i3c_mode(this, state->scp_service, &state->com_port_info, state->mag_info.vio))
      {
         ak0991x_reconfig_hw(this, false);
      }
@@ -531,6 +556,7 @@ static uint16_t ak0991x_calc_fifo_wmk(
       case AK09915D:
       case AK09917:
       case AK09919:
+      case AK09920:
         if( desired_report_rate != 0.0f )
         {
           desired_wmk = (uint16_t) (mag_chosen_sample_rate + 0.01f * desired_report_rate) / desired_report_rate;

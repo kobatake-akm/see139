@@ -22,6 +22,7 @@
  *
  * when         version    who              what
  * --------     --------   ----------       ---------------------------------
+ * 11/02/22     026243     AKM              Add AK09920 support
  * 09/02/22     026242     AKM              Applied changes to device_mode
  * 08/22/22     026241     AKM              Merged and finished SEEVT / CTS qualcomm release patch(V026239). Remove unneeded line breaks, correct copywrite. cal_id = 0 -> cal_id __attribute__((unused)) = 0. Removed sns_rc rc.
  * 07/25/22     026240     AKM              Merged qualcomm release patch(V026239)in AKM v026240
@@ -390,8 +391,8 @@
  *
  **/
 
-// major:02 minor:62 revision:42
+// major:02 minor:62 revision:43
 #define AK0991X_DRV_VER_MAJOR    2
 #define AK0991X_DRV_VER_MINOR    62
-#define AK0991X_DRV_VER_REV      42
+#define AK0991X_DRV_VER_REV      43
 #define AK0991X_DRIVER_VERSION ( (AK0991X_DRV_VER_MAJOR<<16) | (AK0991X_DRV_VER_MINOR<<8) | AK0991X_DRV_VER_REV )

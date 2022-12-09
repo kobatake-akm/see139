@@ -75,6 +75,10 @@ float ak09919_odr_table[] =
 {AK0991X_ODR_5, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
 static char *ak09919_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
 
+float ak09920_odr_table[] =
+{AK0991X_ODR_5, AK0991X_ODR_10, AK0991X_ODR_20, AK0991X_ODR_50, AK0991X_ODR_100};
+static char *ak09920_ope_mode_table[] = {AK0991X_LOW_POWER, AK0991X_LOW_NOISE};
+
 typedef struct ak0991x_dev_info
 {
   float      *odr;
@@ -206,6 +210,18 @@ const struct ak0991x_dev_info ak0991x_dev_info_array[] = {
     .ranges               = {AK09919_MIN_RANGE, AK09919_MAX_RANGE},
     .operating_modes      = ak09919_ope_mode_table,
     .operating_modes_num  = ARR_SIZE(ak09919_ope_mode_table),
+    .supports_dri         = true,/* IBI is a kind of DRI function. See sns_std_sensor.proto */
+    .supports_sync_stream = false,
+  },
+  [AK09920] = {
+    .odr                  = ak09920_odr_table,
+    .resolutions          = AK09920_RESOLUTION,
+    .max_fifo_depth       = AK09920_FIFO_SIZE,
+    .active_current       = AK09920_HI_PWR,
+    .sleep_current        = AK09920_LO_PWR,
+    .ranges               = {AK09920_MIN_RANGE, AK09920_MAX_RANGE},
+    .operating_modes      = ak09920_ope_mode_table,
+    .operating_modes_num  = ARR_SIZE(ak09920_ope_mode_table),
     .supports_dri         = true,/* IBI is a kind of DRI function. See sns_std_sensor.proto */
     .supports_sync_stream = false,
   },
@@ -747,6 +763,12 @@ static bool ak0991x_registry_parse_phy_sensor_cfg(sns_registry_data_item *reg_it
     {
       cfg->sdr = reg_item->sint;
     }
+    else if(0 == strncmp((char*)item_name->buf,
+                         "vio",
+                         item_name->buf_len))
+    {
+      cfg->vio = reg_item->sint;
+    }
   }
   else
   {
@@ -894,6 +916,8 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
           state->nsf = state->registry_reg_cfg.nsf;
           state->sdr = state->registry_reg_cfg.sdr;
           AK0991X_PRINT(LOW, this, "nsf:%d ,sdr:%d", state->nsf, state->sdr);
+          state->vio = state->registry_reg_cfg.vio;
+          AK0991X_PRINT(LOW, this, "vio:%d", state->vio);
         }
       }
       else if (pf_config)
@@ -970,7 +994,12 @@ static void ak0991x_sensor_process_registry_event(sns_sensor *const this,
                       state->registry_pf_cfg.vdd_rail,
                       sizeof(state->rail_config.rails[1].name));
 
+          /**--------------------- Read WIA with I2C --------------------------*/
+          //AK0991X_PRINT(LOW, this, "Read WIA with I2C in ak0991x_sensor_process_registry_event");
+          //rc = ak0991x_get_who_am_i_forcei2c(this);
+          
           /**---------------------Register Com Ports --------------------------*/
+          AK0991X_PRINT(LOW, this, "register_com_port in ak0991x_sensor_process_registry_event");
           rc = ak0991x_register_com_port(this);
 
           /**---------------------Register Power Rails --------------------------*/
@@ -1139,6 +1168,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   state->use_fifo = false;
   state->nsf = 0;
   state->sdr = 0;
+  state->vio = 0;
 
   state->com_port_info.com_config.bus_instance = I2C_BUS_INSTANCE;
 #ifdef AK0991X_ENABLE_I3C_SUPPORT
@@ -1191,6 +1221,7 @@ sns_rc ak0991x_set_default_registry_cfg(sns_sensor *const this)
   }
 
   /**---------------------Register Com Ports --------------------------*/
+  AK0991X_PRINT(LOW, this, "register_com_port in ak0991x_set_default_registry_cfg");
   rv = ak0991x_register_com_port(this);
 
   /**---------------------Register Power Rails --------------------------*/
@@ -1370,6 +1401,11 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
      value_len = ARR_SIZE(ak09919_odr_table);
      odr_table = ak09919_odr_table;
    }
+   else if(state->device_select == AK09920)
+   {
+     value_len = ARR_SIZE(ak09920_odr_table);
+     odr_table = ak09920_odr_table;
+   }
    else // Other parts use same ODR as ak09911
    {
      value_len = ARR_SIZE(ak09911_odr_table);
@@ -1401,7 +1437,7 @@ static void ak0991x_publish_hw_attributes(sns_sensor *const this,
        values, ARR_SIZE(values), false);
  }
  {
-   // AK09915/AK09917/AK09919 has 2 modes, so the size of values[] are 2.
+   // AK09915/AK09917/AK09919/AK09920 has 2 modes, so the size of values[] are 2.
    sns_std_attr_value_data values[] = {SNS_ATTR, SNS_ATTR};
    int array_size = ak0991x_dev_info_array[device_select].operating_modes_num;
    AK0991X_PRINT(MED, this, "size of operating_modes array:%d", array_size);
@@ -1564,10 +1600,12 @@ static void ak0991x_set_self_test_inst_config(sns_sensor *this,
 static sns_rc ak0991x_discover_hw(sns_sensor *const this)
 {
   ak0991x_state *state = (ak0991x_state *)this->state->state;
-  uint8_t buffer[AK0991X_NUM_READ_DEV_ID];
+  uint8_t buffer[6];
+  //uint32_t xfer_bytes = 0;
   sns_rc rv = SNS_RC_SUCCESS;
-
-  rv = ak0991x_enter_i3c_mode(NULL, &state->com_port_info, state->scp_service);
+  
+  /**-------------------Set I3C------------------------*/
+  rv = ak0991x_enter_i3c_mode(NULL, state->scp_service, &state->com_port_info, state->vio);
   if (rv == SNS_RC_SUCCESS)
   {
     AK0991X_PRINT(LOW, this, "I3C mode enabled");
@@ -1579,7 +1617,8 @@ static sns_rc ak0991x_discover_hw(sns_sensor *const this)
 
   /**-------------------Read and Confirm WHO-AM-I------------------------*/
   rv = ak0991x_get_who_am_i(state->scp_service,
-                            state->com_port_info.port_handle, &buffer[0]);
+                            state->com_port_info.port_handle,
+                            &buffer[0]);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -1629,6 +1668,9 @@ static sns_rc ak0991x_discover_hw(sns_sensor *const this)
       case AK09919_WHOAMI_DEV_ID:
         state->device_select = AK09919;
         break;
+      case AK09920_WHOAMI_DEV_ID:
+        state->device_select = AK09920;
+        break;
       default:
         SNS_PRINTF(ERROR, this, "Wrong dev ID %02x %02x %02x %02x",
                    buffer[0], buffer[1], buffer[2], buffer[3]);
@@ -1643,21 +1685,97 @@ static sns_rc ak0991x_discover_hw(sns_sensor *const this)
       rv = SNS_RC_INVALID_STATE;
     }
   }
+
+  // // Debug GETPID
+  // if (rv == SNS_RC_SUCCESS)
+  // {
+  //   sns_memset(buffer, 0, sizeof(buffer));
+  //   rv = ak0991x_debug_i3c_GETPID(NULL,
+  //                                 &state->com_port_info,
+  //                                 state->scp_service,
+  //                                 buffer,
+  //                                 5,
+  //                                 &xfer_bytes);
+  //   if (rv == SNS_RC_SUCCESS)
+  //   {
+  //     if(xfer_bytes == 5)
+  //     {
+  //       AK0991X_PRINT(LOW, this, "debug_i3c_GETPID force succeeded, xfer_bytes=%d, GETPID=0x%02x%02x%02x%02x%02x",
+  //                     xfer_bytes, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
+  //     }
+  //     else
+  //     {
+  //       AK0991X_PRINT(LOW, this, "debug_i3c_GETPID succeeded, xfer_bytes=%d, GETPID=0x%02x%02x%02x%02x%02x%02x",
+  //                     xfer_bytes, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
+  //     }
+  //   }
+  //   else
+  //   {
+  //     SNS_PRINTF(ERROR, this, "debug_i3c_GETPID failed, xfer_bytes=%d", xfer_bytes);
+  //     if(xfer_bytes == 5)
+  //     {
+  //       SNS_PRINTF(ERROR, this, "wrong GETPID=0x%02x%02x%02x%02x%02x",
+  //                  buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
+  //     }
+  //   }
+  // }
+
+  // // Debug GETMRL
+  // if (rv == SNS_RC_SUCCESS)
+  // {
+  //   sns_memset(buffer, 0, sizeof(buffer));
+  //   // AK09920
+  //   if(state->who_am_i == 3912)
+  //   {
+  //     rv = ak0991x_debug_i3c_GETMRL(NULL,
+  //                                   &state->com_port_info,
+  //                                   state->scp_service,
+  //                                   buffer,
+  //                                   2,
+  //                                   &xfer_bytes);
+  //   }
+  //   else
+  //   {
+  //     rv = ak0991x_debug_i3c_GETMRL(NULL,
+  //                                   &state->com_port_info,
+  //                                   state->scp_service,
+  //                                   buffer,
+  //                                   2,
+  //                                   &xfer_bytes);
+  //   }
+
+  //   if (rv == SNS_RC_SUCCESS)
+  //   {
+  //     AK0991X_PRINT(LOW, this, "debug_i3c_GETMRL succeeded, xfer_bytes=%d, max read length:0x%02x%02x",
+  //                   xfer_bytes, buffer[0], buffer[1]);
+  //   }
+  //   else
+  //   {
+  //     SNS_PRINTF(ERROR, this, "debug_i3c_GETMRL failed, xfer_bytes=%d", xfer_bytes);
+  //     if(xfer_bytes == 2)
+  //     {
+  //       SNS_PRINTF(ERROR, this, "wrong GETMRL=0x%02x%02x", buffer[0], buffer[1]);
+  //     }
+  //   }
+  // }
+
+  /**-------------------Set sensitivity adjustment data------------------------*/
   if (rv == SNS_RC_SUCCESS)
   {
-    // Set sensitivity adjustment data
     rv = ak0991x_set_sstvt_adj(
                                state->scp_service,
                                state->com_port_info.port_handle,
                                state->device_select,
                                &state->sstvt_adj[0]);
   }
+
+  /**-------------------Reset Sensor------------------------*/
   if (rv == SNS_RC_SUCCESS)
   {
-    // Reset Sensor
     rv = ak0991x_device_sw_reset(NULL,
                                  state->scp_service,
-                                 &state->com_port_info);
+                                 &state->com_port_info,
+                                 state->vio);
   }
 
   if (rv == SNS_RC_SUCCESS)
@@ -1739,7 +1857,7 @@ static sns_rc ak0991x_process_timer_events(sns_sensor *const this)
 
             state->power_rail_pend_state = AK0991X_POWER_RAIL_PENDING_NONE;
 
-            ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
+            ak0991x_enter_i3c_mode(instance, state->scp_service, &state->com_port_info, state->vio);
 
             if (NULL != instance)
             {
@@ -1923,7 +2041,7 @@ sns_sensor_instance *ak0991x_set_client_request(sns_sensor *const this,
         // rail is already ON
         AK0991X_PRINT(MED, this, "rail is already ON");
         ak0991x_cancel_power_rail_timer(this);
-        ak0991x_enter_i3c_mode(NULL, &state->com_port_info, state->scp_service);
+        ak0991x_enter_i3c_mode(NULL, state->scp_service,  &state->com_port_info, state->vio);
       }
       AK0991X_PRINT(HIGH, this, "Creating instance");
 
@@ -2282,7 +2400,7 @@ sns_rc ak0991x_mag_match_odr(float desired_sample_rate,
     *chosen_reg_value = AK0991X_MAG_ODR1;
   }
   else if ((desired_sample_rate <= AK0991X_ODR_5) &&
-		       (device_select == AK09919))
+           ((device_select == AK09919) || (device_select == AK09920)))
   {
 	  *chosen_sample_rate = AK0991X_ODR_5;
 	  *chosen_reg_value = AK0991X_MAG_ODR5;

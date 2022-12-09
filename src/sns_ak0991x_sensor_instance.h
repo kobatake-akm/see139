@@ -78,6 +78,7 @@ typedef enum
   AK09917,
   AK09918,
   AK09919,
+  AK09920,
   SUPPORTED_DEVICES
 } akm_device_type;
 
@@ -177,6 +178,7 @@ typedef struct ak0991x_mag_info
   bool           use_sync_stream;
   uint8_t        nsf;  // In case of AK09919, use as ITS bit
   uint8_t        sdr;
+  uint8_t        vio;
   uint8_t        max_odr;
   sns_sensor_uid suid;
 

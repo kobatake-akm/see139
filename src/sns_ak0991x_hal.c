@@ -130,7 +130,8 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   // Reset device
   rv = ak0991x_device_sw_reset(this,
                                state->scp_service,
-                               &state->com_port_info);
+                               &state->com_port_info,
+                               state->mag_info.vio);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -231,7 +232,8 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   // Reset device
   rv = ak0991x_device_sw_reset(this,
                                state->scp_service,
-                               &state->com_port_info);
+                               &state->com_port_info,
+                               state->mag_info.vio);
 
   if (rv != SNS_RC_SUCCESS)
   {
@@ -294,7 +296,16 @@ sns_rc ak0991x_hw_self_test(sns_sensor_instance *const this,
   ak0991x_get_adjusted_mag_data(this, &buffer[1], &data[0]);
 
   // check read value
-  if (state->mag_info.device_select == AK09919)
+  if (state->mag_info.device_select == AK09920)
+  {
+    AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09920, TLIMIT_HI_SLF_RVHX_AK09920,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHY, data[1], TLIMIT_LO_SLF_RVHY_AK09920, TLIMIT_HI_SLF_RVHY_AK09920,
+            err);
+    AKM_FST(TLIMIT_NO_SLF_RVHZ, data[2], TLIMIT_LO_SLF_RVHZ_AK09920, TLIMIT_HI_SLF_RVHZ_AK09920,
+            err);
+  }
+  else if (state->mag_info.device_select == AK09919)
   {
     AKM_FST(TLIMIT_NO_SLF_RVHX, data[0], TLIMIT_LO_SLF_RVHX_AK09919, TLIMIT_HI_SLF_RVHX_AK09919,
             err);
@@ -387,8 +398,8 @@ TEST_SEQUENCE_FAILED:
     // Reset device
     ak0991x_device_sw_reset(this,
                             state->scp_service,
-                            &state->com_port_info);
-
+                            &state->com_port_info,
+                            state->mag_info.vio);
     return SNS_RC_FAILED;
   }
 }
@@ -442,7 +453,7 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
       uint8_t buffer[AK0991X_NUM_READ_DEV_ID] = {0};
       bool who_am_i_success = false;
 
-      ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
+      ak0991x_enter_i3c_mode(instance, state->scp_service, &state->com_port_info, state->mag_info.vio);
 
       rv = ak0991x_update_bus_power(state, true);
       if (rv == SNS_RC_SUCCESS)
@@ -476,7 +487,7 @@ void ak0991x_run_self_test(sns_sensor_instance *instance)
       bool hw_success = false;
       uint32_t err;
 
-      ak0991x_enter_i3c_mode(instance, &state->com_port_info, state->scp_service);
+      ak0991x_enter_i3c_mode(instance, state->scp_service, &state->com_port_info, state->mag_info.vio);
 
       AK0991X_INST_PRINT(LOW, instance, "hw self-test start!");
       rv = ak0991x_hw_self_test(instance, &err);

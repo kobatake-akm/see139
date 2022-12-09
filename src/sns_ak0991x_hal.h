@@ -34,6 +34,7 @@
  * AK09917D data sheet version preliminary_E-00-Q
  * AK09918  data sheet version 016014242_E_00
  * AK09919  data sheet version 200300034-E-00
+ * AK09920  data sheet version preliminary-E-00
  */
 
 // Enable for test code
@@ -87,6 +88,7 @@
 #define AK09917_WHOAMI_DEV_ID                       (0xD)  /** Who Am I device ID */
 #define AK09918_WHOAMI_DEV_ID                       (0xC)  /** Who Am I device ID */
 #define AK09919_WHOAMI_DEV_ID                       (0xE)  /** Who Am I device ID */
+#define AK09920_WHOAMI_DEV_ID                       (0xF)  /** Who Am I device ID */
 
 /** DEVICE SUB ID to distinguish AK09915C and AK09915D */
 #define AK09915_SUB_ID_IDX                          0x3 /** RSV2 (03h) */
@@ -121,6 +123,7 @@
 #define AK09917_FIFO_SIZE                           25  //to prevent DOR (HW FIFO buffer size = 32)
 #define AK09918_FIFO_SIZE                           1
 #define AK09919_FIFO_SIZE                           12  //to prevent DOR (HW FIFO buffer size = 16)
+#define AK09920_FIFO_SIZE                           12  //to prevent DOR (HW FIFO buffer size = 16)
 #define AK0991X_MAX_FIFO_SIZE                       AK09915_FIFO_SIZE * \
                                                       AK0991X_NUM_DATA_HXL_TO_ST2
 #define AK0991X_MAX_PHYSICAL_FIFO_SIZE              32 // Physical mag senosr allows maximum upto 32 samples
@@ -154,6 +157,7 @@
 #define AK09917_TIME_FOR_LOW_NOISE_MODE_MEASURE_US  7200 //us (TYP)
 #define AK09918_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 #define AK09919_TIME_FOR_MEASURE_US                 7200 //us (TYP)
+#define AK09920_TIME_FOR_MEASURE_US                 7200 //us (TYP)
 
 /** s4s configuration */
 #define AK0991X_S4S_INTERVAL_MS                     1000 //ms
@@ -197,6 +201,16 @@
 #define TLIMIT_LO_SLF_ST2                           0
 #define TLIMIT_HI_SLF_ST2                           0
 #define TLIMIT_ST2_MASK                             (0x08)
+
+/*******************************
+* AK09920 dependent value
+*/
+#define TLIMIT_LO_SLF_RVHX_AK09920                  -200  // TBD
+#define TLIMIT_HI_SLF_RVHX_AK09920                  200   // TBD
+#define TLIMIT_LO_SLF_RVHY_AK09920                  -200  // TBD
+#define TLIMIT_HI_SLF_RVHY_AK09920                  200   // TBD
+#define TLIMIT_LO_SLF_RVHZ_AK09920                  -1000 // TBD
+#define TLIMIT_HI_SLF_RVHZ_AK09920                  -150  // TBD
 
 /*******************************
 * AK09919 dependent value
@@ -343,17 +357,32 @@ sns_rc ak0991x_com_write_wrapper(sns_sensor_instance *const this,
  * This function will do nothing for non-I3C bus types.
  *
  * @param[i] instance      Pointer to instance. May be NULL if called from sensor.
- * @param[i] com_port      pointer to com port structure
  * @param[i] scp_service   synch COM port service
+ * @param[i] com_port      pointer to com port structure
+ * @param[i] vio           value of VIO[1:0]
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure, or bus type is not I3C
  * SNS_RC_SUCCESS
  */
 sns_rc ak0991x_enter_i3c_mode(sns_sensor_instance *const instance,
+                              sns_sync_com_port_service * scp_service,
                               ak0991x_com_port_info *com_port,
-                              sns_sync_com_port_service * scp_service);
+                              uint8_t vio);
 
+sns_rc ak0991x_debug_i3c_GETMRL(sns_sensor_instance *const instance,
+                              ak0991x_com_port_info *com_port,
+                              sns_sync_com_port_service * scp_service,
+                              uint8_t *buffer,
+                              uint32_t bytes,
+                              uint32_t *xfer_bytes);
+
+sns_rc ak0991x_debug_i3c_GETPID(sns_sensor_instance *const instance,
+                              ak0991x_com_port_info *com_port,
+                              sns_sync_com_port_service * scp_service,
+                              uint8_t *buffer,
+                              uint32_t bytes,
+                              uint32_t *xfer_bytes);
 /**
  * Resets curr odr.
  *
@@ -370,6 +399,7 @@ void ak0991x_reset_averaged_interval(sns_sensor_instance *const this);
  *
  * @param[i] scp_service   synch COM port service
  * @param[i] com_port      sensor/instance com port info
+ * @param[i] vio           value of VIO[1:0]
  *
  * @return sns_rc
  * SNS_RC_FAILED - COM port failure
@@ -377,7 +407,25 @@ void ak0991x_reset_averaged_interval(sns_sensor_instance *const this);
  */
 sns_rc ak0991x_device_sw_reset(sns_sensor_instance *const this,
                                sns_sync_com_port_service * scp_service,
-                               ak0991x_com_port_info *com_port);
+                               ak0991x_com_port_info *com_port,
+                               uint8_t vio);
+
+/**
+ * Set VIO[1:0] of CNTL3 register.
+ * This function is used in ak0991x drivers flow only.
+ *
+ * @param[i] scp_service   synch COM port service
+ * @param[i] com_port      sensor/instance com port info
+ * @param[i] vio           value of VIO[1:0]
+ *
+ * @return sns_rc
+ * SNS_RC_FAILED - COM port failure
+ * SNS_RC_SUCCESS
+ */
+sns_rc ak0991x_device_set_vio(sns_sensor_instance *const this,
+                               sns_sync_com_port_service * scp_service,
+                               ak0991x_com_port_info *com_port,
+                               uint8_t vio);
 
 /**
  * Resets mag parameters.
