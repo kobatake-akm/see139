@@ -847,7 +847,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
   sns_sync_com_port_handle *port_handle = state->com_port_info.port_handle;
   uint32_t xfer_bytes;
   uint8_t  buffer[3] = {0};
-  uint8_t  buffer_cntl3[3] = {0};
+  //uint8_t  buffer_cntl3[3] = {0};
   ak0991x_mag_odr desired_odr = state->mag_info.cur_cfg.odr;
   sns_rc ret;
 
@@ -940,7 +940,10 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     buffer[1] = 0x0
       | (uint8_t)desired_odr; // MODE[4:0] bits
   }
-
+  AK0991X_INST_PRINT(LOW, this, "--------debug print start-------");
+  AK0991X_INST_PRINT(LOW, this, "force_off=%d",force_off);
+  AK0991X_INST_PRINT(LOW, this, "device_select=%d",device_select);
+  AK0991X_INST_PRINT(LOW, this, "------- debug print end---------");
   // Force 100Hz DRI measurement starts to get the clock error.
   if(!force_off)
   {
@@ -976,7 +979,8 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
 
   if(device_select == AK09920)
   {
-    ret = ak0991x_com_read_wrapper(scp_service,
+    AK0991X_INST_PRINT(LOW, this, "--------CNTL3 read-------");
+    /*ret = ak0991x_com_read_wrapper(scp_service,
                                    port_handle,
                                    AKM_AK0991X_REG_CNTL1,
                                    buffer_cntl3,
@@ -989,7 +993,7 @@ sns_rc ak0991x_set_mag_config(sns_sensor_instance *const this,
     else
     {
       AK0991X_INST_PRINT(LOW, this, "AK09920 read CNTL3 error.");
-    }
+    }*/
 
     if(state->mag_info.vio == 1 || state->mag_info.vio == 2)
     {
